@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:fx="http://ns.adobe.com/mxml/2009" applicationComplete="init()"
+				xmlns:mx="library://ns.adobe.com/flex/mx" layout="horizontal">
+	<fx:Declarations>
+		<!-- Placer ici les éléments non visuels (services et objets de valeur, par exemple). -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			private var _unicastings:Vector.<Unicasting> = new Vector.<Unicasting>();
+
+			private var _clients:Number;
+			private var _url:String;
+			
+			private var _connected:uint = 0;
+			private var _waiting:uint = 0;
+			private var _playing:uint = 0;
+			private var _rejecting:uint = 0;
+			
+			private function init():void {
+				if(ExternalInterface.available)
+					ExternalInterface.addCallback("close",close);
+				
+				_clients = Number(loaderInfo.parameters["clients"]);
+				_url = loaderInfo.parameters["url"] as String;
+				if(!_url)
+					_url = "rtmfp://localhost/test";
+				if(!_clients)
+					_clients=50;
+				lblClients.text = _clients.toString();
+				_unicastings.push(new Unicasting(this,_url));
+			}
+			
+			public function close():void {
+				for each(var unicasting:Unicasting in _unicastings)
+					unicasting.close();
+			}
+			
+			public function onChange(oldState:uint,newState:uint):void {
+				switch(oldState) {
+					case Unicasting.STATE_CONNECTED:
+						lblConnected.text = (--_connected).toString();
+						break;
+					case Unicasting.STATE_WAITING:
+						lblWaiting.text = (--_waiting).toString();
+						break;
+					case Unicasting.STATE_PLAYING:
+						lblPlaying.text = (--_playing).toString();
+						break;
+				}
+				switch(newState) {
+					case Unicasting.STATE_CONNECTED:
+						if(--_clients>0)
+							_unicastings.push(new Unicasting(this,_url));
+						lblConnected.text = (++_connected).toString();
+						break;
+					case Unicasting.STATE_WAITING:
+						lblWaiting.text = (++_waiting).toString();
+						break;
+					case Unicasting.STATE_PLAYING:
+						lblPlaying.text = (++_playing).toString();
+						break;
+					case Unicasting.STATE_REJECTED:
+						if(--_clients>0)
+							_unicastings.push(new Unicasting(this,_url));
+						lblRejected.text = (++_rejecting).toString();
+						break;
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:VBox>
+		<mx:Label text="Clients:" width="100%" textAlign="right" />
+		<mx:Label text="Clients connected:" width="100%" textAlign="right" />
+		<mx:Label text="Clients waiting:" width="100%" textAlign="right" />
+		<mx:Label text="Clients playing:" width="100%" textAlign="right" />
+		<mx:Label text="Clients rejected:" width="100%" textAlign="right" />
+	</mx:VBox>
+	<mx:VBox>
+		<mx:Label id="lblClients" text="0" />
+		<mx:Label id="lblConnected" text="0" />
+		<mx:Label id="lblWaiting" text="0" />
+		<mx:Label id="lblPlaying" text="0" />
+		<mx:Label id="lblRejected" text="0" />
+	</mx:VBox>
+</mx:Application>

@@ -1,0 +1,134 @@
+/*
+This file is a part of MonaSolutions Copyright 2017
+mathieu.poux[a]gmail.com
+jammetthomas[a]gmail.com
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License received along this program for more
+details (or else see http://www.gnu.org/licenses/).
+
+*/
+
+#pragma once
+
+#include "Mona/Mona.h"
+#include "Mona/BinaryReader.h"
+#include "Mona/BinaryWriter.h"
+#include "Mona/ThreadPool.h"
+#include "Mona/Socket.h"
+#include "Mona/AMF.h"
+#include <openssl/evp.h>
+
+namespace Mona {
+
+struct RTMFPWriter;
+struct RTMFPSender;
+struct RTMFP : virtual Static {
+
+	enum Location {
+		LOCATION_UNSPECIFIED = 0,
+		LOCATION_LOCAL = 1,
+		LOCATION_PUBLIC = 2,
+		LOCATION_REDIRECTION = 3
+	};
+
+	enum { TIMESTAMP_SCALE = 4 };
+	enum { SENDABLE_MAX = 6 };
+
+	enum {
+		SIZE_HEADER = 11,
+		SIZE_PACKET = 1192,
+		SIZE_COOKIE = 0x40
+	};
+
+	enum {
+		MESSAGE_OPTIONS			= 0x80,
+		MESSAGE_WITH_BEFOREPART = 0x20,
+		MESSAGE_WITH_AFTERPART  = 0x10,
+		MESSAGE_RELIABLE		= 0x04, // not a RTMFP spec., just for a RTMFPPacket need
+		MESSAGE_ABANDON			= 0x02,
+		MESSAGE_END				= 0x01
+	};
+
+
+	struct Engine : virtual Object {
+		Engine(const UInt8* key) { memcpy(_key, key, KEY_SIZE); EVP_CIPHER_CTX_init(&_context); }
+		virtual ~Engine() { EVP_CIPHER_CTX_cleanup(&_context); }
+
+		bool			decode(Exception& ex, Buffer& buffer, const SocketAddress& address);
+		shared<Buffer>&	encode(shared<Buffer>& pBuffer, UInt32 farId, const SocketAddress& address);
+
+		static bool				Decode(Exception& ex, Buffer& buffer, const SocketAddress& address) { return Default().decode(ex, buffer, address); }
+		static shared<Buffer>&	Encode(shared<Buffer>& pBuffer, UInt32 farId, const SocketAddress& address) { return Default().encode(pBuffer, farId, address); }
+
+	private:
+		static Engine& Default() { thread_local Engine Engine(BIN "Adobe Systems 02"); return Engine; }
+
+		enum { KEY_SIZE = 0x10 };
+		UInt8							_key[KEY_SIZE];
+		EVP_CIPHER_CTX					_context;
+	};
+
+	struct Handshake : Packet, virtual Object {
+		Handshake(UInt8 attempts, const Packet& packet, const SocketAddress& address) : address(address), attempts(attempts), request(std::move(packet)) {}
+		const UInt8	        attempts;
+		const SocketAddress address;
+		const Packet		request;
+	};
+	struct Message : virtual Object, Packet {
+		Message(UInt64 flowId, UInt32 lost, const Packet& packet) : lost(lost), flowId(flowId), Packet(std::move(packet)) {}
+		const UInt64 flowId;
+		const UInt32 lost;
+	};
+	struct Flush : virtual Object {
+		Flush(Int32 echoTime, bool keepalive, bool died, std::map<UInt64, Packet>& acks) :
+			echoTime(echoTime), acks(std::move(acks)), keepalive(keepalive), died(died) {}
+		const Int32						echoTime; // if died, echoTime takes error
+		const bool						keepalive;
+		const bool						died;
+		const std::map<UInt64, Packet>	acks; // ack + fails
+	};
+
+	struct Session : virtual Object {
+		typedef Event<void(SocketAddress&)>		ON(Address);
+		typedef Event<void(RTMFP::Message&)>	ON(Message);
+		typedef Event<void(RTMFP::Flush&)>		ON(Flush);
+
+		Session(UInt32 id, UInt32 farId, const Packet& farPubKey, const UInt8* encryptKey) : id(id), farId(farId), farPubKey(std::move(farPubKey)), pEncoder(new Engine(encryptKey)) {}
+		const UInt32			id;
+		const UInt32			farId;
+		const shared<Engine>	pEncoder;
+		Packet					farPubKey;
+	};
+
+
+	struct Output : virtual Object {
+		virtual UInt64					newWriter(RTMFPWriter* pWriter) = 0;
+		virtual UInt64					resetWriter(UInt64 id) = 0;
+
+		virtual UInt32					rto() const = 0;
+		virtual void					send(shared<RTMFPSender>& pSender, UInt64 stageAck) = 0;
+	};
+
+	static bool					Send(Socket& socket, const Packet& packet, const SocketAddress& address);
+	static Buffer&				InitBuffer(shared<Buffer>& pBuffer, UInt8 marker = 0x4a);
+	static Buffer&				InitBuffer(shared<Buffer>& pBuffer, Mona::Time& expTime, UInt8 marker = 0x4a);
+	static BinaryWriter&		WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location=LOCATION_UNSPECIFIED);
+	static void					ComputeAsymetricKeys(Binary& secret, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey);
+
+	static UInt32				ReadID(Buffer& buffer);
+
+	static UInt16				TimeNow() { return Time(Mona::Time::Now()); }
+	static UInt16				Time(Int64 time) { return (time / RTMFP::TIMESTAMP_SCALE)&0xFFFF; }
+	static Int64				Time(UInt16 time) { return Mona::Time::Now()-(time*RTMFP::TIMESTAMP_SCALE); }
+
+};
+
+}  // namespace Mona

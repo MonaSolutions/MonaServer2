@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "#define MONA_VERSION $(git rev-list HEAD --count)" > "Version.h"

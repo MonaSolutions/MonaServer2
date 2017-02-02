@@ -1,0 +1,23 @@
+﻿RTMFP=>
+- Multihreadé RTMFPFlow
+- Writer => Congestion + Net::Stats + _ouput.killing()?
+- Ban + Auth dans RTMFPDecoder, comment faire?
+- Ping, remove time parameter in system?
+- killing() dans RTMFPSession?
+- Raccourcir RTMFPDecoder en déplaçant vers RTMFPHandshake
+- Address change!?
+- check ping!
+RTMFP BUG=>
+- Recording, looks not started on keyframe (RTMP is smooth, not RTMFP)
+- Metadata, strange metadata displaid with FMLE and RTMFP subscriber
+
+
+
+- WebSocket => @join, return log truc ips + @relay, send messages to every members?
+- HTTP with mime=application/sdp + upgrade=WebRTC => WebRTC(sdp)!!!!!
+- WebSocket-SIP => https://tools.ietf.org/html/rfc7118 - https://en.wikipedia.org/wiki/JsSIP - http://www.jssip.net/
+- https://webrtc.github.io/samples/src/content/peerconnection/munge-sdp/
+
+C:\Program Files\VideoLAN\VLC>vlc -vvv C:\Users\mathieu\Documents\Marc\SintelJS.ts --sout "#udp{dst=127.0.0.1:1234}"
+
+

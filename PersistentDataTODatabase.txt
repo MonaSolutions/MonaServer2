@@ -1,0 +1,22 @@
+Transformer PersistentData en Database =>
+Les opération de lecture bloquante sont extremement rapide,
+l'idée est donc de garder une représentation objet=>diskfiles MAIS =>
+1 - Sur chargement de la base, ouvrir tous les fichiers existants (créer leur handle) en mode séquentiel,
+    les objets pointent maintenant vers le handle près à être lu
+2 - Sur lecture d'un objet, faire un Readfile(Handle) bloquant et reset sur la position 0
+3 - Sur écriture d'un objet:
+	a - créer un shared_ptr<Buffer> et le mémoriser dans l objet pour retourner ça plutot que la lecture du fichier
+	b - passer le shared_ptr<Buffer> au travers d'un Packet à la nouvelle classe Database, qui elle va ouvrir le fichier
+	    et écrire le fichier en mode non bloquant
+	c - aussi tôt que le shared_ptr<Buffer> is unique, décharger la donnée et lire plutot le fichier comme au début
+4 - Sur écriture d'un objet redondant, créer un simbolink lien plutot qu'un vrai fichier, et lire avec le même Handle que l'original (mode bloquant)
+
+
+Utiliser un CACHE!
+Un fichier par entrée!
+Format du fichier:
+name = md5(content)
+attribut1[\n]
+[size=7BitEncoded32]content
+attribut2[\n]
+[size=7BitEncoded32]content

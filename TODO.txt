@@ -1,0 +1,66 @@
+Big Merge=>
+- SCRIPT_CALLBACK => SCRIPT_CALLBACK_TRY quand exception (faire lde tour des SCRIPT_ERROR)
+- Eliminer LUA::Set et créer LUA::IndexConst et LUA::Index
+- Faire le tour des 2 dernieres années (depuis novembre 2015) des corrections sur MonaServer
+
+- RelayServer => onHandshake => SocketProxy?
+- Tester 64bits compilation + clang
+
+
+
+- remplacer les "format" par des concaténations
+- vérifier peer.serverAddress assignation partout!
+- créer une compilation 64bits
+- Vérifier les arguments
+- Vérifier services web
+- Vérifier que la surcharge std::exception::what par Exception fonctionne! (faire le tour de tous les try catch)
+- corriger le systeme de LOG avec le nouveau code de formattage
+- tester HelpFormatter
+- enlever ApplicationKiller?
+- tester vitesse logs
+- checks waitForTerminationRequest linux et windows!
+- checks thread name durant une session de debug
+- verifier que le détecteur de fuite mémoire marche tjs
+- mettre une extension aux logs (0.log)
+- pour les "error LUA", mettre le path depuis "www" et pas le fullpath!
+- Rendre thread-safe mes nouvelles classes sockets
+- Réécrire l'API de la classe LOGS avec le travail de Thomas
+- Faire en sorte que le comportement par defaut de logs soit un printf et pas un throw (remonté le systeme de MonaServer)
+- Options, case sensitive??
+- Update everywhere with Fix and ObjectFix
+- void AMFReader::readTime(Time& time) -> Time& AMFReader::readTime(Time& time) ??
+- Essayer d'encapsuler les MACRO lua quand possibles (Thomas avait raison!)
+- supprimer tous les inline!
+- Gérer l'exposant dans ToNumber
+- Controler les "isBanned" depuis les scripts lua!
+- faire le tour des insert pour essayer de les remplacer par des emplace
+- Replacer les NULL et EMPTY (option) element par notre systeme
+- Ecrire la macro ASSERT_FATAL et remplacer les derniers throw
+- Obtenir le nom des threads dans le debugguer de windows
+- Paralléliser les logs? (pour diminuer l'occupation du thread principale, du coup avec un threadpools dans Application, et le partager avec Mona::Server
+- FileSystem::UnpackPath & FileSystem::PackPath, vérifier leurs utilité!!
+- Vérifier les parametres de build des projets, et pourquoi mon projet console2 m averti pour les sprintf => _sprintf et pas Mona!
+- onServerConnection doit être disponible que sur la root application, et sur "error" doit rejeter la connection serveur
+startt
+shared_ptr faire le tour pour vérifier les const!
+DataWriter::writeString
+DataReader::readString
+- Elminer tous les constructeurs de délégation
+- Protéger les accès âralleles aux variables d'instances de Logs
+- Check que un LUa object publication create with cumulus::publish closes on nil assignation
+
+- Implements Proactor sockets models for windows, and use "splice" for linux socket
+
+- Check Date auto parsing, pour quelque chose comme "toto"
+- Replace String::Split to use forEach version more faster 
+- Fix Windows service!
+- Faire le tour des set pour remplacer par des unordered_set quand entier 
+
+Buffer -> vérifier tous les resize, pour voir si ça dépasse la limite possible du systeme
+File -> prend un path en parametre, et peut faire un read  + write asynchrone ou synchrone
+
+corriger logs pour afficher erreur sur WebSocket pb ou http pb
+HTTPSender avec deux buffer => headers + content
+Content-Length rajouté à la fin du header lors de l'envoie + pareil pour les cookies
+shared_ptr<Peer> (Peer remplissage) dans HTTPPacket?
+- new HTTP header CONNECTION: LongPolling pour indiquer que c'est une requête longpolling, et du coup utiliser le _timeout=7 QUAND _pRequest (is longPolling) existe pour envoyer un keepalive packet
