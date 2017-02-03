@@ -22,18 +22,13 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Version.h"
 #include <iostream>
 
-#define VERSION_MAJOR 1
-
 using namespace Mona;
 using namespace std;
 
-class TestApp : public Application  {
-public:
+struct TestApp : Application  {
 	TestApp() : _loop(1) {}
 private:
-	const char* defineVersion() {
-		return STRINGIZE(MONA_VERSION);
-	}
+	const char* defineVersion() { return STRINGIZE(MONA_VERSION); }
 
 	void defineOptions(Exception& ex, Options& options) {
 		

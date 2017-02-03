@@ -1,11 +1,16 @@
 #include "Mona/Server.h"
 #include "Mona/ServerApplication.h"
 #include "Mona/MonaTiny.h"
+#include "Version.h"
+
+#define VERSION		"1." STRINGIZE(MONA_VERSION)
 
 using namespace std;
 using namespace Mona;
 
 struct ServerApp : ServerApplication  {
+
+	const char* defineVersion() { return VERSION; }
 
 ///// MAIN
 	int main(TerminateSignal& terminateSignal) {

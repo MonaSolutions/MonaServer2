@@ -20,19 +20,16 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/ServerApplication.h"
 #include "Version.h"
 
-#define VERSION_MAJOR		"1.1"
-#define VERSION_MINOR		MONA_VERSION-367
+#define VERSION		"2." STRINGIZE(MONA_VERSION)
 
 using namespace std;
 using namespace Mona;
 
 
-class ServerMona : public ServerApplication  {
+struct ServerMona : ServerApplication  {
 private:
 
-	const char* defineVersion() {
-		return String::Assign(_version, VERSION_MAJOR".", VERSION_MINOR).c_str();
-	}
+	const char* defineVersion() { return VERSION; }
 
 	void defineOptions(Exception& ex, Options& options) {
 		options.acceptUnknownOption = true;
@@ -51,8 +48,6 @@ private:
 		}
 		return Application::EXIT_OK;
 	}
-
-	std::string _version;
 };
 
 int main(int argc, const char* argv[]) {
