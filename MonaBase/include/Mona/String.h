@@ -62,7 +62,7 @@ struct String : std::string {
 
 
 	template<typename KeyType>
-	struct IComparator { bool operator()(const typename KeyType& a, const typename KeyType& b) const { return String::ICompare(a, b)<0; } };
+	struct IComparator { bool operator()(const KeyType& a, const KeyType& b) const { return String::ICompare(a, b)<0; } };
 	template<typename KeyType, typename ValueType>
 	struct Map : std::map<KeyType, ValueType, IComparator<KeyType>> {
 		using std::map<KeyType, ValueType, IComparator<KeyType>>::map;

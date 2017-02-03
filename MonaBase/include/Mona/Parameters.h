@@ -31,7 +31,7 @@ struct Parameters : virtual Object {
 private:
 	struct ForEach {
 		ForEach() : _begin(Null().end()), _end(Null().end()) {}
-		ForEach(const_iterator& begin, const_iterator& end) : _begin(begin), _end(end) {}
+		ForEach(const_iterator begin, const_iterator end) : _begin(begin), _end(end) {}
 		const_iterator		begin() const { return _begin; }
 		const_iterator		end() const { return _end; }
 	private:
@@ -104,7 +104,7 @@ protected:
 private:
 	virtual const char* onParamUnfound(const std::string& key) const { return NULL; }
 
-	Parameters(nullptr_t) : _pMap(new String::Map<std::string, std::string>()) {} // Null()
+	Parameters(std::nullptr_t) : _pMap(new String::Map<std::string, std::string>()) {} // Null()
 
 	const char* getParameter(const std::string& key) const;
 
@@ -112,7 +112,7 @@ private:
 	const std::string& setParameter(const std::string& key, Args&& ...args) {
 		if (!_pMap)
 			_pMap.reset(new String::Map<std::string, std::string>());
-		auto& it = _pMap->emplace(key, std::string());
+		auto it = _pMap->emplace(key, std::string());
 		if (!it.second) // already exists
 			_bytes -= it.first->second.size();
 		_bytes += it.first->second.assign(std::forward<Args>(args)...).size();
