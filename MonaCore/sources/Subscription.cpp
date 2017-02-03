@@ -186,8 +186,11 @@ void Subscription::seek(UInt32 time) {
 }
 
 void Subscription::writeProperties(const Media::Properties& properties) {
-	if (!_streaming)
+	if (!_streaming) {
 		beginMedia();
+		if (pPublication == &properties)
+			return; // already done in beginMedia!
+	}
 	if (_ejected)
 		return;
 	INFO("Properties sent to one ",name()," subscription")
@@ -204,7 +207,6 @@ void Subscription::writeProperties(UInt16 track, DataReader& reader) {
 	writer.endObject();
 	writeProperties(*this);
 }
-
 
 void Subscription::writeData(UInt16 track, Media::Data::Type type, const Packet& packet) {
 	if (!_streaming)

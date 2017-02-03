@@ -52,7 +52,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSessio
 				peer.properties() = move(request);
 
 				// Create parameters for onConnection or a GET onRead/onWrite/onInvocation
-				QueryReader parameters(peer.query);
+				QueryReader parameters(peer.query.data(), peer.query.size());
 
 				Exception ex;
 
