@@ -269,7 +269,9 @@ struct Media : virtual Static {
 	/*!
 	Complete media target, has begin/end and Properties */
 	struct Target : virtual Object {
-		virtual const Congestion&	congestion() const = 0;
+		/*!
+		If Target is sending queueable (bufferize), returns queueing size to allow to detect congestion */
+		virtual UInt64 queueing() const { return 0; }
 
 		virtual bool beginMedia(const std::string& name, const Parameters& parameters);
 		virtual bool writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
@@ -281,7 +283,7 @@ struct Media : virtual Static {
 		Overload just if target bufferizes data before to send it*/
 		virtual void flush() {}
 
-		static Target& Null();
+		static Target& Null() { static Target Null; return Null; }
 	};
 
 	/*!

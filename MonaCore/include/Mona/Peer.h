@@ -22,6 +22,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/ICE.h"
 #include "Mona/ServerAPI.h"
 #include "Mona/Group.h"
+#include "Mona/Congestion.h"
 
 
 namespace Mona {
@@ -55,8 +56,6 @@ struct Peer : Client, virtual Object {
 	Time						pingTime;
 	UInt32						rto() const { return _rto; }
 
-	const Congestion&			congestion() const { return _pNetStats ? _pNetStats->congestion() : Congestion::Null(); }
-
 	Time						recvTime() const { return _pNetStats ? _pNetStats->recvTime() : 0; }
 	UInt64						recvByteRate() const { return _pNetStats ? _pNetStats->recvByteRate() : 0; }
 	double						recvLostRate() const { return _pNetStats ? _pNetStats->recvLostRate() : 0; }
@@ -64,6 +63,9 @@ struct Peer : Client, virtual Object {
 	Time						sendTime() const { return _pNetStats ? _pNetStats->sendTime() : 0; }
 	UInt64						sendByteRate() const { return _pNetStats ? _pNetStats->sendByteRate() : 0; }
 	double						sendLostRate() const { return _pNetStats ? _pNetStats->sendLostRate() : 0; }
+
+	bool						congested(UInt32 duration = Net::RTO_INIT) { return  _pNetStats ? _congestion(_pNetStats->queueing(), duration) : false;  }
+	UInt64						queueing() const { return _pNetStats ? _pNetStats->queueing() : 0; }
 
 	
 	ICE&	ice(const Peer& peer);
@@ -102,6 +104,7 @@ private:
 	Parameters						_properties;
 
 	Net::Stats*						_pNetStats;
+	Congestion						_congestion;
 	Writer*							_pWriter;
 
 	UInt16							_ping;

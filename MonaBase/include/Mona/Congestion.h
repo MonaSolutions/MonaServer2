@@ -17,30 +17,21 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/ByteRate.h"
+#include "Mona/Time.h"
+#include "Mona/Net.h"
 
 namespace Mona {
 
 /*!
 Tool to compute queue congestion */
-struct Congestion : public virtual Object {
-	
-	Congestion() : _congested(0) {}
+struct Congestion {
+	Congestion() : _lastQueueing(0), _congested(0) {}
 
-	operator UInt32() const;
-
-	Congestion& operator+=(UInt32 bytes) { _queueRate += bytes; return *this; }
-	Congestion& operator++() { ++_queueRate; return *this; }
-
-	Congestion& operator-=(UInt32 bytes) { _dequeRate += bytes; return *this; }
-	Congestion& operator--() { ++_dequeRate; return *this; }
-
-	static const Congestion& Null() { static Congestion Congestion;  return Congestion; }
-
+	// Wait RTO time by default (3 sec) => sounds right with socket and file
+	bool operator()(UInt64 queueing, UInt32 duration = Net::RTO_INIT);
 private:
-	ByteRate					_queueRate;
-	ByteRate					_dequeRate;
-	mutable std::atomic<UInt64>	_congested;
+	UInt64	_lastQueueing;
+	Time	_congested;
 };
 
 } // namespace Mona

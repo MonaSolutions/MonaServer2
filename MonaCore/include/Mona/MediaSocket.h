@@ -116,7 +116,7 @@ struct MediaSocket : virtual Static {
 		const SocketAddress		address;
 		IOSocket&				io;
 		const Path				path;
-		const Congestion&		congestion() const { return _pSocket ? _pSocket->congestion() : Congestion::Null(); }
+		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
 		const shared<Socket>&	socket();
 		Socket*					operator->() { return socket().get(); }
 

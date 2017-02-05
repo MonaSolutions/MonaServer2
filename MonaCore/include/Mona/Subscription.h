@@ -21,6 +21,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/Media.h"
 #include "Mona/Logs.h"
+#include "Mona/Congestion.h"
 
 namespace Mona {
 
@@ -85,7 +86,7 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	void writeData(UInt16 track, Media::Data::Type type, const Packet& packet);
 	void reportLost(Media::Type type, UInt32 lost);
 	void reportLost(Media::Type type, UInt16 track, UInt32 lost);
-	void flush() { if(!_ejected) target.flush(); }
+	void flush();
 	void reset() { endMedia(); }
 
 	void writeProperties(const Media::Properties& properties);
@@ -98,6 +99,7 @@ private:
 	For Subscription usage as Source! */
 	void writeProperties(UInt16 track, DataReader& reader);
 
+	bool congested();
 
 	template<typename TagType>
 	TagType& fixTag(bool isConfig, const TagType& tagIn, TagType& tagOut) {
@@ -136,6 +138,9 @@ private:
 	bool					_timeoutOnEnd;
 	Time					_idleSince;
 	bool					_streaming;
+
+	UInt8					_congested;
+	Congestion				_congestion;
 
 	UInt32					_timeout; // for congestion and publication without data
 	mutable EJECTED			_ejected;

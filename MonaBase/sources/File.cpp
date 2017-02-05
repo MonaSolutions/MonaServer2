@@ -26,7 +26,7 @@ using namespace std;
 
 namespace Mona {
 
-File::File(const Path& path, Mode mode) : _path(path), mode(mode), _decodingTrack(0), _pDevice(NULL), _flushing(false), _loading(0), _loadingTrack(0), _handle(-1) {
+File::File(const Path& path, Mode mode) : _path(path), mode(mode), _decodingTrack(0), _pDevice(NULL), _queueing(0), _loading(0), _loadingTrack(0), _handle(-1) {
 }
 
 File::~File() {
@@ -38,6 +38,12 @@ File::~File() {
 #else
 	close(_handle);
 #endif
+}
+
+UInt64 File::queueing() const {
+	UInt64 queueing(_queueing);
+	// superior to buffer 0xFFFF to limit onFlush usage!
+	return queueing > 0xFFFF ? queueing - 0xFFFF : 0;
 }
 
 bool File::load(Exception& ex) {

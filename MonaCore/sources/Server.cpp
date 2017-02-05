@@ -33,7 +33,7 @@ Server::Server(UInt16 cores) : Thread("Server"), _threadPool(cores*2), ServerAPI
 	DEBUG("Socket sending buffer size of ", Net::GetSendBufferSize(), " bytes");
 	DEBUG(threadPool.threads(), " threads in server threadPool");
 }
-
+ 
 Server::~Server() {
 	stop();
 }

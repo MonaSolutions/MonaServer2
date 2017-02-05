@@ -206,14 +206,6 @@ bool HTTPSession::manage() {
 		closeSusbcription();
 	}
 
-	// HTTPSession can't flush all its response, it sends a response by request
-	// So check writer queueing to avoid a memory exceed (if response frequency > request frequency)
-	if(timeout() && _writer.queueing() && _writer.queueing().isElapsed(timeout())) {
-		INFO(name(), " queueing timeout");
-		kill(ERROR_IDLE);
-		return false;
-	}
-
 	return true;
 }
 

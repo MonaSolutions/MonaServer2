@@ -28,12 +28,10 @@ namespace Mona {
 Writer& Writer::Null() {
 	static struct WriterNull : Writer, virtual Object {
 		WriterNull() { flushable = false; _closed = true; }
-		const Congestion& congestion() const { return Congestion::Null(); }
+		UInt64 queueing() const { return 0; }
 	} Null;
 	return Null;
 }
-
-Writer::Writer() : isMain(false), reliable(true), _closed(false), flushable(true) {}
 
 Writer::~Writer() {
 	// Close is usefull since script wrapper object, to signal C++ obj deletion!!

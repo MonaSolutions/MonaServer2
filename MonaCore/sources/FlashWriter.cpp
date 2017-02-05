@@ -55,7 +55,7 @@ void FlashWriter::closing(Int32 error, const char* reason) {
 			break;
 		default: { // User code
 			string description;
-			writeAMFError("NetConnection.Connect.Failed", reason ? reason : String::Assign(description, "User error ", error));
+			writeAMFError("NetConnection.Connect.Failed", reason ? reason : String::Assign(description, "Error ", error));
 		}
 	}
 }

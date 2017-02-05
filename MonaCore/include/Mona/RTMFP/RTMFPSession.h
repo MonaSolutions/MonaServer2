@@ -27,7 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct RTMFProtocol;
-struct RTMFPSession : RTMFP::Output, Session, private Net::Stats, virtual Object {
+struct RTMFPSession : RTMFP::Output, Session, Net::Stats, virtual Object {
 	RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer);
 
 	shared<RTMFPSender::Session> pSenderSession;
@@ -35,6 +35,15 @@ struct RTMFPSession : RTMFP::Output, Session, private Net::Stats, virtual Object
 	RTMFP::Session::OnAddress	onAddress;
 	RTMFP::Session::OnMessage	onMessage;
 	RTMFP::Session::OnFlush		onFlush;
+
+	// Implementation of Net::Stats
+	Time				recvTime() const { return _recvTime; }
+	UInt64				recvByteRate() const { return _recvByteRate; }
+	double				recvLostRate() const { return _recvLostRate; }
+	Time				sendTime() const { return pSenderSession->sendTime.load(); }
+	UInt64				sendByteRate() const { return pSenderSession->sendByteRate; }
+	double				sendLostRate() const { return pSenderSession->sendLostRate; }
+	UInt64				queueing() const;
 
 	void				kill(Int32 error = 0, const char* reason = NULL);
 
@@ -56,22 +65,11 @@ private:
 
 	// void				writeP2PHandshake(const std::string& tag, const SocketAddress& address, RTMFP::AddressType type);
 
-	// Implementation of Net::Stats
-	Time				recvTime() const { return _recvTime; }
-	UInt64				recvByteRate() const { return _recvByteRate; }
-	double				recvLostRate() const { return _recvLostRate; }
-	Time				sendTime() const { return pSenderSession->sendTime.load(); }
-	UInt64				sendByteRate() const { return pSenderSession->sendByteRate; }
-	double				sendLostRate() const { return pSenderSession->sendLostRate; }
-	const Congestion&	congestion() const { return _pCongestion ? *_pCongestion : Congestion::Null(); }
-
 	// Implementation of RTMFPOutput
 	UInt64				newWriter(RTMFPWriter* pWriter);
 	UInt64				resetWriter(UInt64 id);
 	UInt32				rto() const { return peer.rto(); }
-	void				send(shared<RTMFPSender>& pSender, UInt64 stageAck) { pSender->stageAck = stageAck; send(pSender); }
-
-	void				send(shared<RTMFPSender>& pSender);
+	void				send(const shared<RTMFPSender>& pSender);
 
 	UInt8									_killing;
 	UInt8									_timesKeepalive;
@@ -86,7 +84,6 @@ private:
 	Time									_recvTime;
 	ByteRate								_recvByteRate;
 	LostRate								_recvLostRate;
-	const Congestion*						_pCongestion;
 };
 
 

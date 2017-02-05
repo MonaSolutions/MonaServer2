@@ -29,7 +29,7 @@ namespace Mona {
 struct WSWriter : Writer, virtual Object {
 	WSWriter(TCPSession& session) : _session(session) {}
 	
-	const Congestion& congestion() const { return _session.socket()->congestion(); }
+	UInt64			queueing() const { return _session.socket()->queueing(); }
 
 	void			clear() { _senders.clear(); }
 

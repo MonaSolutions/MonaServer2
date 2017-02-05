@@ -30,15 +30,13 @@ namespace Mona {
 
 struct HTTPWriter : Writer, virtual Object {
 	HTTPWriter(TCPSession& session);
-	
-	const Congestion&	congestion() const { return _session.socket()->congestion(); }
 
 	void			beginRequest(const shared<const HTTP::Header>& pRequest);
 	void			endRequest();
 
-	const Time&		queueing() const { return _queueing; }
+	UInt64			queueing() const { return _session.socket()->queueing(); }
 
-	void			clear() { _queueing = 0; _pResponse.reset(); _senders.clear();  }
+	void			clear() { _pResponse.reset(); _senders.clear();  }
 
 	DataWriter&		writeInvocation(const char* name) { DataWriter& writer(writeMessage()); writer.writeString(name,strlen(name)); return writer; }
 	DataWriter&		writeMessage() { return writeMessage(false); }
@@ -86,11 +84,8 @@ private:
 					flush(); // force flush!
 			}
 			_pResponse = pSender;
-		} else {
-			if(!_queueing)
-				_queueing.update();
+		} else
 			_senders.emplace_back(pSender);
-		}
 		return pSender;
 	}
 
@@ -107,9 +102,6 @@ private:
 	// Variables to clear on HTTPWriter::clear()
 	shared<HTTPSender>					_pResponse;
 	std::deque<shared<HTTPSender>>		_senders;
-	Time								_queueing;
-	
-	
 };
 
 

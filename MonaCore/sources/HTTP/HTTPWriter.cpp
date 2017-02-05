@@ -58,7 +58,7 @@ private:
 };
 
 
-HTTPWriter::HTTPWriter(TCPSession& session) : _queueing(0), _requestCount(0),_requesting(false),_session(session) {}
+HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0),_requesting(false),_session(session) {}
 
 void HTTPWriter::closing(Int32 error, const char* reason) {
 	// if normal close, or negative error (can't answer), or no before request (one request = one response) => no response
@@ -136,8 +136,6 @@ void HTTPWriter::flushing() {
 			flush(pSender);
 		}
 		_senders.pop_front();
-		if (_senders.empty())
-			_queueing = 0;
 	};
 }
 
@@ -161,8 +159,6 @@ void HTTPWriter::writeRaw(DataReader& reader) {
 			writer.clear();
 			ERROR("HTTP content required at less a HTTP header object");
 			_senders.pop_back();
-			if (_senders.empty())
-				_queueing = 0;
 		} else if (!writer.hasContentType()) {
 			Media::Data::Type type = Media::Data::ToType(reader);
 			if(type)
@@ -186,8 +182,6 @@ bool HTTPWriter::beginMedia(const string& name, const Parameters& parameters) {
 		return true;
 	// 415 Unsupported media type
 	_senders.pop_back();
-	if (_senders.empty())
-		_queueing = 0;
 	string error;
 	ERROR(String::Assign(error, "Can't play ", name,", HTTP streaming doesn't support ", _pRequest->subMime, " media"));
 	writeError(HTTP_CODE_415, error);

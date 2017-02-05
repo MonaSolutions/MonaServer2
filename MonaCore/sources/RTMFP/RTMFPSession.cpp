@@ -27,7 +27,7 @@ using namespace std;
 namespace Mona {
 
 RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer) : 
-		_recvLostRate(_recvByteRate), _pCongestion(NULL), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(0), _timesKeepalive(0) {
+		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(0), _timesKeepalive(0) {
 
 	_mainStream.onStart = [this](UInt16 id, FlashWriter& writer) {
 		// Stream Begin signal
@@ -179,8 +179,15 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 	};
 }
 
+UInt64 RTMFPSession::queueing() const {
+	UInt64 queueing(pSenderSession->queueing);
+	UInt32 bufferSize(pSenderSession->socket.sendBufferSize());
+	// superior to buffer 0xFFFF to limit onFlush usage!
+	return queueing > bufferSize ? queueing - bufferSize : 0;
+}
+
+
 void RTMFPSession::onParameters(const Parameters& parameters) {
-	_pCongestion = &peer.writer().congestion();
 	parameters.getNumber("keepalivePeer", _mainStream.keepalivePeer);
 	parameters.getNumber("keepaliveServer", _mainStream.keepaliveServer);
 }
@@ -230,7 +237,7 @@ bool RTMFPSession::keepalive() {
 		return false;
 	}
 	++_timesKeepalive;
-	send(make_shared<RTMFPSender>(0x01));
+	send(make_shared<RTMFPCmdSender>(0x01));
 	return true;
 }
 
@@ -242,7 +249,7 @@ bool RTMFPSession::manage() {
 	if (_killing) {
 		// killing signal!
 		// no other message, just fail message, so I erase all data in first
-		send(make_shared<RTMFPSender>(0x0C));
+		send(make_shared<RTMFPCmdSender>(0x0C));
 		if (--_killing)
 			return true;
 		kill();
@@ -293,7 +300,7 @@ void RTMFPSession::flush() {
 	}
 }
 
-void RTMFPSession::send(shared<RTMFPSender>& pSender) {
+void RTMFPSession::send(const shared<RTMFPSender>& pSender) {
 	// continue even on _killing to repeat writers messages to flush it (reliable)
 	pSender->address = peer.address;
 	pSender->pSession = pSenderSession;

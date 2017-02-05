@@ -59,8 +59,6 @@ struct Socket : virtual Object, Net::Stats {
 
 	virtual bool		isSecure() const { return false; }
 
-	const Congestion&	congestion() const { return _congestion; }
-	
 	Time				recvTime() const { return _recvTime.load(); }
 	UInt64				recvByteRate() const { return _recvByteRate; }
 	Time				sendTime() const { return _sendTime.load(); }
@@ -188,7 +186,6 @@ private:
 
 	mutable std::mutex			_mutexSending;
 	std::deque<Sending>			_sendings;
-	Congestion					_congestion;
 	std::atomic<UInt64>			_queueing;
 
 	SocketAddress				_peerAddress;

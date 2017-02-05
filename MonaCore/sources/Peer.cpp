@@ -150,7 +150,7 @@ Group& Peer::joinGroup(const UInt8* id,Writer* pWriter) {
 	do {
 		Client& client(*itClient->second);
 		if (client != this->id && client.writer()) {
-			if (client.congestion()) // congested?
+			if (client.congested()) // congested?
 				congestedClients.emplace_back(&client);
 			else if(exchangeMemberId(group,(Peer&)client,pWriter) && --count==0)
 				break;

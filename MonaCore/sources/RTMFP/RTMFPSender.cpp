@@ -24,114 +24,119 @@ using namespace std;
 
 namespace Mona {
 
-bool RTMFPSender::run(Exception&) {
-	if (!_pQueue) {
-		// COMMAND
-		shared<Buffer> pBuffer;
-		BinaryWriter(RTMFP::InitBuffer(pBuffer)).write24(_sendable << 16);
-		RTMFP::Send(pSession->socket(), Mona::Packet(pSession->encoder().encode(pBuffer, pSession->farId(), address)), address);
+bool RTMFPSender::run(Exception&) {	
+	run();
+	if (!pQueue)
 		return true;
-	}
-	if (stageAck > _pQueue->stage) {
-		ERROR("stageAck ", stageAck, " superior to stage ", _pQueue->stage, " on writer ", _pQueue->id);
-		stageAck = _pQueue->stage;
-	}
-	// ACK!
-	while (!_pQueue->empty() && stageAck > _pQueue->stageQueue) {
-		_pQueue->stageQueue += _pQueue->front().fragments;
-		_pQueue->pop_front();
-		_sendable = RTMFP::SENDABLE_MAX; // has progressed, can send max!
-	}
-
-	// Fill queue
-	run(*_pQueue);
 
 	// Flush Queue!
-	if (!_sendable)
-		return true;
+	while (pSession->sendable && !pQueue->empty()) {
+		TRACE("Stage ", pQueue->stageSending+1, " sent");
+		shared<Packet>& pPacket(pQueue->front());
+		if (!RTMFP::Send(pSession->socket, *pPacket, address)) {
+			pSession->sendable = 0;
+			break;
+		}
+		--pSession->sendable;
+		pSession->sendTime = Time::Now();
+		pSession->sendByteRate += pPacket->size();
+		pSession->queueing -= pPacket->size();
+		pPacket->setSent();
+		pQueue->stageSending += pPacket->fragments;
+		pQueue->sending.emplace_back(pPacket);
+		pQueue->pop_front();
+	}
+	return true;
+}
+
+void RTMFPCmdSender::run() {
+	// COMMAND
+	shared<Buffer> pBuffer;
+	BinaryWriter(RTMFP::InitBuffer(pBuffer)).write24(UInt32(_cmd << 16));
+	RTMFP::Send(pSession->socket, Mona::Packet(pSession->encoder.encode(pBuffer, pSession->farId, address)), address);
+}
+
+void RTMFPAcquiter::run() {
+	// ACK!
+	if (_stageAck > pQueue->stageSending) {
+		ERROR("stageAck ", _stageAck, " superior to sending stage ", pQueue->stageSending, " on writer ", pQueue->id);
+		_stageAck = pQueue->stageSending;
+	}
+	while (!pQueue->sending.empty() && _stageAck > pQueue->stageAck) {
+		pQueue->stageAck += pQueue->sending.front()->fragments;
+		pQueue->sending.pop_front();
+		pSession->sendable = RTMFP::SENDABLE_MAX; // has progressed, can send max!
+	}
+}
+
+void RTMFPRepeater::run() {
+	// REPEAT
 	bool oneReliable = false;
 	UInt64 abandonStage = 0;
-	UInt64 stage = _pQueue->stageQueue;
-	for (Packet& packet : *_pQueue) {
-		TRACE("Stage ", stage + 1);
-		stage += packet.fragments;
-		if (packet.reliable) {
+	UInt64 stage = pQueue->stageAck;
+	UInt8 sendable(RTMFP::SENDABLE_MAX);
+	for (shared<Packet>& pPacket : pQueue->sending) {
+		DEBUG("Stage ", stage + 1, " repeated");
+		stage += pPacket->fragments;
+		if (pPacket->reliable) {
 			oneReliable = true;
 			if (abandonStage) {
 				sendAbandon(abandonStage);
 				abandonStage = 0;
 			}
-			if (!send(packet))
+			if (!RTMFP::Send(pSession->socket, *pPacket, address)) {
+				pSession->sendable = 0; // pause sending!
 				break;
-		} else if (packet) {
-			// unreliable always not sent!
-			if (!send(packet))
+			}
+			if (!--sendable)
 				break;
 		} else if (!oneReliable) {
 			abandonStage = stage;
-			pSession->sendLostRate += packet.sizeSent();
+			pSession->sendLostRate += pPacket->sizeSent();
 		}
 		if (_fragments) {
-			if (packet.fragments >= _fragments)
+			if (pPacket->fragments >= _fragments)
 				break;
-			_fragments -= packet.fragments;
+			_fragments -= pPacket->fragments;
 		}
 	}
 	if (abandonStage)
 		sendAbandon(abandonStage);
-
-	return true;
 }
 
-void RTMFPSender::sendAbandon(UInt64 stage) {
+void RTMFPRepeater::sendAbandon(UInt64 stage) {
 	shared<Buffer> pBuffer;
 	BinaryWriter writer(RTMFP::InitBuffer(pBuffer));
-	writer.write8(0x10).write16(2 + Binary::Get7BitValueSize(_pQueue->id) + Binary::Get7BitValueSize(stage));
-	writer.write8(RTMFP::MESSAGE_ABANDON).write7BitLongValue(_pQueue->id).write7BitLongValue(stage).write8(0);
-	RTMFP::Send(pSession->socket(), Mona::Packet(pSession->encoder().encode(pBuffer, pSession->farId(), address)), address);
+	writer.write8(0x10).write16(2 + Binary::Get7BitValueSize(pQueue->id) + Binary::Get7BitValueSize(stage));
+	writer.write8(RTMFP::MESSAGE_ABANDON).write7BitLongValue(pQueue->id).write7BitLongValue(stage).write8(0);
+	RTMFP::Send(pSession->socket, Mona::Packet(pSession->encoder.encode(pBuffer, pSession->farId, address)), address);
 }
 
 
-bool RTMFPSender::send(Packet& packet) {
-	if (!_sendable)
-		return false;
-	if (!RTMFP::Send(pSession->socket(), packet, address)) {
-		_sendable = 0;
-		return false;
-	}
-	if (packet.setSent()) {
-		pSession->sendTime = Time::Now();
-		pSession->sendByteRate += packet.sizeSent();
-		_pQueue->congestion -= packet.size();
-	}
-	return --_sendable ? true : false;
-}
-
-
-UInt32 RTMFPMessenger::headerSize(Queue& queue) { // max size header = 50
-	UInt32 size = Binary::Get7BitValueSize(queue.id);
-	size += Binary::Get7BitValueSize(queue.stage);
-	size += Binary::Get7BitValueSize(queue.stage - stageAck);
-	size += stageAck ? 0 : (queue.signature.size() + (queue.flowId ? (4 + Binary::Get7BitValueSize(queue.flowId)) : 2));
+UInt32 RTMFPMessenger::headerSize() { // max size header = 50
+	UInt32 size = Binary::Get7BitValueSize(pQueue->id);
+	size += Binary::Get7BitValueSize(pQueue->stage);
+	size += Binary::Get7BitValueSize(pQueue->stage - pQueue->stageAck);
+	size += pQueue->stageAck ? 0 : (pQueue->signature.size() + (pQueue->flowId ? (4 + Binary::Get7BitValueSize(pQueue->flowId)) : 2));
 	return size;
 }
 
 
-void RTMFPMessenger::run(Queue& queue) {
+void RTMFPMessenger::run() {
 	for (Message& message : _messages)
-		write(queue, message);
-	flush(queue);
+		write(message);
+	flush();
 }
 
-void RTMFPMessenger::flush(Queue& queue) {
+void RTMFPMessenger::flush() {
 	if (!_pBuffer)
 		return;
-	// encode and add to _pQueue
-	queue.emplace_back(pSession->encoder().encode(_pBuffer, pSession->farId(), address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false);
-	queue.congestion += queue.back().size();
+	// encode and add to pQueue
+	pQueue->emplace_back(new Packet(pSession->encoder.encode(_pBuffer, pSession->farId, address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false));
+	pSession->queueing += pQueue->back()->size();
 }
 
-void RTMFPMessenger::write(Queue& queue, const Message& message) {
+void RTMFPMessenger::write(const Message& message) {
 
 	UInt32 size = message.packet.size();
 	UInt32 available = size;
@@ -145,23 +150,23 @@ void RTMFPMessenger::write(Queue& queue, const Message& message) {
 
 	bool header(!_pBuffer);
 	do {
-		++queue.stage;
+		++pQueue->stage;
 
 		UInt32 contentSize(size);
 
 		UInt32 headerSize(13); // 13 bytes = 6 bytes of low header + marker byte + time 2 bytes + type byte + size 2 bytes + flags byte
 		if (header)
-			headerSize += this->headerSize(queue);
+			headerSize += this->headerSize();
 
 		UInt32 availableToWrite(RTMFP::SIZE_PACKET);
 		if(_pBuffer)
 			availableToWrite -= _pBuffer->size();
 		// headerSize+16 to avoid a useless fragment (without payload data)
 		if (!_pBuffer || (headerSize + 16) > availableToWrite || message.reliable != (_flags&RTMFP::MESSAGE_RELIABLE ? true : false)) {
-			flush(queue);
+			flush();
 			// New packet
 			if (!header) {
-				headerSize += this->headerSize(queue);
+				headerSize += this->headerSize();
 				header = true;
 			}
 			RTMFP::InitBuffer(_pBuffer);
@@ -183,7 +188,7 @@ void RTMFPMessenger::write(Queue& queue, const Message& message) {
 			_flags = RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END; // MESSAGE_END is always with MESSAGE_ABANDON otherwise flash client can crash
 		else {
 			_flags = (_flags&RTMFP::MESSAGE_WITH_AFTERPART) ? RTMFP::MESSAGE_WITH_BEFOREPART : 0;
-			if (!stageAck && header)
+			if (!pQueue->stageAck && header)
 				_flags |= RTMFP::MESSAGE_OPTIONS;
 			if (size > 0)
 				_flags |= RTMFP::MESSAGE_WITH_AFTERPART;
@@ -197,18 +202,18 @@ void RTMFPMessenger::write(Queue& queue, const Message& message) {
 			_flags |= RTMFP::MESSAGE_RELIABLE;
 
 		if (header) {
-			writer.write7BitLongValue(queue.id);
-			writer.write7BitLongValue(queue.stage);
-			writer.write7BitLongValue(queue.stage - stageAck);
+			writer.write7BitLongValue(pQueue->id);
+			writer.write7BitLongValue(pQueue->stage);
+			writer.write7BitLongValue(pQueue->stage - pQueue->stageAck);
 			header = false;
 			// signature
-			if (!stageAck) {
-				writer.write8(UInt8(queue.signature.size())).write(queue.signature);
+			if (!pQueue->stageAck) {
+				writer.write8(UInt8(pQueue->signature.size())).write(pQueue->signature);
 				// No write this in the case where it's a new flow (create on server side)
-				if (queue.flowId) {
-					writer.write8(1 + Binary::Get7BitValueSize(queue.flowId)); // following size
+				if (pQueue->flowId) {
+					writer.write8(1 + Binary::Get7BitValueSize(pQueue->flowId)); // following size
 					writer.write8(0x0a); // Unknown!
-					writer.write7BitLongValue(queue.flowId);
+					writer.write7BitLongValue(pQueue->flowId);
 				}
 				writer.write8(0); // marker of end for this part
 			}

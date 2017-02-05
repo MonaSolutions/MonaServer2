@@ -210,9 +210,9 @@ private:
 	}
 
 	mutable const shared<const Binary>*	_ppBuffer;
-	mutable const UInt8*							_data;
-	mutable bool									_reference;
-	UInt32											_size;
+	mutable const UInt8*				_data;
+	mutable bool						_reference;
+	UInt32								_size;
 };
 
 

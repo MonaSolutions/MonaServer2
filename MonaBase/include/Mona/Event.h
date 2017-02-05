@@ -93,8 +93,6 @@ struct Event<Result(Args ...)> : virtual NullableObject {
 		return *this;
 	}
 
-	// static const Event& Null() { static const Event Event(nullptr); return Null; }
-
 private:
 	shared<std::function<Result(Args...)>>	_pFunction;
 };

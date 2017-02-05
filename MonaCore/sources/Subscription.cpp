@@ -27,7 +27,7 @@ using namespace std;
 
 namespace Mona {
 
-Subscription::Subscription(Media::Target& target, bool timeoutOnEnd) : pPublication(NULL), pNextPublication(NULL), target(target),
+Subscription::Subscription(Media::Target& target, bool timeoutOnEnd) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target),
 	audios(_audios), videos(_videos), datas(_datas), _streaming(false), _timeoutOnEnd(timeoutOnEnd),
 	_firstTime(true), _seekTime(0), _timeout(7000),_ejected(EJECTED_NONE),
 	_startTime(0),_lastTime(0) {
@@ -175,6 +175,7 @@ void Subscription::endMedia() {
 	_datas.clear();
 	_firstTime = true;
 	_startTime = 0;
+	_congested = 0;
 }
 
 void Subscription::seek(UInt32 time) {
@@ -220,19 +221,16 @@ void Subscription::writeData(UInt16 track, Media::Data::Type type, const Packet&
 	// Create track!
 	_datas[track];
 
-	UInt32 congested(target.congestion());
-	if (congested) {
-		if (_timeout && congested>_timeout) {
+	if (congested()) {
+		if (_datas.reliable || _congestion(target.queueing(), Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Data timeout, insufficient bandwidth to play ", name());
 			return;
 		}
-		if (!_datas.reliable) {
-			 // if data is unreliable, drop the packet
-			++_datas.dropped;
-			WARN("Data packet dropped, insufficient bandwidth to play ",  name());
-			return;
-		}
+		// if data is unreliable, drop the packet
+		++_datas.dropped;
+		WARN("Data packet dropped, insufficient bandwidth to play ", name());
+		return;
 	}
 
 	if(!target.writeData(track, type, packet, _datas.reliable))
@@ -251,15 +249,14 @@ void Subscription::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const 
 	// Create track!
 	_audios[track];
 
-	UInt32 congested(target.congestion());
-	if (congested) {
-		if (_timeout && congested>_timeout) {
+	if (congested()) {
+		if (_audios.reliable || _congestion(target.queueing(), Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Audio timeout, insufficient bandwidth to play ", name());
 			return;
 		}
-		if (!tag.isConfig && !_audios.reliable) {
-			 // if it's not config packet and audio is unreliable, drop the packet
+		if (!tag.isConfig) {
+			// if it's not config packet and audio is unreliable, drop the packet
 			++_audios.dropped;
 			WARN("Audio packet dropped, insufficient bandwidth to play ", name());
 			return;
@@ -302,14 +299,13 @@ void Subscription::writeVideo(UInt16 track, const Media::Video::Tag& tag, const 
 		videoTrack.waitKeyFrame = false;
 	}
 
-	UInt32 congested(target.congestion());
-	if (congested) {
-		if (_timeout && congested>_timeout) {
+	if (congested()) {
+		if (_videos.reliable || _congestion(target.queueing(), Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Video timeout, insufficient bandwidth to play ", name());
 			return;
 		}
-		if (!isConfig && !_videos.reliable) {
+		if(!isConfig) {
 			// if it's not config packet and video is unreliable, drop the packet
 			++_videos.dropped;
 			WARN("Video frame dropped, insufficient bandwidth to play ", name());
@@ -324,6 +320,19 @@ void Subscription::writeVideo(UInt16 track, const Media::Video::Tag& tag, const 
 	TRACE("Video time => ", video.time, "\t", Util::FormatHex(packet.data(), 5, string()));
 	if (!target.writeVideo(track, fixTag(isConfig, tag, video), packet, isConfig || _videos.reliable))
 		_ejected = EJECTED_ERROR;
+}
+
+bool Subscription::congested() {
+	if (!_congested)
+		_congested = 0xF0 | (_congestion(target.queueing()) ? 1 : 0);
+	return _congested & 1;
+}
+
+void Subscription::flush() {
+	if (_ejected)
+		return;
+	target.flush();
+	_congested = 0;
 }
 
 

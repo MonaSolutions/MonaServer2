@@ -15,23 +15,26 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Congestion.h"
-#include "Mona/Net.h"
+
+using namespace std;
 
 namespace Mona {
 
-Congestion::operator UInt32() const {
-	Int64 congested = _congested;
-	if (_queueRate > _dequeRate) {
+bool Congestion::operator()(UInt64 queueing, UInt32 duration) {
+	bool congested(queueing>_lastQueueing);
+	_lastQueueing = queueing;
+	if (congested) {
 		// congestion
-		if (congested) {
-			UInt32 elapsed = UInt32(Time::Now() - congested);
-			if(elapsed > Net::RTO_INIT)
-				return elapsed; // Wait RTO time (to expect response ping time)
+		if (_congested) {
+			UInt32 elapsed = UInt32(_congested.elapsed());
+			if (elapsed > duration)
+				return true;
 		} else
-			_congested = Time::Now();
-	} else if (congested)
+			_congested.update();
+	} else
 		_congested = 0;
-	return 0;
+	return false;
 }
+
 
 } // namespace Mona

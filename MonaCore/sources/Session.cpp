@@ -114,7 +114,7 @@ bool Session::manage() {
 	if (died)
 		return false;
 	// Congestion timeout to avoid to saturate a client saturating ressource
-	if (peer.congestion()>10000) { // 10 secondes (superior to 7 defaults second of subscription)
+	if (peer.congested(Net::RTO_MAX)) {
 		// Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
 		WARN(name(), " congested");
 		kill(ERROR_CONGESTED);

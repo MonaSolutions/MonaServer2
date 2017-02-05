@@ -30,74 +30,94 @@ namespace Mona {
 struct RTMFPSender : Runner, virtual Object {
 	struct Packet : Mona::Packet, virtual Object {
 		Packet(shared<Buffer>& pBuffer, UInt32 fragments, bool reliable) : fragments(fragments), Mona::Packet(pBuffer), reliable(reliable), _sizeSent(0) {}
-		bool setSent() {
+		void setSent() {
 			if (_sizeSent)
-				return false;
+				return;
 			_sizeSent = size();
 			if (!reliable)
 				Mona::Packet::reset(); // release immediatly an unreliable packet!
-			return true;
 		}
 		const bool   reliable;
 		const UInt32 fragments;
-		UInt32 sizeSent() const { return _sizeSent; }
+		UInt32		 sizeSent() const { return _sizeSent; }
 	private:
 		UInt32 _sizeSent;
 	};
 	struct Session : virtual Object {
-		Session(const shared<RTMFP::Session>& pSession, const shared<Socket>& pSocket) : _pSocket(pSocket), _pSession(pSession), sendLostRate(sendByteRate), sendTime(0) {}
-		UInt32			id() const { return _pSession->id; }
-		UInt32			farId() const { return _pSession->farId; }
-		RTMFP::Engine&	encoder() { return *_pSession->pEncoder; }
-		Socket&			socket() { return *_pSocket; }
-		std::atomic<Int64>			sendTime;
-		ByteRate					sendByteRate;
-		LostRate					sendLostRate;
+		Session(const shared<RTMFP::Session>& pSession, const shared<Socket>& pSocket) : sendable(RTMFP::SENDABLE_MAX), id(pSession->id), farId(pSession->farId), socket(*pSocket), encoder(*pSession->pEncoder), queueing(0), _pSocket(pSocket), _pSession(pSession), sendLostRate(sendByteRate), sendTime(0) {}
+		const UInt32			id;
+		const UInt32			farId;
+		RTMFP::Engine&			encoder;
+		Socket&					socket;
+		std::atomic<Int64>		sendTime;
+		ByteRate				sendByteRate;
+		LostRate				sendLostRate;
+		std::atomic<UInt64>		queueing;
+		UInt8					sendable;
 	private:
-		shared<RTMFP::Session>		_pSession;
-		shared<Socket>				_pSocket;
+		shared<RTMFP::Session>	_pSession;
+		shared<Socket>			_pSocket;
 	};
-	struct Queue : virtual Object, std::deque<Packet> {
+	struct Queue : virtual Object, std::deque<shared<Packet>> {
 		template<typename SignatureType>
-		Queue(UInt64 id, UInt64 flowId, const SignatureType& signature) : id(id), stage(0), stageQueue(0), signature(STR signature.data(), signature.size()), flowId(flowId) {}
-		const UInt64		id;
-		const UInt64		flowId;
-		const std::string	signature;
+		Queue(UInt64 id, UInt64 flowId, const SignatureType& signature) : id(id), stage(0), stageSending(0), stageAck(0), signature(STR signature.data(), signature.size()), flowId(flowId) {}
+
+		const UInt64				id;
+		const UInt64				flowId;
+		const std::string			signature;
 		// used by RTMFPSender
-		/// stageQueue <= stageAck <= stage
-		Congestion			congestion;
-		UInt64				stage;
-		UInt64				stageQueue;
+		/// stageAck <= stageSending <= stage
+		UInt64						stage;
+		UInt64						stageSending;
+		UInt64						stageAck;
+		std::deque<shared<Packet>>	sending;
 	};
 
-	// Repeat usage!
-	RTMFPSender(const shared<Queue>& pQueue, UInt8 fragments=0) : Runner("RTMFPSender"), _pQueue(pQueue), _fragments(fragments), _sendable(RTMFP::SENDABLE_MAX) {}
-	// Command usage!
-	RTMFPSender(UInt8 command = 0) : Runner("RTMFPCmdSender"), _sendable(command) {}
+	// Flush usage!
+	RTMFPSender(const shared<Queue>& pQueue) : Runner("RTMFPSender"), pQueue(pQueue) {}
 
 	SocketAddress	address; // can change!
 	shared<Session>	pSession;
-	UInt64			stageAck;
 
 protected:
-	// Messenger usage!
-	RTMFPSender(const char* name, const shared<Queue>& pQueue) : Runner(name), _fragments(0), _sendable(pQueue->empty() ? RTMFP::SENDABLE_MAX : 0), _pQueue(pQueue) {}
+	RTMFPSender(const char* name, const shared<Queue>& pQueue) : Runner(name), pQueue(pQueue) {}
+	RTMFPSender(const char* name) : Runner(name) {}
 
-	bool send(Packet& packet);
+	shared<Queue>	pQueue;
+
 private:
-	bool run(Exception& ex);
-	virtual void run(Queue& queue) {}
-	void sendAbandon(UInt64 stage);
+	bool		 run(Exception& ex);
+	virtual void run() {}
+};
 
-	shared<Queue>	_pQueue;
-	UInt8			_sendable;
-	UInt8			_fragments;
+struct RTMFPCmdSender : RTMFPSender, virtual Object {
+	RTMFPCmdSender(UInt8 cmd) : RTMFPSender("RTMFPCmdSender", pQueue), _cmd(cmd) {}
+private:
+	void	run();
+
+	UInt8	_cmd;
+};
+
+struct RTMFPAcquiter : RTMFPSender, virtual Object {
+	RTMFPAcquiter(const shared<RTMFPSender::Queue>& pQueue, UInt64 stageAck) : RTMFPSender("RTMFPAcquiter", pQueue), _stageAck(stageAck) {}
+private:
+	void	run();
+
+	UInt64	_stageAck;
+};
+
+struct RTMFPRepeater : RTMFPSender, virtual Object {
+	RTMFPRepeater(const shared<RTMFPSender::Queue>& pQueue, UInt8 fragments = 0) : RTMFPSender("RTMFPRepeater", pQueue), _fragments(fragments) {}
+private:
+	void	run();
+	void	sendAbandon(UInt64 stage);
+
+	UInt8	_fragments;
 };
 
 
 struct RTMFPMessenger : RTMFPSender, virtual Object {
-	RTMFPMessenger(const shared<RTMFPSender::Queue>& pQueue) :
-		RTMFPSender("RTMFPMessenger", pQueue) {}
+	RTMFPMessenger(const shared<RTMFPSender::Queue>& pQueue) : RTMFPSender("RTMFPMessenger", pQueue) {}
 
 	AMFWriter&	newMessage(bool reliable, const Mona::Packet& packet) { _messages.emplace_back(reliable, packet); return _messages.back().writer; }
 
@@ -109,10 +129,10 @@ private:
 		const Mona::Packet	packet; // footer
 		explicit operator bool() const { return packet || writer ? true : false; }
 	};
-	UInt32	headerSize(Queue& queue);
-	void	run(Queue& queue);
-	void	write(Queue& queue, const Message& message);
-	void	flush(Queue& queue);
+	UInt32	headerSize();
+	void	run();
+	void	write(const Message& message);
+	void	flush();
 
 	std::deque<Message>	_messages;
 

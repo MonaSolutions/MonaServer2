@@ -18,7 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Exceptions.h"
-#include "Mona/Congestion.h"
+#include "Mona/Time.h"
 #include <mutex>
 
 #if defined(_WIN32)
@@ -232,15 +232,17 @@ struct Net : virtual Object {
 	static const char* LastErrorMessage() { return ErrorToMessage(LastError()); }
 
 	struct Stats : virtual Object {
-		virtual Time				recvTime() const = 0;
-		virtual UInt64				recvByteRate() const = 0;
-		virtual double				recvLostRate() const { return 0; }
+		virtual Time	recvTime() const = 0;
+		virtual UInt64	recvByteRate() const = 0;
+		virtual double	recvLostRate() const { return 0; }
 		
-		virtual Time				sendTime() const = 0;
-		virtual UInt64				sendByteRate() const = 0;
-		virtual double				sendLostRate() const { return 0; }
-		virtual const Congestion&	congestion() const = 0;
+		virtual Time	sendTime() const = 0;
+		virtual UInt64	sendByteRate() const = 0;
+		virtual double	sendLostRate() const { return 0; }
+
+		virtual UInt64	queueing() const = 0;
 	};
+
 private:
 
 	Net();

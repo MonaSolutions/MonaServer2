@@ -30,8 +30,7 @@ struct FileWriter : virtual NullableObject {
 
 	IOFile&	io;
 
-	const Congestion& congestion() { return _pFile ? _pFile->congestion() : Congestion::Null(); }
-	bool			  queueing() const { return _pFile ? _pFile->queueing() : false; }
+	UInt64	queueing() const { return _pFile ? _pFile->queueing() : 0; }
 
 	File* operator->() const { return _pFile.get(); }
 	operator bool() const { return _pFile.operator bool(); }

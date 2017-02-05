@@ -105,9 +105,9 @@ struct MediaFile : virtual Static {
 		bool running() const { return _running; }
 		void stop();
 
-		IOFile&				io;
-		const Path			path;
-		const Congestion&	congestion() const { return _pFile ? _pFile->congestion() : Congestion::Null(); }
+		IOFile&		io;
+		const Path	path;
+		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 	
 		bool beginMedia(const std::string& name, const Parameters& parameters);
 		bool writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(track, tag, packet); }

@@ -20,7 +20,7 @@ using namespace std;
 
 namespace Mona {
 
-struct IODevice : virtual Object, ThreadQueue, Congestion { IODevice() : ThreadQueue("IODevice") {} };
+struct IODevice : virtual Object, ThreadQueue { IODevice() : ThreadQueue("IODevice") {} };
 static struct IODevices : virtual Object {
 	IODevice& operator[](UInt8 device) {
 		lock_guard<mutex> lock(_mutex);
@@ -42,8 +42,7 @@ struct IOFile::Action : Runner, virtual NullableObject {
 	bool loading;
 	shared<File> file() { return _weakFile.lock(); }
 	virtual operator bool() const { return false; }
-	virtual void setCongestion(Congestion& congestion) {}
-	
+
 	struct Handle : Runner, virtual Object {
 		Handle(const char* name, const weak<File>& weakFile) : Runner(name), _weakFile(weakFile) {}
 	private:
@@ -122,11 +121,8 @@ void IOFile::dispatch(File& file, const shared<Action>& pAction) {
 					}
 					pFile->_pDevice = pDevice = &_IODevices[pFile->device()];
 				}
-				if(*_pAction) {
-					_pAction->setCongestion(*pDevice);
-					if(!pDevice->queue(ex, _pAction))
-						_pAction->onError(ex);
-				}
+				if(*_pAction && !pDevice->queue(ex, _pAction))
+					_pAction->onError(ex);
 				--pFile->_loading;
 				return true;
 			}
@@ -137,11 +133,8 @@ void IOFile::dispatch(File& file, const shared<Action>& pAction) {
 		if (threadPool.queue(ex, make_shared<Dispatch>(pAction), file._loadingTrack))
 			return;
 		--file._loading;
-	} else {
-		pAction->setCongestion(*pDevice);
-		if (pDevice->queue(ex, pAction))
-			return;
-	}
+	} else if (pDevice->queue(ex, pAction))
+		return;
 	pAction->onError(ex);
 }
 
@@ -244,34 +237,27 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 
 void IOFile::write(const shared<File>& pFile, const Packet& packet) {
 	struct WriteFile : Action {
-		WriteFile(const Handler& handler, const shared<File>& pFile, const Packet& packet) : _pFile(pFile), _packet(move(packet)), Action("WriteFile", handler, pFile) {}
-		~WriteFile() { *_pCongestion -= _packet.size(); }
-		operator bool() const { return true; }
-		void setCongestion(Congestion& congestion) {
-			_pCongestion = &congestion;
-			if (congestion)
-				_pFile->_flushing = true;
-			congestion += _packet.size();
+		WriteFile(const Handler& handler, const shared<File>& pFile, const Packet& packet) : _pFile(pFile), _packet(move(packet)), Action("WriteFile", handler, pFile) {
+			_flushing = (pFile->_queueing += _packet.size())>0xFFFF;
 		}
+		operator bool() const { return true; }
 	private:
 		struct Handle : Action::Handle, virtual Object {
 			Handle(const char* name, const weak<File>& weakFile) : Action::Handle(name, weakFile) {}
 		private:
-			void handle(File& file) {
-				file._flushing = false;
-				file.onFlush();
-			}
+			void handle(File& file) { file.onFlush(); }
 		};
 		bool run(Exception& ex, const shared<File>& pFile) {
+			_flushing = _flushing && (pFile->_queueing -= _packet.size())<= 0xFFFF;
 			if (!pFile->write(ex, _packet.data(), _packet.size()))
 				return false;
-			if (pFile->_flushing)
+			if(_flushing)
 				handle<Handle>();
 			return true;
 		}
 		Packet		 _packet;
 		shared<File> _pFile; // maintain alive, Write operation must be reliable!
-		Congestion*	 _pCongestion;
+		bool		 _flushing;
 	};
 	if (packet) // useless if empty
 		dispatch(*pFile, make_shared<WriteFile>(handler, pFile, packet));

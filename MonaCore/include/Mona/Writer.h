@@ -52,14 +52,19 @@ struct Writer : Media::Target, virtual NullableObject {
 	virtual DataWriter&		writeResponse(UInt8 type) { return writeMessage(); }
 	virtual void			writeRaw(DataReader& reader) {}
 
+	/*!
+	Usefull to detect congestion, on TCP writer, it can redirect to socket.queueing() */
+	virtual UInt64			queueing() const = 0;
 	void					flush() { if (!_closed && flushable) flushing(); }
+
+	
 
 	operator bool() const { return !_closed; }
 
 	static Writer&			Null();
 
 protected:
-	Writer();
+	Writer() : isMain(false), reliable(true), _closed(false), flushable(true) {}
 
 private:
 	virtual void			flushing() {}

@@ -368,7 +368,6 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 	lock_guard<mutex> lock(_mutexSending);
 	if(!_sendings.empty()) {
 		_sendings.emplace_back(packet, address ? address : _peerAddress, flags);
-		_congestion += packet.size();
 		_queueing += packet.size();
 		return 0;
 	}
@@ -392,7 +391,6 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 		return packet.size();
 
 	_sendings.emplace_back(packet+sent, address ? address : _peerAddress, flags);
-	_congestion += _sendings.back().size();
 	_queueing += _sendings.back().size();
 	return sent;
 }
@@ -430,10 +428,8 @@ bool Socket::flush(Exception& ex) {
 		}
 		_sendings.pop_front();
 	}
-	if (written) {
-		_congestion -= written;
+	if (written)
 		_queueing -= written;
-	}
 	return true;
 }
 

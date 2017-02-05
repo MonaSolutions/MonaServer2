@@ -223,13 +223,6 @@ Media::Source& Media::Source::Null() {
 	return Null;
 }
 
-Media::Target& Media::Target::Null() {
-	static struct Null : Media::Target {
-		const Congestion&	congestion() const { return Congestion::Null(); }
-	} Null;
-	return Null;
-}
-
 bool Media::Target::beginMedia(const std::string& name, const Parameters& parameters) {
 	ERROR(typeof(*this), " doesn't support media streaming");
 	return false;

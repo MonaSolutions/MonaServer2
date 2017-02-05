@@ -24,17 +24,14 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
-class Timer : public virtual Object {
-public:
+struct Timer : virtual Object {
 	Timer() : _count(0) {}
 	~Timer();
 
 /*!
 	OnTimer is a function which returns the timeout in ms of next call, or 0 to stop the timer.
 	"count" parameter informs on the number of raised time */
-	class OnTimer : public std::function<UInt32(UInt32 count)>, public virtual Object {
-		friend class Timer;
-	public:
+	struct OnTimer : std::function<UInt32(UInt32 count)>, virtual Object {
 		OnTimer() : _nextRaising(0), count(0) {}
 		// explicit to forbid to pass in "const OnTimer" parameter directly a lambda function
 		template<typename FunctionType>
@@ -57,6 +54,8 @@ public:
 		const UInt32 count;
 	private:
 		mutable Int64	_nextRaising;
+
+		friend struct Timer;
 	};
 
 	UInt32 count() const { return _count; }

@@ -57,6 +57,8 @@ void RTMFPWriter::acquit(UInt64 stageAck, UInt32 lostCount) {
 		// reset repeat time on progression!
 		_repeatDelay = _output.rto();
 		_repeatTime.update();
+		// continue sending
+		_output.send(make_shared<RTMFPAcquiter>(_pQueue, _stageAck));
 		return;
 	}
 	if (!lostCount) {
@@ -75,7 +77,7 @@ void RTMFPWriter::acquit(UInt64 stageAck, UInt32 lostCount) {
 void RTMFPWriter::repeatMessages(UInt32 lostCount) {
 	if (lostCount) {
 		// means that there is something lost! We can start a repeation without wait end of current sending
-		_output.send(make_shared<RTMFPSender>(_pQueue, lostCount>0xFF ? 0xFF : lostCount), _stageAck);
+		_output.send(make_shared<RTMFPRepeater>(_pQueue, lostCount>0xFF ? 0xFF : lostCount));
 		return;
 	}
 	if (!_pQueue.unique())
@@ -93,7 +95,7 @@ void RTMFPWriter::repeatMessages(UInt32 lostCount) {
 		_repeatDelay = (UInt32)(_repeatDelay*1.4142);
 	else
 		_repeatDelay = 10000;
-	_output.send(make_shared<RTMFPSender>(_pQueue), _stageAck);
+	_output.send(make_shared<RTMFPRepeater>(_pQueue));
 }
 
 void RTMFPWriter::flushing() {
@@ -105,7 +107,7 @@ void RTMFPWriter::flushing() {
 		_repeatDelay = _output.rto();
 		_repeatTime.update();
 	}
-	_output.send(_pSender, _stageAck);
+	_output.send(_pSender);
 	_pSender.reset();
 }
 

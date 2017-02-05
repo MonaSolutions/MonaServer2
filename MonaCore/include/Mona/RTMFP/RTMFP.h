@@ -110,24 +110,25 @@ struct RTMFP : virtual Static {
 
 
 	struct Output : virtual Object {
-		virtual UInt64					newWriter(RTMFPWriter* pWriter) = 0;
-		virtual UInt64					resetWriter(UInt64 id) = 0;
+		virtual UInt64		newWriter(RTMFPWriter* pWriter) = 0;
+		virtual UInt64		resetWriter(UInt64 id) = 0;
 
-		virtual UInt32					rto() const = 0;
-		virtual void					send(shared<RTMFPSender>& pSender, UInt64 stageAck) = 0;
+		virtual UInt32		rto() const = 0;
+		virtual void		send(const shared<RTMFPSender>& pSender) = 0;
+		virtual UInt64		queueing() const = 0;
 	};
 
-	static bool					Send(Socket& socket, const Packet& packet, const SocketAddress& address);
-	static Buffer&				InitBuffer(shared<Buffer>& pBuffer, UInt8 marker = 0x4a);
-	static Buffer&				InitBuffer(shared<Buffer>& pBuffer, Mona::Time& expTime, UInt8 marker = 0x4a);
-	static BinaryWriter&		WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location=LOCATION_UNSPECIFIED);
-	static void					ComputeAsymetricKeys(Binary& secret, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey);
+	static bool				Send(Socket& socket, const Packet& packet, const SocketAddress& address);
+	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, UInt8 marker = 0x4a);
+	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, Mona::Time& expTime, UInt8 marker = 0x4a);
+	static BinaryWriter&	WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location=LOCATION_UNSPECIFIED);
+	static void				ComputeAsymetricKeys(Binary& secret, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey);
 
-	static UInt32				ReadID(Buffer& buffer);
+	static UInt32			ReadID(Buffer& buffer);
 
-	static UInt16				TimeNow() { return Time(Mona::Time::Now()); }
-	static UInt16				Time(Int64 time) { return (time / RTMFP::TIMESTAMP_SCALE)&0xFFFF; }
-	static Int64				Time(UInt16 time) { return Mona::Time::Now()-(time*RTMFP::TIMESTAMP_SCALE); }
+	static UInt16			TimeNow() { return Time(Mona::Time::Now()); }
+	static UInt16			Time(Int64 time) { return (time / RTMFP::TIMESTAMP_SCALE)&0xFFFF; }
+	static Int64			Time(UInt16 time) { return Mona::Time::Now()-(time*RTMFP::TIMESTAMP_SCALE); }
 
 };
 

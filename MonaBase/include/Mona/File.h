@@ -19,7 +19,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Path.h"
 #include "Mona/ThreadQueue.h"
-#include "Mona/Congestion.h"
 #include "Mona/Event.h"
 
 namespace Mona {
@@ -64,7 +63,9 @@ struct File : virtual NullableObject {
 	Int64		lastModified(bool refresh = false) const { return _path.size(refresh); }
 	UInt8		device() const { return _path.device(); }
 
-	bool loaded() const { return _handle != -1; }
+	bool		loaded() const { return _handle != -1; }
+
+	UInt64		queueing() const;
 
 	// File operation
 	/*!
@@ -79,11 +80,6 @@ struct File : virtual NullableObject {
 
 	void				reset();
 
-	/*!
-	Attributes used when manipulate whithin IOFile */
-	const Congestion& congestion() { Congestion* pCongestion(_pDevice); return pCongestion ? *pCongestion : Congestion::Null(); }
-	bool			  queueing() const { return _flushing; }
-
 private:
 	Path			_path;
 	long			_handle;
@@ -94,9 +90,9 @@ private:
 	OnFlush						onFlush;
 	OnError						onError;
 
-	std::atomic<Congestion*>	_pDevice;
+	std::atomic<ThreadQueue*>	_pDevice;
 
-	std::atomic<bool>			_flushing;
+	std::atomic<UInt64>			_queueing;
 	std::atomic<UInt32>			_loading;
 	UInt16						_loadingTrack;
 	UInt16						_decodingTrack;

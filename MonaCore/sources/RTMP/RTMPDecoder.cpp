@@ -242,7 +242,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 
 		if (_chunkSize && chunkSize > _chunkSize) // if chunkSize==0, no chunkSize!
 			chunkSize = _chunkSize;
-		if (reader.available()<chunkSize)
+		if (reader.available() < chunkSize)
 			return buffer.size();
 
 		// data consumed!

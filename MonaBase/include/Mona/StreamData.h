@@ -25,14 +25,9 @@ template<typename ...Args>
 struct StreamData {
 
 	bool addStreamData(shared<Buffer>&& pBuffer, UInt32 limit, Args... args) {
-		if (_pBuffer) {
-			if (limit && (_pBuffer->size() + pBuffer->size()) > limit) {
-				_pBuffer.reset();
-				pBuffer.reset();
-				return false;
-			}
+		if (_pBuffer)
 			_pBuffer->append(pBuffer->data(), pBuffer->size());
-		} else
+		else
 			_pBuffer = pBuffer;
 		pBuffer = _pBuffer;
 		// Just one time to prefer recursivity rather "while repeat", and allow a "flush" info!
@@ -43,6 +38,11 @@ struct StreamData {
 		}
 		if (rest > pBuffer->size())
 			rest = pBuffer->size();
+		if (rest > limit) {
+			// test limit on rest no before to allow a pBuffer in input of limit size + pBuffer stored = limit size too
+			pBuffer.reset();
+			return false;
+		}
 		if (pBuffer.unique()) {
 			if (rest < pBuffer->size()) {
 				memmove(pBuffer->data(), pBuffer->data() + pBuffer->size() - rest, rest);
