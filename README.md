@@ -1,7 +1,8 @@
 # MonaServer2
 Temporary project planned to replace MonaServer
 
-The project MonaTiny is ready for testing (on Windows only for now), it is a very lightweight application without lua support. The MonaServer project is not compiling for now because we are concentrated on the protocols.
+The project MonaTiny is ready for testing (on Windows only for now), it is a very lightweight application without lua support.
+The MonaServer project is not compiling for now because we are concentrated on the protocols.
 
 # Current state
 
@@ -28,7 +29,7 @@ RTSP                                         | NOK
 Feature                                      | State
 ---------------------------------------------|---------------------
 LUA (MonaServer)                             | NOK
-Recording                                    | In progress
+Recording                                    | OK
 VOD                                          | In progress
 Congestion control                           | OK
 

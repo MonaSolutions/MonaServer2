@@ -9,8 +9,6 @@
 - check ping!
 RTMFP BUG=>
 - Recording, looks not started on keyframe (RTMP is smooth, not RTMFP)
-- Metadata, strange metadata displaid with FMLE and RTMFP subscriber
-
 
 
 - WebSocket => @join, return log truc ips + @relay, send messages to every members?
