@@ -29,7 +29,7 @@ namespace Mona {
 struct RTMFPDecoder::Handshake : Runner, virtual Object {
 	OnHandshake	onHandshake;
 
-	Handshake(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket, const Handler& handler) : _attempts(0), Runner("RTMFPHandshake"), _handler(handler), _weakSocket(pSocket), pBuffer(move(pBuffer)), address(address) {}
+	Handshake(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket, const Handler& handler) : pResponse(new Packet()), _attempts(0), Runner("RTMFPHandshake"), _handler(handler), _weakSocket(pSocket), pBuffer(move(pBuffer)), address(address) {}
 
 	shared<Buffer>			pBuffer;
 	SocketAddress			address;
@@ -62,7 +62,7 @@ private:
 		reader.shrink(reader.read16());
 		switch (type) {
 			case 0x30: {
-				if (pResponse) {
+				if (*pResponse) {
 					// repeat response!
 					RTMFP::Send(*pSocket, *pResponse, address);
 					break;
@@ -149,16 +149,18 @@ private:
 					return addresses.empty() ? 0 : 0x71;
 					
 					*/
-				} else if (type == 0x0a) {
-					shared<RTMFP::Handshake> pHandshake(new RTMFP::Handshake(_attempts++, Packet(pBuffer, reader.current(), reader.available()), address));
-					pResponse = pHandshake;
-					_handler.queue(onHandshake, pHandshake);
-				} else
+				} else if (type == 0x0a)
+					_handler.queue(onHandshake, _attempts++, Packet(pBuffer, reader.current(), reader.available()), address, pResponse);
+				else
 					ERROR("Handshake 0x30 with unknown ", String::Format<UInt8>("%02x", type), " type");
 				break;
 			}
 			case 0x38: {
-				if (pReceiver && pResponse) {
+				if (!*pResponse) {
+					ERROR("0B-38 hanshake without 0B-30 before, request ignored");
+					break;
+				}
+				if (pReceiver) {
 					// repeat response!
 					RTMFP::Send(*pSocket, *pResponse, address);
 					break;
@@ -175,16 +177,17 @@ private:
 
 				Packet farPubKey(pBuffer, reader.current(), UInt32(reader.read7BitLongValue()));
 		
-				UInt32 sizeKey = reader.read7BitValue() - 2;
+				UInt32 size = reader.read7BitValue() - 2;
 				reader.next(2); // unknown
-				const UInt8* key = reader.current(); reader.next(sizeKey);
+				const UInt8* key = reader.current(); reader.next(size);
 
 				DiffieHellman dh;
-				Buffer	secret(DiffieHellman::SIZE);
-				AUTO_ERROR(success = dh.computeSecret(ex = nullptr, key, sizeKey, secret.data()) ? true : false, "DiffieHellman");
-				if (!success)
+				UInt8 secret[DiffieHellman::SIZE];
+				UInt32 secretSize;
+				AUTO_ERROR(secretSize = dh.computeSecret(ex = nullptr, key, size, secret), "DiffieHellman");
+				if (!secretSize)
 					break;
-
+			
 				RTMFP::InitBuffer(pBuffer, 0x0B);
 				BinaryWriter writer(*pBuffer);
 				writer.write8(0x78).next(2).write32(id).write7BitLongValue(dh.publicKeySize() + 11);
@@ -203,12 +206,12 @@ private:
 				// Compute Keys
 				UInt8 encryptKey[Crypto::SHA256_SIZE];
 				UInt8 decryptKey[Crypto::SHA256_SIZE];
-				sizeKey = reader.read7BitValue();
-				RTMFP::ComputeAsymetricKeys(secret, reader.current(), sizeKey, writer.data() + noncePos, dh.publicKeySize() + 11, decryptKey, encryptKey);
+				size = reader.read7BitValue();
+				RTMFP::ComputeAsymetricKeys(secret, secretSize, reader.current(), size, writer.data() + noncePos, dh.publicKeySize() + 11, decryptKey, encryptKey);
 		
 				pReceiver.reset(new RTMFPReceiver(_handler, id, farId, farPubKey, decryptKey, encryptKey, pSocket, address));
 
-				pResponse.reset(new Packet(RTMFP::Engine::Encode(pBuffer, farId, address)));
+				pResponse->set(RTMFP::Engine::Encode(pBuffer, farId, address));
 				RTMFP::Send(*pSocket,*pResponse, address);
 				break;
 			}
@@ -225,12 +228,36 @@ private:
 };
 
 RTMFPDecoder::RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool) : _handler(handler), _threadPool(threadPool),
-	_validateReceiver([this](map<UInt32, shared<RTMFPReceiver>>::iterator& it) {
-		return it->second.unique() ? false : true;
+	_validateReceiver([this](UInt32 keySearched, map<UInt32, shared<RTMFPReceiver>>::iterator& it) {
+		return keySearched != it->first && it->second.unique() && it->second->obsolete() ? false : true;
 	}),
-	_validateHandshake([this](map<SocketAddress, shared<Handshake>>::iterator& it) {
+	_validateHandshake([this](const SocketAddress& keySearched, map<SocketAddress, shared<Handshake>>::iterator& it) {
 		return it->second->obsolete() ? false : true;
 	}) {
+}
+
+bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver) {
+	auto itHand = lower_bound(_handshakes, address, _validateHandshake);
+	if (itHand == _handshakes.end() || itHand->first != address) {
+		// has changed of address?
+		for (itHand = _handshakes.begin(); itHand != _handshakes.end(); ++itHand) {
+			if (!itHand->second->pReceiver)
+				continue;
+			if (id == itHand->second->pReceiver->id)
+				break;
+		}
+		if (itHand == _handshakes.end())
+			return false;
+	}
+	// finalize!
+	pReceiver = itHand->second->pReceiver;
+	_handshakes.erase(itHand);
+	if (!pReceiver) {
+		ERROR("Handshake invalid");
+		return false;
+	}
+	_handler.queue(onSession, pReceiver);
+	return true;
 }
 
 UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
@@ -262,37 +289,20 @@ UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& addres
 
 	auto it = lower_bound(_receivers, id, _validateReceiver);
 	if (it == _receivers.end() || it->first != id) {
-		// first packet after handshake?
-		auto itHand = lower_bound(_handshakes, address, _validateHandshake);
-		if (itHand == _handshakes.end() || itHand->first != address) {
-			// has changed of address?
-			for (itHand = _handshakes.begin(); itHand != _handshakes.end(); ++itHand) {
-				if (!itHand->second->pReceiver)
-					continue;
-				if (id == itHand->second->pReceiver->id)
-					break;
-			}
-			if (itHand == _handshakes.end()) {
-				pBuffer.reset();
-				WARN("Unknown RTMFP session ", id);
-				return 0;
-			}
-		}
-		if (!itHand->second->pReceiver) {
-			ERROR("Handshake invalid");
+		shared<RTMFPReceiver> pReceiver;
+		if (!finalizeHandshake(id, address, pReceiver)) {
+			WARN("Unknown RTMFP session ", id);
 			pBuffer.reset();
 			return 0;
 		}
-		it = _receivers.emplace_hint(it, id, itHand->second->pReceiver);
-		_handshakes.erase(itHand);
-		_handler.queue(onSession, it->second);
+		it = _receivers.emplace_hint(it, id, pReceiver);
+	} else if (it->second.unique()) {
+		// RTMFPSession dead!
+		// Search in handshake?
+		shared<RTMFPReceiver> pReceiver;
+		if (finalizeHandshake(id, address, pReceiver)) // else is an obsolete session! will resend 0x4C message
+			it->second = pReceiver; // replace by new session!
 	}
-	/* TODO? on kill session keep it reseted a time to catch obsolete session message
-	if (!it->second) {
-		pBuffer.reset();
-		return 0;
-	}*/
-
 
 	struct Receive : Runner, virtual Object {
 		Receive(shared<RTMFPReceiver>& pReceiver, shared<Buffer>& pBuffer, const SocketAddress& address) : Runner("RTMFPReceive"), _weakReceiver(pReceiver), _pBuffer(move(pBuffer)), _address(address) {}

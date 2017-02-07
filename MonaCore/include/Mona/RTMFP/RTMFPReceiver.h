@@ -31,9 +31,10 @@ namespace Mona {
 struct RTMFPReceiver : RTMFP::Session, virtual Object {
 	RTMFPReceiver(const Handler& handler, UInt32 id, UInt32 farId, const Packet& farPubKey, const UInt8* decryptKey, const UInt8* encryptKey, const shared<Socket>& pSocket, const SocketAddress& address);
 
-	UInt16		  track;
-
-	void receive(shared<Buffer>& pBuffer, const SocketAddress& address);
+	UInt16	track;
+	bool	obsolete();
+	
+	void	receive(shared<Buffer>& pBuffer, const SocketAddress& address);
 private:
 	Buffer& write(Socket& socket, const SocketAddress& address, Time& expTime, UInt8 type, UInt16 size);
 
@@ -73,6 +74,7 @@ private:
 	shared<RTMFP::Engine>	_pDecoder;
 	SocketAddress			_address;
 	weak<Socket>			_weakSocket;
+	Time					_obsolete;
 };
 
 

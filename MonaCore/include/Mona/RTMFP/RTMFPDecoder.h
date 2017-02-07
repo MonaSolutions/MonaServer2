@@ -24,7 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct RTMFPDecoder : Socket::Decoder, virtual Object {
-	typedef Event<void(shared<RTMFP::Handshake>&)>	ON(Handshake);
+	typedef Event<void(RTMFP::Handshake&)>			ON(Handshake);
 	typedef Event<void(shared<RTMFP::Session>&)>	ON(Session);
 
 	RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool);
@@ -33,13 +33,15 @@ private:
 	UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
 
 	struct Handshake;
-	const ThreadPool&							_threadPool;
-	const Handler&								_handler;
+	bool finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver);
 
-	std::function<bool(std::map<UInt32, shared<RTMFPReceiver>>::iterator&)>	    _validateReceiver;
-	std::map<UInt32, shared<RTMFPReceiver>>										_receivers;
-	std::function<bool(std::map<SocketAddress, shared<Handshake>>::iterator&)>  _validateHandshake;
-	std::map<SocketAddress, shared<Handshake>>									_handshakes;
+	const ThreadPool&		_threadPool;
+	const Handler&			_handler;
+
+	std::function<bool(UInt32, std::map<UInt32, shared<RTMFPReceiver>>::iterator&)>							  _validateReceiver;
+	std::map<UInt32, shared<RTMFPReceiver>>																	  _receivers;
+	std::function<bool(const SocketAddress& address, std::map<SocketAddress, shared<Handshake>>::iterator&)>  _validateHandshake;
+	std::map<SocketAddress, shared<Handshake>>																  _handshakes;
 };
 
 

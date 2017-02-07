@@ -23,8 +23,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/BinaryWriter.h"
 #include "Mona/ThreadPool.h"
 #include "Mona/Socket.h"
-#include "Mona/AMF.h"
-#include <openssl/evp.h>
+#include "Mona/Crypto.h"
 
 namespace Mona {
 
@@ -77,10 +76,10 @@ struct RTMFP : virtual Static {
 	};
 
 	struct Handshake : Packet, virtual Object {
-		Handshake(UInt8 attempts, const Packet& packet, const SocketAddress& address) : address(address), attempts(attempts), request(std::move(packet)) {}
+		Handshake(UInt8 attempts, const Packet& packet, const SocketAddress& address, const shared<Packet>& pResponse) : pResponse(pResponse), address(address), attempts(attempts), Packet(std::move(packet)) {}
 		const UInt8	        attempts;
 		const SocketAddress address;
-		const Packet		request;
+		shared<Packet>		pResponse;
 	};
 	struct Message : virtual Object, Packet {
 		Message(UInt64 flowId, UInt32 lost, const Packet& packet) : lost(lost), flowId(flowId), Packet(std::move(packet)) {}
@@ -110,8 +109,8 @@ struct RTMFP : virtual Static {
 
 
 	struct Output : virtual Object {
-		virtual UInt64		newWriter(RTMFPWriter* pWriter) = 0;
-		virtual UInt64		resetWriter(UInt64 id) = 0;
+		virtual shared<RTMFPWriter>	newWriter(UInt64 flowId, const Packet& signature) = 0;
+		virtual UInt64				resetWriter(UInt64 id) = 0;
 
 		virtual UInt32		rto() const = 0;
 		virtual void		send(const shared<RTMFPSender>& pSender) = 0;
@@ -122,7 +121,7 @@ struct RTMFP : virtual Static {
 	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, UInt8 marker = 0x4a);
 	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, Mona::Time& expTime, UInt8 marker = 0x4a);
 	static BinaryWriter&	WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location=LOCATION_UNSPECIFIED);
-	static void				ComputeAsymetricKeys(Binary& secret, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey);
+	static void				ComputeAsymetricKeys(const UInt8* secret, UInt16 secretSize, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey);
 
 	static UInt32			ReadID(Buffer& buffer);
 

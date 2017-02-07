@@ -36,14 +36,14 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 	setNumber("keepalivePeer",   10);
 	setNumber("keepaliveServer", 15);
 
-	_onHandshake = [this](shared<RTMFP::Handshake>& pHandshake) {
-		BinaryReader reader(pHandshake->request.data(), pHandshake->request.size());
+	_onHandshake = [this](RTMFP::Handshake& handshake) {
+		BinaryReader reader(handshake.data(), handshake.size());
 
 		// Fill peer infos
 		shared<Peer> pPeer(new Peer(this->api));
 		string serverAddress;
 		SCOPED_STRINGIFY(reader.current(), reader.available()-16, Util::UnpackUrl(STR reader.current(), serverAddress, (string&)pPeer->path, (string&)pPeer->query));
-		pPeer->setAddress(pHandshake->address);
+		pPeer->setAddress(handshake.address);
 		pPeer->setServerAddress(serverAddress);
 		Util::UnpackQuery(pPeer->query, pPeer->properties());
 
@@ -54,7 +54,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		writer.write8(16).write(reader.current(), 16); // tag
 
 		set<SocketAddress> addresses;
-		pPeer->onHandshake(pHandshake->attempts, addresses);
+		pPeer->onHandshake(handshake.attempts, addresses);
 		if (!addresses.empty()) {
 			set<SocketAddress>::iterator it;
 			for (it = addresses.begin(); it != addresses.end(); ++it) {
@@ -63,7 +63,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 				else
 					RTMFP::WriteAddress(writer, *it, RTMFP::LOCATION_REDIRECTION);
 			}
-			send(0x71, pBuffer, pHandshake);
+			send(0x71, pBuffer, handshake.address);
 			return;
 		}
 
@@ -73,7 +73,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		writer.writeRandom(RTMFP::SIZE_COOKIE-4);
 		// instance id (certificat in the middle)
 		writer.write(_certificat, sizeof(_certificat));
-		send(0x70, pBuffer, pHandshake);
+		send(0x70, pBuffer, handshake.address, handshake.pResponse);
 	};
 	_onSession = [this](shared<RTMFP::Session>& pSession) {
 		RTMFPSession* pClient = this->sessions.find<RTMFPSession>(pSession->id);
@@ -125,21 +125,25 @@ Buffer& RTMFProtocol::initBuffer(shared<Buffer>& pBuffer) {
 	return BinaryWriter(*pBuffer).write8(0x0B).write16(RTMFP::TimeNow()).next(3).buffer();
 }
 
-void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, const shared<RTMFP::Handshake>& pHandshake) {
+void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Packet>& pResponse) {
 	struct Sender : Runner, virtual Object {
-		Sender(const shared<Socket>& pSocket, shared<Buffer>& pBuffer, const shared<RTMFP::Handshake>& pHandshake) : _pHandshake(pHandshake), _pSocket(pSocket), _pBuffer(move(pBuffer)), Runner("RTMFPProtocolSender") {}
+		Sender(const shared<Socket>& pSocket, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Packet>& pResponse) : _address(address), _pResponse(pResponse), _pSocket(pSocket), _pBuffer(move(pBuffer)), Runner("RTMFPProtocolSender") {}
 	private:
 		bool run(Exception& ex) {
-			RTMFP::Send(*_pSocket, _pHandshake->set(RTMFP::Engine::Encode(_pBuffer, 0, _pHandshake->address)), _pHandshake->address);
+			if(_pResponse)
+				RTMFP::Send(*_pSocket, _pResponse->set(RTMFP::Engine::Encode(_pBuffer, 0, _address)), _address);
+			else
+				RTMFP::Send(*_pSocket, Packet(RTMFP::Engine::Encode(_pBuffer, 0, _address)), _address);
 			return true;
 		}
-		shared<Buffer>			 _pBuffer;
-		shared<Socket>			 _pSocket;
-		shared<RTMFP::Handshake> _pHandshake;
+		shared<Buffer>	_pBuffer;
+		shared<Socket>	_pSocket;
+		SocketAddress	_address;
+		shared<Packet>  _pResponse;
 	};
 	Exception ex;
 	BinaryWriter(pBuffer->data() + 9, 3).write8(type).write16(pBuffer->size() - 12);
-	AUTO_ERROR(api.threadPool.queue(ex, make_shared<Sender>(socket(), pBuffer, pHandshake)), "RTMFPSend");
+	AUTO_ERROR(api.threadPool.queue(ex, make_shared<Sender>(socket(), pBuffer, address, pResponse)), "RTMFPSend");
 }
 
 

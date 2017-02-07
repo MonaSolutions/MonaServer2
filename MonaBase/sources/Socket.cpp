@@ -95,6 +95,18 @@ void Socket::init() {
 		setNoDelay(ignore,true); // to avoid the nagle algorhytme, ignore error if not possible
 }
 
+UInt32 Socket::available() const {
+	UInt32 value;
+#if defined(SO_NREAD)
+	Exception ex;
+	if (getOption(ex, SOL_SOCKET, SO_NREAD, value))
+		return value;
+#endif
+	value = ioctl(FIONREAD);
+	// size UDP packet on windows is impossible to determinate so take a multiple of 2 grater than max possible MTU (~1500 bytes)
+	return type == TYPE_DATAGRAM && value>2048 ? 2048 : value;
+}
+
 bool Socket::setRecvBufferSize(Exception& ex, int size) { 
 	if (!setOption(ex, SOL_SOCKET, SO_RCVBUF, size))
 		return false;

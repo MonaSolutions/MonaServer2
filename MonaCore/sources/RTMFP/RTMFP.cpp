@@ -98,12 +98,12 @@ shared<Buffer>& RTMFP::Engine::encode(shared<Buffer>& pBuffer, UInt32 farId, con
 	return pBuffer;
 }
 
-void RTMFP::ComputeAsymetricKeys(Binary& secret, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey) {
+void RTMFP::ComputeAsymetricKeys(const UInt8* secret, UInt16 secretSize, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey) {
 	Crypto::HMAC::SHA256(responderNonce, respNonceSize, initiatorNonce, initNonceSize, requestKey);
 	Crypto::HMAC::SHA256(initiatorNonce, initNonceSize, responderNonce, respNonceSize, responseKey);
 	// now doing HMAC-sha256 of both result with the shared secret DH key
-	Crypto::HMAC::SHA256(secret.data(), secret.size(), requestKey, Crypto::SHA256_SIZE, requestKey);
-	Crypto::HMAC::SHA256(secret.data(), secret.size(), responseKey, Crypto::SHA256_SIZE, responseKey);
+	Crypto::HMAC::SHA256(secret, secretSize, requestKey, Crypto::SHA256_SIZE, requestKey);
+	Crypto::HMAC::SHA256(secret, secretSize, responseKey, Crypto::SHA256_SIZE, responseKey);
 }
 
 BinaryWriter& RTMFP::WriteAddress(BinaryWriter& writer,const SocketAddress& address, Location location) {

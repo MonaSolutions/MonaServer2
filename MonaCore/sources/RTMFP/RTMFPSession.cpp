@@ -27,7 +27,7 @@ using namespace std;
 namespace Mona {
 
 RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer) : 
-		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(0), _timesKeepalive(0) {
+		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(1), _timesKeepalive(0) {
 
 	_mainStream.onStart = [this](UInt16 id, FlashWriter& writer) {
 		// Stream Begin signal
@@ -58,27 +58,26 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 		// flush previous flow 
 		if (_pFlow)
 			_pFlow->pWriter->flush();
-		BinaryReader reader(message.data(), message.size());
-		_pFlow = &_flows.emplace(message.flowId, peer).first->second;
+		// find or create flow requested
+		auto& it = _flows.lower_bound(message.flowId);
+		if (it == _flows.end() || it->first != message.flowId)
+			_pFlow = &_flows.emplace_hint(it, message.flowId, peer)->second;
+		else
+			_pFlow = &it->second;
 
+		BinaryReader reader(message.data(), message.size());
 		UInt8 type = reader.read8();
 		Packet signature;
+		UInt64 flowIdAssociated = message.flowId;
 		if (type & RTMFP::MESSAGE_OPTIONS) {
 			signature.set(reader.current(), type & 0x7F);
 			_pFlow->streamId = BinaryReader(signature.data() + 4, signature.size() - 4).read7BitValue();
 			reader.next(signature.size());
 			if (reader.read8()>0) {
 				// Fullduplex header part
-				if (reader.read8() == 0x0A) {
-					UInt64 idWriter = reader.read7BitLongValue();
-					const auto& it = _writers.find(idWriter);
-					if (it != _writers.end()) {
-						// link the associated writer JUST if was not attached to a existing flow (writier init from server), to create duplex exchange
-						if(it->second.unique())
-							_pFlow->pWriter = it->second;
-					} else
-						WARN("Unknown writer ", idWriter, " associated to flow ", message.flowId, " on session ", name());
-				} else
+				if (reader.read8() == 0x0A)
+					flowIdAssociated = reader.read7BitLongValue();
+				else
 					WARN("Unknown fullduplex header part for flow ", message.flowId, " on session ", name());
 				while (UInt8 length = reader.read8()) {
 					WARN("Unknown options for flow ", message.flowId, " on session ", name());
@@ -88,7 +87,7 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 			type = reader.read8();
 		}
 		if (!_pFlow->pWriter)
-			new RTMFPWriter(message.flowId, signature, *this);
+			_pFlow->pWriter = newWriter(flowIdAssociated, signature);
 
 		UInt32 time(0);
 		switch (type) {
@@ -154,7 +153,7 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 		for (auto& it : flush.acks) {
 			auto& itWriter = _writers.find(it.first);
 			if (itWriter == _writers.end()) {
-				DEBUG("Writer ", it.first, " unfound on session ", name(), ", certainly an obsolete message (writer closed)");
+				DEBUG("Writer ", it.first, " unfound on session ", name(), " or writer already closed");
 				continue;
 			}
 			const Packet& ack(it.second);
@@ -196,7 +195,7 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 	if (died)
 		return;
 
-	if (_mainStream.onStart) { // else if RTMFPHandshaking (no real peer)
+	if (_mainStream.onStart) { // else already done
 
 		// no more reception, delete flows
 		_flows.clear();
@@ -291,9 +290,13 @@ void RTMFPSession::flush() {
 	Exception ex;
 	while (it != _writers.end()) {
 		shared<RTMFPWriter>& pWriter(it->second);
-		pWriter->flush();
+		if(!pWriter->closed() && pWriter.unique())
+			pWriter->close(); // no more attached to a Flow, or used by an exterior user!
+		else
+			pWriter->flush(); // do flush even on closed to try to pass in a consumed state
 		if (pWriter->consumed()) {
-			DEBUG("Delete writer ", pWriter->id(), " on session ", name());
+			// Keep consumption and deletion here and not in _onFlush on acquit to keep alive a little more the writer to avoid warning "writer unknown" a while
+			DEBUG("Delete writer ", it->first, " on session ", name());
 			it = _writers.erase(it);
 		} else
 			++it;
@@ -308,21 +311,15 @@ void RTMFPSession::send(const shared<RTMFPSender>& pSender) {
 	AUTO_ERROR(api.threadPool.queue(ex, pSender, _senderTrack), name());
 }
 
-UInt64 RTMFPSession::newWriter(RTMFPWriter* pWriter) {
+shared<RTMFPWriter> RTMFPSession::newWriter(UInt64 flowId, const Packet& signature) {
 	// emplace with a new id
 	map<UInt64, shared<RTMFPWriter>>::iterator it;
-	for (;;) {
-		if (++_nextWriterId == 0)
-			continue;
-		auto& it = _writers.emplace(_nextWriterId, pWriter);
-		if (it.second) {
-			if (_pFlow && !_pFlow->pWriter)
-				_pFlow->pWriter = it.first->second;
-			break;
-		}
-	}
+	do {
+		while (++_nextWriterId == 0);
+		it = _writers.lower_bound(_nextWriterId);
+	} while (it != _writers.end() && it->first == _nextWriterId);
 	DEBUG("New writer ", _nextWriterId, " on session ", name());
-	return _nextWriterId;
+	return _writers.emplace_hint(it, _nextWriterId, new RTMFPWriter(_nextWriterId, flowId, signature, *this))->second;
 }
 
 UInt64 RTMFPSession::resetWriter(UInt64 id) {

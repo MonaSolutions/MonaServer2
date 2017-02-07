@@ -66,7 +66,7 @@ private:
 	// void				writeP2PHandshake(const std::string& tag, const SocketAddress& address, RTMFP::AddressType type);
 
 	// Implementation of RTMFPOutput
-	UInt64				newWriter(RTMFPWriter* pWriter);
+	shared<RTMFPWriter>	newWriter(UInt64 flowId, const Packet& signature);
 	UInt64				resetWriter(UInt64 id);
 	UInt32				rto() const { return peer.rto(); }
 	void				send(const shared<RTMFPSender>& pSender);

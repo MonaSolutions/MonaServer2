@@ -26,9 +26,9 @@ using namespace std;
 namespace Mona {
 
 
-RTMFPWriter::RTMFPWriter(UInt64 flowId, const Packet& signature, RTMFP::Output& output) :
+RTMFPWriter::RTMFPWriter(UInt64 id, UInt64 flowId, const Packet& signature, RTMFP::Output& output) :
 		_repeatDelay(0), _output(output), _stageAck(0), _lostCount(0) {
-	_pQueue.reset(new RTMFPSender::Queue(_output.newWriter(this), flowId, signature));
+	_pQueue.reset(new RTMFPSender::Queue(id, flowId, signature));
 }
 
 void RTMFPWriter::fail() {
@@ -48,7 +48,7 @@ void RTMFPWriter::closing(Int32 code, const char* reason) {
 }
 
 void RTMFPWriter::acquit(UInt64 stageAck, UInt32 lostCount) {
-	TRACE("Ack ", stageAck, " on writer ", id()," (lostCount=",lostCount,")");
+	TRACE("Ack ", stageAck, " on writer ", _pQueue->id," (lostCount=",lostCount,")");
 	// have to continue to become consumed even if writer closed!
 	if (stageAck > _stageAck) {
 		// progress!
@@ -62,7 +62,7 @@ void RTMFPWriter::acquit(UInt64 stageAck, UInt32 lostCount) {
 		return;
 	}
 	if (!lostCount) {
-		DEBUG("Ack ", stageAck, " obsolete on writer ", id());
+		DEBUG("Ack ", stageAck, " obsolete on writer ", _pQueue->id);
 		return;
 	}
 	if (lostCount > _lostCount) {
@@ -99,6 +99,15 @@ void RTMFPWriter::repeatMessages(UInt32 lostCount) {
 }
 
 void RTMFPWriter::flushing() {
+	// manage sub writers, erase them closed
+	auto it = _writers.begin();
+	while (it != _writers.end()) {
+		if ((*it)->closed())
+			it = _writers.erase(it);
+		else
+			++it;
+	}
+
 	repeatMessages();
 	if (!_pSender)
 		return;

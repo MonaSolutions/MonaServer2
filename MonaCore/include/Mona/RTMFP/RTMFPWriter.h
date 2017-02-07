@@ -29,15 +29,13 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct RTMFPWriter : FlashWriter, virtual Object {
-	RTMFPWriter(UInt64 flowId, const Packet& signature, RTMFP::Output& output);
-	
-	UInt64 id() const { return _pQueue->id; }
+	RTMFPWriter(UInt64 id, UInt64 flowId, const Packet& signature, RTMFP::Output& output);
 
-	virtual Writer&		newWriter() { return *(new RTMFPWriter(_pQueue->flowId, Packet(_pQueue->signature.data(), _pQueue->signature.size()), _output)); }
+	Writer&		newWriter() { return **_writers.emplace(_output.newWriter(_pQueue->flowId, Packet(_pQueue->signature.data(), _pQueue->signature.size()))).first; }
 
-	UInt64				queueing() const { return _output.queueing(); }
-	void				acquit(UInt64 stageAck, UInt32 lostCount);
-	bool				consumed() { return closed() && !_pSender && _pQueue.unique() && _pQueue->empty(); }
+	UInt64		queueing() const { return _output.queueing(); }
+	void		acquit(UInt64 stageAck, UInt32 lostCount);
+	bool		consumed() { return _writers.empty() && closed() && !_pSender && _pQueue.unique() && _pQueue->empty(); }
 
 	template <typename ...Args>
 	void fail(Args&&... args) {
@@ -68,6 +66,7 @@ private:
 	UInt32								_lostCount;
 	UInt32								_repeatDelay;
 	Time								_repeatTime;
+	std::set<shared<RTMFPWriter>>		_writers;
 };
 
 

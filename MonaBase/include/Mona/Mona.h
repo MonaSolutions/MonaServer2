@@ -353,12 +353,12 @@ inline const std::string& typeof() {
 }
 
 template<typename MapType>
-inline typename MapType::iterator lower_bound(MapType& map, typename const MapType::key_type& key, const std::function<bool(typename MapType::iterator&)>& validate) {
+inline typename MapType::iterator lower_bound(MapType& map, typename const MapType::key_type& key, const std::function<bool(typename const MapType::key_type&, typename MapType::iterator&)>& validate) {
 	MapType::iterator it, first(map.begin()), last(map.end());
 	MapType::difference_type count, step;
 	count = std::distance(first, last);
 	while (count > 0) {
-		if (!validate(first)) {
+		if (!validate(key, first)) {
 			first = map.erase(first);
 			if (!--count)
 				return first;

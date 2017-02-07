@@ -54,7 +54,7 @@ void MonaTiny::onStop() {
 //// Client Events /////
 
 void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& parameters, DataWriter& response) {
-	NOTE(client.protocol, " ", client.address, " connects to ", client.path.empty() ? "/" : client.path)
+	DEBUG(client.protocol, " ", client.address, " connects to ", client.path.empty() ? "/" : client.path)
 	const auto& it(_applications.find(client.path));
 	if (it == _applications.end())
 		return;
@@ -63,7 +63,7 @@ void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& parameter
 }
 
 void MonaTiny::onDisconnection(Client& client) {
-	NOTE(client.protocol, " ", client.address, " disconnects from ", client.path.empty() ? "/" : client.path);
+	DEBUG(client.protocol, " ", client.address, " disconnects from ", client.path.empty() ? "/" : client.path);
 	if (client.hasCustomData()) {
 		delete client.getCustomData<App::Client>();
 		client.setCustomData<App::Client>(NULL);
@@ -122,11 +122,11 @@ void MonaTiny::onUnpublish(const Publication& publication, Client* pClient) {
 bool MonaTiny::onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication, Client* pClient) {
 	if (pClient) {
 	//	_test.start(*publish(ex, publication.name()));
-		NOTE(pClient->protocol, " ", pClient->address, " subscribe to ", publication.name());
+		INFO(pClient->protocol, " ", pClient->address, " subscribe to ", publication.name());
 		if (pClient->hasCustomData())
 			return pClient->getCustomData<App::Client>()->onSubscribe(ex, subscription, publication);
 	} else
-		NOTE("Subscribe to ", publication.name());
+		INFO("Subscribe to ", publication.name());
 	return true; // "true" to allow, "false" to forbid
 } 
 
@@ -135,11 +135,11 @@ void MonaTiny::onUnsubscribe(const Subscription& subscription, const Publication
 	//	_test.stop();
 	//	unpublish((Publication&)publication);
 	//	return;
-		NOTE(pClient->protocol, " ", pClient->address, " unsubscribe to ", publication.name());
+		INFO(pClient->protocol, " ", pClient->address, " unsubscribe to ", publication.name());
 		if (pClient->hasCustomData())
 			return pClient->getCustomData<App::Client>()->onUnsubscribe(subscription, publication);
 	} else
-		NOTE("Unsubscribe to ", publication.name());
+		INFO("Unsubscribe to ", publication.name());
 }
 
 //// P2P Group Events /////

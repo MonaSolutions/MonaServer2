@@ -23,15 +23,27 @@ using namespace std;
 
 namespace Mona {
 
-#define KILL(error) {_died=Time::Now(); echoTime=error; size = reader.available();}
+#define KILL(error) {_died.update(); echoTime=error; size = reader.available();}
 
 RTMFPReceiver::RTMFPReceiver(const Handler& handler, UInt32 id, UInt32 farId, const Packet& farPubKey, const UInt8* decryptKey, const UInt8* encryptKey, const shared<Socket>& pSocket, const SocketAddress& address) :
-	RTMFP::Session(id, farId, farPubKey, encryptKey), _expTime(0xFFFFFFFF), _echoTime(0xFFFFFFFF), _handler(handler), _pDecoder(new RTMFP::Engine(decryptKey)), track(0), _died(0), _weakSocket(pSocket), _address(address),
+	RTMFP::Session(id, farId, farPubKey, encryptKey), _expTime(0xFFFFFFFF), _echoTime(0xFFFFFFFF), _handler(handler), _pDecoder(new RTMFP::Engine(decryptKey)), track(0), _died(0), _obsolete(0), _weakSocket(pSocket), _address(address),
 	_output([this](UInt64 flowId, UInt32& lost, const Packet& packet){
 		_handler.queue(onMessage, flowId, lost, packet);
 		lost = 0;
 	}) {
 }
+
+bool RTMFPReceiver::obsolete() {
+	// Just called by RTFMPDecoder when this is unique!
+	if (!_obsolete) {
+		if (!_died)
+			_died.update(Time::Now()-2001); // to send 0x4C
+		_obsolete.update();
+		return false;
+	}
+	return _obsolete.isElapsed(19000); // 19 seconds!
+}
+
 
 void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& address) {
 	shared<Socket> pSocket(_weakSocket.lock());
@@ -39,7 +51,7 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 		return; // protocol died!
 	if (_died) {
 		if (_died.isElapsed(2000)) {
-			_died = Time::Now();
+			_died.update();
 			BinaryWriter(RTMFP::InitBuffer(_pBuffer)).write24(0x4c << 16);
 			RTMFP::Send(*pSocket, Packet(pEncoder->encode(_pBuffer, farId, address)), address);
 		}
@@ -107,10 +119,11 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 				break;
 			case 0x5e: {
 				// RTMFPWriter exception!
-				acks[message.read7BitLongValue()].reset();
+				UInt64 id(message.read7BitLongValue());
+				acks[id].reset();
 				// trick to avoid a repeating exception message from client
 				BinaryWriter(write(*pSocket, address, expTime, 0x10, 3 + Binary::Get7BitValueSize(id)))
-					.write8(RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END).write7BitLongValue(id).write16(0);
+					.write8(RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END).write7BitLongValue(id).write16(0); // Stage=0 and DeltaAck = 0 to avoid to request a ack for that
 				break;
 			}
 			case 0x18:
@@ -174,7 +187,7 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 				} else {
 					const auto& it = _flows.find(flowId);
 					if (it == _flows.end()) {
-						DEBUG("Message for flow ", flowId, " unknown, certainly an obsolete message (flow closed)");
+						DEBUG("Message for flow ", flowId, " unknown or flow already closed");
 						BinaryWriter(write(*pSocket, address, expTime, 0x5e, 1 + Binary::Get7BitValueSize(flowId)))
 							.write7BitLongValue(flowId).write8(0);
 					} else

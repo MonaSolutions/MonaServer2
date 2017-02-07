@@ -67,7 +67,7 @@ struct Socket : virtual Object, Net::Stats {
 	UInt32				recvBufferSize() const { return _recvBufferSize; }
 	UInt32				sendBufferSize() const { return _sendBufferSize; }
 
-	virtual UInt32		available() const { return ioctl(FIONREAD); }
+	virtual UInt32		available() const;
 	virtual UInt64		queueing() const { return _queueing; }
 
 	operator NET_SOCKET() const { return _sockfd; }
@@ -173,8 +173,7 @@ private:
 		return false;
 	}
 
-	class Sending : public Packet, public virtual Object {
-	public:
+	struct Sending : Packet, virtual Object {
 		Sending(const Packet& packet, const SocketAddress& address, int flags) : Packet(std::move(packet)), address(address), flags(flags) {}
 
 		const SocketAddress address;
