@@ -134,8 +134,8 @@ private:
 				UInt32 id = Byte::From32Network(*(UInt32*)reader.current());
 				reader.next(RTMFP::SIZE_COOKIE);
 
-				const UInt8* farPubKey = reader.current();
 				UInt8 farPubKeySize = UInt8(reader.read7BitLongValue());
+				const UInt8* farPubKey = reader.current();
 		
 				UInt16 size = reader.read7BitValue() - 2;
 				reader.next(2); // unknown

@@ -145,12 +145,13 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 	
 	// not close the main flash stream for that!
 	Exception ex;
-	if (!peer.onInvocation(ex, name, message))
-		ex.set<Ex::Application>("Method client '", name, "' not found on application ", peer.path);
-	if (ex) {
-		WARN(ex); // warn because for flash there is some auto messages not necessary catched/programmed by user application
-		writer.writeAMFError("NetConnection.Call.Failed", ex);
-	}
+	if (peer.onInvocation(ex, name, message)) {
+		if (ex) {
+			ERROR(ex);
+			writer.writeAMFError("NetConnection.Call.Failed", ex);
+		}
+	} else
+		WARN("Method client ", name, " not found on application ", peer.path); // warn because for flash there is some auto messages not necessary catched/programmed by user application
 }
 
 void FlashMainStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer) {

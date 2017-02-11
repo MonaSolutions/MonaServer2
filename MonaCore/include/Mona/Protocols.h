@@ -28,12 +28,12 @@ struct Protocols : virtual Object {
 	Protocols() {}
 	~Protocols() { stop(); }
 
-	typedef std::map<const char*, Protocol*>::const_iterator Iterator;
+	typedef std::map<std::string, Protocol*, String::IComparator>::const_iterator const_iterator;
 
 	UInt32	 count() const { return _protocols.size(); }
 
-	Iterator begin() const { return _protocols.begin(); }
-	Iterator end() const { return _protocols.end(); }
+	const_iterator begin() const { return _protocols.begin(); }
+	const_iterator end() const { return _protocols.end(); }
 
 	template<typename ProtocolType=Protocol>
 	ProtocolType* find(const char* name) const {
@@ -153,8 +153,8 @@ private:
 	}
 
 
-	ServerAPI*						_pAPI;
-	std::map<const char*,Protocol*>	_protocols;
+	ServerAPI*												_pAPI;
+	std::map<std::string, Protocol*, String::IComparator>	_protocols;
 };
 
 

@@ -60,16 +60,13 @@ struct String : std::string {
 		const char*			format;
 	};
 
-
-	template<typename KeyType>
-	struct IComparator { bool operator()(const KeyType& a, const KeyType& b) const { return String::ICompare(a, b)<0; } };
-	template<typename KeyType, typename ValueType>
-	struct Map : std::map<KeyType, ValueType, IComparator<KeyType>> {
-		using std::map<KeyType, ValueType, IComparator<KeyType>>::map;
+	struct Comparator {
+		bool operator()(const std::string& value1, const std::string& value2) const { return String::ICompare(value1, value2)<0; }
+		bool operator()(const char* value1, const char* value2) const { return String::ICompare(value1, value2)<0; }
 	};
-	template<typename ValueType>
-	struct Set : std::set<ValueType, IComparator<ValueType>> {
-		using std::set<ValueType, IComparator<ValueType>>::set;
+	struct IComparator {
+		bool operator()(const std::string& value1, const std::string& value2) const { return String::ICompare(value1, value2)<0; }
+		bool operator()(const char* value1, const char* value2) const { return String::ICompare(value1, value2)<0; }
 	};
 
 	/*!

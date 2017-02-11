@@ -36,7 +36,7 @@ using namespace std;
 
 namespace Mona {
 
-static const String::Map<const char*, pair<Int32, bool>> Timezones({
+static const std::map<const char*, pair<Int32, bool>, String::IComparator> Timezones({
 	{ "ACDT", { 10*3600000 + 1800000, true } },
 	{ "ACST", { 9*3600000 + 1800000, false } },
 	{ "ADT", { -3*3600000, true } },

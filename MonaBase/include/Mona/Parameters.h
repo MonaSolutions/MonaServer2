@@ -26,7 +26,7 @@ struct Parameters : virtual Object {
 	typedef Event<void(const std::string& key, const std::string* pValue)> ON(Change);
 	typedef Event<void()>												   ON(Clear);
 
-	typedef std::map<std::string, std::string>::const_iterator const_iterator;
+	typedef std::map<std::string, std::string, String::IComparator>::const_iterator const_iterator;
 
 private:
 	struct ForEach {
@@ -104,14 +104,14 @@ protected:
 private:
 	virtual const char* onParamUnfound(const std::string& key) const { return NULL; }
 
-	Parameters(std::nullptr_t) : _pMap(new String::Map<std::string, std::string>()) {} // Null()
+	Parameters(std::nullptr_t) : _pMap(new std::map<std::string, std::string, String::IComparator>()) {} // Null()
 
 	const char* getParameter(const std::string& key) const;
 
 	template<typename ...Args>
 	const std::string& setParameter(const std::string& key, Args&& ...args) {
 		if (!_pMap)
-			_pMap.reset(new String::Map<std::string, std::string>());
+			_pMap.reset(new std::map<std::string, std::string, String::IComparator>());
 		auto it = _pMap->emplace(key, std::string());
 		if (!it.second) // already exists
 			_bytes -= it.first->second.size();
@@ -123,7 +123,7 @@ private:
 	UInt32													_bytes;
 	// shared because a lot more faster than using st::map move constructor!
 	// Also build _pMap just if required, and then not erase it but clear it (more faster that reset the shared)
-	shared<String::Map<std::string, std::string>>	_pMap;
+	shared<std::map<std::string, std::string, String::IComparator>>	_pMap;
 };
 
 

@@ -27,7 +27,7 @@ namespace Mona {
 
 void RendezVous::setIntern(const UInt8* peerId, const SocketAddress& address, const SocketAddress& serverAddress, std::set<SocketAddress>& addresses, void* pData) {
 	lock_guard<mutex> lock(_mutex);
-	auto it = _peers.find(peerId);
+	auto& it = _peers.find(peerId);
 	Peer* pPeer;
 	if (it != _peers.end()) {
 		pPeer = &it->second;
