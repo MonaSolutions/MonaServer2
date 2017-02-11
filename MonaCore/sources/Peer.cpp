@@ -34,8 +34,7 @@ Peer::Peer(ServerAPI& api) : _rttvar(0), _rto(Net::RTO_INIT), _pWriter(&Writer::
 Peer::~Peer() {
 	if (connected)
 		ERROR("Client ", Util::FormatHex(id, Entity::SIZE, string()), " deleting whereas connected, onDisconnection forgotten");
-	// Ices and group subscription can happen on peer not connected (virtual member for group for example)
-	unsubscribeGroups();
+	// Ices subscription can happen on peer not connected (virtual member for group for example)
 	for(auto& it: _ices) {
 		((Peer*)it.first)->_ices.erase(this);
 		delete it.second;
@@ -52,7 +51,7 @@ void Peer::setAddress(const SocketAddress& address) {
 		_api.onAddressChanged(*this, oldAddress);
 }
 
-void Peer::setServerAddress(const string& address) {
+bool Peer::setServerAddress(const string& address) {
 	// If assignation fails, the previous value is preserved (allow to try different assignation and keep just what is working)
 	Exception ex;
 	SocketAddress serverAddress;
@@ -60,19 +59,24 @@ void Peer::setServerAddress(const string& address) {
 		return setServerAddress(serverAddress);
 	if (ex.cast<Ex::Net::Address::Port>())
 		return setServerAddress(serverAddress.set(ex, this->serverAddress.host(), address));
+	return false;
 }
 
-void Peer::setServerAddress(const SocketAddress& address) {
+bool Peer::setServerAddress(const SocketAddress& address) {
 	// If assignation fails, the previous value is preserved (allow to try different assignation and keep just what is working)
 	if (!address)
-		return;
+		return false;
 	if (address.host()) {
 		if (address.port())
 			((SocketAddress&)serverAddress).set(address);
 		else
 			((IPAddress&)serverAddress.host()).set(address.host());
-	} else if (address.port())
-		((SocketAddress&)serverAddress).setPort(address.port());
+		return true;
+	}
+	if (!address.port())
+		return false;
+	((SocketAddress&)serverAddress).setPort(address.port());
+	return true;
 }
 
 UInt16 Peer::setPing(UInt64 value) {
@@ -102,88 +106,6 @@ UInt16 Peer::setPing(UInt64 value) {
 
 	pingTime.update();
 	return _ping;
-}
-
-
-bool Peer::exchangeMemberId(Group& group,Peer& peer,Writer* pWriter) {
-	if (pWriter) {
-		pWriter->writeMember(peer);
-		return true;
-	}
-	auto it = peer._groups.find(&group);
-	if(it==peer._groups.end()) {
-		CRITIC("A peer in a group without have its _groups collection associated")
-		return false;
-	}
-	if(!it->second)
-		return false;
-	return it->second->writeMember(*this);
-}
-
-Group& Peer::joinGroup(const UInt8* id,Writer* pWriter) {
-	// create invoker.groups if needed
-	Group& group(((Entities<Group>&)_api.groups).create(id));
-
-	// group._clients and this->_groups insertions,
-	// before peer id exchange to be able in onJoinGroup to write message BEFORE group join
-	auto& it = _groups.emplace(&group, nullptr);
-	if (!it.second)
-		return group;
-	it.first->second = pWriter;
-	group.add(*this);
-	
-	if (pWriter) // if pWriter==NULL it's a dummy member peer
-		onJoinGroup(group);
-	
-	if (group.count() <= 1)
-		return group;
-
-	// If  group includes already members, give 2*log2(N)+13 random members to the new comer
-	// Indeed in RTMFP each peer has 2log2(N)+13 connections, so to minimize peer new connections need,
-	// give immediatly required connections
-	// One more reason to give a huge range of random clients is to reconnect possible isolated peer
-	UInt32 count = UInt32(2 * log2(group.count() - 1) + 13);
-	auto itFirst = group.begin();
-	advance(itFirst, Util::Random<UInt32>()%group.count());
-	auto itClient(itFirst);
-	vector<Client*> congestedClients;
-	do {
-		Client& client(*itClient->second);
-		if (client != this->id && client.writer()) {
-			if (client.congested()) // congested?
-				congestedClients.emplace_back(&client);
-			else if(exchangeMemberId(group,(Peer&)client,pWriter) && --count==0)
-				break;
-		}
-		if (++itClient == group.end())
-			itClient = group.begin();
-	} while(itClient!=itFirst);
-
-	while (count && !congestedClients.empty()) {
-		if (exchangeMemberId(group, (Peer&)*congestedClients.back(), pWriter) && --count == 0)
-			break;
-		congestedClients.pop_back();
-	}
-
-	return group;
-}
-
-
-void Peer::unjoinGroup(Group& group) {
-	auto it = _groups.lower_bound(&group);
-	if (it == _groups.end() || it->first != &group)
-		return;
-	onUnjoinGroup(*it->first,it->second ? false : true);
-	_groups.erase(it);
-}
-
-void Peer::unsubscribeGroups(const function<void(const Group& group)>& forEach) {
-	for (auto& it : _groups) {
-		onUnjoinGroup(*it.first, it.second ? false : true);
-		if (forEach)
-			forEach(*it.first);
-	}
-	_groups.clear();
 }
 
 void Peer::setPath(const string& value) {
@@ -218,13 +140,8 @@ ICE& Peer::ice(const Peer& peer) {
 
 /// EVENTS ////////
 
-
-void Peer::onHandshake(UInt8 attempts,set<SocketAddress>& addresses) {
+void Peer::onHandshake(UInt8 attempts, set<SocketAddress>& addresses) {
 	_api.onHandshake(protocol, address, path, properties(), attempts, addresses);
-}
-
-void Peer::onRendezVousUnknown(const UInt8* peerId,set<SocketAddress>& addresses) {
-	_api.onRendezVousUnknown(protocol, peerId, addresses);
 }
 
 void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& arguments,DataWriter& response) {
@@ -246,7 +163,7 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		SplitWriter parameterAndResponse(parameterWriter,response);
 
 		_api.onConnection(ex, *this, arguments, parameterAndResponse);
-		if (!ex && !((Entities<Client>&)_api.clients).add(*this)) {
+		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(*this).second) {
 			ERROR(ex.set<Ex::Protocol>("Client ", Util::FormatHex(id, Entity::SIZE, buffer), " exists already"));
 			_api.onDisconnection(*this);
 		}
@@ -271,11 +188,10 @@ void Peer::onDisconnection() {
 		return;
 	(bool&)connected = false;
 	(Time&)connectionTime = 0;
-	if (!((Entities<Client>&)_api.clients).remove(*this))
+	if (!((Entity::Map<Client>&)_api.clients).erase(id))
 		ERROR("Client ", Util::FormatHex(id, Entity::SIZE, string()), " seems already disconnected!");
 	_pWriter->onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
 	_api.onDisconnection(*this);
-	unsubscribeGroups();
 	(bool&)_pWriter->isMain = false;
 	_pWriter = NULL;
 	_pNetStats = NULL;
@@ -286,34 +202,6 @@ bool Peer::onInvocation(Exception& ex, const string& name, DataReader& reader, U
 		return _api.onInvocation(ex, *this, name, reader, responseType);
 	ERROR("RPC client before connection to ", path);
 	return false;
-}
-
-void Peer::onJoinGroup(Group& group) {
-	if(connected)
-		_api.onJoinGroup(*this,group);
-	else
-		ERROR("onJoinGroup before connection to ", path);
-}
-
-void Peer::onUnjoinGroup(Group& group,bool dummy) {
-	// group._clients suppression (this->_groups suppression must be done by the caller of onUnjoinGroup)
-	const auto& itPeer = group.find(id);
-	if (itPeer == group.end()) {
-		ERROR("onUnjoinGroup on a group which don't know this peer");
-		return;
-	}
-	group.remove(itPeer);
-
-	if (!dummy) {
-		if(connected)
-			_api.onUnjoinGroup(*this,group);
-		else
-			ERROR("onUnjoinGroup before connection to ", path);
-	}
-
-	if (!group.empty())
-		return;
-	((Entities<Group>&)_api.groups).erase(group.id);
 }
 
 bool Peer::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) {

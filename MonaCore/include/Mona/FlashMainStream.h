@@ -40,7 +40,6 @@ private:
 	void	rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer);
 
 	std::map<UInt16,FlashStream>	_streams;
-	std::string						_buffer;
 };
 
 

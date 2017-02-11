@@ -59,9 +59,9 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 			set<SocketAddress>::iterator it;
 			for (it = addresses.begin(); it != addresses.end(); ++it) {
 				if (it->host().isWildcard())
-					RTMFP::WriteAddress(writer, pPeer->serverAddress, RTMFP::LOCATION_REDIRECTION);
+					RendezVous::WriteAddress(writer, pPeer->serverAddress, RendezVous::TYPE_REDIRECTION);
 				else
-					RTMFP::WriteAddress(writer, *it, RTMFP::LOCATION_REDIRECTION);
+					RendezVous::WriteAddress(writer, *it, RendezVous::TYPE_REDIRECTION);
 			}
 			send(0x71, pBuffer, handshake.address);
 			return;
@@ -81,9 +81,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 			ERROR("Session ", pSession->id, " unfound");
 			return;
 		}
-		Crypto::Hash::SHA256(pSession->farPubKey.data(), pSession->farPubKey.size(), BIN pClient->peer.id);
-		pSession->farPubKey.reset();
-		pClient->pSenderSession.reset(new RTMFPSender::Session(pSession, socket()));
+		pClient->init(pSession);
 
 		pSession->onFlush = pClient->onFlush;
 		pSession->onAddress = pClient->onAddress;
@@ -101,6 +99,11 @@ shared<Socket::Decoder>	RTMFProtocol::newDecoder() {
 RTMFProtocol::~RTMFProtocol() {
 	_onHandshake = nullptr;
 	_onSession = nullptr;
+	if (groups.empty())
+		return;
+	CRITIC("Few peers are always member of deleting groups");
+	for (auto& it : groups)
+		delete it.second;
 }
 
 bool RTMFProtocol::load(Exception& ex) {

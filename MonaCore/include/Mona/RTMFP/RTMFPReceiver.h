@@ -29,10 +29,16 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct RTMFPReceiver : RTMFP::Session, virtual Object {
-	RTMFPReceiver(const Handler& handler, UInt32 id, UInt32 farId, const Packet& farPubKey, const UInt8* decryptKey, const UInt8* encryptKey, const shared<Socket>& pSocket, const SocketAddress& address);
+	RTMFPReceiver(const Handler& handler,
+		UInt32 id, UInt32 farId,
+		const UInt8* farPubKey, UInt8 farPubKeySize,
+		const UInt8* decryptKey, const UInt8* encryptKey,
+		const shared<Socket>& pSocket, const SocketAddress& address,
+		const shared<RendezVous>& pRendezVous);
 
-	UInt16	track;
-	bool	obsolete();
+	UInt16					track;
+	bool					obsolete();
+	std::set<SocketAddress>	localAddresses;
 	
 	void	receive(shared<Buffer>& pBuffer, const SocketAddress& address);
 private:

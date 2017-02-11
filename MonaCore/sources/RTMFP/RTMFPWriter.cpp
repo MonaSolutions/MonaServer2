@@ -26,7 +26,7 @@ using namespace std;
 namespace Mona {
 
 
-RTMFPWriter::RTMFPWriter(UInt64 id, UInt64 flowId, const Packet& signature, RTMFP::Output& output) :
+RTMFPWriter::RTMFPWriter(UInt64 id, UInt64 flowId, const Binary& signature, RTMFP::Output& output) :
 		_repeatDelay(0), _output(output), _stageAck(0), _lostCount(0) {
 	_pQueue.reset(new RTMFPSender::Queue(id, flowId, signature));
 }
@@ -139,10 +139,10 @@ AMFWriter& RTMFPWriter::write(AMF::Type type, UInt32 time, Media::Data::Type pac
 	return writer;
 }
 
-bool RTMFPWriter::writeMember(const Client& client) {
-	DEBUG("Group member exchanged ", Util::FormatHex(client.id, Entity::SIZE, string()))
-	newMessage(reliable)->write8(0x0b).write(client.id, Entity::SIZE);
-	return true;
+void RTMFPWriter::sendMember(const UInt8* id) {
+	DEBUG("Group member exchanged ", Util::FormatHex(id, Entity::SIZE, string()))
+	newMessage(reliable)->write8(0x0b).write(id, Entity::SIZE);
+	flush();
 }
 
 

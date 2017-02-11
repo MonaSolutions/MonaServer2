@@ -45,8 +45,6 @@ struct Writer : Media::Target, virtual NullableObject {
 	void					close(Int32 error = 0, const char* reason=NULL);
 	bool					closed() const { return _closed; }
 
-	virtual bool			writeMember(const Client& client);
-
 	virtual DataWriter&		writeInvocation(const char* name) { return DataWriter::Null(); }
 	virtual DataWriter&		writeMessage() { return DataWriter::Null(); }
 	virtual DataWriter&		writeResponse(UInt8 type) { return writeMessage(); }

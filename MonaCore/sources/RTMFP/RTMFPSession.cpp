@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/RTMFP/RTMFPSession.h"
 #include "Mona/RTMFP/RTMFProtocol.h"
+#include "Mona/BinaryReader.h"
 #include "Mona/Logs.h"
 
 
@@ -27,7 +28,7 @@ using namespace std;
 namespace Mona {
 
 RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer) : 
-		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(1), _timesKeepalive(0) {
+		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(0), _timesKeepalive(0) {
 
 	_mainStream.onStart = [this](UInt16 id, FlashWriter& writer) {
 		// Stream Begin signal
@@ -40,6 +41,7 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 
 	onAddress = [this](SocketAddress& address) {
 		peer.setAddress(address);
+		_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, _pSession.get());
 	};
 	onMessage = [this](RTMFP::Message& message) {
 		_recvLostRate += message.lost;
@@ -64,70 +66,95 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 			_pFlow = &_flows.emplace_hint(it, message.flowId, peer)->second;
 		else
 			_pFlow = &it->second;
-
+		
 		BinaryReader reader(message.data(), message.size());
 		UInt8 type = reader.read8();
 		Packet signature;
-		UInt64 flowIdAssociated = message.flowId;
 		if (type & RTMFP::MESSAGE_OPTIONS) {
 			signature.set(reader.current(), type & 0x7F);
-			_pFlow->streamId = BinaryReader(signature.data() + 4, signature.size() - 4).read7BitValue();
+			BinaryReader streamReader(signature.data(), signature.size());
+			streamReader.next(4);
+			_pFlow->streamId = streamReader.read7BitValue();
 			reader.next(signature.size());
-			if (reader.read8()>0) {
-				// Fullduplex header part
-				if (reader.read8() == 0x0A)
-					flowIdAssociated = reader.read7BitLongValue();
-				else
-					WARN("Unknown fullduplex header part for flow ", message.flowId, " on session ", name());
-				while (UInt8 length = reader.read8()) {
-					WARN("Unknown options for flow ", message.flowId, " on session ", name());
-					reader.next(length);
-				}
-			}
+			while (UInt8 length = reader.read8())
+				reader.next(length);
 			type = reader.read8();
 		}
 		if (!_pFlow->pWriter)
-			_pFlow->pWriter = newWriter(flowIdAssociated, signature);
-
-		UInt32 time(0);
-		switch (type) {
-		case AMF::TYPE_AUDIO:
-		case AMF::TYPE_VIDEO:
-			time = reader.read32();
-		case AMF::TYPE_CHUNKSIZE:
-			break;
-		default:
-			reader.next(4);
-			break;
-		}
+			_pFlow->pWriter = newWriter(_pFlow->streamId ? 2 : message.flowId, signature);
 
 		// join group
 		if (type == AMF::TYPE_CHUNKSIZE) { // trick to catch group in RTMFP (CHUNCKSIZE format doesn't exist in RTMFP)
-			if (_pFlow->pGroup)
-				peer.unjoinGroup(*_pFlow->pGroup);
 			UInt32 size = reader.read7BitValue();
-			if (size) {
-				--size;
-				if (reader.read8() == 0x10) {
-					if (size > reader.available()) {
-						ERROR("Bad header size for RTMFP group id");
-						size = reader.available();
-					}
-					UInt8 groupId[Entity::SIZE];
-					Crypto::Hash::SHA256(reader.current(), size, (unsigned char *)groupId);
-					_pFlow->pGroup = &peer.joinGroup(groupId, _pFlow->pWriter.get());
-				} else
-					_pFlow->pGroup = &peer.joinGroup(reader.current(), _pFlow->pWriter.get());
+			Entity::Map<RTMFP::Group>& groups(this->protocol<RTMFProtocol>().groups);
+			Entity::Map<RTMFP::Group>::iterator it;
+			const UInt8* groupId;
+			if (reader.read8() == 0x10) {
+				if (--size > reader.available()) {
+					ERROR("Bad header size for RTMFP group id");
+					size = reader.available();
+				}
+				// happens just on old flash version, otherwise is already a SHA256 (gain in peformance)
+				thread_local UInt8 ID[Entity::SIZE];
+				Crypto::Hash::SHA256(reader.current(), size, ID);
+				groupId = ID;
+			} else if (--size) {
+				if (size != Entity::SIZE) {
+					ERROR("Bad size for RTMFP group id");
+					return;
+				}
+				groupId = reader.current();
 			}
-		} else {
-			FlashStream* pStream = _mainStream.getStream(_pFlow->streamId);
-			if (!pStream) {
-				ERROR(name(), " indicates a non-existent ", _pFlow->streamId, " FlashStream");
-				kill(ERROR_PROTOCOL);
-				return;
-			}
-			pStream->process((AMF::Type)type, time, Packet(message,reader.current(),reader.available()), *_pFlow->pWriter, *this);
+			it = groups.lower_bound(groupId);
+			if (it == groups.end() || memcmp(it->first, groupId, Entity::SIZE) != 0)
+				it = groups.emplace_hint(it, *new RTMFP::Group(groupId, groups));
+			_pFlow->join(*it->second);
+			return;
 		}
+
+		UInt32 time(0);
+		switch (type) {
+			case AMF::TYPE_AUDIO:
+			case AMF::TYPE_VIDEO:
+				time = reader.read32();
+				break;
+			default:
+				reader.next(4);
+				break;
+		}
+
+		FlashStream* pStream = _mainStream.getStream(_pFlow->streamId);
+		if (!pStream) {
+			ERROR(name(), " indicates a non-existent ", _pFlow->streamId, " FlashStream");
+			kill(ERROR_PROTOCOL);
+			return;
+		}
+		Packet packet(message, reader.current(), reader.available());
+		// Capture setPeerInfo!
+		if(type==AMF::TYPE_INVOCATION_AMF3)
+			reader.next(1);
+		string name;
+		AMFReader amf(reader.current(), reader.available());
+		if (amf.readString(name) && name == "setPeerInfo") {
+			amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
+			amf.readNull();
+			set<SocketAddress> addresses;
+			string buffer;
+			while (amf.readString(buffer)) {
+				if (buffer.empty())
+					continue; // can happen, not display exception
+				SocketAddress address;
+				Exception ex;
+				if (address.set(ex, buffer))
+					addresses.emplace(address);
+				if (ex)
+					WARN("Invalid peer address info, ", ex);
+				buffer.clear();
+			}
+			if (!addresses.empty())
+				_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, addresses, _pSession.get());
+		}
+		pStream->process((AMF::Type)type, time, packet, *_pFlow->pWriter, *this);
 	};
 	onFlush = [this](RTMFP::Flush& flush) {
 		_recvTime.update();
@@ -178,9 +205,16 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 	};
 }
 
+void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
+	memcpy(BIN peer.id, pSession->peerId, Entity::SIZE);
+	_pSession = pSession;
+	_pSenderSession.reset(new RTMFPSender::Session(pSession, socket()));
+}
+
+
 UInt64 RTMFPSession::queueing() const {
-	UInt64 queueing(pSenderSession->queueing);
-	UInt32 bufferSize(pSenderSession->socket.sendBufferSize());
+	UInt64 queueing(_pSenderSession->queueing);
+	UInt32 bufferSize(_pSenderSession->socket.sendBufferSize());
 	// superior to buffer 0xFFFF to limit onFlush usage!
 	return queueing > bufferSize ? queueing - bufferSize : 0;
 }
@@ -189,6 +223,8 @@ UInt64 RTMFPSession::queueing() const {
 void RTMFPSession::onParameters(const Parameters& parameters) {
 	parameters.getNumber("keepalivePeer", _mainStream.keepalivePeer);
 	parameters.getNumber("keepaliveServer", _mainStream.keepaliveServer);
+	// set rendezvous address because now serverAddress is loaded!
+	_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, _pSession.get());
 }
 
 void RTMFPSession::kill(Int32 error, const char* reason) {
@@ -196,6 +232,8 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 		return;
 
 	if (_mainStream.onStart) { // else already done
+		// no valid more for rendezvous
+		_pSession->pRendezVous->erase(peer.id);
 
 		// no more reception, delete flows
 		_flows.clear();
@@ -215,7 +253,7 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 		_killing = 10;
 	}
 
-	if ((error>0 || error==ERROR_CONGESTED) && pSenderSession) {  // If error supporting a last message AND not come from client (0)
+	if ((error>0 || error==ERROR_CONGESTED) && _pSenderSession) {  // If error supporting a last message AND not come from client (0)
 		// If CONGESTED in RTMFP => we have erase queue messages, signal the death anyway!
 		if (!manage()) // to start immediatly killing signal
 			return;
@@ -264,7 +302,7 @@ bool RTMFPSession::manage() {
 	
 	// To accelerate the deletion of peer ghost (mainly for netgroup efficient), starts a keepalive server after 2 mn
 	if (_recvTime.isElapsed(120000)) {
-		if (!pSenderSession) {
+		if (!_pSenderSession) {
 			kill(ERROR_CONGESTED); // timeout connection without response possible, client congested? client canceled?
 			return false;
 		}
@@ -306,7 +344,7 @@ void RTMFPSession::flush() {
 void RTMFPSession::send(const shared<RTMFPSender>& pSender) {
 	// continue even on _killing to repeat writers messages to flush it (reliable)
 	pSender->address = peer.address;
-	pSender->pSession = pSenderSession;
+	pSender->pSession = _pSenderSession;
 	Exception ex;
 	AUTO_ERROR(api.threadPool.queue(ex, pSender, _senderTrack), name());
 }

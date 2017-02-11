@@ -52,10 +52,6 @@ void Writer::close(Int32 error, const char* reason) {
 	onClose(error, reason);
 }
 
-bool Writer::writeMember(const Client& client){
-	ERROR("writeMember method not supported by ",client.protocol," protocol")
-	return false;
-}
 
 
 } // namespace Mona

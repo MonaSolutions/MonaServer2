@@ -35,7 +35,7 @@ Sessions::~Sessions() {
 }
 
 void Sessions::addByAddress(Session& session) {
-	if (session._sessionsOptions&BYADDRESS) {
+	if (session._sessionsOptions&SESSION_BYADDRESS) {
 
 		session.peer.onAddressChanged = [this, &session](const SocketAddress& oldAddress) {
 			INFO(session.name(), " has changed its address, ", oldAddress, " -> ", session.peer.address);
@@ -52,7 +52,7 @@ void Sessions::addByAddress(Session& session) {
 		if (itSession == _sessions.end())
 			CRITIC("Overloaded ", it.first->second->name(), " impossible to find in sessions collection")
 		else
-			remove(itSession, BYPEER);
+			remove(itSession, SESSION_BYPEER);
 		it.first->second = &session;
 	}
 }
@@ -62,7 +62,7 @@ void Sessions::removeByAddress(Session& session) {
 }
 
 void Sessions::removeByAddress(const SocketAddress& address, Session& session) {
-	if (session._sessionsOptions&BYADDRESS) {
+	if (session._sessionsOptions&SESSION_BYADDRESS) {
 
 		session.peer.onAddressChanged = nullptr;
 
@@ -81,8 +81,8 @@ void Sessions::removeByAddress(const SocketAddress& address, Session& session) {
 }
 
 void Sessions::addByPeer(Session& session) {
-	if (session._sessionsOptions&BYADDRESS) {
-		auto& it = _sessionsByPeerId.emplace(session.peer.id, &session);
+	if (session._sessionsOptions&SESSION_BYPEER) {
+		auto& it = _sessionsByPeerId.emplace(session);
 		if (it.second)
 			return;
 		INFO(it.first->second->name(), " overloaded by ", session.name(), " (by peer id)");
@@ -90,13 +90,13 @@ void Sessions::addByPeer(Session& session) {
 		if (itSession == _sessions.end())
 			CRITIC("Overloaded ", it.first->second->name(), " impossible to find in sessions collection")
 		else
-			remove(itSession, BYPEER);
+			remove(itSession, SESSION_BYADDRESS);
 		it.first->second = &session;
 	}
 }
 
 void Sessions::removeByPeer(Session& session) {
-	if (session._sessionsOptions&BYPEER) {
+	if (session._sessionsOptions&SESSION_BYPEER) {
 		if (_sessionsByPeerId.erase(session.peer.id) == 0) {
 			ERROR(session.name(), " unfound in peer sessions collection with key ", Util::FormatHex(session.peer.id, Entity::SIZE, string()));
 			for (auto it = _sessionsByPeerId.begin(); it != _sessionsByPeerId.end(); ++it) {
@@ -110,13 +110,13 @@ void Sessions::removeByPeer(Session& session) {
 	}
 }
 
-void Sessions::remove(const map<UInt32, Session*>::iterator& it, UInt8 options) {
+void Sessions::remove(const map<UInt32, Session*>::iterator& it, SESSION_OPTIONS options) {
 	Session& session(*it->second);
 	DEBUG(session.name(), " deleted");
 
-	if (options&BYPEER)
+	if (options&SESSION_BYPEER)
 		removeByPeer(session);
-	if (options&BYADDRESS)
+	if (options&SESSION_BYADDRESS)
 		removeByAddress(session);
 
 	// If remove is called, session can be always not closed if the call comes from addByAddress or addByPeer
@@ -138,7 +138,7 @@ void Sessions::manage() {
 			session.flush();
 		if (!session) {
 			auto itRemove(it++);
-			remove(itRemove, BYPEER | BYADDRESS);
+			remove(itRemove, SESSION_BYPEER | SESSION_BYADDRESS);
 			continue;
 		}
 		++it;

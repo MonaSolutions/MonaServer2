@@ -24,19 +24,14 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/ThreadPool.h"
 #include "Mona/Socket.h"
 #include "Mona/Crypto.h"
+#include "Mona/Client.h"
+#include "Mona/RendezVous.h"
 
 namespace Mona {
 
 struct RTMFPWriter;
 struct RTMFPSender;
 struct RTMFP : virtual Static {
-
-	enum Location {
-		LOCATION_UNSPECIFIED = 0,
-		LOCATION_LOCAL = 1,
-		LOCATION_PUBLIC = 2,
-		LOCATION_REDIRECTION = 3
-	};
 
 	enum { TIMESTAMP_SCALE = 4 };
 	enum { SENDABLE_MAX = 6 };
@@ -56,9 +51,23 @@ struct RTMFP : virtual Static {
 		MESSAGE_END				= 0x01
 	};
 
+	struct Member {
+		operator const UInt8*() { return client().id; }
+		Client*					operator->() { return &client(); }
+		virtual Client&			client() = 0;
+		virtual RTMFPWriter&	writer() = 0;
+	};
+	struct Group : virtual Object, Entity, Entity::Map<Member> {
+		Group(const UInt8* id, Entity::Map<Group>& groups) : Entity(id), _groups(groups) {}
+		void join(Member& member);
+		void unjoin(Member& member);
+	private:
+		Entity::Map<RTMFP::Group>& _groups;
+	};
 
 	struct Engine : virtual Object {
 		Engine(const UInt8* key) { memcpy(_key, key, KEY_SIZE); EVP_CIPHER_CTX_init(&_context); }
+		Engine(const Engine& engine) { memcpy(_key, engine._key, KEY_SIZE); EVP_CIPHER_CTX_init(&_context); }
 		virtual ~Engine() { EVP_CIPHER_CTX_cleanup(&_context); }
 
 		bool			decode(Exception& ex, Buffer& buffer, const SocketAddress& address);
@@ -100,13 +109,15 @@ struct RTMFP : virtual Static {
 		typedef Event<void(RTMFP::Message&)>	ON(Message);
 		typedef Event<void(RTMFP::Flush&)>		ON(Flush);
 
-		Session(UInt32 id, UInt32 farId, const Packet& farPubKey, const UInt8* encryptKey) : id(id), farId(farId), farPubKey(std::move(farPubKey)), pEncoder(new Engine(encryptKey)) {}
-		const UInt32			id;
-		const UInt32			farId;
-		const shared<Engine>	pEncoder;
-		Packet					farPubKey;
+		Session(UInt32 id, UInt32 farId, const UInt8* farPubKey, UInt8 farPubKeySize, const UInt8* encryptKey, const shared<RendezVous>& pRendezVous) : id(id), farId(farId), peerId(), pEncoder(new Engine(encryptKey)), pRendezVous(pRendezVous) {
+			Crypto::Hash::SHA256(farPubKey, farPubKeySize, BIN peerId);
+		}
+		const UInt32				id;
+		const UInt32				farId;
+		const UInt8					peerId[Entity::SIZE];
+		const shared<Engine>		pEncoder;
+		const shared<RendezVous>	pRendezVous;
 	};
-
 
 	struct Output : virtual Object {
 		virtual shared<RTMFPWriter>	newWriter(UInt64 flowId, const Packet& signature) = 0;
@@ -120,7 +131,6 @@ struct RTMFP : virtual Static {
 	static bool				Send(Socket& socket, const Packet& packet, const SocketAddress& address);
 	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, UInt8 marker = 0x4a);
 	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, Mona::Time& expTime, UInt8 marker = 0x4a);
-	static BinaryWriter&	WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location=LOCATION_UNSPECIFIED);
 	static void				ComputeAsymetricKeys(const UInt8* secret, UInt16 secretSize, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey);
 
 	static UInt32			ReadID(Buffer& buffer);

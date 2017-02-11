@@ -30,40 +30,46 @@ struct RTMFProtocol;
 struct RTMFPSession : RTMFP::Output, Session, Net::Stats, virtual Object {
 	RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer);
 
-	shared<RTMFPSender::Session> pSenderSession;
+	void init(const shared<RTMFP::Session>& pSession);
 
 	RTMFP::Session::OnAddress	onAddress;
 	RTMFP::Session::OnMessage	onMessage;
 	RTMFP::Session::OnFlush		onFlush;
 
-	// Implementation of Net::Stats
-	Time				recvTime() const { return _recvTime; }
-	UInt64				recvByteRate() const { return _recvByteRate; }
-	double				recvLostRate() const { return _recvLostRate; }
-	Time				sendTime() const { return pSenderSession->sendTime.load(); }
-	UInt64				sendByteRate() const { return pSenderSession->sendByteRate; }
-	double				sendLostRate() const { return pSenderSession->sendLostRate; }
-	UInt64				queueing() const;
 
 	void				kill(Int32 error = 0, const char* reason = NULL);
 
 private:
-	struct Flow : virtual Object {
-		Flow(Peer& peer) : pGroup(NULL), streamId(0), peer(peer) {}
-		~Flow() { if (pGroup) peer.unjoinGroup(*pGroup); }
-		shared<RTMFPWriter>	pWriter;
-		Group*				pGroup;
+	struct Flow : virtual Object, RTMFP::Member {
+		Flow(Client& client) : _pGroup(NULL), streamId(0), _client(client) {}
+		~Flow() { unjoin(); }
+
 		UInt16				streamId;
-		Peer&				peer;
+		shared<RTMFPWriter>	pWriter;
+
+		void  join(RTMFP::Group& group) { unjoin(); _pGroup = &group; group.join(*this); }
+		void  unjoin() { if (_pGroup) { _pGroup->unjoin(*this); _pGroup = NULL; } }
+	private:
+		Client&			client() { return _client; }
+		RTMFPWriter&	writer() { return *pWriter; }
+		RTMFP::Group*	_pGroup;
+		Client&			_client;
 	};
+
+	// Implementation of Net::Stats
+	Time				recvTime() const { return _recvTime; }
+	UInt64				recvByteRate() const { return _recvByteRate; }
+	double				recvLostRate() const { return _recvLostRate; }
+	Time				sendTime() const { return _pSenderSession->sendTime.load(); }
+	UInt64				sendByteRate() const { return _pSenderSession->sendByteRate; }
+	double				sendLostRate() const { return _pSenderSession->sendLostRate; }
+	UInt64				queueing() const;
 
 	void				onParameters(const Parameters& parameters);
 	bool				keepalive();
 	bool				manage();
 	void				flush();
 	
-
-	// void				writeP2PHandshake(const std::string& tag, const SocketAddress& address, RTMFP::AddressType type);
 
 	// Implementation of RTMFPOutput
 	shared<RTMFPWriter>	newWriter(UInt64 flowId, const Packet& signature);
@@ -80,6 +86,9 @@ private:
 	UInt64									_nextWriterId;
 	UInt16									_senderTrack;
 	Flow*									_pFlow;
+
+	shared<RTMFP::Session>					_pSession;
+	shared<RTMFPSender::Session>			_pSenderSession;
 
 	Time									_recvTime;
 	ByteRate								_recvByteRate;

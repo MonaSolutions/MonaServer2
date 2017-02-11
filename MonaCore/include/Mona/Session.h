@@ -57,9 +57,9 @@ struct Session : virtual NullableObject {
 	Peer&				peer;
 	ServerAPI&			api;
 
-	operator bool() const { return !died; }
-
-
+	explicit operator bool() const { return !died; }
+	explicit operator const UInt8*() const { return peer.id; }
+	
 	virtual	~Session();
 
 	/*!
@@ -85,7 +85,7 @@ private:
 	shared<Peer>				_pPeer;
 	UInt32						_id;
 	mutable std::string			_name;
-	UInt8						_sessionsOptions;
+	SESSION_OPTIONS				_sessionsOptions;
 	Protocol&					_protocol;
 
 

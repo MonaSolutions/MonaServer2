@@ -85,11 +85,11 @@ bool Application::init(int argc, const char* argv[]) {
 	_file.set(path);
 
 	// 2 - load configurations
-	string configPath;
-	if (loadConfigurations(String::Assign(configPath,_file.parent(),_file.baseName(),".ini"))) {
+	Path configPath(_file.parent(), _file.baseName(), ".ini");
+	if (loadConfigurations(configPath)) {
 		// Has configPath!
 		setString("application.configPath", configPath);
-		setString("application.configDir", FileSystem::GetParent(configPath));
+		setString("application.configDir", configPath.parent());
 	}
 
 	// 3 - Write common parameters
@@ -152,7 +152,7 @@ bool Application::init(int argc, const char* argv[]) {
 	return true;
 }
 
-bool Application::loadConfigurations(string& path) {
+bool Application::loadConfigurations(Path& path) {
 	return Util::ReadIniFile(path, *this);
 }
 

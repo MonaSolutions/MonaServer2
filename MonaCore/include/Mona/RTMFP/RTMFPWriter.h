@@ -22,14 +22,12 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/RTMFP/RTMFPSender.h"
 #include "Mona/FlashWriter.h"
 #include "Mona/Logs.h"
-#include "Mona/Client.h"
-
 
 
 namespace Mona {
 
 struct RTMFPWriter : FlashWriter, virtual Object {
-	RTMFPWriter(UInt64 id, UInt64 flowId, const Packet& signature, RTMFP::Output& output);
+	RTMFPWriter(UInt64 id, UInt64 flowId, const Binary& signature, RTMFP::Output& output);
 
 	Writer&		newWriter() { return **_writers.emplace(_output.newWriter(_pQueue->flowId, Packet(_pQueue->signature.data(), _pQueue->signature.size()))).first; }
 
@@ -48,7 +46,7 @@ struct RTMFPWriter : FlashWriter, virtual Object {
 	void				clear() { _pSender.reset(); }
 	void				closing(Int32 code, const char* reason = NULL);
 
-	bool				writeMember(const Client& client);
+	void				sendMember(const UInt8* id);
 
 private:
 	void				flushing();

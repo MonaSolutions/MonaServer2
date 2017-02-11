@@ -72,7 +72,7 @@ protected:
 	virtual int				main() = 0;
 
 	// Can be override to change load behavior + path location
-	virtual bool			loadConfigurations(std::string& path);
+	virtual bool			loadConfigurations(Path& path);
 	virtual bool			loadLogFiles(std::string& directory, std::string& fileName, UInt32& sizeByFile, UInt16& rotation);
 	virtual const char*		defineVersion() { return NULL; }
 	virtual void			defineOptions(Exception& ex, Options& options);

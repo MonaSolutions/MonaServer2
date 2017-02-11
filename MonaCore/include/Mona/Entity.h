@@ -19,23 +19,35 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
+#include "Mona/Util.h"
 
 namespace Mona {
 
 struct Entity : virtual Object {
+	struct Comparator { bool operator()(const UInt8* a, const UInt8* b) const { return memcmp(a, b, SIZE)<0; } };
+	template<typename EntityType>
+	struct Map : std::map<const UInt8*, EntityType*, Comparator> {
+		using std::map<const UInt8*, EntityType*, Comparator>::map;
+		std::pair<iterator, bool>	emplace(EntityType& entity) { return std::map<const UInt8*, EntityType*, Comparator>::emplace(entity, &entity); }
+		iterator					emplace_hint(const_iterator it, EntityType& entity) { return std::map<const UInt8*, EntityType*, Comparator>::emplace_hint(it, entity, &entity); }
+	private:
+		void insert() = delete;
+		void operator[](const UInt8*) = delete;
+	};
+
 	enum {
 		SIZE = 32
 	};
-	Entity() { std::memset(id, 0, SIZE); }
-	Entity(const UInt8* id) { std::memcpy(this->id, id, SIZE);	}
-	virtual ~Entity() {}
+	Entity() : id() { Util::Random(BIN id, SIZE); }
+	Entity(const UInt8* id) : id() { std::memcpy(BIN this->id, id, SIZE);	}
 
 	bool operator==(const Entity& other) const { return std::memcmp(id, other.id, SIZE) == 0; }
 	bool operator==(const UInt8* id) const { return std::memcmp(this->id, id, SIZE) == 0; }
 	bool operator!=(const Entity& other) const { return std::memcmp(id, other.id, SIZE) != 0; }
 	bool operator!=(const UInt8* id) const { return std::memcmp(this->id, id, SIZE) != 0; }
 
-	UInt8 id[SIZE];
+	const UInt8 id[SIZE];
+	explicit operator const UInt8*() const { return id; }
 };
 
 

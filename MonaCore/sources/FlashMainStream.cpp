@@ -56,14 +56,13 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 	
 		MapWriter<Parameters> mapWriter(peer.properties());
 		if(message.read(AMFReader::OBJECT, mapWriter)) {
-
-			if (peer.properties().getString("tcUrl",_buffer)) {
+			const char* url = peer.properties().getString("tcUrl");
+			if (url) {
 				string serverAddress;
-				Util::UnpackUrl(_buffer, serverAddress,(string&)peer.path,(string&)peer.query);
+				Util::UnpackUrl(url, serverAddress, (string&)peer.path, (string&)peer.query);
 				peer.setServerAddress(serverAddress);
 				Util::UnpackQuery(peer.query, peer.properties());
 			}
-
 			if (peer.properties().getNumber<UInt32,3>("objectEncoding")==0) {
 				writer.amf0 = amf0 = true;
 				WARN("Client ",peer.protocol," not compatible with AMF3, few complex object can be not supported");
@@ -93,6 +92,12 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 			
 		response.endObject();
 
+		if (keepaliveServer) {
+			BinaryWriter& response = writer.writeRaw();
+			response.write16(0x29); // Unknown!
+			response.write32(keepaliveServer * 1000);
+			response.write32(keepalivePeer * 1000);
+		}
 		return;
 	}
 
@@ -101,30 +106,6 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 		writer.writeAMFError("NetConnection.Connect.Failed", "Connect before to send any message");
 		writer.writeInvocation("close");
 		writer.close();
-		return;
-	}
-
-	if (name == "setPeerInfo") {
-
-		peer.localAddresses.clear();
-		while (message.available()) {
-			SocketAddress address;
-			Exception ex;
-			_buffer.clear();
-			if (!message.readString(_buffer) || _buffer.empty())
-				continue;
-			if (address.set(ex, _buffer))
-				peer.localAddresses.emplace(address);
-			if (ex)
-				WARN("Peer address, ", ex)
-		}
-
-		if (keepaliveServer) {
-			BinaryWriter& response = writer.writeRaw();
-			response.write16(0x29); // Unknown!
-			response.write32(keepaliveServer * 1000);
-			response.write32(keepalivePeer * 1000);
-		}
 		return;
 	}
 
@@ -167,7 +148,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 	if (!peer.onInvocation(ex, name, message))
 		ex.set<Ex::Application>("Method client '", name, "' not found on application ", peer.path);
 	if (ex) {
-		ERROR(ex);
+		WARN(ex); // warn because for flash there is some auto messages not necessary catched/programmed by user application
 		writer.writeAMFError("NetConnection.Call.Failed", ex);
 	}
 }

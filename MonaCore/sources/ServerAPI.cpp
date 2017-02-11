@@ -32,12 +32,6 @@ ServerAPI::ServerAPI(const Path& application, const Path& www, const Handler& ha
 	application(application), www(www), protocols(protocols), timer(timer), handler(handler), threadPool(threadPool), ioSocket(handler, threadPool), ioFile(handler, threadPool), publications(_publications) {
 }
 
-ServerAPI::~ServerAPI() {
-	// delete groups
-	for(auto& it : groups)
-		delete it.second;
-}
-
 void ServerAPI::manage() {
 	auto it = _waitingKeys.begin();
 	while (it != _waitingKeys.end()) {

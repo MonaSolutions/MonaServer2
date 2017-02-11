@@ -3,15 +3,13 @@
 
 #include "Mona/Mona.h"
 #include "Mona/Publication.h"
-#include "Mona/Group.h"
+#include "Mona/Client.h"
 
 namespace Mona {
 
-class App : virtual public Object {
-public:
+struct App : virtual Object {
 
-	class Client : virtual public Object {
-	public:
+	struct Client : virtual Object {
 		Client(Mona::Client& client) : client(client) {}
 		virtual ~Client() {}
 
@@ -24,9 +22,6 @@ public:
 
 		virtual bool onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication) { return true; }
 		virtual void onUnsubscribe(const Subscription& subscription, const Publication& publication) {}
-
-		virtual void onJoinGroup(Group& group) {}
-		virtual void onUnjoinGroup(Group& group) {}
 
 		Mona::Client& client;
 	};

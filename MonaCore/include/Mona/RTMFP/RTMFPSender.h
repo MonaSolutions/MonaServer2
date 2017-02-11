@@ -44,10 +44,12 @@ struct RTMFPSender : Runner, virtual Object {
 		UInt32 _sizeSent;
 	};
 	struct Session : virtual Object {
-		Session(const shared<RTMFP::Session>& pSession, const shared<Socket>& pSocket) : sendable(RTMFP::SENDABLE_MAX), id(pSession->id), farId(pSession->farId), socket(*pSocket), encoder(*pSession->pEncoder), queueing(0), _pSocket(pSocket), _pSession(pSession), sendLostRate(sendByteRate), sendTime(0) {}
+		Session(const shared<RTMFP::Session>& pSession, const shared<Socket>& pSocket) :
+			sendable(RTMFP::SENDABLE_MAX), id(pSession->id), farId(pSession->farId), socket(*pSocket), pEncoder(pSession->pEncoder),
+			queueing(0), _pSocket(pSocket), sendLostRate(sendByteRate), sendTime(0) {}
 		const UInt32			id;
 		const UInt32			farId;
-		RTMFP::Engine&			encoder;
+		shared<RTMFP::Engine>	pEncoder;
 		Socket&					socket;
 		std::atomic<Int64>		sendTime;
 		ByteRate				sendByteRate;
@@ -55,7 +57,6 @@ struct RTMFPSender : Runner, virtual Object {
 		std::atomic<UInt64>		queueing;
 		UInt8					sendable;
 	private:
-		shared<RTMFP::Session>	_pSession;
 		shared<Socket>			_pSocket;
 	};
 	struct Queue : virtual Object, std::deque<shared<Packet>> {

@@ -25,12 +25,18 @@ namespace Mona {
 
 #define KILL(error) {_died.update(); echoTime=error; size = reader.available();}
 
-RTMFPReceiver::RTMFPReceiver(const Handler& handler, UInt32 id, UInt32 farId, const Packet& farPubKey, const UInt8* decryptKey, const UInt8* encryptKey, const shared<Socket>& pSocket, const SocketAddress& address) :
-	RTMFP::Session(id, farId, farPubKey, encryptKey), _expTime(0xFFFFFFFF), _echoTime(0xFFFFFFFF), _handler(handler), _pDecoder(new RTMFP::Engine(decryptKey)), track(0), _died(0), _obsolete(0), _weakSocket(pSocket), _address(address),
-	_output([this](UInt64 flowId, UInt32& lost, const Packet& packet){
-		_handler.queue(onMessage, flowId, lost, packet);
-		lost = 0;
-	}) {
+RTMFPReceiver::RTMFPReceiver(const Handler& handler,
+		UInt32 id, UInt32 farId,
+		const UInt8* farPubKey, UInt8 farPubKeySize,
+		const UInt8* decryptKey, const UInt8* encryptKey,
+		const shared<Socket>& pSocket, const SocketAddress& address,
+		const shared<RendezVous>& pRendezVous) : RTMFP::Session(id, farId, farPubKey, farPubKeySize, encryptKey, pRendezVous),
+			_expTime(0xFFFFFFFF), _echoTime(0xFFFFFFFF), _handler(handler), _pDecoder(new RTMFP::Engine(decryptKey)),
+			track(0), _died(0), _obsolete(0), _weakSocket(pSocket), _address(address),
+			_output([this](UInt64 flowId, UInt32& lost, const Packet& packet) {
+				_handler.queue(onMessage, flowId, lost, packet);
+				lost = 0;
+			}) {
 }
 
 bool RTMFPReceiver::obsolete() {
@@ -165,9 +171,12 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 							it.first->second.set(Packet(buffer, message.current(), message.available()));
 					}
 				} else {
-					// no more place to write, reliability broken
-					WARN("RTMFPWriter ", id, " can't deliver its data, client buffer full");
-					KILL(Mona::Session::ERROR_PROTOCOL);
+					auto& it = acks.find(id);
+					if (it == acks.end() || it->second) {
+						// no more place to write, reliability broken
+						WARN("RTMFPWriter ", id, " can't deliver its data, client buffer full");
+						KILL(Mona::Session::ERROR_PROTOCOL);
+					} // ack on a failed writer, ignore!
 				}
 				break;
 			}
@@ -182,8 +191,8 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 
 				if (flags & RTMFP::MESSAGE_OPTIONS) {
 					// flow creation
-					*(UInt8*)message.current() |= RTMFP::MESSAGE_OPTIONS;
 					pFlow = &_flows.emplace(piecewise_construct, forward_as_tuple(flowId), forward_as_tuple(flowId, _output)).first->second;
+					*(UInt8*)message.current() |= RTMFP::MESSAGE_OPTIONS;
 				} else {
 					const auto& it = _flows.find(flowId);
 					if (it == _flows.end()) {

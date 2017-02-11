@@ -53,7 +53,7 @@ void RTMFPCmdSender::run() {
 	// COMMAND
 	shared<Buffer> pBuffer;
 	BinaryWriter(RTMFP::InitBuffer(pBuffer)).write24(UInt32(_cmd << 16));
-	RTMFP::Send(pSession->socket, Mona::Packet(pSession->encoder.encode(pBuffer, pSession->farId, address)), address);
+	RTMFP::Send(pSession->socket, Mona::Packet(pSession->pEncoder->encode(pBuffer, pSession->farId, address)), address);
 }
 
 void RTMFPAcquiter::run() {
@@ -109,7 +109,7 @@ void RTMFPRepeater::sendAbandon(UInt64 stage) {
 	BinaryWriter writer(RTMFP::InitBuffer(pBuffer));
 	writer.write8(0x10).write16(2 + Binary::Get7BitValueSize(pQueue->id) + Binary::Get7BitValueSize(stage));
 	writer.write8(RTMFP::MESSAGE_ABANDON).write7BitLongValue(pQueue->id).write7BitLongValue(stage).write8(0);
-	RTMFP::Send(pSession->socket, Mona::Packet(pSession->encoder.encode(pBuffer, pSession->farId, address)), address);
+	RTMFP::Send(pSession->socket, Mona::Packet(pSession->pEncoder->encode(pBuffer, pSession->farId, address)), address);
 }
 
 
@@ -132,7 +132,7 @@ void RTMFPMessenger::flush() {
 	if (!_pBuffer)
 		return;
 	// encode and add to pQueue
-	pQueue->emplace_back(new Packet(pSession->encoder.encode(_pBuffer, pSession->farId, address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false));
+	pQueue->emplace_back(new Packet(pSession->pEncoder->encode(_pBuffer, pSession->farId, address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false));
 	pSession->queueing += pQueue->back()->size();
 }
 

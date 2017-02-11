@@ -10,7 +10,12 @@
 RTMFP BUG=>
 - Recording, looks not started on keyframe (RTMP is smooth, not RTMFP)
 
+Multi-Server=>
+- RTMFP onRendezVousUnknow => useless in external API, happens just on group member connection between => returns les adresses de tous les serveur RTMFP actifs
+- RTMFP Group new member => if group < 2log2(N)+13 then broadcast to servers this memberId (server.broadcast = TCP), et sans l'enregistrer dans les groupes correspond distribuer le memberId à 2log2(N)+13 membres (pour bien mixer les groupes entre serveurs) 
 
+Sur contrat:
+- Security StreamData... check all
 - WebSocket => @join, return log truc ips + @relay, send messages to every members?
 - HTTP with mime=application/sdp + upgrade=WebRTC => WebRTC(sdp)!!!!!
 - WebSocket-SIP => https://tools.ietf.org/html/rfc7118 - https://en.wikipedia.org/wiki/JsSIP - http://www.jssip.net/

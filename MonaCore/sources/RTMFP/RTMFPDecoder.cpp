@@ -29,7 +29,7 @@ namespace Mona {
 struct RTMFPDecoder::Handshake : Runner, virtual Object {
 	OnHandshake	onHandshake;
 
-	Handshake(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket, const Handler& handler) : pResponse(new Packet()), _attempts(0), Runner("RTMFPHandshake"), _handler(handler), _weakSocket(pSocket), pBuffer(move(pBuffer)), address(address) {}
+	Handshake(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket, const Handler& handler, const shared<RendezVous>& pRendezVous) : _pRendezVous(pRendezVous), pResponse(new Packet()), _attempts(0), Runner("RTMFPHandshake"), _handler(handler), _weakSocket(pSocket), pBuffer(move(pBuffer)), address(address) {}
 
 	shared<Buffer>			pBuffer;
 	SocketAddress			address;
@@ -40,11 +40,10 @@ struct RTMFPDecoder::Handshake : Runner, virtual Object {
 
 private:
 	bool run(Exception&) {
+		shared<Buffer> pBuffer(move(this->pBuffer));
 		shared<Socket> pSocket(_weakSocket.lock());
-		if (!pSocket) {
-			pBuffer.reset();
+		if (!pSocket)
 			return true; // RTMFP stopped
-		}
 
 		Exception ex;
 		bool success;
@@ -54,7 +53,7 @@ private:
 		BinaryReader reader(pBuffer->data(), pBuffer->size());
 		UInt8 marker = reader.read8();
 		if (marker != 0x0b) {
-			ERROR("Marker handshake ", String::Format<UInt8>("%.2x", marker), " wrong, should be 0b and not ");
+			ERROR("Marker handshake ", String::Format<UInt8>("%.2x", marker), " wrong, should be 0b");
 			return true;
 		}
 		reader.read16(); // time
@@ -62,96 +61,56 @@ private:
 		reader.shrink(reader.read16());
 		switch (type) {
 			case 0x30: {
-				if (*pResponse) {
-					// repeat response!
-					RTMFP::Send(*pSocket, *pResponse, address);
-					break;
-				}
 				reader.read7BitLongValue(); // useless
 				reader.read7BitLongValue(); // size epd (useless)
 				UInt8 type(reader.read8());
-				if (reader.available()<16) {
-					ERROR("Handshake 0x30 without 16 bytes tag field")
-						break;
-				}
 				if (type == 0x0f) {
 					if (reader.available()<48) {
-						ERROR("Handshake 0x30 rendezvous without peer id");
+						ERROR("Handshake 0x30-0F rendezvous without peer id and 16 bytes tag field");
 						break;
 					}
-					/*	
+					
 					const UInt8* peerId(reader.current());
+					reader.next(Entity::SIZE);
 
-					RTMFPSession* pSessionWanted = _sessions.findByPeer<RTMFPSession>(peerId);
-	
-					if(pSessionWanted) {
-						if(pSessionWanted->killing())
-							return 0x00; // TODO no way in RTMFP to tell "died!"
-						/// Udp hole punching
-						UInt32 times = attempt(tag);
-		
-						RTMFPSession* pSession(NULL);
-						if(times > 0 || address.host() == pSessionWanted->peer.address.host()) // try in first just with public address (excepting if the both peer are on the same machine)
-							pSession = _sessions.findByAddress<RTMFPSession>(address,Socket::DATAGRAM);
-					
-						// send hanshaker addresses to session wanted
-						pSessionWanted->p2pHandshake(tag,address,times,pSession);
-					
-						// public address
-						RTMFP::WriteAddress(response,pSessionWanted->peer.address, RTMFP::ADDRESS_PUBLIC);
-						DEBUG("P2P address initiator exchange, ",pSessionWanted->peer.address.toString());
-
-						if (pSession && pSession->peer.serverAddress.host() != pSessionWanted->peer.serverAddress.host() && pSession->peer.serverAddress.host()!=pSessionWanted->peer.address.host()) {
-							// the both peer see the server in a different way (and serverAddress.host()!= public address host written above),
-							// Means an exterior peer, but we can't know which one is the exterior peer
-							// so add an interiorAddress build with how see eachone the server on the both side
-						
-							// Usefull in the case where Caller is an exterior peer, and SessionWanted an interior peer,
-							// we give as host to Caller how it sees the server (= SessionWanted host), and port of SessionWanted
-							SocketAddress interiorAddress(pSession->peer.serverAddress.host(), pSessionWanted->peer.address.port());
-							RTMFP::WriteAddress(response,interiorAddress, RTMFP::ADDRESS_PUBLIC);
-							DEBUG("P2P address initiator exchange, ",interiorAddress.toString());
-						}
-
-						// local address
-						for(const SocketAddress& address : pSessionWanted->peer.localAddresses) {
-							RTMFP::WriteAddress(response,address, RTMFP::ADDRESS_LOCAL);
-							DEBUG("P2P address initiator exchange, ",address.toString());
-						}
-
-						// add the turn address (RelayServer) if possible and required
-						if (pSession && times>0) {
-							UInt8 timesBeforeTurn(0);
-							if(pSession->peer.parameters().getNumber("timesBeforeTurn",timesBeforeTurn) && timesBeforeTurn>=times) {
-								UInt16 port = invoker.relayer.relay(pSession->peer.address,pSessionWanted->peer.address,20); // 20 sec de timeout is enough for RTMFP!
-								if (port > 0) {
-									SocketAddress address(pSession->peer.serverAddress.host(), port);
-									RTMFP::WriteAddress(response, address, RTMFP::ADDRESS_REDIRECTION);
-								} // else ERROR already display by RelayServer class
-							}
-						}
-						return 0x71;
+					shared<Buffer> pBufferA, pBufferB;
+					RTMFP::InitBuffer(pBufferA, 0x0B);
+					RTMFP::InitBuffer(pBufferB);
+					BinaryWriter writerA(*pBufferA);
+					BinaryWriter writerB(*pBufferB);
+					writerA.write8(0x71).next(2).write8(16).write(reader.current(), 16); // tag in header
+					writerB.write8(0x0F).next(2).write24(0x22210F).write(peerId,Entity::SIZE);
+					SocketAddress addressB;
+					RTMFP::Session* pSession = _pRendezVous->meet<RTMFP::Session>(address, peerId, writerA, writerB, addressB, _attempts++);
+					if (!pSession) {
+						DEBUG("UDP Hole punching, session ", Util::FormatHex(peerId, Entity::SIZE, string()), " wanted not found")
+						break; // peerId unknown! TODO?
 					}
-
-
-					DEBUG("UDP Hole punching, session ", Util::FormatHex(peerId, ID_SIZE, LOG_BUFFER), " wanted not found")
-					set<SocketAddress> addresses;
-					peer.onRendezVousUnknown(peerId,addresses);
-					set<SocketAddress>::const_iterator it;
-					for(it=addresses.begin();it!=addresses.end();++it) {
-						if(it->host().isWildcard())
-							continue;
-						if(address == *it)
-							WARN("A client tries to connect to himself (same ", address.toString()," address)");
-						RTMFP::WriteAddress(response,*it,RTMFP::ADDRESS_REDIRECTION);
-						DEBUG("P2P address initiator exchange, ",it->toString());
-					}
-					return addresses.empty() ? 0 : 0x71;
+					writerB.write(reader.current(), 16); // tag in footer
 					
-					*/
-				} else if (type == 0x0a)
+					// Write header size
+					BinaryWriter(pBufferA->data() + 10, 2).write16(pBufferA->size() - 12);
+					BinaryWriter(pBufferB->data() + 10, 2).write16(pBufferB->size() - 12);
+					// encode response
+					RTMFP::Engine::Encode(pBufferA, 0, address);
+					RTMFP::Engine(*pSession->pEncoder).encode(pBufferB, pSession->farId, addressB); // create a new encoder to be thread safe
+					// send
+					RTMFP::Send(*pSocket, Packet(pBufferA), address);
+					RTMFP::Send(*pSocket, Packet(pBufferB), addressB);
+					break;
+				}
+				if (type == 0x0a) {
+					if (*pResponse) {
+						// repeat response!
+						RTMFP::Send(*pSocket, *pResponse, address);
+						break;
+					}
+					if (reader.available()<16) {
+						ERROR("Handshake 0x30 without 16 bytes tag field");
+						break;
+					}
 					_handler.queue(onHandshake, _attempts++, Packet(pBuffer, reader.current(), reader.available()), address, pResponse);
-				else
+				} else
 					ERROR("Handshake 0x30 with unknown ", String::Format<UInt8>("%02x", type), " type");
 				break;
 			}
@@ -175,21 +134,23 @@ private:
 				UInt32 id = Byte::From32Network(*(UInt32*)reader.current());
 				reader.next(RTMFP::SIZE_COOKIE);
 
-				Packet farPubKey(pBuffer, reader.current(), UInt32(reader.read7BitLongValue()));
+				const UInt8* farPubKey = reader.current();
+				UInt8 farPubKeySize = UInt8(reader.read7BitLongValue());
 		
-				UInt32 size = reader.read7BitValue() - 2;
+				UInt16 size = reader.read7BitValue() - 2;
 				reader.next(2); // unknown
 				const UInt8* key = reader.current(); reader.next(size);
 
 				DiffieHellman dh;
 				UInt8 secret[DiffieHellman::SIZE];
-				UInt32 secretSize;
+				UInt8 secretSize;
 				AUTO_ERROR(secretSize = dh.computeSecret(ex = nullptr, key, size, secret), "DiffieHellman");
 				if (!secretSize)
 					break;
 			
-				RTMFP::InitBuffer(pBuffer, 0x0B);
-				BinaryWriter writer(*pBuffer);
+				shared<Buffer> pOut;
+				RTMFP::InitBuffer(pOut, 0x0B);
+				BinaryWriter writer(*pOut);
 				writer.write8(0x78).next(2).write32(id).write7BitLongValue(dh.publicKeySize() + 11);
 				UInt32 noncePos = writer.size();
 				writer.write(EXPAND("\x03\x1A\x00\x00\x02\x1E\x00"));
@@ -201,17 +162,19 @@ private:
 				writer.write8(0x81).write8(2 - byte2).write16(0x0D02);
 				dh.readPublicKey(writer.buffer(dh.publicKeySize()));
 				writer.write8(0x58);
-				BinaryWriter(pBuffer->data() + 10, 2).write16(pBuffer->size() - 12);
 
 				// Compute Keys
 				UInt8 encryptKey[Crypto::SHA256_SIZE];
 				UInt8 decryptKey[Crypto::SHA256_SIZE];
-				size = reader.read7BitValue();
+				size = UInt16(reader.read7BitValue());
 				RTMFP::ComputeAsymetricKeys(secret, secretSize, reader.current(), size, writer.data() + noncePos, dh.publicKeySize() + 11, decryptKey, encryptKey);
-		
-				pReceiver.reset(new RTMFPReceiver(_handler, id, farId, farPubKey, decryptKey, encryptKey, pSocket, address));
+				pReceiver.reset(new RTMFPReceiver(_handler, id, farId, farPubKey, farPubKeySize, decryptKey, encryptKey, pSocket, address, _pRendezVous));
 
-				pResponse->set(RTMFP::Engine::Encode(pBuffer, farId, address));
+				// write size!
+				BinaryWriter(pOut->data() + 10, 2).write16(pOut->size() - 12);
+				// encode and save response
+				pResponse->set(RTMFP::Engine::Encode(pOut, farId, address));
+				// send
 				RTMFP::Send(*pSocket,*pResponse, address);
 				break;
 			}
@@ -221,13 +184,14 @@ private:
 		return true;
 	}
 
-	weak<Socket>	_weakSocket;
-	const Handler&	_handler;
-	UInt8			_attempts;
-	Time			_timeout;
+	weak<Socket>		_weakSocket;
+	const Handler&		_handler;
+	UInt8				_attempts;
+	Time				_timeout;
+	shared<RendezVous>  _pRendezVous;
 };
 
-RTMFPDecoder::RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool) : _handler(handler), _threadPool(threadPool),
+RTMFPDecoder::RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool) : _handler(handler), _threadPool(threadPool), _pRendezVous(new RendezVous()),
 	_validateReceiver([this](UInt32 keySearched, map<UInt32, shared<RTMFPReceiver>>::iterator& it) {
 		return keySearched != it->first && it->second.unique() && it->second->obsolete() ? false : true;
 	}),
@@ -275,7 +239,7 @@ UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& addres
 		auto it = lower_bound(_handshakes, address, _validateHandshake);
 		if (it == _handshakes.end() || it->first != address) {
 			// First handshake
-			it = _handshakes.emplace_hint(it, address, new Handshake(pBuffer, address, pSocket, _handler));
+			it = _handshakes.emplace_hint(it, address, new Handshake(pBuffer, address, pSocket, _handler, _pRendezVous));
 			it->second->onHandshake = onHandshake;
 			AUTO_ERROR(_threadPool.queue(ex, it->second), "RTMFP handshake");
 		} else if(it->second.unique() && it->second->pResponse.unique()) {

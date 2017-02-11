@@ -20,14 +20,13 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/IOSocket.h"
-#include "Mona/Group.h"
 #include "Mona/Publication.h"
-#include "Mona/Entities.h"
 #include "Mona/ThreadPool.h"
 #include "Mona/IOFile.h"
 #include "Mona/Timer.h"
 #include "Mona/TLS.h"
 #include "Mona/Protocols.h"
+#include "Mona/Client.h"
 #include <set>
 
 namespace Mona {
@@ -40,9 +39,8 @@ struct ServerAPI : virtual Object, Parameters {
 	const Path&				application;
 	const Path&				www;
 
-	const Protocols&		protocols;
-	const Entities<Client>  clients;
-	const Entities<Group>	groups;
+	const Protocols&			protocols;
+	const Entity::Map<Client>	clients;
 	
 	const std::map<std::string, Publication>&	publications;
 
@@ -84,16 +82,12 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onStart(){}
 	virtual void			onStop(){}
 
-	virtual	void			onRendezVousUnknown(const std::string& protocol,const UInt8* id,std::set<SocketAddress>& addresses){}
 	virtual void			onHandshake(const std::string& protocol,const SocketAddress& address,const std::string& path,const Parameters& properties,UInt8 attempts,std::set<SocketAddress>& addresses){}
-	virtual void			onConnection(Exception& ex,Client& client,DataReader& arguments,DataWriter& response){} // Exception::SOFTWARE, Exception::APPLICATION
-	virtual void			onDisconnection(Client& client){}
+	virtual void			onConnection(Exception& ex,Client& client,DataReader& arguments,DataWriter& response) {} // Exception::SOFTWARE, Exception::APPLICATION
+	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION
 	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient){return true;}  // Exception::SOFTWARE
-
-	virtual void			onJoinGroup(Client& client, Group& group){}
-	virtual void			onUnjoinGroup(Client& client, Group& group){}
 
 	virtual bool			onPublish(Exception& ex, const Publication& publication, Client* pClient){return true;}
 	virtual void			onUnpublish(const Publication& publication, Client* pClient){}
@@ -103,8 +97,7 @@ struct ServerAPI : virtual Object, Parameters {
 
 protected:
 	ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, ThreadPool& threadPool);
-	virtual ~ServerAPI();
-
+	
 	void					manage();
 private:
 

@@ -59,12 +59,6 @@ protected:
 	bool onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication, Client* pClient);
 	void onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient);
 
-	//// P2P Group Events /////
-
-	void onJoinGroup(Client& client, Group& group);
-	void onUnjoinGroup(Client& client, Group& group);
-
-
 	TerminateSignal&			_terminateSignal;
 	std::map<std::string,App*>	_applications;
 	std::string					_wwwPath;

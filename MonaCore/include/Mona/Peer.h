@@ -21,7 +21,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/ICE.h"
 #include "Mona/ServerAPI.h"
-#include "Mona/Group.h"
 #include "Mona/Congestion.h"
 
 
@@ -38,16 +37,14 @@ struct Peer : Client, virtual Object {
 
 	Writer&						writer() { return _pWriter ? *_pWriter : Writer::Null(); }
 
-	std::set<SocketAddress>		localAddresses;
-
 	const Parameters&			properties() const { return _properties; }
 	Parameters&					properties() { return _properties; }
 
 	void						setAddress(const SocketAddress& address);
 	/*!
 	Try to assign/replace the serverAddress with string address gotten of protocol. Returns false if failed. */
-	void						setServerAddress(const SocketAddress& address);
-	void						setServerAddress(const std::string& address);
+	bool						setServerAddress(const SocketAddress& address);
+	bool						setServerAddress(const std::string& address);
 	void						setPath(const std::string& value);
 	void						setQuery(const std::string& value) { ((std::string&)Client::query).assign(value); }
 	
@@ -70,17 +67,11 @@ struct Peer : Client, virtual Object {
 	
 	ICE&	ice(const Peer& peer);
 
-
-	void	unsubscribeGroups(const std::function<void(const Group& group)>& forEach=nullptr);
-	Group&  joinGroup(const UInt8* id, Writer* pWriter);
-	void    unjoinGroup(Group& group);
-
 	// events
 	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters) { onConnection(ex, writer, netStats, parameters, DataWriter::Null()); }
 	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response);
 	void onDisconnection();
 
-	void onRendezVousUnknown(const UInt8* peerId, std::set<SocketAddress>& addresses);
 	void onHandshake(UInt8 attempts, std::set<SocketAddress>& addresses);
 
 	bool onInvocation(Exception& ex, const std::string& name, DataReader& reader, UInt8 responseType = 0);
@@ -94,12 +85,7 @@ struct Peer : Client, virtual Object {
 private:
 	bool onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties);
 
-	void onJoinGroup(Group& group);
-	void onUnjoinGroup(Group& group,bool dummy);
-	bool exchangeMemberId(Group& group,Peer& peer,Writer* pWriter);
-
 	ServerAPI&						_api;
-	std::map<Group*,Writer*>		_groups;
 	std::map<const Peer*,ICE*>		_ices;
 	Parameters						_properties;
 

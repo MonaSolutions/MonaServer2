@@ -38,19 +38,19 @@ Int32 Session::ToError(const Exception& ex) {
 	return ERROR_UNEXPECTED;
 }
 
-Session::Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name) : _sessionsOptions(0),_pPeer(pPeer),peer(*pPeer),
+Session::Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name) : _pPeer(pPeer), peer(*pPeer),
 	_protocol(protocol), _name(name ? name : ""), api(protocol.api), died(false), _id(0) {
 	init();
 }
 	
-Session::Session(Protocol& protocol, const char* name) : _sessionsOptions(0),
-	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0), peer(*new Peer(protocol.api)) {
+Session::Session(Protocol& protocol, const char* name) : peer(*new Peer(protocol.api)),
+	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0) {
 	_pPeer.reset(&peer);
 	init();
 }
 
-Session::Session(Protocol& protocol, Session& session) : _sessionsOptions(session._sessionsOptions), _pPeer(session._pPeer), peer(*session._pPeer),
-	_protocol(protocol), api(protocol.api), died(false), _id(session._id) {
+Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer), peer(*session._pPeer),
+	_sessionsOptions(session._sessionsOptions), _protocol(protocol), api(protocol.api), died(false), _id(session._id) {
 	// Morphing
 	// Same id but no same name! Useless to subscribe to kill here, "session" wrapper have already it, and they share the same peer!
 	((string&)peer.protocol) = protocol.name;
@@ -59,8 +59,6 @@ Session::Session(Protocol& protocol, Session& session) : _sessionsOptions(sessio
 
 void Session::init() {
 	((string&)peer.protocol) = _protocol.name;
-	if (memcmp(peer.id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", Entity::SIZE) == 0)
-		Util::Random(peer.id, Entity::SIZE);
 
 	if (!peer.serverAddress)
 		((SocketAddress&)peer.serverAddress).set(_protocol.address);
@@ -113,7 +111,7 @@ void Session::kill(Int32 error, const char* reason) {
 bool Session::manage() {
 	if (died)
 		return false;
-	// Congestion timeout to avoid to saturate a client saturating ressource
+	// Congestion timeout to avoid to saturate a client saturating ressource + PULSE congestion variable of peer!
 	if (peer.congested(Net::RTO_MAX)) {
 		// Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
 		WARN(name(), " congested");

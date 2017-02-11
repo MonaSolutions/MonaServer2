@@ -20,18 +20,22 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/Socket.h"
-#include "Mona/Entities.h"
 #include "Mona/Logs.h"
+#include "Mona/Entity.h"
 #include <set>
 
 namespace Mona {
 
+typedef UInt8 SESSION_OPTIONS;
+enum {
+	SESSION_BYPEER = 1,
+	SESSION_BYADDRESS = 2,
+};
+
+/*!
+Allow to manage sessions + override obsolete session on address duplication */
 struct Session;
 struct Sessions : virtual Object {
-	enum {
-		BYPEER = 1,
-		BYADDRESS = 2,
-	};
 
 	Sessions() {}
 	virtual ~Sessions();
@@ -63,7 +67,7 @@ struct Sessions : virtual Object {
 		return dynamic_cast<SessionType*>(it->second);
 	}
 
-	template<typename SessionType, UInt8 options = 0, typename ...Args>
+	template<typename SessionType, SESSION_OPTIONS options = SESSION_BYADDRESS, typename ...Args>
 	SessionType& create(Args&&... args) {
 		SessionType* pSession = new SessionType(std::forward<Args>(args)...);
 		UInt32& id(pSession->_id);
@@ -96,7 +100,7 @@ struct Sessions : virtual Object {
 	
 private:
 
-	void    remove(const std::map<UInt32, Session*>::iterator& it, UInt8 options);
+	void    remove(const std::map<UInt32, Session*>::iterator& it, SESSION_OPTIONS options);
 
 	void	addByPeer(Session& session);
 	void	removeByPeer(Session& session);
@@ -105,10 +109,10 @@ private:
 	void	removeByAddress(Session& session);
 	void	removeByAddress(const SocketAddress& address, Session& session);
 
-	std::map<UInt32, Session*>							_sessions;
-	std::set<UInt32>									_freeIds;
-	std::map<const UInt8*, Session*, EntityComparator>	_sessionsByPeerId;
-	std::map<SocketAddress, Session*>					_sessionsByAddress[2]; // 0 - UDP, 1 - TCP
+	std::map<UInt32, Session*>			_sessions;
+	std::set<UInt32>					_freeIds;
+	Entity::Map<Session>				_sessionsByPeerId;
+	std::map<SocketAddress, Session*>	_sessionsByAddress[2]; // 0 - UDP, 1 - TCP
 };
 
 

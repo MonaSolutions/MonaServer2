@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/RTMFP/RTMFP.h"
+#include "Mona/RTMFP/RTMFPWriter.h"
 #include "Mona/Crypto.h"
 #include "Mona/Logs.h"
 
@@ -25,6 +26,47 @@ using namespace std;
 
 
 namespace Mona {
+
+void RTMFP::Group::join(RTMFP::Member& member) {
+	// If group includes already members, give 2*log2(N)+13 random members to the new comer
+	// Indeed in RTMFP each peer has 2log2(N)+13 connections, so to minimize peer new connections need,
+	// give immediatly required connections
+	// One more reason to give a huge range of random clients is to reconnect possible isolated peer
+	if(!empty()) {
+		UInt32 count = UInt32(2 * log2(size() - 1) + 13);
+		auto itFirst = begin();
+		advance(itFirst, Util::Random<UInt32>() % size());
+		auto itClient(itFirst);
+		vector<Member*> congestedClients;
+		do {
+			Member& client(*itClient->second);
+			if (client.writer()) { // if not itself and opened (not closed)
+				if (!client->congested()) {
+					client.writer().sendMember(member);
+					if (!--count)
+						return;
+				} else
+					congestedClients.emplace_back(&client);
+			}
+			if (++itClient == end())
+				itClient = begin(); // continue from beginning
+		} while (itClient != itFirst);
+		for (Member* pClient : congestedClients) {
+			pClient->writer().sendMember(*pClient);
+			if (!--count)
+				break;
+		}
+	}
+	emplace(member);
+}
+
+void RTMFP::Group::unjoin(RTMFP::Member& member) {
+	erase(member);
+	if (!empty())
+		return;
+	_groups.erase(id);
+	delete this;
+}
 
 Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, UInt8 marker) {
 	pBuffer.reset(new Buffer(6));
@@ -104,19 +146,6 @@ void RTMFP::ComputeAsymetricKeys(const UInt8* secret, UInt16 secretSize, const U
 	// now doing HMAC-sha256 of both result with the shared secret DH key
 	Crypto::HMAC::SHA256(secret, secretSize, requestKey, Crypto::SHA256_SIZE, requestKey);
 	Crypto::HMAC::SHA256(secret, secretSize, responseKey, Crypto::SHA256_SIZE, responseKey);
-}
-
-BinaryWriter& RTMFP::WriteAddress(BinaryWriter& writer,const SocketAddress& address, Location location) {
-	const IPAddress& host = address.host();
-	if (host.family() == IPAddress::IPv6)
-		writer.write8(location | 0x80);
-	else
-		writer.write8(location);
-	NET_SOCKLEN size(host.size());
-	const UInt8* bytes = BIN host.data();
-	for(NET_SOCKLEN i=0;i<size;++i)
-		writer.write8(bytes[i]);
-	return writer.write16(address.port());
 }
 
 UInt32 RTMFP::ReadID(Buffer& buffer) {

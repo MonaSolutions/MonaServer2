@@ -142,16 +142,4 @@ void MonaTiny::onUnsubscribe(const Subscription& subscription, const Publication
 		INFO("Unsubscribe to ", publication.name());
 }
 
-//// P2P Group Events /////
-
-void MonaTiny::onJoinGroup(Client& client, Group& group) {
-	if (client.hasCustomData())
-		client.getCustomData<App::Client>()->onJoinGroup(group);
-}
-
-void MonaTiny::onUnjoinGroup(Client& client, Group& group) {
-	if (client.hasCustomData())
-		client.getCustomData<App::Client>()->onUnjoinGroup(group);
-}
-
 } // namespace Mona

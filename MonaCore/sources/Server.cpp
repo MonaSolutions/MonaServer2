@@ -118,8 +118,8 @@ bool Server::run(Exception&, const volatile bool& stopping) {
 				it.second->start();
 			
 			manage(); // client manage (script, etc..)
-			if (clients.count() != countClient)
-				INFO((countClient = clients.count()), " clients");
+			if (clients.size() != countClient)
+				INFO((countClient = clients.size()), " clients");
 			// TODO? relayer.manage();
 			return 2000;
 		}); // manage every 2 seconds!

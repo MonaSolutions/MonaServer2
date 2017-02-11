@@ -30,6 +30,8 @@ struct RTMFProtocol : UDProtocol, virtual Object  {
 	
 	bool load(Exception& ex);
 
+	Entity::Map<RTMFP::Group>	groups;
+
 private:
 	shared<Socket::Decoder>		newDecoder();
 
@@ -39,7 +41,7 @@ private:
 
 	RTMFPDecoder::OnHandshake	_onHandshake;
 	RTMFPDecoder::OnSession		_onSession;
-
+	
 	UInt8						_certificat[77];
 };
 

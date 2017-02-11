@@ -133,7 +133,6 @@
       <Filter>Protocols</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\Client.h" />
-    <ClInclude Include="include\Mona\Group.h" />
     <ClInclude Include="include\Mona\Peer.h" />
     <ClInclude Include="include\Mona\Server.h" />
     <ClInclude Include="include\Mona\Writer.h" />
@@ -231,7 +230,6 @@
     <ClInclude Include="include\Mona\FLVWriter.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\Entities.h" />
     <ClInclude Include="include\Mona\Entity.h" />
     <ClInclude Include="include\Mona\RTMP\RTMPDecoder.h">
       <Filter>Protocols\RTMP</Filter>
@@ -295,6 +293,9 @@
     </ClInclude>
     <ClInclude Include="include\Mona\RTMFP\RTMFPReceiver.h">
       <Filter>Protocols\RTMFP</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\RendezVous.h">
+      <Filter>Protocols\Shared</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -499,6 +500,9 @@
     </ClCompile>
     <ClCompile Include="sources\RTMFP\RTMFPReceiver.cpp">
       <Filter>Protocols\RTMFP</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\RendezVous.cpp">
+      <Filter>Protocols\Shared</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
