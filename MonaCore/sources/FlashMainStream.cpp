@@ -151,7 +151,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 			writer.writeAMFError("NetConnection.Call.Failed", ex);
 		}
 	} else
-		WARN("Method client ", name, " not found on application ", peer.path); // warn because for flash there is some auto messages not necessary catched/programmed by user application
+		LOG(name == "setPeerInfo" ? LOG_DEBUG : LOG_WARN, "Method client ", name, " not found in application ", peer.path); // warn because for flash there is some auto messages not necessary catched/programmed by user application
 }
 
 void FlashMainStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer) {

@@ -128,12 +128,15 @@ Buffer& RTMFProtocol::initBuffer(shared<Buffer>& pBuffer) {
 	return BinaryWriter(*pBuffer).write8(0x0B).write16(RTMFP::TimeNow()).next(3).buffer();
 }
 
-void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Packet>& pResponse) {
+void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, const SocketAddress& address, shared<Packet>& pResponse) {
 	struct Sender : Runner, virtual Object {
-		Sender(const shared<Socket>& pSocket, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Packet>& pResponse) : _address(address), _pResponse(pResponse), _pSocket(pSocket), _pBuffer(move(pBuffer)), Runner("RTMFPProtocolSender") {}
+		Sender(const shared<Socket>& pSocket, shared<Buffer>& pBuffer, const SocketAddress& address, shared<Packet>& pResponse) : _address(address), _pResponse(move(pResponse)), _pSocket(pSocket), _pBuffer(move(pBuffer)), Runner("RTMFPProtocolSender") {}
 	private:
 		bool run(Exception& ex) {
-			RTMFP::Send(*_pSocket, _pResponse->set(RTMFP::Engine::Encode(_pBuffer, 0, _address)), _address);
+			Packet packet(RTMFP::Engine::Encode(_pBuffer, 0, _address));
+			_pResponse->set(move(packet));
+			_pResponse.reset(); // free response before sending to avoid "38 before 30 handshake" error
+			RTMFP::Send(*_pSocket, packet, _address);
 			return true;
 		}
 		shared<Buffer>	_pBuffer;

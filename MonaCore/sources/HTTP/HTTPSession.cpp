@@ -362,7 +362,7 @@ void HTTPSession::processPost(Exception& ex, HTTP::Request& request) {
 	else
 		pReader->readString(name);
 	if (!peer.onInvocation(ex, name, *pReader))
-		ERROR(ex.set<Ex::Application>("Method client '", name, "' not found on application ", peer.path));
+		ERROR(ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path));
 }
 
 

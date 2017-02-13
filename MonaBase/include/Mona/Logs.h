@@ -95,7 +95,7 @@ private:
 #undef DEBUG
 #undef TRACE
 
-#define LOG(LEVEL, ...)  { if(Mona::Logs::GetLevel()>=LEVEL) { Mona::Logs::Log(LEVEL, __FILE__,__LINE__, __VA_ARGS__); } }
+#define LOG(LEVEL, ...)  { LOG_LEVEL __level(LEVEL); if(Mona::Logs::GetLevel()>=__level) { Mona::Logs::Log(__level, __FILE__,__LINE__, __VA_ARGS__); } }
 
 #define FATAL(...)	LOG(LOG_FATAL, __VA_ARGS__)
 #define CRITIC(...) LOG(LOG_CRITIC, __VA_ARGS__)

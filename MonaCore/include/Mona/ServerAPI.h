@@ -73,11 +73,6 @@ struct ServerAPI : virtual Object, Parameters {
 	void					unsubscribe(Subscription& subscription) { unsubscribe(subscription, NULL); }
 	void					unsubscribe(Client& client, Subscription& subscription) { unsubscribe(subscription, &client); }
 
-	void					addBanned(const IPAddress& ip) { _bannedAddresses.emplace(ip); }
-	void					removeBanned(const IPAddress& ip) { _bannedAddresses.erase(ip); }
-	void					clearBannedList() { _bannedAddresses.clear(); }
-	bool					isBanned(const IPAddress& ip) { return _bannedAddresses.find(ip) != _bannedAddresses.end(); }
-
 	// events	
 	virtual void			onStart(){}
 	virtual void			onStop(){}
@@ -111,7 +106,6 @@ private:
 	void					unpublish(Publication& publication, Client* pClient);
 
 
-	std::set<IPAddress>					_bannedAddresses;
 	std::map<std::string,Publication>	_publications;
 
 	struct WaitingKey : virtual Object {

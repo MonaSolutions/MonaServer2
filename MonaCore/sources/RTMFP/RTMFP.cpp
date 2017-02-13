@@ -119,6 +119,8 @@ shared<Buffer>& RTMFP::Engine::encode(shared<Buffer>& pBuffer, UInt32 farId, con
 		DUMP_RESPONSE("RTMFP", pBuffer->data() + 6, pBuffer->size() - 6, address);
 
 	int size = pBuffer->size();
+	if (size > RTMFP::SIZE_PACKET)
+		CRITIC("Packet exceeds 1192 RTMFP maximum size, risks to be ignored by client");
 	// paddingBytesLength=(0xffffffff-plainRequestLength+5)&0x0F
 	int temp = (0xFFFFFFFF - size + 5) & 0x0F;
 	// Padd the plain request with paddingBytesLength of value 0xff at the end

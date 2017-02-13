@@ -37,13 +37,6 @@ Protocol::Protocol(const char* name, Protocol& tunnel) :
 }
 
 
-bool Protocol::auth(const SocketAddress& address) {
-	if (!api.isBanned(address.host()))
-		return true;
-	INFO("Data rejected because client ", address.host(), " is banned");
-	return false;
-}
-
 const char* Protocol::onParamUnfound(const string& key) const {
 	return api.getString(key);
 }

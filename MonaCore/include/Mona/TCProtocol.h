@@ -25,8 +25,8 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct TCProtocol : Protocol , virtual Object {
-	typedef TCPServer::OnConnection ON(Connection);
-	TCPServer::OnError&				onError;
+	TCPServer::OnConnection& onConnection;
+	TCPServer::OnError&		 onError;
 
 	const shared<Socket>&	socket() { return _server.socket(); }
 

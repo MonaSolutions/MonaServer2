@@ -24,13 +24,8 @@ using namespace std;
 namespace Mona {
 
 TCProtocol::TCProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS) : _server(api.ioSocket, pTLS), Protocol(name, api, sessions),
-	onError(_server.onError) {
+	onError(_server.onError), onConnection(_server.onConnection) {
 	onError = [this](const Exception& ex) { WARN("Protocol ", this->name, ", ", ex); }; // onError by default!
-
-	_server.onConnection = [this](const shared<Socket>& pSocket) {
-		if (auth(pSocket->peerAddress()))
-			return onConnection(pSocket);
-	};
 
 	setNumber("bufferSize", 0xFFFF);
 	setNumber("recvBufferSize", 0xFFFF);

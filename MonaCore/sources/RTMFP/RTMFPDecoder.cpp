@@ -73,7 +73,21 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					}
 
 					shared<Buffer> pBuffer;
-					{
+					{ // send in first to B (A is waiting B)
+						RTMFP::InitBuffer(pBuffer);
+						BinaryWriter writer(*pBuffer);
+						for (auto& it : aAddresses) {
+							if (!it.second)
+								continue; // useless to considerate local address on this side (could exceeds packet size, and useless on the paper too, see UDP hole punching process)
+							writer.write8(0x0F).write16(it.first.host().size() + Entity::SIZE + 22).write24(0x22210F).write(peerId, Entity::SIZE);
+							DEBUG(bAddress, it.second ? " get public " : " get local ", it.first);
+							RTMFP::WriteAddress(writer, it.first, it.second ? RTMFP::LOCATION_PUBLIC : RTMFP::LOCATION_LOCAL);
+							writer.write(tag); // tag in footer
+						}
+						// create a new encoder to be thread safe =>
+						RTMFP::Send(socket, Packet(RTMFP::Engine(*pSession->pEncoder).encode(pBuffer, pSession->farId, bAddress)), bAddress);
+					}
+					{  // send in first to A
 						RTMFP::InitBuffer(pBuffer, 0x0B);
 						BinaryWriter writer(*pBuffer);
 						writer.write8(0x71).next(2).write8(16).write(tag); // tag in header
@@ -83,20 +97,6 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						}
 						BinaryWriter(pBuffer->data() + 10, 2).write16(pBuffer->size() - 12);  // write size header
 						RTMFP::Send(socket, Packet(RTMFP::Engine::Encode(pBuffer, 0, address)), address);
-					}
-					{
-						RTMFP::InitBuffer(pBuffer);
-						BinaryWriter writer(*pBuffer);
-						for (auto& it :aAddresses) {
-							if (!it.second)
-								continue; // useless to considerate local address on this side (could exceeds packet size, and useless on the paper too, see UDP hole punching process)
-							writer.write8(0x0F).write16(it.first.host().size()+Entity::SIZE+22).write24(0x22210F).write(peerId, Entity::SIZE);
-							DEBUG(bAddress, it.second ? " get public " : " get local ", it.first);
-							RTMFP::WriteAddress(writer, it.first, it.second ? RTMFP::LOCATION_PUBLIC : RTMFP::LOCATION_LOCAL);
-							writer.write(tag); // tag in footer
-						}
-						// create a new encoder to be thread safe =>
-						RTMFP::Send(socket, Packet(RTMFP::Engine(*pSession->pEncoder).encode(pBuffer, pSession->farId, bAddress)), bAddress);
 					}
 					return;
 				}
@@ -130,12 +130,8 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				return;
 			}
 			case 0x38: {
-				if (!_tag) {
-					ERROR("38 hanshake without 30 before, request ignored");
-					return;
-				}
 				if (!_pResponse.unique()) {
-					WARN("38 handshake before end of 30 handshake")
+					ERROR("38 handshake before end of 30 handshake, request ignored")
 					return;
 				}
 				if (pReceiver) {
@@ -143,6 +139,8 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					RTMFP::Send(socket, *_pResponse, address);
 					return;
 				}
+				if (!_tag)
+					WARN("38 hanshake without 30 before or client has changed address between the both");
 				UInt32 farId = reader.read32();
 				if (reader.read7BitLongValue() != RTMFP::SIZE_COOKIE) {
 					ERROR("Bad handshake cookie ", Util::FormatHex(reader.current(), 16, string()), "..., its size should be 64 bytes");
@@ -250,7 +248,7 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	if (pBuffer->size() <= RTMFP::SIZE_HEADER || (pBuffer->size() > (RTMFP::SIZE_PACKET<<1))) {
 		pBuffer.reset();
-		ERROR("Invalid RTMFP packet");
+		ERROR("Invalid packet size");
 		return 0;
 	}
 	if (*_pReceiving >= pSocket->recvBufferSize()) {

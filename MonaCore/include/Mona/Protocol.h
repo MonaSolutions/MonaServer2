@@ -41,8 +41,6 @@ struct Protocol : virtual Object, Parameters {
 protected:
 	Protocol(const char* name, ServerAPI& api, Sessions& sessions);
 	Protocol(const char* name, Protocol& tunnel);
-	
-	bool auth(const SocketAddress& address);
 
 private:
 	const char* onParamUnfound(const std::string& key) const;

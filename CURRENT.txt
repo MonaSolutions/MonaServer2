@@ -1,6 +1,6 @@
 ﻿Tom 19 =>
 - Burn avoist
-- VST G++?
+- multicasting implications
 
 Multi-Server=>
 - RTMFP onRendezVousUnknow => useless in external API, happens just on group member connection between => returns les adresses de tous les serveur RTMFP actifs
@@ -15,4 +15,8 @@ Sur contrat:
 
 C:\Program Files\VideoLAN\VLC>vlc -vvv C:\Users\mathieu\Documents\Marc\SintelJS.ts --sout "#udp{dst=127.0.0.1:1234}"
 
+
+1- WebSocket (+)full control (+)extrem low latency (+)allow any codec support (+)cross browser (-)JS decoding
+2- WebRTC    (+)native decoding (+)low latency (-)required WebRTC support (-)codec supported depend of browser
+3- HTTP/MP4 framgented (+)native decodng (+)cross browser (-)latency to test (-)codec supported depend of browser
 
