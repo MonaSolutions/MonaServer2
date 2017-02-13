@@ -134,6 +134,7 @@ void RTMFPMessenger::flush() {
 	// encode and add to pQueue
 	pQueue->emplace_back(new Packet(pSession->pEncoder->encode(_pBuffer, pSession->farId(), address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false));
 	pSession->queueing += pQueue->back()->size();
+	_flags = 0; // reset _flags (pBuffer is no more blocked on reliable requirement)
 }
 
 void RTMFPMessenger::write(const Message& message) {

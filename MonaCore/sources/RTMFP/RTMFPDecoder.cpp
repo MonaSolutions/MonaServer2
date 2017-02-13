@@ -118,6 +118,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 							_pResponse.reset(new Packet());
 						} else if (_tag==tag) {
 							// repeat response
+							DEBUG("Repeat 30 handshake response");
 							RTMFP::Send(socket, *_pResponse, address); 
 							return;
 						}
@@ -136,6 +137,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				}
 				if (pReceiver) {
 					// repeat response!
+					DEBUG("Repeat 38 handshake response");
 					RTMFP::Send(socket, *_pResponse, address);
 					return;
 				}

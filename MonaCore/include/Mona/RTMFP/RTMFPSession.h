@@ -32,12 +32,8 @@ struct RTMFPSession : RTMFP::Output, Session, Net::Stats, virtual Object {
 
 	void init(const shared<RTMFP::Session>& pSession);
 
-	RTMFP::Session::OnAddress	onAddress;
-	RTMFP::Session::OnMessage	onMessage;
-	RTMFP::Session::OnFlush		onFlush;
 
-
-	void				kill(Int32 error = 0, const char* reason = NULL);
+	void kill(Int32 error = 0, const char* reason = NULL);
 
 private:
 	struct Flow : virtual Object, RTMFP::Member {

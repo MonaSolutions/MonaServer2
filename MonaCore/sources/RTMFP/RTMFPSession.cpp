@@ -38,18 +38,23 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 		// Stream EOF signal
 		writer.writeRaw().write16(1).write32(id);
 	};
+}
 
-	onAddress = [this](SocketAddress& address) {
+void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
+	memcpy(BIN peer.id, pSession->peerId, Entity::SIZE);
+	_pSession = pSession;
+	_pSenderSession.reset(new RTMFPSender::Session(pSession, socket()));
+
+	_pSession->onAddress = [this](SocketAddress& address) {
+		// onAddress is defined on _pSession so 
 		peer.setAddress(address);
 		_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, _pSession.get());
 	};
-	onMessage = [this](RTMFP::Message& message) {
+	_pSession->onMessage = [this](RTMFP::Message& message) {
 		_recvLostRate += message.lost;
 		_recvByteRate += message.size();
 		_recvTime.update();
-		if (died || _killing)
-			return;
-
+	
 		// flush previous flow 
 		if (_pFlow)
 			_pFlow->pWriter->flush();
@@ -122,38 +127,37 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 		Packet packet(message, reader.current(), reader.available());
 		// Capture setPeerInfo!
 		switch (type) {
-			case AMF::TYPE_INVOCATION_AMF3:
-				reader.next();
-			case AMF::TYPE_INVOCATION: {
-				string buffer;
-				AMFReader amf(reader.current(), reader.available());
-				if (amf.readString(buffer) && buffer == "setPeerInfo") {
-					amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
-					amf.readNull();
-					set<SocketAddress> addresses;
-					while (amf.readString(buffer)) {
-						if (buffer.empty())
-							continue; // can happen, not display exception
-						SocketAddress address;
-						Exception ex;
-						if (address.set(ex, buffer))
-							addresses.emplace(address);
-						if (ex)
-							WARN("Invalid peer address info, ", ex);
-					}
-					if (!addresses.empty())
-						_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, addresses, _pSession.get());
+		case AMF::TYPE_INVOCATION_AMF3:
+			reader.next();
+		case AMF::TYPE_INVOCATION:
+		{
+			string buffer;
+			AMFReader amf(reader.current(), reader.available());
+			if (amf.readString(buffer) && buffer == "setPeerInfo") {
+				amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
+				amf.readNull();
+				set<SocketAddress> addresses;
+				while (amf.readString(buffer)) {
+					if (buffer.empty())
+						continue; // can happen, not display exception
+					SocketAddress address;
+					Exception ex;
+					if (address.set(ex, buffer))
+						addresses.emplace(address);
+					if (ex)
+						WARN("Invalid peer address info, ", ex);
 				}
-				break;
+				if (!addresses.empty())
+					_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, addresses, _pSession.get());
 			}
+			break;
+		}
 		}
 		pStream->process((AMF::Type)type, time, packet, *_pFlow->pWriter, *this);
 	};
-	onFlush = [this](RTMFP::Flush& flush) {
+	_pSession->onFlush = [this](RTMFP::Flush& flush) {
 		_recvTime.update();
-		if (died)
-			return;
-		// continue even if killing to get ACK!
+
 		if (flush.died)
 			return kill(flush.ping);
 
@@ -193,12 +197,6 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 	};
 }
 
-void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
-	memcpy(BIN peer.id, pSession->peerId, Entity::SIZE);
-	_pSession = pSession;
-	_pSenderSession.reset(new RTMFPSender::Session(pSession, socket()));
-}
-
 
 UInt64 RTMFPSession::queueing() const {
 	UInt64 queueing(_pSenderSession->queueing);
@@ -220,8 +218,14 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 		return;
 
 	if (_mainStream.onStart) { // else already done
-		// no valid more for rendezvous
-		_pSession->pRendezVous->erase(peer.id);
+		
+		if (_pSession) {
+			// stop reception but not onFlush to get ACK and consume writers
+			_pSession->onAddress = nullptr;
+			_pSession->onMessage = nullptr;
+			// no valid more for rendezvous
+			_pSession->pRendezVous->erase(peer.id);
+		}
 	
 		// unpublish and unsubscribe
 		_mainStream.onStart = nullptr;
@@ -247,6 +251,13 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 		flush();
 		if (error != ERROR_SERVER)
 			return; // Now can check that dies message is received excepting on server close
+	}
+
+	
+	if(_pSession) {
+		// stop completly the reception
+		_pSession->onFlush = nullptr;
+		_pSession.reset();
 	}
 
 	Session::kill(error, reason);

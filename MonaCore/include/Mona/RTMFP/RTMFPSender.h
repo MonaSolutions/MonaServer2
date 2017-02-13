@@ -120,7 +120,7 @@ private:
 
 
 struct RTMFPMessenger : RTMFPSender, virtual Object {
-	RTMFPMessenger(const shared<RTMFPSender::Queue>& pQueue) : RTMFPSender("RTMFPMessenger", pQueue) {}
+	RTMFPMessenger(const shared<RTMFPSender::Queue>& pQueue) : RTMFPSender("RTMFPMessenger", pQueue), _flags(0) {} // _flags must be initialized to 0!
 
 	AMFWriter&	newMessage(bool reliable, const Mona::Packet& packet) { _messages.emplace_back(reliable, packet); return _messages.back().writer; }
 

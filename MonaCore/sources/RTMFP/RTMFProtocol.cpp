@@ -77,15 +77,10 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 	};
 	_onSession = [this](shared<RTMFP::Session>& pSession) {
 		RTMFPSession* pClient = this->sessions.find<RTMFPSession>(pSession->id);
-		if (!pClient) {
+		if (pClient)
+			pClient->init(pSession);
+		else
 			ERROR("Session ", pSession->id, " unfound");
-			return;
-		}
-		pClient->init(pSession);
-
-		pSession->onFlush = pClient->onFlush;
-		pSession->onAddress = pClient->onAddress;
-		pSession->onMessage = pClient->onMessage;
 	};
 }
 
