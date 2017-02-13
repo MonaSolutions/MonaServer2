@@ -75,13 +75,12 @@ Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, UInt8 marker) {
 
 Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, std::atomic<Int64>& initiatorTime, UInt8 marker) {
 	Int64 time = initiatorTime.exchange(0);
-	//if (!time)
+	if (!time)
 		return InitBuffer(pBuffer, marker);
 	time = Mona::Time::Now() - time;
-	if(time>128000) // see https://tools.ietf.org/html/rfc7016#section-3.5.2.2
+	if(time>262140) // because is not convertible in RTMFP timestamp on 2 bytes, 0xFFFF*RTMFP::TIMESTAMP_SCALE = 262140
 		return InitBuffer(pBuffer, marker);
 	pBuffer.reset(new Buffer(6));
-	NOTE(RTMFP::Time(time));
 	return BinaryWriter(*pBuffer).write8(marker + 4).write16(RTMFP::TimeNow()).write16(RTMFP::Time(time)).buffer();
 }
 

@@ -154,7 +154,7 @@ void RTMFPMessenger::write(const Message& message) {
 
 		UInt32 contentSize(size);
 
-		UInt32 headerSize(13); // 13 bytes = 6 bytes of low header + marker byte + time 2 bytes + type byte + size 2 bytes + flags byte
+		UInt32 headerSize(RTMFP::SIZE_HEADER+4); // 4 bytes = type + UInt16(size) + flag
 		if (header)
 			headerSize += this->headerSize();
 
@@ -196,7 +196,7 @@ void RTMFPMessenger::write(const Message& message) {
 		
 		BinaryWriter writer(*_pBuffer);
 		writer.write8(header ? 0x10 : 0x11);
-		writer.write16(headerSize - 12 + contentSize);
+		writer.write16(headerSize - RTMFP::SIZE_HEADER - 3 + contentSize);
 		writer.write8(_flags);
 		if (message.reliable)
 			_flags |= RTMFP::MESSAGE_RELIABLE;
