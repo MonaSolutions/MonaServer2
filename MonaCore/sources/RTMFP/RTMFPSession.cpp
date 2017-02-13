@@ -50,23 +50,22 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 		if (died || _killing)
 			return;
 
+		// flush previous flow 
+		if (_pFlow)
+			_pFlow->pWriter->flush();
 		if (!message) {
 			// flow end!
 			DEBUG("Flow ", message.flowId, " consumed on session ", name());
 			_flows.erase(message.flowId);
 			return;
 		}
-
-		// flush previous flow 
-		if (_pFlow)
-			_pFlow->pWriter->flush();
 		// find or create flow requested
 		auto& it = _flows.lower_bound(message.flowId);
 		if (it == _flows.end() || it->first != message.flowId)
 			_pFlow = &_flows.emplace_hint(it, message.flowId, peer)->second;
 		else
 			_pFlow = &it->second;
-		
+
 		BinaryReader reader(message.data(), message.size());
 		UInt8 type = reader.read8();
 		Packet signature;
@@ -80,7 +79,7 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 				reader.next(length);
 			type = reader.read8();
 		}
-		if (!_pFlow->pWriter)
+		if (!_pFlow->pWriter) // if not pWriter, it has just been created now
 			_pFlow->pWriter = newWriter(_pFlow->streamId ? 2 : message.flowId, signature);
 
 		// join group
@@ -112,47 +111,41 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 			return;
 		}
 
-		UInt32 time(0);
-		switch (type) {
-			case AMF::TYPE_AUDIO:
-			case AMF::TYPE_VIDEO:
-				time = reader.read32();
-				break;
-			default:
-				reader.next(4);
-				break;
-		}
-
 		FlashStream* pStream = _mainStream.getStream(_pFlow->streamId);
 		if (!pStream) {
 			ERROR(name(), " indicates a non-existent ", _pFlow->streamId, " FlashStream");
 			kill(ERROR_PROTOCOL);
 			return;
 		}
+
+		UInt32 time = reader.read32();
 		Packet packet(message, reader.current(), reader.available());
 		// Capture setPeerInfo!
-		if(type==AMF::TYPE_INVOCATION_AMF3)
-			reader.next(1);
-		string name;
-		AMFReader amf(reader.current(), reader.available());
-		if (amf.readString(name) && name == "setPeerInfo") {
-			amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
-			amf.readNull();
-			set<SocketAddress> addresses;
-			string buffer;
-			while (amf.readString(buffer)) {
-				if (buffer.empty())
-					continue; // can happen, not display exception
-				SocketAddress address;
-				Exception ex;
-				if (address.set(ex, buffer))
-					addresses.emplace(address);
-				if (ex)
-					WARN("Invalid peer address info, ", ex);
-				buffer.clear();
+		switch (type) {
+			case AMF::TYPE_INVOCATION_AMF3:
+				reader.next();
+			case AMF::TYPE_INVOCATION: {
+				string buffer;
+				AMFReader amf(reader.current(), reader.available());
+				if (amf.readString(buffer) && buffer == "setPeerInfo") {
+					amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
+					amf.readNull();
+					set<SocketAddress> addresses;
+					while (amf.readString(buffer)) {
+						if (buffer.empty())
+							continue; // can happen, not display exception
+						SocketAddress address;
+						Exception ex;
+						if (address.set(ex, buffer))
+							addresses.emplace(address);
+						if (ex)
+							WARN("Invalid peer address info, ", ex);
+					}
+					if (!addresses.empty())
+						_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, addresses, _pSession.get());
+				}
+				break;
 			}
-			if (!addresses.empty())
-				_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, addresses, _pSession.get());
 		}
 		pStream->process((AMF::Type)type, time, packet, *_pFlow->pWriter, *this);
 	};
@@ -162,16 +155,11 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 			return;
 		// continue even if killing to get ACK!
 		if (flush.died)
-			return kill(flush.echoTime);
+			return kill(flush.ping);
 
 		// PING
-		if (flush.echoTime != 0xFFFFFFFF) {
-			UInt16 time = RTMFP::TimeNow() - flush.echoTime;
-			if (time < 0x8000) { // otherwise invalid, see RTMFP spec.
-				time *= RTMFP::TIMESTAMP_SCALE; // do it before to get the modulo UInt16
-				peer.setPing(time);
-			}
-		}
+		if (flush.ping < 0xFFFFFFFF)
+			peer.setPing(flush.ping);
 
 		// KEEPALIVE
 		if (flush.keepalive)
@@ -234,20 +222,19 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 	if (_mainStream.onStart) { // else already done
 		// no valid more for rendezvous
 		_pSession->pRendezVous->erase(peer.id);
-
-		// no more reception, delete flows
-		_flows.clear();
 	
 		// unpublish and unsubscribe
 		_mainStream.onStart = nullptr;
 		_mainStream.onStop = nullptr;
 		_mainStream.clearStreams();
 
-		peer.onDisconnection(); // keep it before _flowWriters deletion
+		peer.onDisconnection(); // keep it before _writers deletion
 
 		// close writers after disconnection but don't clear list to continue to try to relay last messages during killing steps!
 		for (auto& it : _writers)
 			it.second->close(error, reason);
+		// delete flows after writer closing because flows close writers too, so can call peer:onClose
+		_flows.clear();
 
 		// start killing signal (after onDisconnection and writer close to allow to send last messages!)
 		_killing = 10;
@@ -328,10 +315,7 @@ void RTMFPSession::flush() {
 	Exception ex;
 	while (it != _writers.end()) {
 		shared<RTMFPWriter>& pWriter(it->second);
-		if(!pWriter->closed() && pWriter.unique())
-			pWriter->close(); // no more attached to a Flow, or used by an exterior user!
-		else
-			pWriter->flush(); // do flush even on closed to try to pass in a consumed state
+		pWriter->flush(); // do flush even on closed to try to pass in a consumed state
 		if (pWriter->consumed()) {
 			// Keep consumption and deletion here and not in _onFlush on acquit to keep alive a little more the writer to avoid warning "writer unknown" a while
 			DEBUG("Delete writer ", it->first, " on session ", name());

@@ -73,7 +73,7 @@ struct Session : virtual NullableObject {
 protected:
 	const bool			died;
 
-	Session(Protocol& protocol, const char* name=NULL);
+	Session(Protocol& protocol, const SocketAddress& address, const char* name=NULL);
 	Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name = NULL);
 	/*!
 	Session morphing */

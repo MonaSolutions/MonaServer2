@@ -35,6 +35,35 @@ private:
 	struct Handshake;
 	bool finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver);
 
+
+	template<typename ReceiverType>
+	void receive(const shared<ReceiverType>& pReceiver, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+		struct Receive : Runner, virtual Object {
+			Receive(const shared<ReceiverType>& pReceiver, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket, const shared<std::atomic<UInt32>>& pReceiving) : Runner(typeof<ReceiverType>().c_str()), _pReceiving(pReceiving), _weakReceiver(pReceiver), _pBuffer(move(pBuffer)), _address(address), _pSocket(pSocket) {
+				*_pReceiving += (_receiving = _pBuffer->size());
+			}
+			~Receive() {
+				*_pReceiving -= _receiving;
+			}
+		private:
+			bool run(Exception&) {
+				shared<ReceiverType> pReceiver(_weakReceiver.lock());
+				if (pReceiver)
+					pReceiver->receive(*_pSocket, _pBuffer, _address);
+				return true;
+			}
+			shared<Buffer>				_pBuffer;
+			weak<ReceiverType>			_weakReceiver;
+			shared<Socket>				_pSocket;
+			SocketAddress				_address;
+			shared<std::atomic<UInt32>>	_pReceiving;
+			UInt32						_receiving;
+		};
+		Exception ex;
+		AUTO_ERROR(_threadPool.queue(ex, make_shared<Receive>(pReceiver, pBuffer, address, pSocket, _pReceiving), pReceiver->track), typeof<ReceiverType>());
+	}
+
+
 	const ThreadPool&		_threadPool;
 	const Handler&			_handler;
 
@@ -44,6 +73,7 @@ private:
 	std::function<bool(const SocketAddress& address, std::map<SocketAddress, shared<Handshake>>::iterator&)>  _validateHandshake;
 	std::map<SocketAddress, shared<Handshake>>																  _handshakes;
 	shared<RendezVous>																						  _pRendezVous;
+	shared<std::atomic<UInt32>>																				  _pReceiving;
 };
 
 

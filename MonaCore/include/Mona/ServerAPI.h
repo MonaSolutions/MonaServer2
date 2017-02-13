@@ -82,7 +82,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onStart(){}
 	virtual void			onStop(){}
 
-	virtual void			onHandshake(const std::string& protocol,const SocketAddress& address,const std::string& path,const Parameters& properties,UInt8 attempts,std::set<SocketAddress>& addresses){}
+	virtual void			onHandshake(const std::string& path,  const std::string& protocol,const SocketAddress& address, const Parameters& properties, std::set<SocketAddress>& addresses){}
 	virtual void			onConnection(Exception& ex,Client& client,DataReader& arguments,DataWriter& response) {} // Exception::SOFTWARE, Exception::APPLICATION
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}

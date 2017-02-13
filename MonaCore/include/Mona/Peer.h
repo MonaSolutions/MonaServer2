@@ -72,7 +72,7 @@ struct Peer : Client, virtual Object {
 	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response);
 	void onDisconnection();
 
-	void onHandshake(UInt8 attempts, std::set<SocketAddress>& addresses);
+	void onHandshake(std::set<SocketAddress>& addresses);
 
 	bool onInvocation(Exception& ex, const std::string& name, DataReader& reader, UInt8 responseType = 0);
 	/// \brief call the onRead lua function ang get result in properties

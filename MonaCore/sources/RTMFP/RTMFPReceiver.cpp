@@ -23,16 +23,14 @@ using namespace std;
 
 namespace Mona {
 
-#define KILL(error) {_died.update(); echoTime=error; size = reader.available();}
+#define KILL(error) {_died.update(); ping=error; size = reader.available();}
 
 RTMFPReceiver::RTMFPReceiver(const Handler& handler,
 		UInt32 id, UInt32 farId,
 		const UInt8* farPubKey, UInt8 farPubKeySize,
 		const UInt8* decryptKey, const UInt8* encryptKey,
-		const shared<Socket>& pSocket, const SocketAddress& address,
-		const shared<RendezVous>& pRendezVous) : RTMFP::Session(id, farId, farPubKey, farPubKeySize, encryptKey, pRendezVous),
-			_expTime(0xFFFFFFFF), _echoTime(0xFFFFFFFF), _handler(handler), _pDecoder(new RTMFP::Engine(decryptKey)),
-			track(0), _died(0), _obsolete(0), _weakSocket(pSocket), _address(address),
+		const SocketAddress& address, const shared<RendezVous>& pRendezVous) : RTMFP::Session(id, farId, farPubKey, farPubKeySize, decryptKey, encryptKey, pRendezVous),
+			_initiatorTime(0xFFFFFFFF), _echoTime(0xFFFFFFFF), _handler(handler), track(0), _died(0), _obsolete(0), _address(address),
 			_output([this](UInt64 flowId, UInt32& lost, const Packet& packet) {
 				_handler.queue(onMessage, flowId, lost, packet);
 				lost = 0;
@@ -51,21 +49,18 @@ bool RTMFPReceiver::obsolete() {
 }
 
 
-void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& address) {
-	shared<Socket> pSocket(_weakSocket.lock());
-	if (!pSocket)
-		return; // protocol died!
+void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const SocketAddress& address) {
 	if (_died) {
 		if (_died.isElapsed(2000)) {
 			_died.update();
 			BinaryWriter(RTMFP::InitBuffer(_pBuffer)).write24(0x4c << 16);
-			RTMFP::Send(*pSocket, Packet(pEncoder->encode(_pBuffer, farId, address)), address);
+			RTMFP::Send(socket, Packet(pEncoder->encode(_pBuffer, farId, address)), address);
 		}
 		return;
 	}
 	Exception ex;
 	bool success;
-	AUTO_ERROR(success = _pDecoder->decode(ex, *pBuffer, address), "RTMFP session ", id);
+	AUTO_ERROR(success = pDecoder->decode(ex, *pBuffer, address), "RTMFP session ", id);
 	if (!success)
 		return;
 
@@ -75,21 +70,25 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 		_handler.queue(onAddress, address);
 	}
 
-	Packet buffer(pBuffer);
-	BinaryReader reader(buffer.data(), buffer.size());
+	Packet packet(pBuffer);
+	BinaryReader reader(packet.data(), packet.size());
 	// Read packet
 	UInt8 marker = reader.read8() | 0xF0;
 	UInt16 time = reader.read16();
 
-	Time expTime(time == _expTime ? 0 : RTMFP::Time(time)); // to avoid to use a repeating packet version
-	_expTime = time;
+	if (time != _initiatorTime) { // to avoid to use a repeating packet version
+		_initiatorTime = time;
+		initiatorTime = Time::Now() - (time*RTMFP::TIMESTAMP_SCALE);
+	}
 
-	Int32 echoTime(0xFFFFFFFF);
-	// with time echo
+	Int32 ping(0xFFFFFFFF);
 	if (marker == 0xFD) {
-		time = reader.read16(); // ping
-		if (time != _echoTime)  // to avoid to use a repeating packet version
-			_echoTime = echoTime = time;
+		// with time echo!
+		time = reader.read16(); // echo time
+		if (time != _echoTime) {  // to avoid to use a repeating packet version
+			_echoTime = time;
+			ping = (RTMFP::TimeNow() - time)*RTMFP::TIMESTAMP_SCALE;
+		}
 	} else if (marker != 0xF9)
 		WARN("Packet marker ", String::Format<UInt8>("%02x", marker)," unknown");
 
@@ -112,13 +111,13 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 		switch (type) {
 			case 0x0c:
 				BUFFER_RESET(_pBuffer, 6);  // overwrite!
-				write(*pSocket, address, expTime, 0x4c, 0);
+				write(socket, address, 0x4c, 0);
 			case 0x4c:
 				KILL(0);
 				break;
 			/// KeepAlive
 			case 0x01:
-				write(*pSocket, address, expTime, 0x41, 0);
+				write(socket, address, 0x41, 0);
 				break;
 			case 0x41:
 				keepalive = true;
@@ -128,7 +127,7 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 				UInt64 id(message.read7BitLongValue());
 				acks[id].reset();
 				// trick to avoid a repeating exception message from client
-				BinaryWriter(write(*pSocket, address, expTime, 0x10, 3 + Binary::Get7BitValueSize(id)))
+				BinaryWriter(write(socket, address, 0x10, 3 + Binary::Get7BitValueSize(id)))
 					.write8(RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END).write7BitLongValue(id).write16(0); // Stage=0 and DeltaAck = 0 to avoid to request a ack for that
 				break;
 			}
@@ -166,9 +165,9 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 									bits >>= 1;
 								}
 							}
-							it.first->second.set(Packet(buffer, begin, (lostBuffer - begin) + BinaryWriter(lostBuffer, 4).write7BitValue(lostCount).size()));
+							it.first->second.set(Packet(packet, begin, (lostBuffer - begin) + BinaryWriter(lostBuffer, 4).write7BitValue(lostCount).size()));
 						} else
-							it.first->second.set(Packet(buffer, message.current(), message.available()));
+							it.first->second.set(Packet(packet, message.current(), message.available()));
 					}
 				} else {
 					auto& it = acks.find(id);
@@ -197,7 +196,7 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 					const auto& it = _flows.find(flowId);
 					if (it == _flows.end()) {
 						DEBUG("Message for flow ", flowId, " unknown or flow already closed");
-						BinaryWriter(write(*pSocket, address, expTime, 0x5e, 1 + Binary::Get7BitValueSize(flowId)))
+						BinaryWriter(write(socket, address, 0x5e, 1 + Binary::Get7BitValueSize(flowId)))
 							.write7BitLongValue(flowId).write8(0);
 					} else
 						pFlow = &it->second;
@@ -214,7 +213,7 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 				}
 				++stage;	
 				if (pFlow)
-					pFlow->input(stage, flags, Packet(buffer, message.current(), message.available()));
+					pFlow->input(stage, flags, Packet(packet, message.current(), message.available()));
 				break;
 			}
 			default:
@@ -231,7 +230,7 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 				vector<UInt64> losts;
 				stage = pFlow->buildAck(losts, size = 0);
 				size += Binary::Get7BitValueSize(pFlow->id) + Binary::Get7BitValueSize(0xFF7Fu) + Binary::Get7BitValueSize(stage);
-				BinaryWriter writer(write(*pSocket, address, expTime, 0x51, size));
+				BinaryWriter writer(write(socket, address, 0x51, size));
 				writer.write7BitLongValue(pFlow->id).write7BitValue(0xFF7F).write7BitLongValue(stage);
 				for (UInt64 lost : losts)
 					writer.write7BitLongValue(lost);
@@ -240,7 +239,7 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 				pFlow = NULL;
 			} else {
 				// commit everything (flow unknown)
-				BinaryWriter(write(*pSocket, address, expTime, 0x51, 1 + Binary::Get7BitValueSize(flowId) + Binary::Get7BitValueSize(stage)))
+				BinaryWriter(write(socket, address, 0x51, 1 + Binary::Get7BitValueSize(flowId) + Binary::Get7BitValueSize(stage)))
 					.write7BitLongValue(flowId).write7BitValue(0).write7BitLongValue(stage);
 					
 			}
@@ -249,14 +248,14 @@ void RTMFPReceiver::receive(shared<Buffer>& pBuffer, const SocketAddress& addres
 	}
 
 	if(_pBuffer)
-		RTMFP::Send(*pSocket, Packet(pEncoder->encode(_pBuffer, farId, address)), address);
-	_handler.queue(onFlush, echoTime, keepalive, _died ? true : false, acks);
+		RTMFP::Send(socket, Packet(pEncoder->encode(_pBuffer, farId, address)), address);
+	_handler.queue(onFlush, ping, keepalive, _died ? true : false, acks);
 }
 
-Buffer& RTMFPReceiver::write(Socket& socket, const SocketAddress& address, Time& expTime, UInt8 type, UInt16 size) {
+Buffer& RTMFPReceiver::write(Socket& socket, const SocketAddress& address, UInt8 type, UInt16 size) {
 	if (_pBuffer && size > (RTMFP::SIZE_PACKET - _pBuffer->size()))
 		RTMFP::Send(socket, Packet(pEncoder->encode(_pBuffer, farId, address)), address);
-	BinaryWriter(_pBuffer ? *_pBuffer : RTMFP::InitBuffer(_pBuffer, expTime)).write8(type).write16(size);
+	BinaryWriter(_pBuffer ? *_pBuffer : RTMFP::InitBuffer(_pBuffer, initiatorTime)).write8(type).write16(size);
 	return *_pBuffer;
 }
 	

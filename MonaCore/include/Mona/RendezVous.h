@@ -20,19 +20,12 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/SocketAddress.h"
-#include "Mona/BinaryWriter.h"
 #include "Mona/Entity.h"
 
 namespace Mona {
 
 struct RendezVous : virtual Object {
-	enum Type {
-		TYPE_UNSPECIFIED = 0,
-		TYPE_LOCAL = 1,
-		TYPE_PUBLIC = 2,
-		TYPE_REDIRECTION = 3
-	};
-
+	
 	template<typename DataType=void>
 	void set(const UInt8* peerId, const SocketAddress& address, const SocketAddress& serverAddress, DataType* pData = NULL) { std::set<SocketAddress> addresses; setIntern(peerId, address, serverAddress, addresses, pData); }
 	template<typename DataType = void>
@@ -41,9 +34,8 @@ struct RendezVous : virtual Object {
 	void erase(const UInt8* peerId);
 
 	template<typename DataType = void>
-	DataType* meet(const SocketAddress& addressA, const UInt8* peerIdB, BinaryWriter& writerA, BinaryWriter& writerB, SocketAddress& addressB, UInt8 attempts = 0) { return (DataType*)meetIntern(addressA, peerIdB, writerA, writerB, addressB, attempts); }
+	DataType* meet(const SocketAddress& aAddress, const UInt8* bPeerId, std::map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, std::map<SocketAddress, bool>& bAddresses) { return (DataType*)meetIntern(aAddress, bPeerId, aAddresses, bAddress, bAddresses); }
 
-	static BinaryWriter& WriteAddress(BinaryWriter& writer, const SocketAddress& address, Type type = TYPE_UNSPECIFIED);
 private:
 	struct Peer : virtual Object {
 		SocketAddress			address;
@@ -52,7 +44,7 @@ private:
 		void*					pData;
 	};
 	void  setIntern(const UInt8* peerId, const SocketAddress& address, const SocketAddress& serverAddress, std::set<SocketAddress>& addresses, void* pData);
-	void* meetIntern(const SocketAddress& addressA, const UInt8* peerIdB, BinaryWriter& writerA, BinaryWriter& writerB, SocketAddress& addressB, UInt8 attempts);
+	void* meetIntern(const SocketAddress& aAddress, const UInt8* bPeerId, std::map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, std::map<SocketAddress, bool>& bAddresses);
 
 	
 	std::mutex _mutex;

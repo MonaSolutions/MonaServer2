@@ -33,16 +33,15 @@ struct RTMFPReceiver : RTMFP::Session, virtual Object {
 		UInt32 id, UInt32 farId,
 		const UInt8* farPubKey, UInt8 farPubKeySize,
 		const UInt8* decryptKey, const UInt8* encryptKey,
-		const shared<Socket>& pSocket, const SocketAddress& address,
-		const shared<RendezVous>& pRendezVous);
+		const SocketAddress& address, const shared<RendezVous>& pRendezVous);
 
 	UInt16					track;
 	bool					obsolete();
 	std::set<SocketAddress>	localAddresses;
 	
-	void	receive(shared<Buffer>& pBuffer, const SocketAddress& address);
+	void	receive(Socket& socket, shared<Buffer>& pBuffer, const SocketAddress& address);
 private:
-	Buffer& write(Socket& socket, const SocketAddress& address, Time& expTime, UInt8 type, UInt16 size);
+	Buffer& write(Socket& socket, const SocketAddress& address, UInt8 type, UInt16 size);
 
 	typedef std::function<void(UInt64 flowId, UInt32& lost, const Packet& packet)> Output;
 
@@ -72,14 +71,12 @@ private:
 
 	Output					_output;
 	std::map<UInt64, Flow>	_flows;
-	UInt32					_expTime;
+	UInt32					_initiatorTime;
 	UInt32					_echoTime;
 	Time					_died;
 	const Handler&			_handler;
 	shared<Buffer>			_pBuffer;
-	shared<RTMFP::Engine>	_pDecoder;
 	SocketAddress			_address;
-	weak<Socket>			_weakSocket;
 	Time					_obsolete;
 };
 

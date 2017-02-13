@@ -73,13 +73,16 @@ Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, UInt8 marker) {
 	return BinaryWriter(*pBuffer).write8(marker).write16(RTMFP::TimeNow()).buffer();
 }
 
-Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, Mona::Time& expTime, UInt8 marker) {
-	if (!expTime)
+Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, std::atomic<Int64>& initiatorTime, UInt8 marker) {
+	Int64 time = initiatorTime.exchange(0);
+	//if (!time)
+		return InitBuffer(pBuffer, marker);
+	time = Mona::Time::Now() - time;
+	if(time>128000) // see https://tools.ietf.org/html/rfc7016#section-3.5.2.2
 		return InitBuffer(pBuffer, marker);
 	pBuffer.reset(new Buffer(6));
-	BinaryWriter(*pBuffer).write8(marker+4).write16(RTMFP::TimeNow()).write16(Time(expTime.elapsed()));
-	expTime = 0;
-	return *pBuffer;
+	NOTE(RTMFP::Time(time));
+	return BinaryWriter(*pBuffer).write8(marker + 4).write16(RTMFP::TimeNow()).write16(RTMFP::Time(time)).buffer();
 }
 
 bool RTMFP::Send(Socket& socket, const Packet& packet, const SocketAddress& address) {
@@ -155,6 +158,19 @@ UInt32 RTMFP::ReadID(Buffer& buffer) {
 		id ^= reader.read32();
 	buffer.clip(4);
 	return id;
+}
+
+BinaryWriter& RTMFP::WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location) {
+	const IPAddress& host = address.host();
+	if (host.family() == IPAddress::IPv6)
+		writer.write8(location | 0x80);
+	else
+		writer.write8(location);
+	NET_SOCKLEN size(host.size());
+	const UInt8* bytes = BIN host.data();
+	for (NET_SOCKLEN i = 0; i<size; ++i)
+		writer.write8(bytes[i]);
+	return writer.write16(address.port());
 }
 
 

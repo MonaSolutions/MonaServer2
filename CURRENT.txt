@@ -1,14 +1,6 @@
-﻿RTMFP=>
-- Multihreadé RTMFPFlow
-- Writer => Congestion + Net::Stats + _ouput.killing()?
-- Ban + Auth dans RTMFPDecoder, comment faire?
-- Ping, remove time parameter in system?
-- killing() dans RTMFPSession?
-- Raccourcir RTMFPDecoder en déplaçant vers RTMFPHandshake
-- Address change!?
-- check ping!
-RTMFP BUG=>
-- Recording, looks not started on keyframe (RTMP is smooth, not RTMFP)
+﻿Tom 19 =>
+- Burn avoist
+- VST G++?
 
 Multi-Server=>
 - RTMFP onRendezVousUnknow => useless in external API, happens just on group member connection between => returns les adresses de tous les serveur RTMFP actifs

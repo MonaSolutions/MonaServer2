@@ -39,7 +39,7 @@ struct RTMFPWriter : FlashWriter, virtual Object {
 	void fail(Args&&... args) {
 		if (closed())
 			return;
-		WARN("RTMFPWriter ", _pQueue->id, " has failed, ", std::forward<Args>(args)...);
+		WARN("Writer ", _pQueue->id, " has failed, ", std::forward<Args>(args)...);
 		fail();
 	}
 

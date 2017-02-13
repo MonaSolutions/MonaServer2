@@ -140,8 +140,8 @@ ICE& Peer::ice(const Peer& peer) {
 
 /// EVENTS ////////
 
-void Peer::onHandshake(UInt8 attempts, set<SocketAddress>& addresses) {
-	_api.onHandshake(protocol, address, path, properties(), attempts, addresses);
+void Peer::onHandshake(set<SocketAddress>& addresses) {
+	_api.onHandshake(path,  protocol, address, properties(), addresses);
 }
 
 void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& arguments,DataWriter& response) {

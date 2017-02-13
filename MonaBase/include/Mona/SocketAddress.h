@@ -90,9 +90,12 @@ struct SocketAddress : private IPAddress, virtual NullableObject {
 	const sockaddr*	data() const { return reinterpret_cast<const sockaddr*>(&IPAddress::addr()); }
 	UInt8			size() const { return sizeof(IPAddress::addr()); }
 	
-	bool operator < (const SocketAddress& address) const;
 	bool operator == (const SocketAddress& address) const { return port() == address.port() && host() == address.host(); }
-	bool operator != (const SocketAddress& address) const { return port() != address.port() || host() != address.host(); }
+	bool operator != (const SocketAddress& address) const { return !operator==(address); }
+	bool operator < (const SocketAddress& address) const;
+	bool operator <= (const SocketAddress& address) const { return operator==(address) || operator<(address); }
+	bool operator >  (const SocketAddress& address) const { return !operator<=(address); }
+	bool operator >= (const SocketAddress& address) const { return operator==(address) || operator>(address); }
 	
 	explicit operator bool() const { return port() || !isWildcard(); }
 

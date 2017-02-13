@@ -45,100 +45,51 @@ void RendezVous::setIntern(const UInt8* peerId, const SocketAddress& address, co
 void RendezVous::erase(const UInt8* peerId) {
 	lock_guard<mutex> lock(_mutex);
 	auto& it = _peers.find(peerId);
+	if (it == _peers.end())
+		return;
 	_peersByAddress.erase(it->second.address);
 	_peers.erase(it);
 }
 
-void* RendezVous::meetIntern(const SocketAddress& addressA, const UInt8* peerIdB, BinaryWriter& writerA, BinaryWriter& writerB, SocketAddress& addressB, UInt8 attempts) {
+void* RendezVous::meetIntern(const SocketAddress& aAddress, const UInt8* bPeerId, map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, map<SocketAddress, bool>& bAddresses) {
 	lock_guard<mutex> lock(_mutex);
-//// A get B
-	auto& it = _peers.find(peerIdB);
-	if (it == _peers.end())
+	auto& bIt = _peers.find(bPeerId);
+	if (bIt == _peers.end())
 		return NULL;
-	Peer* pPeerA(NULL);
-	Peer& peerB(it->second);
-	addressB = peerB.address;
-	if (attempts > 0 || addressA.host() == addressB.host()) {
-		// try in first just with public address (excepting if the both peer are on the same machine)
-		auto& it = _peersByAddress.find(addressA);
-		if (it != _peersByAddress.end())
-			pPeerA = it->second;
-	}
+	Peer& b(bIt->second);
+	bAddress = b.address;
+	Peer* pA;
+	auto& aIt = _peersByAddress.find(aAddress);
+	if (aIt == _peersByAddress.end())
+		pA = NULL;
+	else
+		pA = aIt->second;
 
-	WriteAddress(writerA, addressB, TYPE_PUBLIC);
-	DEBUG(addressA," get public ", addressB);
-
-	if (pPeerA && pPeerA->serverAddress.host() != peerB.serverAddress.host() && pPeerA->serverAddress.host() != addressB.host()) {
-		// the both peer see the server in a different way (and serverAddress.host()!= public address host written above),
-		// Means an exterior peer, but we can't know which one is the exterior peer
-		// so add an interiorAddress build with how see eachone the server on the both side
-
-		// Usefull in the case where Caller is an exterior peer, and SessionWanted an interior peer,
-		// we give as host to Caller how it sees the server (= SessionWanted host), and port of SessionWanted
-		SocketAddress address(pPeerA->serverAddress.host(), addressB.port());
-		WriteAddress(writerA, address, TYPE_PUBLIC);
-		DEBUG(addressA," get public ", address);
-	}
-	for (const SocketAddress& address : peerB.addresses) {
-		WriteAddress(writerA, address, TYPE_LOCAL);
-		DEBUG(addressA," get local ", address);
-	}
-	
-//// B get A
-	// the both peer see the server in a different way (and serverAddress.host()!= public address host written above),
+	// If the both peer see the server in a different way (and serverAddress.host()!= public address host written above),
 	// Means an exterior peer, but we can't know which one is the exterior peer
 	// so add an interiorAddress build with how see eachone the server on the both side
-	bool hasAnExteriorPeer(pPeerA && pPeerA->serverAddress.host() != peerB.serverAddress.host() && peerB.serverAddress.host() != addressA.host());
+	// Usefull in the case where Caller is an exterior peer, and SessionWanted an interior peer,
+	// we give as host to Caller how it sees the server (= SessionWanted host), and port of SessionWanted
+	bool hasExteriorPeer = pA && pA->serverAddress.host() != b.serverAddress.host();
 
-	// times starts to 0
-	UInt8 index = 0;
-	const SocketAddress* pAddress(&addressA);
-	if (pPeerA && !pPeerA->addresses.empty()) {
-		// If two clients are on the same lan, starts with private address
-		if (pPeerA->address.host() == addressA.host())
-			++attempts;
-
-		index = attempts % (pPeerA->addresses.size() + (hasAnExteriorPeer ? 2 : 1));
-		if (index > 0) {
-			if (hasAnExteriorPeer && --index == 0)
-				pAddress = NULL;
-			else {
-				auto it = pPeerA->addresses.begin();
-				advance(it, --index);
-				pAddress = &(*it);
-			}
-		}
+//// A get B
+	bAddresses[bAddress] = true;
+	if (hasExteriorPeer)
+		bAddresses[SocketAddress(pA->serverAddress.host(), bAddress.port())] = true;
+	for (const SocketAddress& address : b.addresses)
+		bAddresses[address] = false;
+	
+//// B get A
+	aAddresses[aAddress] = true;
+	if (hasExteriorPeer)
+		aAddresses[SocketAddress(b.serverAddress.host(), aAddress.port())] = true;
+	if(pA) {
+		for (const SocketAddress& address : pA->addresses)
+			aAddresses[address] = false;
 	}
-
-	if (!pAddress) {
-		// Usefull in the case where B is an exterior peer, and A an interior peer,
-		// we give as host to B how it sees the server (= A host), and port of A
-		SocketAddress address(peerB.serverAddress.host(), addressA.port());
-		DEBUG(addressB, " get public ", address);
-		WriteAddress(writerB, address, TYPE_PUBLIC);
-	} else if(index) {
-		DEBUG(addressB, " get public ", *pAddress);
-		WriteAddress(writerB, *pAddress, TYPE_PUBLIC);
-	} else {
-		DEBUG(addressB, " get local ", *pAddress);
-		WriteAddress(writerB, *pAddress, TYPE_LOCAL);
-	}
-	return peerB.pData ? peerB.pData : this; // must return something != NULL (success)
+	return b.pData ? b.pData : this; // must return something != NULL (success)
 }
 
-
-BinaryWriter& RendezVous::WriteAddress(BinaryWriter& writer, const SocketAddress& address, Type type) {
-	const IPAddress& host = address.host();
-	if (host.family() == IPAddress::IPv6)
-		writer.write8(type | 0x80);
-	else
-		writer.write8(type);
-	NET_SOCKLEN size(host.size());
-	const UInt8* bytes = BIN host.data();
-	for (NET_SOCKLEN i = 0; i<size; ++i)
-		writer.write8(bytes[i]);
-	return writer.write16(address.port());
-}
 
 
 

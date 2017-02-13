@@ -36,7 +36,7 @@ private:
 	shared<Socket::Decoder>		newDecoder();
 
 	Buffer& initBuffer(shared<Buffer>& pBuffer);
-	void	send(UInt8 type, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Packet>& pResponse=nullptr);
+	void	send(UInt8 type, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Packet>& pResponse);
 
 
 	RTMFPDecoder::OnHandshake	_onHandshake;

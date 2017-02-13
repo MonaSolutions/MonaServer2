@@ -86,6 +86,14 @@ struct Packet: Binary, virtual Object {
 	Release the referenced area of data */
 	virtual ~Packet() { if (!_reference) delete _ppBuffer; }
 	/*!
+	Allow to compare data packet*/
+	bool operator == (const Packet& packet) const { return _size == packet._size && memcmp(_data, packet._data, _size)==0; }
+	bool operator != (const Packet& packet) const { return !operator==(packet); }
+	bool operator < (const Packet& packet) const { return _size != packet._size ? _size < packet._size : memcmp(_data, packet._data, _size)<0; }
+	bool operator <= (const Packet& packet) const { return operator==(packet) || operator<(packet); }
+	bool operator >  (const Packet& packet) const { return !operator<=(packet); }
+	bool operator >= (const Packet& packet) const { return operator==(packet) || operator>(packet); }
+	/*!
 	Return buffer */
 	const shared<const Binary>&	buffer() const { return *_ppBuffer; }
 	/*!

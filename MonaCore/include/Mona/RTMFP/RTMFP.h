@@ -33,6 +33,14 @@ struct RTMFPWriter;
 struct RTMFPSender;
 struct RTMFP : virtual Static {
 
+	enum Location {
+		LOCATION_UNSPECIFIED = 0,
+		LOCATION_LOCAL = 1,
+		LOCATION_PUBLIC = 2,
+		LOCATION_REDIRECTION = 3
+	};
+
+
 	enum { TIMESTAMP_SCALE = 4 };
 	enum { SENDABLE_MAX = 6 };
 
@@ -85,8 +93,7 @@ struct RTMFP : virtual Static {
 	};
 
 	struct Handshake : Packet, virtual Object {
-		Handshake(UInt8 attempts, const Packet& packet, const SocketAddress& address, const shared<Packet>& pResponse) : pResponse(pResponse), address(address), attempts(attempts), Packet(std::move(packet)) {}
-		const UInt8	        attempts;
+		Handshake(const Packet& packet, const SocketAddress& address, const shared<Packet>& pResponse) : pResponse(pResponse), address(address), Packet(std::move(packet)) {}
 		const SocketAddress address;
 		shared<Packet>		pResponse;
 	};
@@ -96,9 +103,9 @@ struct RTMFP : virtual Static {
 		const UInt32 lost;
 	};
 	struct Flush : virtual Object {
-		Flush(Int32 echoTime, bool keepalive, bool died, std::map<UInt64, Packet>& acks) :
-			echoTime(echoTime), acks(std::move(acks)), keepalive(keepalive), died(died) {}
-		const Int32						echoTime; // if died, echoTime takes error
+		Flush(Int32 ping, bool keepalive, bool died, std::map<UInt64, Packet>& acks) :
+			ping(ping), acks(std::move(acks)), keepalive(keepalive), died(died) {}
+		const Int32						ping; // if died, ping takes error
 		const bool						keepalive;
 		const bool						died;
 		const std::map<UInt64, Packet>	acks; // ack + fails
@@ -109,14 +116,17 @@ struct RTMFP : virtual Static {
 		typedef Event<void(RTMFP::Message&)>	ON(Message);
 		typedef Event<void(RTMFP::Flush&)>		ON(Flush);
 
-		Session(UInt32 id, UInt32 farId, const UInt8* farPubKey, UInt8 farPubKeySize, const UInt8* encryptKey, const shared<RendezVous>& pRendezVous) : id(id), farId(farId), peerId(), pEncoder(new Engine(encryptKey)), pRendezVous(pRendezVous) {
+		Session(UInt32 id, UInt32 farId, const UInt8* farPubKey, UInt8 farPubKeySize, const UInt8* decryptKey, const UInt8* encryptKey, const shared<RendezVous>& pRendezVous) : 
+				id(id), farId(farId), peerId(), pDecoder(new Engine(decryptKey)), pEncoder(new Engine(encryptKey)), pRendezVous(pRendezVous), initiatorTime(0) {
 			Crypto::Hash::SHA256(farPubKey, farPubKeySize, BIN peerId);
 		}
 		const UInt32				id;
 		const UInt32				farId;
 		const UInt8					peerId[Entity::SIZE];
+		const shared<Engine>		pDecoder;
 		const shared<Engine>		pEncoder;
 		const shared<RendezVous>	pRendezVous;
+		std::atomic<Int64>			initiatorTime;
 	};
 
 	struct Output : virtual Object {
@@ -130,14 +140,16 @@ struct RTMFP : virtual Static {
 
 	static bool				Send(Socket& socket, const Packet& packet, const SocketAddress& address);
 	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, UInt8 marker = 0x4a);
-	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, Mona::Time& expTime, UInt8 marker = 0x4a);
+	static Buffer&			InitBuffer(shared<Buffer>& pBuffer, std::atomic<Int64>& initiatorTime, UInt8 marker = 0x4a);
 	static void				ComputeAsymetricKeys(const UInt8* secret, UInt16 secretSize, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey);
 
 	static UInt32			ReadID(Buffer& buffer);
 
 	static UInt16			TimeNow() { return Time(Mona::Time::Now()); }
-	static UInt16			Time(Int64 time) { return (time / RTMFP::TIMESTAMP_SCALE)&0xFFFF; }
-	static Int64			Time(UInt16 time) { return Mona::Time::Now()-(time*RTMFP::TIMESTAMP_SCALE); }
+	static UInt16			Time(Int64 time) { return UInt16(time / RTMFP::TIMESTAMP_SCALE); }
+
+
+	static BinaryWriter&	WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location);
 
 };
 

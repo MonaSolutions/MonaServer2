@@ -52,13 +52,19 @@ void MonaTiny::onStop() {
 }
 
 //// Client Events /////
+void MonaTiny::onHandshake(const string& path, const string& protocol, const SocketAddress& address, const Parameters& properties, set<SocketAddress>& addresses) {
+	DEBUG(protocol, " ", address, " handshake to ", path.empty() ? "/" : path);
+	const auto& it(_applications.find(path));
+	if (it == _applications.end())
+		return;
+	it->second->onHandshake(protocol, address, properties, addresses);
+}
 
 void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& parameters, DataWriter& response) {
 	DEBUG(client.protocol, " ", client.address, " connects to ", client.path.empty() ? "/" : client.path)
 	const auto& it(_applications.find(client.path));
 	if (it == _applications.end())
 		return;
-
 	client.setCustomData<App::Client>(it->second->newClient(ex,client,parameters,response));
 }
 

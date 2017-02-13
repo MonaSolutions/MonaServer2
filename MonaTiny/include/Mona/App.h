@@ -28,6 +28,9 @@ struct App : virtual Object {
 
 	App(const Parameters& configs) {}
 
+
+	virtual void onHandshake(const std::string& protocol, const SocketAddress& address, const Parameters& properties, std::set<SocketAddress>& addresses) {}
+
 	virtual App::Client* newClient(Exception& ex, Mona::Client& client, DataReader& parameters, DataWriter& response) {
 		return NULL;
 	}

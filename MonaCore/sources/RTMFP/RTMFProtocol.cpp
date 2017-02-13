@@ -54,26 +54,26 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		writer.write8(16).write(reader.current(), 16); // tag
 
 		set<SocketAddress> addresses;
-		pPeer->onHandshake(handshake.attempts, addresses);
-		if (!addresses.empty()) {
+		pPeer->onHandshake(addresses);
+		if (addresses.empty()) {
+			// Create session and write id in cookie response!
+			writer.write8(RTMFP::SIZE_COOKIE);
+			writer.write32(this->sessions.create<RTMFPSession>(*this, this->api, pPeer).id());
+			writer.writeRandom(RTMFP::SIZE_COOKIE - 4);
+			// instance id (certificat in the middle)
+			writer.write(_certificat, sizeof(_certificat));
+			send(0x70, pBuffer, handshake.address, handshake.pResponse);
+		} else {
+			// redirection
 			set<SocketAddress>::iterator it;
 			for (it = addresses.begin(); it != addresses.end(); ++it) {
 				if (it->host().isWildcard())
-					RendezVous::WriteAddress(writer, pPeer->serverAddress, RendezVous::TYPE_REDIRECTION);
+					RTMFP::WriteAddress(writer, pPeer->serverAddress, RTMFP::LOCATION_REDIRECTION);
 				else
-					RendezVous::WriteAddress(writer, *it, RendezVous::TYPE_REDIRECTION);
+					RTMFP::WriteAddress(writer, *it, RTMFP::LOCATION_REDIRECTION);
 			}
-			send(0x71, pBuffer, handshake.address);
-			return;
+			send(0x71, pBuffer, handshake.address, handshake.pResponse);
 		}
-
-		// Create session and write id in cookie response!
-		writer.write8(RTMFP::SIZE_COOKIE);
-		writer.write32(this->sessions.create<RTMFPSession>(*this, this->api, pPeer).id());
-		writer.writeRandom(RTMFP::SIZE_COOKIE-4);
-		// instance id (certificat in the middle)
-		writer.write(_certificat, sizeof(_certificat));
-		send(0x70, pBuffer, handshake.address, handshake.pResponse);
 	};
 	_onSession = [this](shared<RTMFP::Session>& pSession) {
 		RTMFPSession* pClient = this->sessions.find<RTMFPSession>(pSession->id);
@@ -133,10 +133,7 @@ void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, const SocketAddress
 		Sender(const shared<Socket>& pSocket, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Packet>& pResponse) : _address(address), _pResponse(pResponse), _pSocket(pSocket), _pBuffer(move(pBuffer)), Runner("RTMFPProtocolSender") {}
 	private:
 		bool run(Exception& ex) {
-			if(_pResponse)
-				RTMFP::Send(*_pSocket, _pResponse->set(RTMFP::Engine::Encode(_pBuffer, 0, _address)), _address);
-			else
-				RTMFP::Send(*_pSocket, Packet(RTMFP::Engine::Encode(_pBuffer, 0, _address)), _address);
+			RTMFP::Send(*_pSocket, _pResponse->set(RTMFP::Engine::Encode(_pBuffer, 0, _address)), _address);
 			return true;
 		}
 		shared<Buffer>	_pBuffer;

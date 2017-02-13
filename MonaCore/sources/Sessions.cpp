@@ -38,10 +38,13 @@ void Sessions::addByAddress(Session& session) {
 	if (session._sessionsOptions&SESSION_BYADDRESS) {
 
 		session.peer.onAddressChanged = [this, &session](const SocketAddress& oldAddress) {
-			INFO(session.name(), " has changed its address, ", oldAddress, " -> ", session.peer.address);
+			if(oldAddress)
+				INFO(session.name(), " has changed its address, ", oldAddress, " -> ", session.peer.address);
 			removeByAddress(oldAddress, session);
 			addByAddress(session);
 		};
+		if (!session.peer.address) // no address yet, wait next onAddressChanged event (usefull for TCPSession)
+			return;
 
 		auto& map(dynamic_cast<UDProtocol*>(&session.protocol()) ? _sessionsByAddress[0] : _sessionsByAddress[1]);
 		auto& it = map.emplace(session.peer.address, &session);
@@ -65,6 +68,9 @@ void Sessions::removeByAddress(const SocketAddress& address, Session& session) {
 	if (session._sessionsOptions&SESSION_BYADDRESS) {
 
 		session.peer.onAddressChanged = nullptr;
+
+		if (!address)
+			return; // if no address, was not registered!
 
 		auto& map(dynamic_cast<UDProtocol*>(&session.protocol()) ? _sessionsByAddress[0] : _sessionsByAddress[1]);
 		if (map.erase(address) == 0) {
@@ -144,8 +150,6 @@ void Sessions::manage() {
 		++it;
 	}
 }
-
-
 
 
 } // namespace Mona

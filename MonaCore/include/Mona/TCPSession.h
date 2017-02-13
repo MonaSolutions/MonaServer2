@@ -29,7 +29,7 @@ struct TCPSession : Session, private TCPClient, virtual Object {
 
 	UInt32 timeout() const { return _timeout; }
 
-	const shared<Socket>&	socket() { return _pSocket; }
+	const shared<Socket>&	socket() { return TCPClient::socket(); }
 
 	void send(const Packet& packet);
 
@@ -60,7 +60,6 @@ private:
 
 	UInt32			_timeout;
 	UInt16			_sendingTrack;
-	shared<Socket>	_pSocket;
 };
 
 

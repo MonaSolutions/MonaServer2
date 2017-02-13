@@ -47,14 +47,10 @@ UInt16 SocketAddress::resolveService(Exception& ex,const char* service) {
 }
 
 bool SocketAddress::operator < (const SocketAddress& address) const {
-	if (family() < address.family())
-		return true;
 	if (family() != address.family())
-		return false;
-	if (host() < address.host())
-		return true;
+		return family() < address.family();
 	if (host() != address.host())
-		return false;
+		return host() < address.host();
 	return (port() < address.port());
 }
 
