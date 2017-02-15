@@ -1,9 +1,8 @@
-﻿TestMembers => _pSession => comment peut être null sur refresh de TestMembers?
-TestMembers => Unknown Session RTMFP sur refresh, meme chose avec Mona1?
-Verif thread consommation!
+﻿SocketAddress => match resolveService error/warn with ex.portMissing!?
 Répondre au mail: quand Mona2 sortira?
 
 Tom 19 =>
+- Comprendre comment utiliser libRTMFP pour le présenter à Marc
 - Rendezvous service, proche de peerId et pas de SHA256(peerId)? pb performance => ton client lui cherche des voisins à SHA256(peerId) => sollicite le rendezvous service!!
 - Burn avoist
 - multicasting implications

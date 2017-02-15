@@ -141,31 +141,29 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 		Packet packet(message, reader.current(), reader.available());
 		// Capture setPeerInfo!
 		switch (type) {
-		case AMF::TYPE_INVOCATION_AMF3:
-			reader.next();
-		case AMF::TYPE_INVOCATION:
-		{
-			string buffer;
-			AMFReader amf(reader.current(), reader.available());
-			if (amf.readString(buffer) && buffer == "setPeerInfo") {
-				amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
-				amf.readNull();
-				set<SocketAddress> addresses;
-				while (amf.readString(buffer)) {
-					if (buffer.empty())
-						continue; // can happen, not display exception
-					SocketAddress address;
-					Exception ex;
-					if (address.set(ex, buffer))
-						addresses.emplace(address);
-					if (ex)
-						WARN("Invalid peer address info, ", ex);
+			case AMF::TYPE_INVOCATION_AMF3:
+				reader.next();
+			case AMF::TYPE_INVOCATION: {
+				string buffer;
+				AMFReader amf(reader.current(), reader.available());
+				if (amf.readString(buffer) && buffer == "setPeerInfo") {
+					amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
+					amf.readNull();
+					set<SocketAddress> addresses;
+					while (amf.readString(buffer)) {
+						if (buffer.empty())
+							continue; // can happen, not display exception
+						SocketAddress address;
+						Exception ex;
+						if (address.set(ex, buffer))
+							addresses.emplace(address);
+						if (ex)
+							WARN("Invalid peer address info, ", ex);
+					}
+					if (!addresses.empty())
+						_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, addresses, _pSession.get());
 				}
-				if (!addresses.empty())
-					_pSession->pRendezVous->set<RTMFP::Session>(peer.id, peer.address, peer.serverAddress, addresses, _pSession.get());
 			}
-			break;
-		}
 		}
 		pStream->process((AMF::Type)type, time, packet, *_pFlow->pWriter, *this);
 	};
