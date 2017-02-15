@@ -354,25 +354,24 @@ inline const std::string& typeof() {
 
 template<typename MapType>
 inline typename MapType::iterator lower_bound(MapType& map, typename const MapType::key_type& key, const std::function<bool(typename const MapType::key_type&, typename MapType::iterator&)>& validate) {
-	MapType::iterator it, first(map.begin()), last(map.end());
-	MapType::difference_type count, step;
-	count = std::distance(first, last);
-	while (count > 0) {
-		if (!validate(key, first)) {
-			first = map.erase(first);
+	MapType::iterator it, result(map.begin());
+	UInt32 count(map.size()), step;
+	while (count) {
+		if (!validate(key, result)) {
+			result = map.erase(result);
 			if (!--count)
-				return first;
+				return result;
 		}
-		it = first;
+		it = result;
 		step = count / 2;
 		std::advance(it, step);
 		if (it->first < key) {
-			first = ++it;
+			result = ++it;
 			count -= step + 1;
 		} else
 			count = step;
 	}
-	return first;
+	return result;
 }
 
 } // namespace Mona

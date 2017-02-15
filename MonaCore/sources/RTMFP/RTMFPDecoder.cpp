@@ -29,6 +29,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 
 	Handshake(const Handler& handler, const shared<RendezVous>& pRendezVous) : track(0), _pResponse(new Packet()), _pRendezVous(pRendezVous), _handler(handler) {}
 
+	Packet					tag;
 	UInt16					track;
 	shared<RTMFPReceiver>	pReceiver;
 
@@ -62,7 +63,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					
 					const UInt8* peerId(reader.current());
 					reader.next(Entity::SIZE);
-					Packet tag(reader.current(), 16);
+					Packet tag(reader.current(), 16); // not save this tag! (rendezvous service, not session handshaking!)
 
 					SocketAddress bAddress;
 					map<SocketAddress, bool> aAddresses, bAddresses;
@@ -110,13 +111,13 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						return; // is already answering!
 					}
 					Packet tag(reader.current(), 16);
-					if (_tag) {
+					if (this->tag) {
 						if (pReceiver) {
-							// from 0x38 to 0x30 again => erase pReceiver, and restart handshake again
-							DEBUG("38 handshake back to 30 handshake again");
+							// from 0x38 to 0x30 again, address changed? => erase pReceiver, and restart handshake again
+							WARN("38 handshake back to 30 handshake again, obsolete session handshake abandonned by client");
 							pReceiver.reset();
 							_pResponse.reset(new Packet());
-						} else if (_tag==tag) {
+						} else if (this->tag ==tag) {
 							// repeat response
 							DEBUG("Repeat 30 handshake response");
 							RTMFP::Send(socket, *_pResponse, address); 
@@ -124,7 +125,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						}
 						// new 0x30 request, maybe url/path have changed!
 					}
-					_tag = move(tag);
+					this->tag = move(tag);
 					_handler.queue(onHandshake, Packet(pBuffer, reader.current(), reader.available()), address, _pResponse);
 				} else
 					ERROR("Handshake 0x30 with unknown ", String::Format<UInt8>("%02x", type), " type");
@@ -141,7 +142,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					RTMFP::Send(socket, *_pResponse, address);
 					return;
 				}
-				if (!_tag)
+				if (!tag)
 					WARN("38 hanshake without 30 before or client has changed address between the both");
 				UInt32 farId = reader.read32();
 				if (reader.read7BitLongValue() != RTMFP::SIZE_COOKIE) {
@@ -186,13 +187,14 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				UInt8 decryptKey[Crypto::SHA256_SIZE];
 				size = UInt16(reader.read7BitValue());
 				RTMFP::ComputeAsymetricKeys(secret, secretSize, reader.current(), size, writer.data() + noncePos, dh.publicKeySize() + 11, decryptKey, encryptKey);
-				pReceiver.reset(new RTMFPReceiver(_handler, id, farId, farPubKey, farPubKeySize, decryptKey, encryptKey, address, _pRendezVous));
 
 				// write size!
 				BinaryWriter(pOut->data() + 10, 2).write16(pOut->size() - 12);
 				// encode and save response
 				_pResponse->set(RTMFP::Engine::Encode(pOut, farId, address));
-				// encode save and send
+				// Create receiver just before send
+				pReceiver.reset(new RTMFPReceiver(_handler, id, farId, farPubKey, farPubKeySize, decryptKey, encryptKey, address, _pRendezVous));
+				// send
 				RTMFP::Send(socket, *_pResponse, address);
 				return;
 			}
@@ -205,7 +207,6 @@ struct RTMFPDecoder::Handshake : virtual Object {
 	Time					_timeout;
 	shared<RendezVous>		_pRendezVous;
 	shared<Packet>			_pResponse;
-	Packet					_tag;
 };
 
 RTMFPDecoder::RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool) : _handler(handler), _threadPool(threadPool), _pRendezVous(new RendezVous()), _pReceiving(new atomic<UInt32>(0)),
@@ -223,16 +224,9 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 		// no "receiver"("session") handshake, address has changed?
 		itHand = _handshakes.begin();
 		while (itHand != _handshakes.end()) {
-			if (itHand->second->pReceiver) {
-				if (itHand->second->pReceiver.unique()) {
-					// this client (identified by its address) has started many hanshake without terminate it,
-					// erase it because has already a pReceiver unique (is the reason of this call!
-					itHand = _handshakes.erase(itHand);
-					continue;
-				}
-				if (id == itHand->second->pReceiver->id)
-					break;
-			}
+			// test unicity of pReceiver to test that EXISTS + NOT HANDSHAKING!
+			if (itHand->second->pReceiver.unique() && id == itHand->second->pReceiver->id)
+				break;
 			++itHand;
 		}
 		if (itHand == _handshakes.end())
@@ -242,8 +236,10 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 	pReceiver = itHand->second->pReceiver;
 	if (!pReceiver)
 		return false; // can happen on UDP hole punching handshake!
-	_handshakes.erase(itHand);
 	_handler.queue(onSession, pReceiver);
+	if(!itHand->second->tag) // address has changed between 30 and 38, raise the event because will not be detected by pReceiver (built on 38)
+		_handler.queue(pReceiver->onAddress, address);
+	_handshakes.erase(itHand);
 	return true;
 }
 

@@ -27,6 +27,20 @@ using namespace std;
 
 namespace Mona {
 
+void RTMFPSession::Flow::join(RTMFP::Group& group) {
+	if (_pGroup == &group)
+		return;
+	unjoin();
+	_pGroup = &group;
+	group.join(*this);
+}
+void RTMFPSession::Flow::unjoin() {
+	if (!_pGroup)
+		return;
+	_pGroup->unjoin(*this);
+	_pGroup = NULL;
+}
+
 RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer) : 
 		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(0), _timesKeepalive(0) {
 
@@ -226,7 +240,6 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 			// no valid more for rendezvous
 			_pSession->pRendezVous->erase(peer.id);
 		}
-	
 		// unpublish and unsubscribe
 		_mainStream.onStart = nullptr;
 		_mainStream.onStop = nullptr;
@@ -259,7 +272,6 @@ void RTMFPSession::kill(Int32 error, const char* reason) {
 		_pSession->onFlush = nullptr;
 		_pSession.reset();
 	}
-
 	Session::kill(error, reason);
 	_writers.clear();
 }

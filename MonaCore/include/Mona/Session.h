@@ -22,7 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct Session : virtual NullableObject {
+struct Session : virtual Object {
 	enum {
 		// Int32 0 =>  Normal close (Client close properly)
 		// Int32 Positive => Can send a last message
@@ -37,10 +37,13 @@ struct Session : virtual NullableObject {
 		// Int32 Negative => no possible to distribute a message
 		ERROR_SOCKET = -1,
 		ERROR_RESOURCE = -2,
-		ERROR_CONGESTED = -3
+		ERROR_CONGESTED = -3,
+		ERROR_ZOMBIE = -4 // is already died indeed, impossible to send a message!
 	};
 
 	static Int32 ToError(const Exception& ex);
+
+	virtual	~Session();
 
 	/*!
 	If id>0 => managed by _sessions! */
@@ -57,11 +60,8 @@ struct Session : virtual NullableObject {
 	Peer&				peer;
 	ServerAPI&			api;
 
-	explicit operator bool() const { return !died; }
 	explicit operator const UInt8*() const { return peer.id; }
 	
-	virtual	~Session();
-
 	/*!
 	implement it to flush writers to avoid message queue exceed! */
 	virtual void flush() = 0;
@@ -71,7 +71,7 @@ struct Session : virtual NullableObject {
 	virtual bool manage();
 
 protected:
-	const bool			died;
+	const bool			died; // keep it protected because just Sessions can check if session is died to delete it!
 
 	Session(Protocol& protocol, const SocketAddress& address, const char* name=NULL);
 	Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name = NULL);

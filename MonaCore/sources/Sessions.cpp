@@ -127,8 +127,7 @@ void Sessions::remove(const map<UInt32, Session*>::iterator& it, SESSION_OPTIONS
 
 	// If remove is called, session can be always not closed if the call comes from addByAddress or addByPeer
 	// Here it means an obsolete session, we can kill it
-	if (session)
-		session.kill(Session::ERROR_PROTOCOL);
+	session.kill(Session::ERROR_ZOMBIE);
 
 	_freeIds.emplace(session._id);
 	delete &session;
@@ -140,9 +139,9 @@ void Sessions::manage() {
 	auto it = _sessions.begin();
 	while (it != _sessions.end()) {
 		Session& session(*it->second);
-		if (session && session.manage())
+		if (!session.died && session.manage())
 			session.flush();
-		if (!session) {
+		if (session.died) {
 			auto itRemove(it++);
 			remove(itRemove, SESSION_BYPEER | SESSION_BYADDRESS);
 			continue;

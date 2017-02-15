@@ -28,40 +28,43 @@ using namespace std;
 namespace Mona {
 
 void RTMFP::Group::join(RTMFP::Member& member) {
-	// If group includes already members, give 2*log2(N)+13 random members to the new comer
-	// Indeed in RTMFP each peer has 2log2(N)+13 connections, so to minimize peer new connections need,
-	// give immediatly required connections
-	// One more reason to give a huge range of random clients is to reconnect possible isolated peer
-	if(!empty()) {
-		UInt32 count = UInt32(2 * log2(size() - 1) + 13);
-		auto itFirst = begin();
-		advance(itFirst, Util::Random<UInt32>() % size());
-		auto itClient(itFirst);
-		vector<Member*> congestedClients;
-		do {
-			Member& client(*itClient->second);
-			if (client.writer()) { // if not itself and opened (not closed)
-				if (!client->congested()) {
-					client.writer().sendMember(member);
+	// Give the 6 peers closest (see https://drive.google.com/open?id=0B21tGxCEiSXGcHpYTkNOMHVvXzg),
+	// to allow new member to estimate the more precisely possible N, and because its neighborns are desired
+	// by this member (relating RTMFP spec), so give it immediatly rather wait that it find it itself (save time and resource).
+	UInt8 count = 6;
+	auto it = lower_bound(member);
+	if(size()) {
+		auto itLeft = it; --itLeft;
+		auto itRight = it;
+		for(;;) {
+			if (itLeft != end()) {
+				if (itLeft->second->writer()) { // if is opened (not closed)
+					itLeft->second->writer().sendMember(member);
 					if (!--count)
-						return;
-				} else
-					congestedClients.emplace_back(&client);
-			}
-			if (++itClient == end())
-				itClient = begin(); // continue from beginning
-		} while (itClient != itFirst);
-		for (Member* pClient : congestedClients) {
-			pClient->writer().sendMember(*pClient);
-			if (!--count)
+						break;
+				}
+				--itLeft;
+			} else if (itRight == end())
 				break;
-		}
+			if (itRight != end()) {
+				if (itRight->second->writer()) { // if is opened (not closed)
+					itRight->second->writer().sendMember(member);
+					if (!--count)
+						break;
+				}
+				++itRight;
+			}
+		};
 	}
-	emplace(member);
+
+	emplace_hint(it, member); // insert now, not before!
 }
 
 void RTMFP::Group::unjoin(RTMFP::Member& member) {
-	erase(member);
+	if (!erase(member)) {
+		ERROR(Util::FormatHex(member, Entity::SIZE, string())," was not member of group ", Util::FormatHex(id, Entity::SIZE, string()));
+		return;
+	}
 	if (!empty())
 		return;
 	_groups.erase(id);
