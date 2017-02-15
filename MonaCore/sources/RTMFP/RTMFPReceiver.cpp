@@ -191,7 +191,6 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 				if (flags & RTMFP::MESSAGE_OPTIONS) {
 					// flow creation
 					pFlow = &_flows.emplace(piecewise_construct, forward_as_tuple(flowId), forward_as_tuple(flowId, _output)).first->second;
-					*(UInt8*)message.current() |= RTMFP::MESSAGE_OPTIONS;
 				} else {
 					const auto& it = _flows.find(flowId);
 					if (it == _flows.end()) {
@@ -329,7 +328,13 @@ void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& pa
 	}
 
 	if (_pBuffer) {
-		_pBuffer->append(packet.data(), packet.size());
+		BinaryReader reader(packet.data(), packet.size());
+		if (flags & RTMFP::MESSAGE_OPTIONS) {
+			// remove options on concatenation!
+			while (UInt8 length = reader.read8())
+				reader.next(length);
+		}
+		_pBuffer->append(reader.current(), reader.available());
 		if (flags&RTMFP::MESSAGE_WITH_AFTERPART)
 			return;
 		Packet packet(_pBuffer);
@@ -338,6 +343,9 @@ void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& pa
 		return;
 			
 	}
+	// add options flag on AMF type on message beginning (compatible with AMF type value!)
+	if (flags & RTMFP::MESSAGE_OPTIONS)
+		*(UInt8*)packet.data() |= RTMFP::MESSAGE_OPTIONS;
 	if (flags&RTMFP::MESSAGE_WITH_AFTERPART) {
 		_pBuffer.reset(new Buffer(packet.size(), packet.data()));
 		return;

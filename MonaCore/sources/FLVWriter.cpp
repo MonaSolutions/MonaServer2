@@ -124,7 +124,7 @@ void FLVWriter::endMedia(const OnWrite& onWrite) {
 void FLVWriter::write(UInt16 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt32 compositionOffset, const Packet& packet, const OnWrite& onWrite) {
 	if (!onWrite)
 		return;
-	DEBUG(type, " ", codecs, " ", isConfig, " ", time," ", compositionOffset);
+	TRACE(type, " ", codecs, " ", isConfig, " ", time," ", compositionOffset);
 	BinaryWriter writer(_buffer, sizeof(_buffer));
 	/// 11 bytes of header
 
