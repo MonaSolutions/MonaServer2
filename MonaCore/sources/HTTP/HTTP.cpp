@@ -98,7 +98,8 @@ void HTTP::Header::set(const char* key, const char* value) {
 				do {
 					++value;
 				} while (value && (isblank(*value) || *value == '='));
-				SCOPED_STRINGIFY(data, endKey - data, setString(data, value);); // cookies in Map!
+				String::Scoped scoped(endKey);
+				setString(data, value); // cookies in Map!
 			}
 			return true;
 		});

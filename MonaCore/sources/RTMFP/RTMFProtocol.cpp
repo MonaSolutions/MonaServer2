@@ -42,13 +42,18 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		// Fill peer infos
 		shared<Peer> pPeer(new Peer(this->api));
 		string serverAddress;
-		SCOPED_STRINGIFY(reader.current(), reader.available()-16, Util::UnpackUrl(STR reader.current(), serverAddress, (string&)pPeer->path, (string&)pPeer->query));
+		{
+			const char* url = STR reader.current();
+			reader.next(reader.available() - 16);
+			String::Scoped scoped(STR reader.current());
+			Util::UnpackUrl(url, serverAddress, (string&)pPeer->path, (string&)pPeer->query);
+		}
 		pPeer->setAddress(handshake.address);
 		pPeer->setServerAddress(serverAddress);
 		Util::UnpackQuery(pPeer->query, pPeer->properties());
 
 		// prepare response
-		reader.next(reader.available() - 16);
+		
 		shared<Buffer> pBuffer;
 		BinaryWriter writer(initBuffer(pBuffer));
 		writer.write8(16).write(reader.current(), 16); // tag

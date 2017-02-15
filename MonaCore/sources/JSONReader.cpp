@@ -241,7 +241,8 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 					if (!value)
 						return false;
 					reader.next(2+size); // skip "string"
-					SCOPED_STRINGIFY(value,size, writer.beginObject( value) )
+					String::Scoped scoped(value + size);
+					writer.beginObject(value);
 					started = true;
 					continue;
 				}
@@ -266,7 +267,10 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 			started = true;
 		}
 
-		SCOPED_STRINGIFY(name, _size, writer.writePropertyName(name))
+		{
+			String::Scoped scoped(name+_size);
+			writer.writePropertyName(name);
+		}
 	
 		// write value
 		if (!readNext(writer)) {

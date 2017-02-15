@@ -36,9 +36,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STR		(char*)
 
 
-// BEWARE, be sure that DATA[SIZE] exists! (if DATA must be a allocation of >= (SIZE+1))
-#define SCOPED_STRINGIFY(DATA,SIZE,INNER_CODE)	{ char& __end((char&)(DATA)[SIZE]); char __prev(__end); __end = 0; INNER_CODE; __end = __prev; }
-
 #define STRINGIZE(x) STRINGIZE2(x)
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)

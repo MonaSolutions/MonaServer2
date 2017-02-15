@@ -50,28 +50,31 @@ struct SocketAddress : private IPAddress, virtual NullableObject {
 	/*!
 	Set a SocketAddress from other */
 	SocketAddress& operator=(const SocketAddress& other) { return set(other); }
-
+	/*!
+	set SocketAddress from a given IP and a given port */
 	SocketAddress& set(const IPAddress& host, UInt16 port) { IPAddress::set(host, port); return *this; }
-	SocketAddress& set(Exception& ex, const IPAddress& host, const std::string& port) { return set(host, resolveService(ex, port.c_str())); }
-	SocketAddress& set(Exception& ex, const IPAddress& host, const char* port) { return set(host, resolveService(ex, port)); }
-
-	/// set SocketAddress from an IP address and a port number.
-	bool set(Exception& ex, const std::string& host, UInt16 port) { return setIntern(ex, host.c_str(), port,false); }
-	bool set(Exception& ex, const char* host, UInt16 port) { return setIntern(ex, host, port,false); }
-	bool setWithDNS(Exception& ex, const std::string& host, UInt16 port) { return setIntern(ex, host.c_str(), port,true); }
-	bool setWithDNS(Exception& ex, const char* host, UInt16 port) { return setIntern(ex, host, port,true); }
-
-	/// set SocketAddress from an IP address and a service name or port number
-	bool set(Exception& ex, const std::string& host, const std::string& port) { return setIntern(ex, host.c_str(), resolveService(ex,port.c_str()),false); }
-	bool set(Exception& ex, const char* host,		 const std::string& port) { return setIntern(ex, host, resolveService(ex,port.c_str()),false); }
-	bool set(Exception& ex, const std::string& host, const char* port) { return setIntern(ex, host.c_str(), resolveService(ex,port),false); }
-	bool set(Exception& ex, const char* host,		 const char* port) { return setIntern(ex, host, resolveService(ex,port),false); }
-	bool setWithDNS(Exception& ex, const std::string& host, const std::string& port) { return setIntern(ex, host.c_str(), resolveService(ex,port.c_str()),true); }
-	bool setWithDNS(Exception& ex, const char* host,		const std::string& port) { return setIntern(ex, host, resolveService(ex,port.c_str()),true); }
-	bool setWithDNS(Exception& ex, const std::string& host, const char* port) { return setIntern(ex, host.c_str(), resolveService(ex,port),true); }
-	bool setWithDNS(Exception& ex, const char* host,		const char* port) { return setIntern(ex, host, resolveService(ex,port),true); }
-
-	/// set SocketAddress from an IP address or host name and a port number/service name
+	/*!
+	set SocketAddress from a given IP and a parsed port */
+	bool set(Exception& ex, const IPAddress& host, const std::string& port) { return set(ex, host, port.c_str()); }
+	bool set(Exception& ex, const IPAddress& host, const char* port);
+	/*!
+	set SocketAddress from a parsed IP and a given port */
+	bool set(Exception& ex, const std::string& host, UInt16 port) { return setIntern(ex, host.c_str(), port, false); }
+	bool set(Exception& ex, const char* host, UInt16 port) { return setIntern(ex, host, port, false); }
+	bool setWithDNS(Exception& ex, const std::string& host, UInt16 port) { return setIntern(ex, host.c_str(), port, true); }
+	bool setWithDNS(Exception& ex, const char* host, UInt16 port) { return setIntern(ex, host, port, true); }
+	/*!
+	set SocketAddress from a parsed IP and a parsed port */
+	bool set(Exception& ex, const std::string& host, const std::string& port) { return setIntern(ex, host.c_str(), port.c_str(), false); }
+	bool set(Exception& ex, const char* host,		 const std::string& port) { return setIntern(ex, host, port.c_str(), false); }
+	bool set(Exception& ex, const std::string& host, const char* port) { return setIntern(ex, host.c_str(), port, false); }
+	bool set(Exception& ex, const char* host,		 const char* port) { return setIntern(ex, host, port, false); }
+	bool setWithDNS(Exception& ex, const std::string& host, const std::string& port) { return setIntern(ex, host.c_str(), port.c_str(), true); }
+	bool setWithDNS(Exception& ex, const char* host,		const std::string& port) { return setIntern(ex, host, port.c_str(), true); }
+	bool setWithDNS(Exception& ex, const std::string& host, const char* port) { return setIntern(ex, host.c_str(), port, true); }
+	bool setWithDNS(Exception& ex, const char* host,		const char* port) { return setIntern(ex, host, port, true); }
+	/*!
+	set SocketAddress from a parsed IP:port */
 	bool set(Exception& ex, const std::string& hostAndPort) { return setIntern(ex, hostAndPort.c_str(), false); }
 	bool set(Exception& ex, const char* hostAndPort) { return setIntern(ex, hostAndPort, false); }
 	bool setWithDNS(Exception& ex, const std::string& hostAndPort) { return setIntern(ex, hostAndPort.c_str(), true); }
@@ -106,8 +109,9 @@ struct SocketAddress : private IPAddress, virtual NullableObject {
 	static UInt16 SplitLiteral(const std::string& value, std::string& host) { return SplitLiteral(value.data(),host); }
 
 private:
-	bool setIntern(Exception& ex, const char* host, UInt16 port, bool resolveHost) { return resolveHost ? IPAddress::setWithDNS(ex, host, port) : IPAddress::set(ex, host, port); }
 	bool setIntern(Exception& ex, const char* hostAndPort, bool resolveHost);
+	bool setIntern(Exception& ex, const char* host, const char* port, bool resolveHost);
+	bool setIntern(Exception& ex, const char* host, UInt16 port, bool resolveHost) { return resolveHost ? IPAddress::setWithDNS(ex, host, port) : IPAddress::set(ex, host, port); }
 
 	UInt16 resolveService(Exception& ex, const char* service);
 

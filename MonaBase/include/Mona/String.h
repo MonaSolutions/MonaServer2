@@ -70,6 +70,18 @@ struct String : std::string {
 	};
 
 	/*!
+	Null terminate a string in a scoped place
+	/!\ Can't work on a literal C++ declaration!
+	/!\ When using by "data+size" way, address must be in data capacity! ( */
+	struct Scoped {
+		Scoped(const char* end) : _c((char&)*end), _cValue(*end) { _c = 0; }
+		~Scoped() { _c = _cValue; }
+	private:
+		char& _c;
+		char  _cValue;
+	};
+
+	/*!
 	Encode value to UTF8 when required, if the value was already UTF8 compatible returns true, else false */
 	static bool ToUTF8(char value, char (&buffer)[2]);
 	/*!

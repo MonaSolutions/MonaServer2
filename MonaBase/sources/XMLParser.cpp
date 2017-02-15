@@ -76,10 +76,10 @@ RESET:
 		Tag& tag(_tags.back());
 		if (!tag.full)
 			break;
-		bool next(false);
-		SCOPED_STRINGIFY( name = tag.name, size = tag.size, _tags.pop_back(); next = onEndXMLElement(name);) 
-		if (!next)
-			return (_current == _end && _tags.empty()) ? RESULT_DONE : RESULT_PAUSED;
+		String::Scoped scoped((name=tag.name)+tag.size);
+		_tags.pop_back();
+		if(!onEndXMLElement(name))
+			return  (_current == _end && _tags.empty()) ? RESULT_DONE : RESULT_PAUSED;
 		if (_reseted)
 			goto RESET;
 	}
@@ -107,18 +107,16 @@ RESET:
 				_bufferInner.resize(_bufferInner.size() - innerSpaceRemovables,true);
 				_bufferInner.append(EXPAND("\0")); // string null termination
 		
-				bool next(false);
-				Tag& tag(_tags.back());
-				SCOPED_STRINGIFY( tag.name, tag.size, next = onInnerXMLElement(tag.name, STR _bufferInner.data(), _bufferInner.size()-1);) 
 
+				Tag& tag(_tags.back());
+
+				String::Scoped scoped(tag.name+tag.size);
 				isInner = false;
 				innerSpaceRemovables = 0;
-
-				if (!next)
+				if(!onInnerXMLElement(tag.name, STR _bufferInner.data(), _bufferInner.size() - 1))
 					return RESULT_PAUSED;
 				if (_reseted)
 					goto RESET;
-
 			}
 
 			if (++_current == _end) {
@@ -163,8 +161,10 @@ RESET:
 				++_current;
 				if (!isInner) while (_current < _end && isspace(*_current)) ++_current;
 
-				SCOPED_STRINGIFY(name, size, _tags.pop_back(); next = onEndXMLElement(name);) 
 
+				String::Scoped scoped(name + size);
+				_tags.pop_back();
+				next = onEndXMLElement(name);
 
 			} else if (*_current == '!') {
 				//// COMMENT or CDATA ////
@@ -345,7 +345,8 @@ RESET:
 					/// just after " end of attribute value
 
 					// store name=value
-					SCOPED_STRINGIFY(key, sizeKey, _attributes.setString(key,value,sizeValue) )
+					String::Scoped scoped(key + sizeKey);
+					_attributes.setString(key, value, sizeValue);
 				}
 
 
@@ -361,18 +362,17 @@ RESET:
 				++_current;
 				if (!isInner) while (_current < _end && isspace(*_current)) ++_current;
 
-				SCOPED_STRINGIFY( name, size,
-					if (isInfos)
-						next = onXMLInfos(name, (Parameters&)_attributes);
-					else {
-						_tags.emplace_back(tag); // before to allow a call to save
-						next = onStartXMLElement(name, (Parameters&)_attributes);
-						if (next && tag.full) {
-							_tags.pop_back();  // before to allow a call to save
-							next = onEndXMLElement(name);
-						}
+				String::Scoped scoped(name + size);
+				if (isInfos)
+					next = onXMLInfos(name, (Parameters&)_attributes);
+				else {
+					_tags.emplace_back(tag); // before to allow a call to save
+					next = onStartXMLElement(name, (Parameters&)_attributes);
+					if (next && tag.full) {
+						_tags.pop_back();  // before to allow a call to save
+						next = onEndXMLElement(name);
 					}
-				) 
+				}
 			}
 
 

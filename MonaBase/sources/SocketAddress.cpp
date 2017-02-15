@@ -23,16 +23,30 @@ using namespace std;
 
 namespace Mona {
 
+bool SocketAddress::set(Exception& ex, const IPAddress& host, const char* service) {
+	UInt16 port = resolveService(ex, service);
+	if (!port)
+		return false;
+	set(host, port);
+	return true;
+}
+
+bool SocketAddress::setIntern(Exception& ex, const char* host, const char* service, bool resolveHost) {
+	UInt16 port = resolveService(ex, service);
+	if (!port)
+		return false;
+	return setIntern(ex, host, port, resolveHost);
+}
+
 bool SocketAddress::setIntern(Exception& ex, const char* hostAndPort, bool resolveHost) {
 	const char* colon(strrchr(hostAndPort,':'));
 	if (!colon) {
 		ex.set<Ex::Net::Address::Port>("Missing port number in ", hostAndPort);
 		return false;
 	}
-	(char&)*colon = 0;
-	bool result(setIntern(ex,hostAndPort, resolveService(ex,colon+1),resolveHost));
-	(char&)*colon = ':';
-	return result;
+	String::Scoped scoped(colon);
+	UInt16 port = resolveService(ex, colon + 1);
+	return port ? setIntern(ex, hostAndPort, port, resolveHost) : false;
 }
 
 UInt16 SocketAddress::resolveService(Exception& ex,const char* service) {

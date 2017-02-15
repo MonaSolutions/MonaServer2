@@ -275,17 +275,19 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, IOFile
 				size = slash - value;
 			} else
 				size = strlen(value);
-		
 
 			UInt16 port;
-			if (String::ToNumber(value, size,port)) {
+			if (String::ToNumber(value, size, port)) {
 				isPort = true;
 				address.setPort(port);
 				if(slash)
 					path.set(slash);
 				return true;
 			}
-			SCOPED_STRINGIFY(value, size, isAddress = address.set(ex, value));
+			{
+				String::Scoped scoped(value + size);
+				isAddress = address.set(ex, value);
+			}
 			ex = nullptr;
 			if(!isAddress)
 				path.set(value); // File!

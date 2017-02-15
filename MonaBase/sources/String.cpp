@@ -55,9 +55,8 @@ size_t String::Split(const char* value, const char* separators, const String::Fo
 				++it3;
 		}
 		if (it3 != it1 || !(options&SPLIT_IGNORE_EMPTY)) {
-			bool result(false);
-			SCOPED_STRINGIFY(it3, 0, result = forEach(count++,&*it1))
-			if (!result)
+			String::Scoped scoped(it3);
+			if(!forEach(count++, &*it1))
 				return string::npos;
 		}
 		it1 = it2;

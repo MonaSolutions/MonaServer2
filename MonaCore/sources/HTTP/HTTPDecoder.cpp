@@ -115,20 +115,19 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				// KEY = VALUE
 				char* endValue(STR buffer.data());
 				while (isblank(*--endValue));
-				SCOPED_STRINGIFY(signifiant, ++endValue - signifiant,
-					if (!key) { // version case!
-						String::ToNumber(signifiant + 5, _pHeader->version);
-						_pHeader->setNumber("version", _pHeader->version);
-					} else {
-						char* endValue(signifiant-1);
-						while (isblank(*--endValue)); // after the :
-						while (isblank(*--endValue)); // before the :
-						SCOPED_STRINGIFY(key, ++endValue - key,
-							_pHeader->set(key, signifiant);
-						);
-						key = NULL;
-					}
-				);
+
+				String::Scoped scoped(++endValue);
+				if (!key) { // version case!
+					String::ToNumber(signifiant + 5, _pHeader->version);
+					_pHeader->setNumber("version", _pHeader->version);
+				} else {
+					char* endValue(signifiant-1);
+					while (isblank(*--endValue)); // after the :
+					while (isblank(*--endValue)); // before the :
+					String::Scoped scoped(++endValue);
+					_pHeader->set(key, signifiant);
+					key = NULL;
+				}
 		
 				_stage = LEFT;
 				buffer += 2;
@@ -153,15 +152,14 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 					_stage = PATH;
 				} else if (_stage == PATH) {
 					// parse query
-					SCOPED_STRINGIFY(signifiant, STR buffer.data() - signifiant,
-						size_t filePos = Util::UnpackUrl(signifiant, _pHeader->path, _pHeader->query);
-						if (filePos != string::npos) {
-							// is file!
-							_file.set(_www, _pHeader->path);
-							_pHeader->path.erase(filePos - 1);
-						} else
-							_file.set(_www, _pHeader->path, '/');
-					);
+					String::Scoped scoped(STR buffer.data());
+					size_t filePos = Util::UnpackUrl(signifiant, _pHeader->path, _pHeader->query);
+					if (filePos != string::npos) {
+						// is file!
+						_file.set(_www, _pHeader->path);
+						_pHeader->path.erase(filePos - 1);
+					} else
+						_file.set(_www, _pHeader->path, '/');
 					signifiant = STR buffer.data();
 					_stage = VERSION;
 				}
