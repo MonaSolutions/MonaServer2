@@ -28,8 +28,8 @@ using namespace std;
 
 namespace Mona {
 
-ServerAPI::ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, ThreadPool& threadPool) :
-	application(application), www(www), protocols(protocols), timer(timer), handler(handler), threadPool(threadPool), ioSocket(handler, threadPool), ioFile(handler, threadPool), publications(_publications) {
+ServerAPI::ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores) :
+	threadPool(cores * 2), application(application), www(www), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool), publications(_publications) {
 }
 
 void ServerAPI::manage() {
@@ -76,7 +76,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 		return NULL;
 	}
 	
-	auto& it = _publications.emplace(stream, stream);
+	const auto& it = _publications.emplace(piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
 	Publication& publication(it.first->second);
 
 	if (publication.running()) {
@@ -174,7 +174,7 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 			WARN(ex.set<Ex::Unfound>("Publication ",stream," unfound"));
 			return false;
 		}
-		it = _publications.emplace_hint(it, stream, stream);
+		it = _publications.emplace_hint(it, piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
 	} else if (String::ICompare(mode, "play") == 0 && subscription.timeout() && it->second.idleSince().isElapsed(subscription.timeout())) {
 		// timeout!
 		WARN(ex.set<Ex::Unfound>("Publication ",stream," idle since ", subscription.timeout()/1000," seconds"));

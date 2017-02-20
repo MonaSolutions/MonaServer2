@@ -103,14 +103,14 @@ ADD_TEST(SocketAddressTest, Behavior) {
 ADD_TEST(SocketAddressTest, ToString) {
 	// toString performance (for loop test)
 	SocketAddress sa;
-	sa;
+	CHECK(!sa.empty());
 }
 
 ADD_TEST(SocketAddressTest, ParsePerformance) {
 	// Parse performance (for loop test)
 	SocketAddress sa;
 	Exception ex;
-	sa.set(ex,"192.168.1.100",100);
+	CHECK(sa.set(ex,"192.168.1.100",100) && !ex)
 }
 
 ADD_TEST(SocketAddressTest, ComparaisonPerformance) {

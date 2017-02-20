@@ -60,10 +60,10 @@ struct UDPSocket : virtual Object {
 
 	struct Sender : Runner, Packet {
 		Sender(const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& address) : Runner("UDPSender"), _address(address), _pSocket(pSocket), Packet(std::move(packet)) {}
-		bool run(Exception& ex) { return _pSocket->write(ex, *this, _address) != -1; }
+		bool run(Exception& ex) { _pSocket->write(ex, *this, _address); return true; }
 	private:
 		shared<Socket>	_pSocket;
-		SocketAddress			_address;
+		SocketAddress	_address;
 	};
 private:
 	virtual shared<Socket::Decoder> newDecoder() { return nullptr; }

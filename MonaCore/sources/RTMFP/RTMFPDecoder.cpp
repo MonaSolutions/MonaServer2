@@ -69,12 +69,12 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					map<SocketAddress, bool> aAddresses, bAddresses;
 					RTMFP::Session* pSession = _pRendezVous->meet<RTMFP::Session>(address, peerId, aAddresses, bAddress, bAddresses);
 					if (!pSession) {
-						DEBUG("UDP Hole punching, session ", Util::FormatHex(peerId, Entity::SIZE, string()), " wanted not found")
+						DEBUG("UDP Hole punching, session ", String::Hex(peerId, Entity::SIZE), " wanted not found")
 						return; // peerId unknown! TODO?
 					}
 
 					shared<Buffer> pBuffer;
-					{ // send in first to B (A is waiting B)
+					{ // B get A in first (A is waiting B)
 						RTMFP::InitBuffer(pBuffer);
 						BinaryWriter writer(*pBuffer);
 						for (auto& it : aAddresses) {
@@ -88,7 +88,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						// create a new encoder to be thread safe =>
 						RTMFP::Send(socket, Packet(RTMFP::Engine(*pSession->pEncoder).encode(pBuffer, pSession->farId, bAddress)), bAddress);
 					}
-					{  // send in first to A
+					{  // A get B
 						RTMFP::InitBuffer(pBuffer, 0x0B);
 						BinaryWriter writer(*pBuffer);
 						writer.write8(0x71).next(2).write8(16).write(tag); // tag in header
@@ -146,7 +146,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					WARN("38 hanshake without 30 before or client has changed address between the both");
 				UInt32 farId = reader.read32();
 				if (reader.read7BitLongValue() != RTMFP::SIZE_COOKIE) {
-					ERROR("Bad handshake cookie ", Util::FormatHex(reader.current(), 16, string()), "..., its size should be 64 bytes");
+					ERROR("Bad handshake cookie ", String::Hex(reader.current(), 16), "..., its size should be 64 bytes");
 					return;
 				}
 
@@ -262,7 +262,7 @@ UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& addres
 		auto it = lower_bound(_handshakes, address, _validateHandshake);
 		if (it == _handshakes.end() || it->first != address) {
 			// Create handshake
-			it = _handshakes.emplace_hint(it, address, new Handshake(_handler, _pRendezVous));
+			it = _handshakes.emplace_hint(it, piecewise_construct, forward_as_tuple(address), forward_as_tuple(new Handshake(_handler, _pRendezVous)));
 			it->second->onHandshake = onHandshake;
 		}
 		receive(it->second, pBuffer, address, pSocket);

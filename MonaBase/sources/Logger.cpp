@@ -49,8 +49,8 @@ namespace Mona {
 #define INFO_COLOR "\033[01;37m"
 #define DEBUG_COLOR "\033[0m"
 #define TRACE_COLOR "\033[01;30m"
-#define BEGIN_CONSOLE_TEXT_COLOR(color) fprintf(stdout,"%s",color)
-#define END_CONSOLE_TEXT_COLOR			BEGIN_CONSOLE_TEXT_COLOR(LevelColors[6])
+#define BEGIN_CONSOLE_TEXT_COLOR(color) cout << color
+#define END_CONSOLE_TEXT_COLOR			cout << LevelColors[6]
 #endif
 
 #if defined(_WIN32)
@@ -61,15 +61,15 @@ static const char*  LevelColors[] = { FATAL_COLOR, CRITIC_COLOR, ERROR_COLOR, WA
 
 void Logger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
 	BEGIN_CONSOLE_TEXT_COLOR(LevelColors[level - 1]);
-	cout << file.name() << '[' << line << "] " << message << std::endl;
+	cout << file.name() << '[' << line << "] " << message;
 	END_CONSOLE_TEXT_COLOR;
+	cout << std::endl; // flush after color change, required especially over unix/linux
 }
 
 void Logger::dump(const string& header, const UInt8* data, UInt32 size) {
 	if(!header.empty())
 		cout.write(header.data(), header.size()).put('\n');
-	cout.write(STR data, size);
-	cout.flush();
+	cout.write(STR data, size).flush();
 }
 
 } // namespace Mona

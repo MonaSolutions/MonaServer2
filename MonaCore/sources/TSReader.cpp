@@ -183,7 +183,7 @@ void TSReader::parsePAT(BinaryReader& reader, Media::Source& source) {
 
 	while (available > 4) {
 		reader.next(2); // skip program number
-		_programs.emplace(reader.read16() & 0x1fff, nullptr); // 13 bits => PMT pids
+		_programs.emplace(piecewise_construct, forward_as_tuple(reader.read16() & 0x1fff), forward_as_tuple(nullptr)); // 13 bits => PMT pids
 		available -= 4;
 	}
 	// ignore 4 CRC bytes

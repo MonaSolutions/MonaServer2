@@ -74,11 +74,11 @@ bool Application::init(int argc, const char* argv[]) {
 	if (!FileSystem::GetCurrentApp(path)) {
 		if (path.find('/') != string::npos) {
 			if (!FileSystem::IsAbsolute(path))
-				path.insert(0, FileSystem::GetCurrentDir(""));
+				path.insert(0, FileSystem::GetCurrentDir());
 		} else {
 			// just file name!
 			if (!FileSystem::Find(path))
-				path.insert(0, FileSystem::GetCurrentDir(""));
+				path.insert(0, FileSystem::GetCurrentDir());
 		}
 	}
 #endif
@@ -218,8 +218,7 @@ void Application::log(LOG_LEVEL level, const Path& file, long line, const string
 	static string temp;
 	static Exception ex;
 
-	Date().toString("%d/%m %H:%M:%S.%c  ", Buffer);
-	String::Append(Buffer, LogLevels[level - 1], '\t', Thread::CurrentName(), '(', Thread::CurrentId(), ")\t");
+	String::Append(Buffer, String::Date("%d/%m %H:%M:%S.%c  "), LogLevels[level - 1], '\t', Thread::CurrentName(), '(', Thread::CurrentId(), ")\t");
 	if (String::ICompare(FileSystem::GetName(file.parent(), temp), "sources") != 0 && String::ICompare(temp, "mona") != 0)
 		String::Append(Buffer, temp,'/');
 	String::Append(Buffer, file.name(), '[' , line , "]  " , message , '\n');
@@ -235,9 +234,7 @@ void Application::dump(const string& header, const UInt8* data, UInt32 size) {
 		Logger::dump(header, data, size);
 	if (!_pLogFile)
 		return;
-	String buffer;
-	Date().toString("%d/%m %H:%M:%S.%c  ", buffer);
-	buffer.append(header) += '\n';
+	String buffer(String::Date("%d/%m %H:%M:%S.%c  "), header, '\n');
 	Exception ex;
 	if (!_pLogFile->write(ex, buffer.data(), buffer.size()) || !_pLogFile->write(ex, data, size))
 		return log(LOG_ERROR, __FILE__, __LINE__, ex);

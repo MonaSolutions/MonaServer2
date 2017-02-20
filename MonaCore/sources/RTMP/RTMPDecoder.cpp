@@ -193,7 +193,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 		if (channelId < 2)
 			channelId = (channelId == 0 ? reader.read8() : reader.read16()) + 64;
 
-		Channel& channel(_channels.emplace(channelId, channelId).first->second);
+		Channel& channel(_channels.emplace(piecewise_construct, forward_as_tuple(channelId), forward_as_tuple(channelId)).first->second);
 
 		bool isRelative(true);
 		if (headerSize >= 4) {

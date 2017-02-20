@@ -66,7 +66,7 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 			shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
 			BinaryWriter writer(*pBuffer);
 			HTTP_BEGIN_HEADER(writer)
-				HTTP_ADD_HEADER("Last-Modified", Date(_file.lastModified()).toString(Date::HTTP_FORMAT, buffer));
+				HTTP_ADD_HEADER("Last-Modified", String::Date(Date(_file.lastModified()), Date::FORMAT_HTTP));
 			HTTP_END_HEADER
 
 			HTTP::Sort		sort(HTTP::SORT_ASC);
@@ -113,7 +113,7 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 				HTTP_BEGIN_HEADER(writer)
 					HTTP_ADD_HEADER("Location", buffer);
 				HTTP_END_HEADER
-					HTML_BEGIN_COMMON_RESPONSE(writer, EXPAND("Moved Permanently"))
+				HTML_BEGIN_COMMON_RESPONSE(writer, EXPAND("Moved Permanently"))
 					writer.write(EXPAND("The document has moved <a href=\"")).write(buffer).write(EXPAND("\">here</a>."));
 				HTML_END_COMMON_RESPONSE(buffer)
 				if(!send(HTTP_CODE_301, MIME::TYPE_TEXT, "html; charset=utf-8", Packet(pBuffer)))
@@ -169,11 +169,10 @@ bool HTTPFileSender::sendHeader(UInt64 fileSize) {
 		mime = MIME::TYPE_APPLICATION;
 		subMime = "octet-stream";
 	}
-	string buffer;
 	shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
 	BinaryWriter writer(*pBuffer);
 	HTTP_BEGIN_HEADER(writer)
-		HTTP_ADD_HEADER("Last-Modified", Date((*this)->lastModified()).toString(Date::HTTP_FORMAT, buffer));
+		HTTP_ADD_HEADER("Last-Modified", String::Date(Date((*this)->lastModified()), Date::FORMAT_HTTP));
 	HTTP_END_HEADER
 	return send(HTTP_CODE_200, mime, subMime, Packet(pBuffer), fileSize);
 }

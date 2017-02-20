@@ -435,7 +435,7 @@ private:
 				if (i > 0)
 					host.append(":");
 				if (i < 8)
-					Util::FormatHex((const UInt8*)&words[i++], 2, host, HEX_TRIM_LEFT | HEX_APPEND);
+					String::Append(host, String::Hex(BIN &words[i++], 2, HEX_TRIM_LEFT));
 			}
 			UInt32 scope(this->scope());
 			if (scope) {

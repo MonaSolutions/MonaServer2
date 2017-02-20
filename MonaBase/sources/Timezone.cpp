@@ -19,6 +19,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Timezone.h"
 #include "Mona/Util.h"
 #include "Mona/Path.h"
+#include "Mona/Date.h"
 #include <fstream>
 #if defined(_WIN32)
 #include "windows.h"
@@ -28,9 +29,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
    #endif
    extern char *tzname[2];
 #endif
-
-#undef ABSOLUTE
-#undef RELATIVE
 
 using namespace std;
 
@@ -263,24 +261,24 @@ Int32 Timezone::ParseTZOffset(string::const_iterator& it,const string::const_ite
 bool Timezone::ParseTZRule(string::const_iterator& it,const string::const_iterator& end,TransitionRule& rule) {
 	if (it == end)
 		return false;
-	TransitionRule::Type type(TransitionRule::NIL);
+	TransitionRule::Type type(TransitionRule::TYPE_NULL);
 	UInt8 month(0), week(0), day(0);
 	if (*it == 'J' && ++it!=end) {
 		while (it!=end && isdigit(*it)) { day = day*10 + ((*it)-'0'); ++it;} // julian day (1 to 365 without leap counted)
 		if (day>0)
-			type = TransitionRule::JULIAN;
+			type = TransitionRule::TYPE_JULIAN;
 	} else if (*it == 'M' && ++it!=end) {
 		while (it != end && isdigit(*it)) { month = month*10 + ((*it)-'0'); ++it; } // month
 		if (it != end && *it == '.') { ++it;  while (it != end && isdigit(*it)) { week = week*10 + ((*it)-'0'); ++it; } } // week
 		if (it != end && *it == '.') { ++it;  while (it != end && isdigit(*it)) { day = day*10 + ((*it)-'0'); ++it; } } // day
 		if (month>0 && week>0)
-			type = TransitionRule::RELATIVE;
+			type = TransitionRule::TYPE_RELATIVE;
 	} else {
 		while (it!=end && isdigit(*it)) { day = day*10 + ((*it)-'0'); ++it;} // absolute day (0 to 365 with leap counted)
 		if (day>0)
-			type = TransitionRule::ABSOLUTE;
+			type = TransitionRule::TYPE_ABSOLUTE;
 	}
-	if (type==TransitionRule::NIL)
+	if (type==TransitionRule::TYPE_NULL)
 		return false;
 	rule.type = type; rule.month = month; rule.week = week; rule.day = day;
 	if (it != end && *it == '/') {
@@ -356,7 +354,7 @@ bool Timezone::readTZDatabase(const string& path) {
 void Timezone::fillDefaultTransitionRule(const SYSTEMTIME& date,bool isDST,Timezone::TransitionRule& rule) {
 	if (date.wYear > 0) {
 		// it's a Transition (so no default rule... no daylight excepting for this year)
-		_transitions[Date((Int32)date.wYear, (UInt8)date.wMonth, (UInt8)date.wDay, (UInt8)date.wHour, (UInt8)date.wMinute, (UInt8)date.wSecond,0,Date::GMT)].set(isDST ? _dstOffset : _offset,isDST);
+		_transitions[Date((Int32)date.wYear, (UInt8)date.wMonth, (UInt8)date.wDay, (UInt8)date.wHour, (UInt8)date.wMinute, (UInt8)date.wSecond,0,Timezone::GMT)].set(isDST ? _dstOffset : _offset,isDST);
 		return;
 	}
 		
@@ -365,7 +363,7 @@ void Timezone::fillDefaultTransitionRule(const SYSTEMTIME& date,bool isDST,Timez
 	rule.week = (UInt8)date.wDay;
 	rule.day = (UInt16)date.wDayOfWeek;
 	rule.clock = date.wHour*3600000L + date.wMinute*60000L + date.wSecond*1000;
-	rule.type = TransitionRule::RELATIVE;
+	rule.type = TransitionRule::TYPE_RELATIVE;
 }
 #endif
 
@@ -555,8 +553,8 @@ Timezone::Timezone() : _offset(0),_dstOffset(3600000) {
 	// NO TZ Database
 
 	// if no zoneinfo tz database, precompute all value from 1916 to now+20 years (to optimize current timezone without saturated _transitions)
-	Date date(Date::GMT);
-	Date dateEnd(date.year()+20,1,1,Date::GMT);
+	Date date(Timezone::GMT);
+	Date dateEnd(date.year()+20,1,1,Timezone::GMT);
 	for (Int32 year = 1916; year < (date.year() + 20); ++year) {
 		_transitions[ruleToTime(year, true, _startDST)].set(_dstOffset,true);
 		_transitions[ruleToTime(year, false, _endDST)].set(_offset,false);
@@ -593,18 +591,18 @@ Int32 Timezone::offset(const Date& date, bool& isDST) {
 
 Int64 Timezone::ruleToTime(Int32 year, bool isDST, const TransitionRule& rule) {
 	
-	Date date(year,rule.month,1,Date::GMT);
+	Date date(year,rule.month,1,Timezone::GMT);
 	date.setClock(rule.clock);
 
 	UInt16 day(rule.day);
 	switch (rule.type) {
-		case TransitionRule::JULIAN:
+		case TransitionRule::TYPE_JULIAN:
 			if (day>59 && Date::IsLeapYear(year))
 				++day;
-		case TransitionRule::ABSOLUTE:
+		case TransitionRule::TYPE_ABSOLUTE:
 			date.setYearDay(day);
 			break;
-		case TransitionRule::RELATIVE:
+		case TransitionRule::TYPE_RELATIVE:
 			date.setWeekDay(UInt8(day));
 			date.setDay(date.day() + (rule.week - 1) * 7);
 			date.setWeekDay(UInt8(day));
@@ -619,11 +617,11 @@ Int64 Timezone::ruleToTime(Int32 year, bool isDST, const TransitionRule& rule) {
 Int32 Timezone::Offset(const char* code ,bool& isDST) {
 	if (String::ICompare(code,"Z")==0 || String::ICompare(code,"GMT")==0 || String::ICompare(code,"UTC")==0) {
 		isDST = false;
-		return Date::GMT;
+		return Timezone::GMT;
 	}
 	auto it = Timezones.find(code);
 	if (it == Timezones.end())
-		return Date::GMT;
+		return Timezone::GMT;
 	isDST = it->second.second;
 	return it->second.first;
 }

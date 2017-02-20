@@ -15,8 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Date.h"
-#include "Mona/Timezone.h"
-#include "math.h"
+#include "Mona/Exceptions.h"
 
 
 using namespace std;
@@ -24,21 +23,21 @@ using namespace std;
 namespace Mona {
 
 
-const char* Date::ISO8601_FORMAT("%Y[-%m-%dT%H:%M:%S%z]");  	  // 2005-01-01T12:00:00+01:00 | 2005-01-01T11:00:00Z
-const char* Date::ISO8601_FRAC_FORMAT("%Y[-%m-%dT%H:%M:%s%z]");   // 2005-01-01T12:00:00.000000+01:00 | 2005-01-01T11:00:00.000000Z
-const char* Date::ISO8601_SHORT_FORMAT("%Y[%m%dT%H%M%S%z]");  	  // 20050101T120000+01:00 | 20050101T110000Z
-const char* Date::ISO8601_SHORT_FRAC_FORMAT("%Y[%m%dT%H%M%s%z]"); // 20050101T120000.000000+01:00 | 20050101T110000.000000Z
-const char* Date::RFC822_FORMAT("[%w, ]%e %b %y %H:%M[:%S] %Z");  // Sat, 1 Jan 05 12:00:00 +0100 | Sat, 1 Jan 05 11:00:00 GMT
-const char* Date::RFC1123_FORMAT("%w, %e %b %Y %H:%M:%S %Z");	  // Sat, 1 Jan 2005 12:00:00 +0100 | Sat, 1 Jan 2005 11:00:00 GMT
-const char* Date::HTTP_FORMAT("%w, %d %b %Y %H:%M:%S %Z");		  // Sat, 01 Jan 2005 12:00:00 +0100 | Sat, 01 Jan 2005 11:00:00 GMT
-const char* Date::RFC850_FORMAT("%W, %e-%b-%y %H:%M:%S %Z");	  // Saturday, 1-Jan-05 12:00:00 +0100 | Saturday, 1-Jan-05 11:00:00 GMT
-const char* Date::RFC1036_FORMAT("%W, %e %b %y %H:%M:%S %Z");	  // Saturday, 1 Jan 05 12:00:00 +0100 | Saturday, 1 Jan 05 11:00:00 GMT
-const char* Date::ASCTIME_FORMAT("%w %b %f %H:%M:%S %Y");		  // Sat Jan  1 12:00:00 2005
-const char* Date::SORTABLE_FORMAT("%Y-%m-%d[ %H:%M:%S]");		  // 2005-01-01 12:00:00
+const char* Date::FORMAT_ISO8601("%Y[-%m-%dT%H:%M:%S%z]");  	  // 2005-01-01T12:00:00+01:00 | 2005-01-01T11:00:00Z
+const char* Date::FORMAT_ISO8601_FRAC("%Y[-%m-%dT%H:%M:%s%z]");   // 2005-01-01T12:00:00.000000+01:00 | 2005-01-01T11:00:00.000000Z
+const char* Date::FORMAT_ISO8601_SHORT("%Y[%m%dT%H%M%S%z]");  	  // 20050101T120000+01:00 | 20050101T110000Z
+const char* Date::FORMAT_ISO8601_SHORT_FRAC("%Y[%m%dT%H%M%s%z]"); // 20050101T120000.000000+01:00 | 20050101T110000.000000Z
+const char* Date::FORMAT_RFC822("[%w, ]%e %b %y %H:%M[:%S] %Z");  // Sat, 1 Jan 05 12:00:00 +0100 | Sat, 1 Jan 05 11:00:00 GMT
+const char* Date::FORMAT_RFC1123("%w, %e %b %Y %H:%M:%S %Z");	  // Sat, 1 Jan 2005 12:00:00 +0100 | Sat, 1 Jan 2005 11:00:00 GMT
+const char* Date::FORMAT_HTTP("%w, %d %b %Y %H:%M:%S %Z");		  // Sat, 01 Jan 2005 12:00:00 +0100 | Sat, 01 Jan 2005 11:00:00 GMT
+const char* Date::FORMAT_RFC850("%W, %e-%b-%y %H:%M:%S %Z");	  // Saturday, 1-Jan-05 12:00:00 +0100 | Saturday, 1-Jan-05 11:00:00 GMT
+const char* Date::FORMAT_RFC1036("%W, %e %b %y %H:%M:%S %Z");	  // Saturday, 1 Jan 05 12:00:00 +0100 | Saturday, 1 Jan 05 11:00:00 GMT
+const char* Date::FORMAT_ASCTIME("%w %b %f %H:%M:%S %Y");		  // Sat Jan  1 12:00:00 2005
+const char* Date::FORMAT_SORTABLE("%Y-%m-%d[ %H:%M:%S]");		  // 2005-01-01 12:00:00
 
 
 
-static const char* WEEKDAY_NAMES[] = {
+const char* Date::_WeekDayNames[] = {
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -48,7 +47,7 @@ static const char* WEEKDAY_NAMES[] = {
 	"Saturday"
 };
 
-static const string MONTH_NAMES[] = {
+const char* Date::_MonthNames[] = {
 	"January",
 	"February",
 	"March",
@@ -63,7 +62,7 @@ static const string MONTH_NAMES[] = {
 	"December"
 };
 
-static const UInt16 MonthDays[][12] = {
+static const UInt16 _MonthDays[][12] = {
 	{ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 },
 	{ 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335} // leap
 };
@@ -90,10 +89,10 @@ Date& Date::update(Int64 time,Int32 offset) {
 	// update time with offset
 	_offset = offset;
 	_isLocal = _isDST = false;
-	if (_offset == GMT)
+	if (_offset == Timezone::GMT)
 		_offset = 0;
-	else if (_offset == LOCAL) {
-		_offset = GMT;
+	else if (_offset == Timezone::LOCAL) {
+		_offset = Timezone::GMT;
 		_offset = Timezone::Offset(*this,_isDST);
 		_isLocal = true;
 	}
@@ -135,7 +134,7 @@ Date& Date::update(Int64 time,Int32 offset) {
 
 	_month = 1;
 	UInt16 count(0);
-	while (_month<12 && days > (delta=MonthDays[isLeap ? 1 : 0][_month])) {
+	while (_month<12 && days > (delta=_MonthDays[isLeap ? 1 : 0][_month])) {
 		++_month;
 		count = delta;
 	}
@@ -166,7 +165,7 @@ Int64 Date::time() const {
 	bool isLeap(IsLeapYear(_year));
 	if (isLeap && _year > 0)
 		--time;
-	 time += MonthDays[isLeap?1:0][_month-1];
+	 time += _MonthDays[isLeap?1:0][_month-1];
 
 	 time += (_year - 1970)*365;
 	 UInt32 clock(this->clock());
@@ -174,11 +173,11 @@ Int64 Date::time() const {
 
 	_changed = false;
 	_weekDay = 7;
-	if (_offset == GMT) {
+	if (_offset == Timezone::GMT) {
 		_isLocal = _isDST = false;
 		_offset = 0;
-	} else if (_offset == LOCAL || _isLocal) {
-		_offset = GMT;
+	} else if (_offset == Timezone::LOCAL || _isLocal) {
+		_offset = Timezone::GMT;
 		((Date*)this)->Time::update(time);
 		_offset = Timezone::Offset(*this, _isDST); // will call time(), offset() and weekDay()
 		_isLocal = true;
@@ -194,18 +193,18 @@ Int32 Date::offset() const {
 		return _offset;
 	}
 
-	if (_offset == GMT) {
+	if (_offset == Timezone::GMT) {
 		_offset = 0;
 		_isDST = _isLocal = false;
 		return 0;
 	}
-	if (_offset != LOCAL && !_isLocal)
+	if (_offset != Timezone::LOCAL && !_isLocal)
 		return _offset;  // _offset is a fix value
 
 	if (_changed)
 		time();  // assign _isLocal, _offset and _isDST
-	else if (_offset == LOCAL) {
-		_offset = GMT;
+	else if (_offset == Timezone::LOCAL) {
+		_offset = Timezone::GMT;
 		_offset = Timezone::Offset(*this, _isDST);
 		_isLocal = true;
 	}
@@ -220,12 +219,12 @@ void Date::setOffset(Int32 offset) {
 	}
 
 	// here _offset is a fixed value because _day!=0 and !_changed
-	if (offset == LOCAL) {
+	if (offset == Timezone::LOCAL) {
 		if (_isLocal)
 			return;
 		_isLocal = true;
 		offset = Timezone::Offset(_isDST);
-	} else if (offset == GMT) {
+	} else if (offset == Timezone::GMT) {
 		_isDST = _isLocal = false;
 		if (_offset==0)
 			return;
@@ -333,10 +332,10 @@ void Date::setYearDay(UInt16 yearDay) {
 
 	bool isLeap(IsLeapYear(_year));
 	UInt8 month(1);
-	while (month<12 && yearDay > MonthDays[isLeap ? 1 : 0][month])
+	while (month<12 && yearDay > _MonthDays[isLeap ? 1 : 0][month])
 		++month;
 	setMonth(month);
-	setDay(yearDay - MonthDays[isLeap ? 1 : 0][month-1]);
+	setDay(yearDay - _MonthDays[isLeap ? 1 : 0][month-1]);
 }
 
 void Date::setDay(UInt8 day) {
@@ -427,7 +426,7 @@ UInt16 Date::yearDay() const {
 	// 0 to 365
 	if (_day == 0)
 		init();
-	return _day+MonthDays[IsLeapYear(_year) ? 1 : 0][_month]-1;
+	return _day+ _MonthDays[IsLeapYear(_year) ? 1 : 0][_month]-1;
 }
 
 void Date::computeWeekDay(Int64 days) {
@@ -438,81 +437,6 @@ void Date::computeWeekDay(Int64 days) {
 	if (days<0)
 		result += 6;
 	_weekDay = (UInt8)result;
-}
-
-
-///////////// FORMATER //////////////////////////
-
-
-string& Date::toString(const char* format, string& value) const {
-	if (!format)
-		return value;
-
-	value.clear();
-
-	if (_day == 0)
-		init();
-
-	UInt32 formatSize = strlen(format);
-	UInt32 iFormat(0);
-
-	while (iFormat < formatSize) {
-
-		char c(format[iFormat++]);
-
-		if (c != '%') {
-			if (c != '[' && c != ']')
-				value += c;
-			continue;
-		}
-
-		if (iFormat == formatSize)
-			break;
-		
-		switch (c = format[iFormat++]) {
-			case 'w': value.append(WEEKDAY_NAMES[weekDay()], 0, 3); break;
-			case 'W': value.append(WEEKDAY_NAMES[weekDay()]); break;
-			case 'b': value.append(MONTH_NAMES[_month-1], 0, 3); break;
-			case 'B': value.append(MONTH_NAMES[_month-1]); break;
-			case 'd': String::Append(value, String::Format<UInt8>("%02d", _day)); break;
-			case 'e': String::Append(value, _day); break;
-			case 'f': String::Append(value, String::Format<UInt8>("%2d", _day)); break;
-			case 'm': String::Append(value, String::Format<UInt8>("%02d", _month)); break;
-			case 'n': String::Append(value, _month); break;
-			case 'o': String::Append(value, String::Format<UInt8>("%2d", _month)); break;
-			case 'y': String::Append(value, String::Format<Int32>("%02d", _year % 100)); break;
-			case 'Y': String::Append(value, String::Format<Int32>("%04d", _year)); break;
-			case 'H': String::Append(value, String::Format<UInt8>("%02d", _hour)); break;
-			case 'h': String::Append(value, String::Format<UInt8>("%02d",(_hour<1 ? 12 : (_hour>12 ? (_hour-12) : _hour)))); break;
-			case 'a': String::Append(value, (_hour < 12) ? "am" : "pm"); break;
-			case 'A': String::Append(value, (_hour < 12) ? "AM" : "PM"); break;
-			case 'M': String::Append(value, String::Format<UInt8>("%02d", _minute)); break;
-			case 'S': String::Append(value, String::Format<UInt8>("%02d", _second)); break;
-			case 's': String::Append(value, String::Format<UInt8>("%02d", _second));
-				value += '.';
-			case 'F':
-			case 'i': String::Append(value, String::Format<UInt16>("%03d", _millisecond)); break;
-			case 'c': String::Append(value, _millisecond / 100); break;
-			case 'z': formatTimezone(value); break;
-			case 'Z': formatTimezone(value, false); break;
-			default: value += c;
-		}
-	}
-	return value;
-}
-
-
-void Date::formatTimezone(string& value, bool bISO) const {
-	if (isGMT()) {
-		value += (bISO) ? "Z" : "GMT";
-		return;
-	}
-	value += (_offset < 0) ? '-' : '+';
-	UInt32 offset = abs(_offset);
-	String::Append(value, String::Format<UInt32>("%02d", offset / 3600000));
-	if (bISO)
-		value += ':';
-	String::Append(value, String::Format<UInt32>("%02d", (offset % 3600000) / 60000));
 }
 
 
@@ -545,7 +469,7 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 		return parseAuto(ex, current,size);
 
 	UInt8 month(0), day(0), hour(0), minute(0), second(0);
-	Int32 year(0), offset(LOCAL);
+	Int32 year(0), offset(Timezone::LOCAL);
 	UInt16 millisecond(0);
 	int microsecond(0);
 	bool isDST(false);
@@ -602,20 +526,12 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 			case 'b':
 			case 'B': {
 				month = 0;
-				string value;
-				bool isFirst = true;
-				while (CAN_READ && isalpha(*current)) {
-					char ch(READ);
-					if (isFirst) {
-						value += toupper(ch);
-						isFirst = false;
-					} else
-						value += tolower(ch);
-				}
-
-				if (value.length() >= 3) {
+				const char* value(current);
+				while (CAN_READ && isalpha(*current))
+					READ;
+				if (current-value >= 3) {
 					for (int i = 0; i < 12; ++i) {
-						if (MONTH_NAMES[i].find(value) == 0) {
+						if (String::ICompare(_MonthNames[i],value, current - value) == 0) {
 							month = i + 1;
 							break;
 						}
@@ -708,7 +624,7 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 			case 'z':
 			case 'Z':
 
-				offset = LOCAL;
+				offset = Timezone::LOCAL;
 				const char* code(current);
 				UInt32 count(0);
 				while (CAN_READ && isalpha(*current)) {
@@ -722,7 +638,7 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 						offset = Timezone::Offset(code,isDST);
 				}
 				if (CAN_READ && (*current == '+' || *current == '-')) {
-					if (offset==GMT || offset==LOCAL)
+					if (offset== Timezone::GMT || offset== Timezone::LOCAL)
 						offset = 0;
 
 					int sign = READ == '+' ? 1 : -1;
@@ -772,7 +688,7 @@ bool Date::parseAuto(Exception& ex, const char* data, size_t count) {
 				} else if (digits && !isdigit(c))
 					return update(ex, data, count, "%e?%b?%_ %H:%M[:%S %Z]");
 			} else if (length==3 && c==' ')
-				return update(ex,data,count, ASCTIME_FORMAT);
+				return update(ex,data,count, FORMAT_ASCTIME);
 
 			if (c == ',') {
 				if (length == 3)
@@ -791,7 +707,7 @@ bool Date::parseAuto(Exception& ex, const char* data, size_t count) {
 			if(!digit)
 				return false;
 			if (c == ' ')
-				return update(ex, data, count, SORTABLE_FORMAT);
+				return update(ex, data, count, FORMAT_SORTABLE);
 			if (!tPos)
 				return false;
 		}
@@ -799,7 +715,7 @@ bool Date::parseAuto(Exception& ex, const char* data, size_t count) {
 		if (c == '.' || c == ',') {
 			if (tPos==8)
 				return update(ex, data, count, "%Y%m%dT%H%M%s[%z]");
-			return update(ex, data, count,"%Y-%m-%dT%H:%M:%s[%z]"); //  ISO8601_FRAC_FORMAT
+			return update(ex, data, count,"%Y-%m-%dT%H:%M:%s[%z]"); //  FORMAT_ISO8601_FRAC
 		}
 
 		READ;
@@ -809,9 +725,9 @@ bool Date::parseAuto(Exception& ex, const char* data, size_t count) {
 	if (!digit)
 		return false;
 	if (length == 10)
-		return update(ex, data, count, SORTABLE_FORMAT);
+		return update(ex, data, count, FORMAT_SORTABLE);
 	if (tPos==10)
-		return update(ex, data, count, "%Y-%m-%dT%H:%M:%S[%z]"); //  ISO8601_FORMAT
+		return update(ex, data, count, "%Y-%m-%dT%H:%M:%S[%z]"); //  FORMAT_ISO8601
 	if (tPos==8) // compact format (20050108T123000, 20050108T123000Z, 20050108T123000.123+0200)
 		return update(ex, data, count, "%Y%m%dT%H%M%s[%z]");
 	return false;

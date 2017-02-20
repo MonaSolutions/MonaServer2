@@ -26,6 +26,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/File.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 #include "Mona/Logs.h"
 
@@ -317,7 +318,7 @@ void ServerApplication::defineOptions(Exception& ex, Options& options) {
 
 bool ServerApplication::handlePidFile(Exception& ex,const string& value) {
 	File file(value, File::MODE_WRITE);
-	if (!file.open(ex))
+	if (!file.load(ex))
 		return false;
 	_pidFile = value;
 	String id(Process::Id());

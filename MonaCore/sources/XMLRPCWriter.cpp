@@ -80,9 +80,7 @@ void XMLRPCWriter::writeNumber(double value) {
 
 
 UInt64 XMLRPCWriter::writeDate(const Date& date) {
-	string buffer;
-	date.toString(Date::ISO8601_FRAC_FORMAT,buffer); 
-	beginValue("dateTime.iso8601").write(buffer.data(), buffer.size());
+	String::Append(beginValue("dateTime.iso8601"), String::Date(date, Date::FORMAT_ISO8601_FRAC));
 	endValue("dateTime.iso8601");
 	return 0;
 }

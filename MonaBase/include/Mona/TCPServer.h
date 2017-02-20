@@ -27,8 +27,8 @@ namespace Mona {
 
 class TCPServer : public virtual Object {
 public:
-	typedef Event<void(const shared<Socket>& pSocket)> ON(Connection);
-	typedef Socket::OnError										ON(Error);
+	typedef Event<void(const shared<Socket>& pSocket)>  ON(Connection);
+	typedef Socket::OnError								ON(Error);
 
 	TCPServer(IOSocket& io, const shared<TLS>& pTLS=nullptr);
 	virtual ~TCPServer();

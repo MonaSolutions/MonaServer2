@@ -27,14 +27,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-typedef UInt8 HEX_OPTIONS;
-enum {
-	HEX_CPP = 1,
-	HEX_TRIM_LEFT = 2,
-	HEX_APPEND = 4,
-	HEX_UPPER_CASE = 8
-};
-
 struct Util : virtual Static {
 	static void Dump(const UInt8* data, UInt32 size, Buffer& buffer);
 
@@ -176,74 +168,6 @@ struct Util : virtual Static {
 		}
 		buffer.resize(oldSize+size);
 		return true;
-	}
-
-	template <typename BufferType>
-	static BufferType&	FormatHex(const UInt8* data, UInt32 size, BufferType& buffer, HEX_OPTIONS options=0) {
-		if (!buffer.data()) // to expect null writer 
-			return buffer;
-
-		const UInt8* end(data+size);
-		bool skipLeft(false);
-		if (options&HEX_TRIM_LEFT) {
-			while(data<end) {
-				if (((*data) >> 4)>0)
-					break;
-				if (((*data) & 0x0F) > 0) {
-					skipLeft = true;
-					break;
-				}
-				++data;
-			}
-		}
-
-		UInt32 oldSize(options&HEX_APPEND ? buffer.size() : 0);
-		buffer.resize((end-data) * ((options&HEX_CPP) ? 4 : 2) - (skipLeft ? 1 : 0) + oldSize);
-		UInt8* out((UInt8*)buffer.data() + oldSize);
-	
-		UInt8 ref(options&HEX_UPPER_CASE ? '7' : 'W');
-
-		UInt8 value;
-		while(data<end) {
-			if (options&HEX_CPP) {
-				*out++ = '\\';
-				*out++ = 'x';
-			}
-			value = (*data) >> 4;
-			if (!skipLeft)
-				*out++ = (value>9 ? (value + ref) : '0' + value);
-			else
-				skipLeft = false;
-			value = (*data) & 0x0F;
-			*out++ = (value > 9 ? (value + ref) : '0' + value);
-			++data;
-		}
-		return buffer;
-	}
-
-	template <typename BufferType>
-	static BufferType& UnformatHex(BufferType& buffer) { return UnformatHex(BIN buffer.data(), buffer.size(), buffer); }
-
-	template <typename BufferType>
-	static BufferType& UnformatHex(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
-		if (!buffer.data()) // to expect null writer 
-			return buffer;
-
-		const UInt8* end(data+size);
-		UInt8* out;
-		UInt32 oldSize(append ? buffer.size() : 0);
-		size = oldSize + UInt32(ceil(size / 2.0));
-		if (buffer.size()<size)
-			buffer.resize(size);
-		out = BIN buffer.data() + oldSize;
-
-		while(data<end) {
-			UInt8 first = toupper(*data++);
-			UInt8 second = (data == end) ? '0' : toupper(*data++);
-			*out++ = ((first - (first<='9' ? '0' : '7')) << 4) | ((second - (second<='9' ? '0' : '7')) & 0x0F);
-		}
-		buffer.resize(size);
-		return buffer;
 	}
 
 

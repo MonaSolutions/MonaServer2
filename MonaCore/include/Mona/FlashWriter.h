@@ -82,10 +82,11 @@ private:
 		writer.amf0 = amf0;
 		// write header
 		UInt8 buffer[7];
+		BinaryWriter header(buffer, sizeof(buffer));
 		if (typeid(tag) == typeid(Media::Data::Type))
-			writer.writeString(STR buffer, writeTrackedMediaHeader(track, tag, BinaryWriter(buffer, sizeof(buffer))));
+			writer.writeString(STR buffer, writeTrackedMediaHeader(track, tag, header));
 		else
-			writer.writeBytes(buffer, writeTrackedMediaHeader(track, tag, BinaryWriter(buffer, sizeof(buffer))));
+			writer.writeBytes(buffer, writeTrackedMediaHeader(track, tag, header));
 		// write header ByteArray (will be concat with packet on send)
 		writer->write8(AMF::AMF0_AMF3_OBJECT); // switch in AMF3 format
 		writer->write8(AMF::AMF3_BYTEARRAY); // bytearray in AMF3 format!

@@ -21,6 +21,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/BinaryWriter.h"
 #include "Mona/Date.h"
+#include "Mona/Exceptions.h"
 
 namespace Mona {
 

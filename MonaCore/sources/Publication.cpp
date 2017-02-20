@@ -78,14 +78,14 @@ void Publication::reportLost(Media::Type type, UInt16 track, UInt32 lost) {
 	if (!lost) return;
 	switch (type) {
 		case Media::TYPE_AUDIO: {
-			auto& it = _audios.find(track);
+			const auto& it = _audios.find(track);
 			if (it == _audios.end())
 				return;
 			_audios.lostRate += lost;
 			break;
 		}
 		case Media::TYPE_VIDEO: {
-			auto& it = _videos.find(track);
+			const auto& it = _videos.find(track);
 			if (it == _videos.end())
 				return;
 			_videos.lostRate += lost;
@@ -153,7 +153,7 @@ void Publication::reset() {
 	_datas.clear();
 
 	// Erase track metadata just!
-	auto& it = begin();
+	auto it = begin();
 	while(it!=end()) {
 		size_t point = it->first.find('.');
 		if (point != string::npos && String::ToNumber(it->first.data(), point, point))
@@ -221,11 +221,11 @@ void Publication::flush() {
 
 	if(_newLost) {
 		double lost;
-		if(lost = _audios.lostRate)
+		if((lost = _audios.lostRate))
 			INFO(String::Format<double>("%.2f",lost * 100),"% audio lost on publication ",_name);
-		if(lost = _videos.lostRate)
+		if((lost = _videos.lostRate))
 			INFO(String::Format<double>("%.2f", lost * 100),"% video lost on publication ",_name);
-		if(lost = _datas.lostRate)
+		if((lost = _datas.lostRate))
 			INFO(String::Format<double>("%.2f", lost * 100),"% data lost on publication ",_name);
 		_newLost = false;
 	}
@@ -359,7 +359,7 @@ void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& 
 	}
 
 	// create track
-	Track& data = _datas[track];
+	_datas[track];
 	_byteRate += packet.size();
 	_datas.byteRate += packet.size();
 	_new = true;

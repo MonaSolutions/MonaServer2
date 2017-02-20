@@ -70,7 +70,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSessio
 							WSSession* pSession = new WSSession(*pProtocol, *this, request->pWSDecoder);
 							_pUpgradeSession = pSession;
 							HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
-								HTTP_ADD_HEADER("Upgrade", EXPAND("WebSocket"))
+								HTTP_ADD_HEADER("Upgrade", "WebSocket")
 								WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
 							HTTP_END_HEADER
 
@@ -281,10 +281,10 @@ void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 	}
 
 	HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_200))
-		HTTP_ADD_HEADER("Access-Control-Allow-Methods", EXPAND("GET, HEAD, PUT, PATH, POST, OPTIONS"))
+		HTTP_ADD_HEADER("Access-Control-Allow-Methods", "GET, HEAD, PUT, PATH, POST, OPTIONS")
 		if (request.accessControlRequestHeaders)
 			HTTP_ADD_HEADER("Access-Control-Allow-Headers", request.accessControlRequestHeaders)
-		HTTP_ADD_HEADER("Access-Control-Max-Age", EXPAND("86400")) // max age of 24 hours
+		HTTP_ADD_HEADER("Access-Control-Max-Age", "86400") // max age of 24 hours
 	HTTP_END_HEADER
 }
 

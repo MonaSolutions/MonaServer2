@@ -46,12 +46,11 @@ struct HeaderWriter : DataWriter, virtual Object {
 	void writeString(const char* value, UInt32 size) { if (_level == 1) String::Append(_writer, value, size); }
 	void writeBoolean(bool value) { if (_level == 1) _writer.write(value ? "true" : "false"); }
 	void writeNull() { if (_level == 1) _writer.write(EXPAND("null")); }
-	UInt64 writeDate(const Date& date) { if (_level == 1) _writer.write(date.toString(Date::HTTP_FORMAT, _buffer));  return 0; }
+	UInt64 writeDate(const Date& date) { if (_level == 1) String::Append(_writer, String::Date(date, Date::FORMAT_HTTP));  return 0; }
 	UInt64 writeBytes(const UInt8* data, UInt32 size) { if (_level == 1) _writer.write(STR data, size); return 0; }
 
 	void   clear(UInt32 size = 0) { _hasContentType = false;  _level = 0; _writer.clear(size); }
 private:
-	std::string		_buffer;
 	UInt8			_level;
 	BinaryWriter&	_writer;
 	bool			_hasContentType;
@@ -71,11 +70,14 @@ void HTTPWriter::closing(Int32 error, const char* reason) {
 		return;
 	if(!_requestCount)
 		return;
-	const char* code(HTTP::ErrorToCode(error));
-	if(reason)
+	const char* code = HTTP::ErrorToCode(error);
+	if (!code) {
+		if (reason)
+			writeError(HTTP_CODE_406, reason);
+		else
+			writeError(HTTP_CODE_406, "User error ", error);
+	} else if(reason)
 		writeError(code, reason);
-	else if(code == HTTP_CODE_406) // user request!
-		writeError(code, "User error ", error);
 	else
 		writeError(code);
 }
@@ -150,7 +152,7 @@ DataWriter& HTTPWriter::writeMessage(bool isResponse) {
 
 void HTTPWriter::writeRaw(DataReader& reader) {
 	// Take the entiere control
-	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN, NULL);
+	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN);
 	if (!pSender)
 		return;
 	HTTP_BEGIN_HEADER(*pSender->writer())
@@ -170,7 +172,7 @@ void HTTPWriter::writeRaw(DataReader& reader) {
 }
 
 BinaryWriter& HTTPWriter::writeRaw(const char* code) {
-	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(code, MIME::TYPE_UNKNOWN, NULL);
+	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(code, MIME::TYPE_UNKNOWN);
 	return pSender ? *pSender->writer() : BinaryWriter::Null();
 }
 
@@ -190,7 +192,7 @@ bool HTTPWriter::beginMedia(const string& name, const Parameters& parameters) {
 
 void HTTPWriter::endMedia() {
 	if (_pMediaWriter)
-		newSender<HTTPMediaSender>(move(_pMediaWriter)); // End media => Close socket
+		newSender<HTTPMediaSender>(_pMediaWriter); // End media => Close socket
 }
 
 

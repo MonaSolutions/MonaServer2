@@ -17,10 +17,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Date.h"
 #include "Mona/BinaryReader.h"
 #include <mutex>
 #include <vector>
+#include <map>
 
 #if defined(_WIN32)
 struct _SYSTEMTIME;
@@ -28,8 +28,13 @@ struct _SYSTEMTIME;
 
 namespace Mona {
 
-class Timezone : public virtual Object {
-public:
+struct Date;
+struct Timezone : virtual Object {
+	enum Type {
+		GMT = (Int32)0x7FFFFFFF, /// Special value for offset (Int32 minimum)
+		LOCAL = (Int32)0x80000000 /// Special value for offset(Int32 maximum)
+	};
+
 	// Local
 	static Int32				Offset(bool dst=false) { return dst ? GetTimezone()._dstOffset : GetTimezone()._offset; } // timezone in ms
 	static Int32				Offset(const Date& date, bool& isDST) { return GetTimezone().offset(date,isDST); }
@@ -41,22 +46,34 @@ public:
 	static Int32		Offset(const std::string& code,bool& isDST)  { return Offset(code.data(), isDST); }
 	static Int32		Offset(const char* code, bool& isDST);
 
+	template<typename OutType>
+	static OutType& Format(Int32 offset, OutType& out, bool bISO=true) {
+		if (offset == GMT)
+			return (OutType&)(bISO ? out.append(EXPAND("Z")) : out.append(EXPAND("GMT")));
+		char buffer[32];
+		out.append((offset < 0) ? "-" : "+", 1);
+		UInt32 value = abs(offset);
+		out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", value / 3600000));
+		if (bISO)
+			out.append(EXPAND(":"));
+		return (OutType&)out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", (value % 3600000) / 60000));
+	}
 private:
 	static Timezone& GetTimezone() { static Timezone TZ; return TZ; }
 	struct TransitionRule {
 		enum Type {
-			NIL,
-			ABSOLUTE,
-			JULIAN,
-			RELATIVE
+			TYPE_NULL,
+			TYPE_ABSOLUTE,
+			TYPE_JULIAN,
+			TYPE_RELATIVE
 		};
-		TransitionRule() : type(NIL),month(0),day(0),week(0),clock(0) {}
+		TransitionRule() : type(TYPE_NULL),month(0),day(0),week(0),clock(0) {}
 		UInt8	month; // 1 to 12
 		UInt8	week; // 1 to 5
 		UInt16	day; // 0 to 6 if type==RELATIVE, 0 to 365 if type==ABSOLUTE (leap counted), 1 to 365 if type==JULIAN (no leap counted)
 		UInt32	clock; // clock in ms
 		Type	type;
-		operator bool() const { return type!=NIL; }
+		operator bool() const { return type!= TYPE_NULL; }
 	};
 
 	struct Transition : public virtual Object {

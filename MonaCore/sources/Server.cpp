@@ -28,7 +28,7 @@ using namespace std;
 namespace Mona {
 
 
-Server::Server(UInt16 cores) : Thread("Server"), _threadPool(cores*2), ServerAPI(_application, _www, _handler, _protocols, _timer, _threadPool) {
+Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_application, _www, _handler, _protocols, _timer, cores), _protocols(*this) {
 	DEBUG("Socket receiving buffer size of ", Net::GetRecvBufferSize(), " bytes");
 	DEBUG("Socket sending buffer size of ", Net::GetSendBufferSize(), " bytes");
 	DEBUG(threadPool.threads(), " threads in server threadPool");
@@ -160,7 +160,7 @@ bool Server::run(Exception&, const volatile bool& stopping) {
 	onStop();
 
 	// stop socket sending (it waits the end of sending last session messages)
-	_threadPool.join();	
+	threadPool.join();	
 
 	// finish writing file before to detach buffer allocator
 	ioFile.join();

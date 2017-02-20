@@ -54,7 +54,10 @@ struct Decoder : virtual Object, Socket::Decoder {
 		return 0;
 	}
 private:
-	UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) { return decode(Packet(pBuffer), address); }
+	UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+		Packet packet(pBuffer);
+		return decode(packet, address);
+	}
 	Signal _completed;
 };
 
@@ -72,7 +75,10 @@ ADD_TEST(DecoderTest, Manual) {
 		CHECK(memcmp(decoded.data(), (count++ ? "msg" : "hello"), decoded.size())==0);
 		CHECK(decoded.address == address);
 	};
-	std::thread([&] { decoder.decode(Packet(EXPAND("hello10msg")), address); }).detach();
+	std::thread([&] { 
+		Packet packet(EXPAND("hello10msg"));
+		decoder.decode(packet, address); }
+	).detach();
 	decoder.join();
 	CHECK(_Handler.flush() == 2 && count == 2 && decoder.count == count);
 }

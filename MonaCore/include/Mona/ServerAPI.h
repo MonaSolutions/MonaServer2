@@ -44,9 +44,10 @@ struct ServerAPI : virtual Object, Parameters {
 	
 	const std::map<std::string, Publication>&	publications;
 
+	ThreadPool 				threadPool; // keep in first (must be build before ioSocket and ioFile)
 	IOSocket				ioSocket;
 	IOFile					ioFile;
-	const ThreadPool&		threadPool;
+	
 
 	shared<TLS>	pTLSClient;
 	shared<TLS>	pTLSServer;
@@ -91,7 +92,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient){}
 
 protected:
-	ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, ThreadPool& threadPool);
+	ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
 	
 	void					manage();
 private:

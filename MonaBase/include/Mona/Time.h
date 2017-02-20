@@ -21,8 +21,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-class Time : public virtual Object {
-public:
+struct Time : virtual Object {
 
 	/// \brief Construct a Time instance with current time value
 	Time() : _time(Now()) {}

@@ -25,7 +25,7 @@ namespace Mona {
 
 
 struct Protocols : virtual Object {
-	Protocols() {}
+	Protocols(Parameters& params) : _params(params) {}
 	~Protocols() { stop(); }
 
 	typedef std::map<std::string, Protocol*, String::IComparator>::const_iterator const_iterator;
@@ -37,11 +37,11 @@ struct Protocols : virtual Object {
 
 	template<typename ProtocolType=Protocol>
 	ProtocolType* find(const char* name) const {
-		auto& it = _protocols.find(name);
+		const auto& it = _protocols.find(name);
 		return it == _protocols.end() ? NULL : (ProtocolType*)it->second;
 	}
 
-	void start(ServerAPI& api, Sessions& sessions) { _pAPI = &api; load(*_pAPI, sessions); }
+	void start(ServerAPI& api, Sessions& sessions) { load(api, sessions); }
 	void stop() {
 		// unload
 		for (auto& it : _protocols)
@@ -59,7 +59,7 @@ private:
 	Load protocol */
 	template<typename ProtocolType, bool enabled = true, typename ...Args >
 	ProtocolType* loadProtocol(const char* name, ServerAPI& api, Sessions& sessions, Args&&... args) {
-		return loadProtocolIntern<ProtocolType, enabled>(name, api, sessions, std::forward<Args>(args)...);
+		return loadProtocolIntern<ProtocolType>(name, enabled, api, sessions, std::forward<Args>(args)...);
 	}
 
 	/*!
@@ -67,16 +67,15 @@ private:
 	template<typename ProtocolType, bool enabled = true, typename ...Args >
 	ProtocolType* loadProtocol(const char* name, Protocol* pTunnel, Args&&... args) {
 		if(pTunnel)
-			return loadProtocolIntern<ProtocolType, enabled>(name, *pTunnel, std::forward<Args>(args)...);
-		_pAPI->setBoolean(name, false);
+			return loadProtocolIntern<ProtocolType>(name, enabled, *pTunnel, std::forward<Args>(args)...);
+		_params.setBoolean(name, false);
 		return NULL;
 	}
 
-	template<typename ProtocolType, bool enabled, typename ...Args >
-	ProtocolType* loadProtocolIntern(const char* name, Args&&... args) {
-		bool enabled(enabled);
-		if (!_pAPI->getBoolean(name, enabled))
-			_pAPI->setBoolean(name, enabled);
+	template<typename ProtocolType, typename ...Args >
+	ProtocolType* loadProtocolIntern(const char* name, bool enabled, Args&&... args) {
+		if (!_params.getBoolean(name, enabled))
+			_params.setBoolean(name, enabled);
 		if (!enabled)
 			return NULL;
 
@@ -92,7 +91,7 @@ private:
 		std::string buffer;
 		// Copy parameters from API to PROTOCOL (duplicated to get easy access with protocol object)
 		// => override default protocol parameters
-		for(auto& it : _pAPI->band(String::Assign(buffer, name, ".")))
+		for(auto& it : _params.band(String::Assign(buffer, name, ".")))
 			pProtocol->setString(it.first.c_str() + buffer.size(), it.second);
 
 		Exception ex;
@@ -108,19 +107,19 @@ private:
 			if (!success) {
 				// 0.0.0.0 is a valid host!
 				delete pProtocol;
-				_pAPI->setBoolean(name, false); // to warn on protocol absence
+				_params.setBoolean(name, false); // to warn on protocol absence
 				return NULL; // Bad host parameter can't start!
 			}
 		}
-		address.setPort(pProtocol->getNumber<UInt16>("port"));
+		address.setPort(pProtocol->template getNumber<UInt16>("port"));
 
 		// Load protocol and read its address
 		
 		AUTO_ERROR(success = pProtocol->load(ex), name, " server");
 		if (!success) {
 			delete pProtocol;
-			_pAPI->setBoolean(name, false); // to warn on protocol absence
-			return false;
+			_params.setBoolean(name, false); // to warn on protocol absence
+			return NULL;
 		}
 
 		// Fix address after binding
@@ -147,13 +146,13 @@ private:
 
 		// Copy protocol params to api params! (to get defaults protocol params + configs params on api)
 		for (auto& it : *pProtocol)
-			_pAPI->setString(String::Assign(buffer, name, ".", it.first), it.second);
+			_params.setString(String::Assign(buffer, name, ".", it.first), it.second);
 
 		return pProtocol;
 	}
 
 
-	ServerAPI*												_pAPI;
+	Parameters&												_params;
 	std::map<std::string, Protocol*, String::IComparator>	_protocols;
 };
 

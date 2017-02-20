@@ -66,7 +66,7 @@ void Session::init() {
 	else if (!peer.serverAddress.port())
 		((SocketAddress&)peer.serverAddress).setPort(_protocol.address.port());
 
-	DEBUG("peer.id ", Util::FormatHex(peer.id, Entity::SIZE, string()));
+	DEBUG("peer.id ", String::Hex(peer.id, Entity::SIZE));
 
 	peer.onParameters = [this](Parameters& parameters) {
 		struct Params : Parameters {

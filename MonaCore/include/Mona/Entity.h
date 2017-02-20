@@ -28,6 +28,8 @@ struct Entity : virtual Object {
 	template<typename EntityType>
 	struct Map : std::map<const UInt8*, EntityType*, Comparator> {
 		using std::map<const UInt8*, EntityType*, Comparator>::map;
+		typedef typename std::map<const UInt8*, EntityType*, Comparator>::iterator		 iterator;
+		typedef typename std::map<const UInt8*, EntityType*, Comparator>::const_iterator const_iterator;
 		std::pair<iterator, bool>	emplace(EntityType& entity) { return std::map<const UInt8*, EntityType*, Comparator>::emplace(entity, &entity); }
 		iterator					emplace_hint(const_iterator it, EntityType& entity) { return std::map<const UInt8*, EntityType*, Comparator>::emplace_hint(it, entity, &entity); }
 	private:
@@ -47,7 +49,7 @@ struct Entity : virtual Object {
 	bool operator!=(const UInt8* id) const { return std::memcmp(this->id, id, SIZE) != 0; }
 
 	const UInt8 id[SIZE];
-	explicit operator const UInt8*() const { return id; }
+	operator const UInt8*() const { return id; }
 };
 
 

@@ -45,7 +45,7 @@ struct HTTPMediaSend : HTTPMediaSender, MediaType, virtual Object {
 	HTTPMediaSend(const shared<Socket>& pSocket, const shared<const HTTP::Header>& pRequest, shared<Buffer>& pSetCookie, shared<MediaWriter>& pWriter,
 					UInt16 track, const typename MediaType::Tag& tag, const Packet& packet) : HTTPMediaSender(pSocket, pRequest, pSetCookie, pWriter), MediaType(track, tag, packet) {}
 private:
-	void run(const HTTP::Header& request) { pWriter->writeMedia(track, tag, *this, onWrite); }
+	void run(const HTTP::Header& request) { pWriter->writeMedia(MediaType::track, MediaType::tag, *this, onWrite); }
 };
 
 

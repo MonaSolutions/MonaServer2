@@ -160,7 +160,7 @@ struct MediaSocket : virtual Static {
 		struct MediaSend : Send, MediaType, virtual Object {
 			MediaSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming,
 				   UInt16 track, const typename MediaType::Tag& tag, const Packet& packet) : Send(type, pName, pSocket,pWriter, pStreaming), MediaType(track, tag, packet) {}
-			bool run(Exception& ex) { pWriter->writeMedia(track, tag, *this, onWrite); return true; }
+			bool run(Exception& ex) { pWriter->writeMedia(MediaType::track, MediaType::tag, *this, onWrite); return true; }
 		};
 		struct EndSend : Send, virtual Object {
 			EndSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming) : Send(type, pName, pSocket, pWriter, pStreaming) {}

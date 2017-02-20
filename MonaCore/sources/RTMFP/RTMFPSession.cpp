@@ -79,9 +79,9 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			return;
 		}
 		// find or create flow requested
-		auto& it = _flows.lower_bound(message.flowId);
+		const auto& it = _flows.lower_bound(message.flowId);
 		if (it == _flows.end() || it->first != message.flowId)
-			_pFlow = &_flows.emplace_hint(it, message.flowId, peer)->second;
+			_pFlow = &_flows.emplace_hint(it, piecewise_construct, forward_as_tuple(message.flowId), forward_as_tuple(peer))->second;
 		else
 			_pFlow = &it->second;
 
@@ -174,7 +174,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			return kill(flush.ping);
 
 		// PING
-		if (flush.ping < 0xFFFFFFFF)
+		if (flush.ping >= 0)
 			peer.setPing(flush.ping);
 
 		// KEEPALIVE
@@ -182,7 +182,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			_timesKeepalive = 0;
 		// Writer ACK + FAIL
 		for (auto& it : flush.acks) {
-			auto& itWriter = _writers.find(it.first);
+			const auto& itWriter = _writers.find(it.first);
 			if (itWriter == _writers.end()) {
 				DEBUG("Writer ", it.first, " unfound on session ", name(), " or writer already closed");
 				continue;
@@ -332,7 +332,7 @@ void RTMFPSession::flush() {
 	_mainStream.flush();
 
 	// Raise RTMFPWriter
-	auto& it(_writers.begin());
+	auto it(_writers.begin());
 	Exception ex;
 	while (it != _writers.end()) {
 		shared<RTMFPWriter>& pWriter(it->second);
@@ -362,7 +362,7 @@ shared<RTMFPWriter> RTMFPSession::newWriter(UInt64 flowId, const Packet& signatu
 		it = _writers.lower_bound(_nextWriterId);
 	} while (it != _writers.end() && it->first == _nextWriterId);
 	DEBUG("New writer ", _nextWriterId, " on session ", name());
-	return _writers.emplace_hint(it, _nextWriterId, new RTMFPWriter(_nextWriterId, flowId, signature, *this))->second;
+	return _writers.emplace_hint(it, piecewise_construct, forward_as_tuple(_nextWriterId), forward_as_tuple(new RTMFPWriter(_nextWriterId, flowId, signature, *this)))->second;
 }
 
 UInt64 RTMFPSession::resetWriter(UInt64 id) {

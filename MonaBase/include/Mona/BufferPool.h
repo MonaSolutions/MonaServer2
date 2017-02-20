@@ -23,8 +23,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-class BufferPool : public Allocator, public virtual Object {
-public:
+struct BufferPool : Allocator, virtual Object {
+
 	BufferPool(const Timer&	timer);
 	~BufferPool();
 

@@ -70,7 +70,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 	UInt16							latency() const { return _latency; }
 	UInt64							byteRate() const { return _byteRate; }
-	double							lostRate() const { _lostRate; }
+	double							lostRate() const { return _lostRate; }
 
 	const std::set<Subscription*>	subscriptions;
 
@@ -89,7 +89,6 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 	void							writeProperties(UInt16 track, DataReader& reader) { writeProperties(track, reader, 0); }
 	void							writeProperties(UInt16 track, DataReader& reader, UInt16 ping);
-
 /*! 
 	Push audio packet, an empty audio "isConfig" packet is required by some protocol to signal "audio end".
 	Good practice would be to send an audio empty "isConfig" packet for publishers which can stop "dynamically" just audio track.

@@ -45,7 +45,6 @@ private:
 	Timer			_timer;
 	Protocols		_protocols;
 	Sessions		_sessions;
-	ThreadPool		_threadPool;
 	Path			_application;
 	Path			_www;
 };

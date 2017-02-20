@@ -36,7 +36,7 @@ struct TCPClient : private StreamData<>, virtual Object {
 	virtual ~TCPClient();
 
 	IOSocket&				io;
-	const shared<Socket>&	socket() { if (!_pSocket) _pSocket.reset(_pTLS ? new TLS::Socket(Socket::TYPE_STREAM, _pTLS) : new Socket(Socket::TYPE_STREAM)); return _pSocket; }
+	const shared<Socket>&	socket();
 	Socket*					operator->() { return socket().get(); }
 
 	bool	connect(Exception& ex, const SocketAddress& address);
@@ -66,7 +66,7 @@ struct TCPClient : private StreamData<>, virtual Object {
 	};
 
 private:
-	virtual shared<Socket::Decoder>newDecoder() { return nullptr; }
+	virtual shared<Socket::Decoder> newDecoder() { return nullptr; }
 
 	UInt32 onStreamData(Packet& buffer) { return onData(buffer); }
 
@@ -75,10 +75,10 @@ private:
 	Socket::OnDisconnection	_onDisconnection;
 
 	shared<Socket>		_pSocket;
-	bool						_connected;
-	bool						_subscribed;
-	shared<TLS>		_pTLS;
-	UInt16						_sendingTrack;
+	bool				_connected;
+	bool				_subscribed;
+	shared<TLS>			_pTLS;
+	UInt16				_sendingTrack;
 };
 
 

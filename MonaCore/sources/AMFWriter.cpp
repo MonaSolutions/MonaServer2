@@ -18,7 +18,6 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/AMFWriter.h"
 #include "Mona/Logs.h"
-#include <math.h>
 
 using namespace std;
 
@@ -96,7 +95,7 @@ void AMFWriter::writePropertyName(const char* name) {
 
 void AMFWriter::writeText(const char* value,UInt32 size) {
 	if(size>0) {
-		auto& it = _stringReferences.emplace(piecewise_construct, forward_as_tuple(value, size), forward_as_tuple(_stringReferences.size()));
+		const auto& it = _stringReferences.emplace(piecewise_construct, forward_as_tuple(value, size), forward_as_tuple(_stringReferences.size()));
 		if (!it.second) {
 			// already exists
 			writer.write7BitValue(it.first->second << 1);
@@ -107,7 +106,7 @@ void AMFWriter::writeText(const char* value,UInt32 size) {
 }
 
 void AMFWriter::writeNull() {
-	writer.write8(UInt8(_amf3 ? AMF::AMF3_NULL : AMF::AMF0_NULL)); // marker
+	writer.write8(_amf3 ? UInt8(AMF::AMF3_NULL) : UInt8(AMF::AMF0_NULL)); // marker
 }
 
 void AMFWriter::writeBoolean(bool value){
@@ -145,7 +144,7 @@ void AMFWriter::writeNumber(double value){
 		writer.write7BitValue((UInt32)value);
 		return;
 	}
-	writer.write8(UInt8(_amf3 ? AMF::AMF3_NUMBER : AMF::AMF0_NUMBER)); // marker
+	writer.write8(_amf3 ? UInt8(AMF::AMF3_NUMBER) : UInt8(AMF::AMF0_NUMBER)); // marker
 	writer.writeDouble(value);
 }
 

@@ -31,7 +31,6 @@ struct Byte : virtual Static {
 		ORDER_NATIVE=ORDER_LITTLE_ENDIAN
 #endif
 	 };
-
 	
 	static UInt16 Flip16(UInt16 value) { return ((value >> 8) & 0x00FF) | ((value << 8) & 0xFF00); }
 	static UInt32 Flip24(UInt32 value) { return ((value >> 16) & 0x000000FF) | (value & 0x0000FF00) | ((value << 16) & 0x00FF0000); }

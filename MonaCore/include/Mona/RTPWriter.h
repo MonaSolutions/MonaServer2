@@ -21,7 +21,9 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/MediaWriter.h"
 #include "Mona/Net.h"
+#include "Mona/Util.h"
 #include "Mona/Logs.h"
+
 
 namespace Mona {
 
@@ -58,7 +60,7 @@ struct RTPWriter : MediaWriter, virtual Object {
 		if (!onWrite)
 			return;
 		// RTCP BYE packet
-		BUFFER_RESET(_pBuffer, 0)
+		BUFFER_RESET(_pBuffer, 0);
 		BinaryWriter writer(*_pBuffer);
 		writer.write(EXPAND("\x81\xCB\x00\x04"));		// Version (2), padding and Reception report count (1), packet type = 203 (Bye), lenght = 6
 		writer.write32(_ssrc);
@@ -71,13 +73,12 @@ private:
 	void write(UInt16 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
 		if (!onWrite)
 			return;
+		bool isAudio(typeid(TagType) == typeid(Media::Audio::Tag));
 		UInt8 playloadType(_profile.playloadType);
 		if (!playloadType) {
 			ERROR(typeof<RTP_ProfileType>(), " profile doesn't support ", Media::CodecToString(tag.codec), isAudio ? " audio" : " video");
 			return;
 		}
-
-		bool isAudio(typeid(TagType) == typeid(Media::Audio::Tag));
 
 		if (track != _profile.track) {
 			if (!_profile.supportTracks) {
@@ -102,7 +103,7 @@ private:
 				writer.write8(0x80);		// Version (2), padding and extension (0)
 				writer.write8(0x80 | _profile.playloadType); // marker always set to 1
 				writer.write16(++_count);	// Sequence number
-				writer.write32(time*90);	// Timestamp
+				writer.write32(tag.time*90);	// Timestamp
 				writer.write32(_ssrc);		// SSRC
 			
 				canWrite = mtuSize-12;
@@ -141,14 +142,14 @@ private:
 
 		if (_senderReportTime.isElapsed(5000)) {
 			// RTCP Sender report
-			BUFFER_RESET(_pBuffer, 0)
+			BUFFER_RESET(_pBuffer, 0);
 			BinaryWriter writer(*_pBuffer);
 			writer.write(EXPAND("\x80\xC8\x00\x06"));		// Version (2), padding and Reception report count (0), packet type = 200 (Sender Report), lenght = 6
-			writer.write32(_ssrc);								// SSRC
+			writer.write32(_ssrc);							// SSRC
 			writer.write64(0);								// NTP Timestamp (not needed)
-			writer.write32(time);							// RTP Timestamp
-			writer.write32(_count);						// Packet count
-			writer.write32(_bytes);					// Octet count
+			writer.write32(tag.time);						// RTP Timestamp
+			writer.write32(_count);							// Packet count
+			writer.write32(_bytes);							// Octet count
 			_count = _bytes = 0;
 			_senderReportTime.update();
 		}

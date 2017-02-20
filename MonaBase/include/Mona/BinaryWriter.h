@@ -31,7 +31,6 @@ struct BinaryWriter : Binary, virtual Object {
 	BinaryWriter& append(const void* data, UInt32 size) { _pBuffer->append(data, size); return *this; }
 	BinaryWriter& write(const void* data, UInt32 size) {return append(data, size); }
 	BinaryWriter& write(const char* value) { return write(value, strlen(value)); }
-	BinaryWriter& write(char* value)	   { return write(value, strlen(value)); } // required cause the following template signature which catch "char *" on posix
 	BinaryWriter& write(const std::string& value) { return write(value.data(), (UInt32)value.size()); }
 	BinaryWriter& write(const Binary& value) { return write(value.data(),(UInt32)value.size()); }
 	BinaryWriter& write(char value) { return write(&value, sizeof(value)); }

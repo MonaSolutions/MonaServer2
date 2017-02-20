@@ -112,8 +112,8 @@ struct Socket : virtual Object, Net::Stats {
 	bool		 listen(Exception& ex, int backlog = SOMAXCONN);
 	bool		 shutdown(ShutdownType type = SHUTDOWN_BOTH);
 	
-	int			 receive(Exception& ex, void* buffer, UInt32 size, int flags = 0) { bool rearmWrite(false);  return receive(ex, buffer, size, flags, NULL); }
-	int			 receiveFrom(Exception& ex, void* buffer, UInt32 size, SocketAddress& address, int flags = 0)  { bool rearmWrite(false); return receive(ex, buffer, size, flags, &address); }
+	int			 receive(Exception& ex, void* buffer, UInt32 size, int flags = 0) { return receive(ex, buffer, size, flags, NULL); }
+	int			 receiveFrom(Exception& ex, void* buffer, UInt32 size, SocketAddress& address, int flags = 0)  { return receive(ex, buffer, size, flags, &address); }
 
 	int			 send(Exception& ex, const void* data, UInt32 size, int flags = 0) { return sendTo(ex, data, size, SocketAddress::Wildcard(), flags); }
 	virtual int	 sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags=0);
@@ -207,12 +207,12 @@ private:
 	OnDisconnection				onDisconnection;
 
 	UInt16						_threadReceive;
-	std::atomic<UInt32>			_readable;
-	std::atomic<UInt32>			_reading;
+	std::atomic<UInt8>			_reading;
 	bool						_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
 
 #if !defined(_WIN32)
-	weak<Socket>*		_pWeakThis;
+	weak<Socket>*				_pWeakThis;
+	bool						_firstWritable;
 #endif
 
 	friend struct IOSocket;

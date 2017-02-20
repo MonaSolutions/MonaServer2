@@ -109,13 +109,9 @@ void JSONWriter::writeString(const char* value, UInt32 size) {
 }
 
 UInt64 JSONWriter::writeDate(const Date& date) {
-	string buffer;
-	date.toString(Date::ISO8601_FRAC_FORMAT,buffer); 
 	// Write directly because is necessary in UTF8 already!
 	start();
-	writer.write8('"');
-	writer.write(buffer.data(), buffer.size());
-	writer.write8('"');
+	String::Append(writer, '"', String::Date(date, Date::FORMAT_ISO8601_FRAC), '"');
 	end();
 	return 0;
 }

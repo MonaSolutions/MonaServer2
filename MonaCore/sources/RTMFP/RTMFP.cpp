@@ -34,16 +34,15 @@ void RTMFP::Group::join(RTMFP::Member& member) {
 	UInt8 count = 6;
 	auto it = lower_bound(member);
 	if(size()) {
-		auto itLeft = it; --itLeft;
+		auto itLeft = it;
 		auto itRight = it;
 		for(;;) {
-			if (itLeft != end()) {
-				if (itLeft->second->writer()) { // if is opened (not closed)
+			if (itLeft != begin()) {
+				if ((--itLeft)->second->writer()) { // if is opened (not closed)
 					itLeft->second->writer().sendMember(member);
 					if (!--count)
 						break;
 				}
-				--itLeft;
 			} else if (itRight == end())
 				break;
 			if (itRight != end()) {
@@ -62,7 +61,7 @@ void RTMFP::Group::join(RTMFP::Member& member) {
 
 void RTMFP::Group::unjoin(RTMFP::Member& member) {
 	if (!erase(member)) {
-		ERROR(Util::FormatHex(member, Entity::SIZE, string())," was not member of group ", Util::FormatHex(id, Entity::SIZE, string()));
+		ERROR(String::Hex(member, Entity::SIZE)," was not member of group ", String::Hex(id, Entity::SIZE));
 		return;
 	}
 	if (!empty())

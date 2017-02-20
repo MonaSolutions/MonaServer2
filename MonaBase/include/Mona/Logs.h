@@ -114,9 +114,9 @@ private:
 #define DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::IsDumping()) Mona::Logs::DumpResponse(NAME, DATA, SIZE, NAME, " => ", ADDRESS); }
 #define DUMP_RESPONSE_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= LOG_DEBUG) DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS)
 
-#define AUTO_CRITIC(FUNCTION,...) if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { CRITIC( __VA_ARGS__,", ", ex) }
-#define AUTO_ERROR(FUNCTION,...) if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { ERROR( __VA_ARGS__,", ", ex) }
-#define AUTO_WARN(FUNCTION,...) if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { WARN( __VA_ARGS__,", ", ex) }
+#define AUTO_CRITIC(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { CRITIC( __VA_ARGS__,", ", ex) } }
+#define AUTO_ERROR(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { ERROR( __VA_ARGS__,", ", ex) } }
+#define AUTO_WARN(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { WARN( __VA_ARGS__,", ", ex) } }
 
 
 } // namespace Mona

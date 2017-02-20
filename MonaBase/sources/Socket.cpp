@@ -25,9 +25,9 @@ namespace Mona {
 
 Socket::Socket(Type type) :
 #if !defined(_WIN32)
-	_pWeakThis(NULL),
+	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_listening(false), _queueing(0), _reading(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _readable(0), type(type), _recvTime(0), _sendTime(0), _sockfd(NET_INVALID_SOCKET), _threadReceive(0) {
+	_listening(false), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _sockfd(NET_INVALID_SOCKET), _threadReceive(0) {
 
 	init();
 }
@@ -35,9 +35,9 @@ Socket::Socket(Type type) :
 // private constructor used just by Socket::accept, TCP initialized and connected socket
 Socket::Socket(NET_SOCKET sockfd, const sockaddr& addr) : _peerAddress(addr), _address(IPAddress::Loopback(),0), // computable!
 #if !defined(_WIN32)
-	_pWeakThis(NULL),
+	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_listening(false), _queueing(0), _reading(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _readable(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _sockfd(sockfd), _threadReceive(0) {
+	_listening(false), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _sockfd(sockfd), _threadReceive(0) {
 
 	init();
 }
@@ -49,7 +49,6 @@ Socket::~Socket() {
 	// gracefull disconnection => flush + shutdown + close
 	/// shutdown + flush
 	shutdown();
-	/// close
 	NET_CLOSESOCKET(_sockfd);
 }
 
@@ -84,15 +83,8 @@ void Socket::init() {
 	setOption(ignore, SOL_SOCKET, SO_RCVBUF, _recvBufferSize.load());
 	setOption(ignore, SOL_SOCKET, SO_SNDBUF, _sendBufferSize.load());
 
-#if defined(__MACH__) && defined(__APPLE__) || defined(__FreeBSD__)
-	// SIGPIPE sends a signal that if unhandled (which is the default)
-	// will crash the process.
-	// In order to have sockets behave the same across platforms, it is
-	// best to just ignore SIGPIPE all together.
-	setOption(ignore,SOL_SOCKET, SO_NOSIGPIPE, 1);
-#endif
 	if (type==Socket::TYPE_STREAM)
-		setNoDelay(ignore,true); // to avoid the nagle algorhytme, ignore error if not possible
+		setNoDelay(ignore,true); // to avoid the nagle algorithm, ignore error if not possible
 }
 
 UInt32 Socket::available() const {
@@ -143,7 +135,7 @@ bool Socket::setLinger(Exception& ex,bool on, int seconds) {
 	struct linger l;
 	l.l_onoff  = on ? 1 : 0;
 	l.l_linger = seconds;
-	return setOption(ex,SOL_SOCKET, SO_LINGER, l);
+	return setOption(ex, SOL_SOCKET, SO_LINGER, l);
 }
 bool Socket::getLinger(Exception& ex, bool& on, int& seconds) const {
 	if (_sockex) {
@@ -271,6 +263,14 @@ bool Socket::bind(Exception& ex, const SocketAddress& address) {
 		return false;
 	}
 
+	if (type == TYPE_STREAM) {
+		// http://stackoverflow.com/questions/3757289/tcp-option-so-linger-zero-when-its-required =>
+		/// If you must restart your server application which currently has thousands of client connections you might consider
+		// setting this socket option to avoid thousands of server sockets in TIME_WAIT(when calling close() from the server end)
+		// as this might prevent the server from getting available ports for new client connections after being restarted.
+		setLinger(ex, true, 0); // avoid a TCP port overriding on server usage
+		setReuseAddress(ex, true); // to avoid a conflict between address bind on not exactly same address (see http://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t)
+	}
 	if (::bind(_sockfd, address.data(), address.size()) != 0) {
 		SetException(ex, Net::LastError(), " (address=", address, ")");
 		return false;
@@ -314,9 +314,8 @@ int Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketA
 			NET_SOCKLEN addrSize = sizeof(addr);
 			if ((rc = ::recvfrom(_sockfd, reinterpret_cast<char*>(buffer), size, flags, reinterpret_cast<sockaddr*>(&addr), &addrSize)) > 0)
 				pAddress->set(type == TYPE_STREAM ? peerAddress() : reinterpret_cast<const sockaddr&>(addr)); // check socket stream because WinSock doesn't assign correctly peerAddress on recvfrom for TCP socket
-		} else {
+		} else
 			rc = ::recv(_sockfd, reinterpret_cast<char*>(buffer), size, flags);
-		}
 	} while (rc < 0 && (error=Net::LastError()) == NET_EINTR);
 		
 	if (rc < 0) {

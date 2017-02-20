@@ -61,7 +61,7 @@ UInt64 ScriptWriter::writeDate(const Date& date) {
 	lua_setfield(_pState, -2, "__time");
 
 	// Attribut of LUA date are exprimed in LOCAL (there is no offset informations)
-	Date dateLocal(date,Date::LOCAL);
+	Date dateLocal(date,Timezone::LOCAL);
 
 	lua_pushnumber(_pState, dateLocal.year());
 	lua_setfield(_pState, -2, "year");

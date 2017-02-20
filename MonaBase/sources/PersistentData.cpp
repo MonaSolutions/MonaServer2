@@ -91,8 +91,8 @@ void PersistentData::processEntry(Exception& ex,Entry& entry) {
 		// compute md5
 		UInt8 result[16];
 		EVP_Digest(entry.data(), entry.size(), result, NULL, EVP_md5(), NULL);
-		
-		Util::FormatHex(result, sizeof(result), name);
+
+		String::Assign(name, String::Hex(result, sizeof(result)));
 
 		// write the file
 		file.assign(directory).append(name);
@@ -144,8 +144,7 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 	FileSystem::ForEach forEachFile([&ex, this, &hasData, path, &forEach](const string& file, UInt16 level) {
 		/// directory
 
-		string name;
-		string value;
+		string name, value;
 		FileSystem::GetName(file, name);
 		if (FileSystem::IsFolder(file)) {
 			if (loadDirectory(ex, file, String::Assign(value, path, '/', name), forEach))
@@ -179,7 +178,7 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 		// compute md5
 		UInt8 result[16];
 		EVP_Digest(buffer.data(), size, result, NULL, EVP_md5(), NULL);
-		Util::FormatHex(result, sizeof(result), value); // HEX lower case
+		String::Assign(value, String::Hex(result, sizeof(result)));  // HEX lower case
 		// compare with file name
 		if (value != name) {
 			// erase this data! (bad serialization)

@@ -30,7 +30,7 @@ RTMFPReceiver::RTMFPReceiver(const Handler& handler,
 		const UInt8* farPubKey, UInt8 farPubKeySize,
 		const UInt8* decryptKey, const UInt8* encryptKey,
 		const SocketAddress& address, const shared<RendezVous>& pRendezVous) : RTMFP::Session(id, farId, farPubKey, farPubKeySize, decryptKey, encryptKey, pRendezVous),
-			_initiatorTime(0xFFFFFFFF), _echoTime(0xFFFFFFFF), _handler(handler), track(0), _died(0), _obsolete(0), _address(address),
+			_initiatorTime(-1), _echoTime(-1), _handler(handler), track(0), _died(0), _obsolete(0), _address(address),
 			_output([this](UInt64 flowId, UInt32& lost, const Packet& packet) {
 				_handler.queue(onMessage, flowId, lost, packet);
 				lost = 0;
@@ -81,13 +81,14 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 		initiatorTime = Time::Now() - (time*RTMFP::TIMESTAMP_SCALE);
 	}
 
-	Int32 ping(0xFFFFFFFF);
+	Int32 ping(-1);
 	if (marker == 0xFD) {
 		// with time echo!
 		time = reader.read16(); // echo time
 		if (time != _echoTime) {  // to avoid to use a repeating packet version
 			_echoTime = time;
-			ping = (RTMFP::TimeNow() - time)*RTMFP::TIMESTAMP_SCALE;
+			time = RTMFP::TimeNow() - time; // in first to stay in UInt16
+			ping = time*RTMFP::TIMESTAMP_SCALE;
 		}
 	} else if (marker != 0xF9)
 		WARN("Packet marker ", String::Format<UInt8>("%02x", marker)," unknown");
@@ -146,12 +147,12 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 				UInt64 id = message.read7BitLongValue();
 				UInt64 bufferSize = message.read7BitLongValue();
 				if (bufferSize) {
-					auto& it = acks.emplace(id, Packet());
+					const auto& it = acks.emplace(id, Packet());
 					if (it.second || it.first->second) { // to avoid to override a RTMFPWriter fails!
 						if(type == 0x50) {
 							// convert to 0x51!
 							const UInt8* begin(message.current());
-							UInt64 stage(message.read7BitLongValue());
+							message.read7BitLongValue(); // stage!
 							UInt8* lostBuffer(BIN message.current());
 							UInt32 lostCount(0);
 							while (message.available()) {
@@ -170,7 +171,7 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 							it.first->second.set(Packet(packet, message.current(), message.available()));
 					}
 				} else {
-					auto& it = acks.find(id);
+					const auto& it = acks.find(id);
 					if (it == acks.end() || it->second) {
 						// no more place to write, reliability broken
 						WARN("RTMFPWriter ", id, " can't deliver its data, client buffer full");
@@ -304,7 +305,7 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 			DEBUG("_fragments.size()=", _fragments.size());
 	} else {
 		onFragment(nextStage++, flags, packet);
-		auto& it = _fragments.begin();
+		auto it = _fragments.begin();
 		while (it != _fragments.end() && it->first <= nextStage) {
 			onFragment(nextStage++, it->second.flags, it->second);
 			it = _fragments.erase(it);

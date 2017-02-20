@@ -18,6 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Buffer.h"
+#include "Mona/Date.h"
 #include <functional>
 #include <vector>
 #include <map>
@@ -27,7 +28,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-#define EXPAND(VALUE)			VALUE"",(sizeof(VALUE)-1) // "" concatenation is here to check that it's a valid const string is not a pointer of char*
 #define CONST_STRING(STRING)	operator const std::string&() const { return STRING;} \
 								std::size_t length() const { return (STRING).length(); } \
 								bool	  empty() const { return (STRING).empty(); } \
@@ -44,21 +44,25 @@ enum {
 	SPLIT_TRIM = 2,  /// remove leading and trailing whitespace from tokens
 };
 
+
+typedef UInt8 HEX_OPTIONS;
+enum {
+	HEX_CPP = 1,
+	HEX_TRIM_LEFT = 2,
+	HEX_UPPER_CASE = 4
+};
+
+
 /// Utility class for generation parse of strings
 struct String : std::string {
 	template <typename ...Args>
 	String(Args&&... args) {
 		Assign<std::string>(*this, std::forward<Args>(args)...);
 	}
+	std::string& clear() { std::string::clear(); return *this; }
 
 	static const std::string& Empty() { static std::string Empty; return Empty; }
 
-	template<typename ValueType>
-	struct Format : virtual Object {
-		Format(const char* format, const ValueType& value) : value(value), format(format) {}
-		const ValueType&	value;
-		const char*			format;
-	};
 
 	struct Comparator {
 		bool operator()(const std::string& value1, const std::string& value2) const { return String::ICompare(value1, value2)<0; }
@@ -139,6 +143,26 @@ struct String : std::string {
 	static bool IsFalse(const std::string& value) { return IsFalse(value.data(),value.size()); }
 	static bool IsFalse(const char* value, std::size_t size = std::string::npos) { return ICompare(value, "0", size) == 0 || String::ICompare(value, "false", size) == 0 || String::ICompare(value, "no", size) == 0 || String::ICompare(value, "off", size) == 0 || String::ICompare(value, "null", size) == 0; }
 
+	template <typename BufferType>
+	static BufferType& ToHex(const std::string& value, BufferType& buffer) { return ToHex(value.c_str(), buffer); }
+	template <typename BufferType>
+	static BufferType& ToHex(const char* value, BufferType& buffer) {
+		while (*value) {
+			UInt8 left = toupper(*value++);
+			UInt8 byte = *value ? toupper(*value++) : '0';
+			byte = ((left - (left <= '9' ? '0' : '7')) << 4) | ((byte - (byte <= '9' ? '0' : '7')) & 0x0F);
+			buffer.append(BIN &byte, 1);
+		}
+		return buffer;
+	}
+
+	template<typename ValueType>
+	struct Format : virtual Object {
+		Format(const char* format, const ValueType& value) : value(value), format(format) {}
+		const ValueType&	value;
+		const char*			format;
+	};
+
 	template <typename OutType, typename ...Args>
 	static OutType& Assign(OutType& out, Args&&... args) {
 		out.clear();
@@ -148,7 +172,7 @@ struct String : std::string {
 	/// \brief match "std::string" case
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, const std::string& value, Args&&... args) {
-		return Append<OutType>((OutType&)(OutType&)out.append(value.data(), value.size()), std::forward<Args>(args) ...);
+		return Append<OutType>((OutType&)out.append(value.data(), value.size()), std::forward<Args>(args) ...);
 	}
 	template <typename OutType, typename ...Args>
 	static OutType& Append(String& out, std::string&& value, Args&&... args) { return Append<String>(out, value, std::forward<Args>(args) ...); }
@@ -157,7 +181,7 @@ struct String : std::string {
 		if (!out.size())
 			out = std::move(value);
 		else
-			(OutType&)out.append(value.data(), value.size());
+			out.append(value.data(), value.size());
 		return Append<std::string>(out, std::forward<Args>(args)...);
 	}
 
@@ -318,7 +342,62 @@ struct String : std::string {
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
 
-	
+	struct Date : virtual Object {
+		Date(const Mona::Date& date, const char* format) : format(format), _pDate(&date) {}
+		Date(const char* format) : format(format), _pDate(NULL) {}
+		const Mona::Date*	operator->() const { return _pDate; }
+		const char*			format;
+	private:
+		const Mona::Date* _pDate;
+	};
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const Date& date, Args&&... args) {
+		const Mona::Date* pDate = date.operator->();
+		if(pDate)
+			return Append<OutType>((OutType&)pDate->format(date.format, out), std::forward<Args>(args)...);
+		return Append<OutType>((OutType&)Mona::Date().format(date.format, out), std::forward<Args>(args)...);
+	}
+
+
+	struct Hex : virtual Object {
+		Hex(const UInt8* data, UInt32 size, HEX_OPTIONS options = 0) : data(data), size(size), options(options) {}
+		const UInt8*		data;
+		const UInt32		size;
+		const HEX_OPTIONS	options;
+	};
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const Hex& hex, Args&&... args) {
+		const UInt8 *end(hex.data + hex.size), *data(hex.data);
+		bool skipLeft(false);
+		if (hex.options&HEX_TRIM_LEFT) {
+			while (data<end) {
+				if (((*data) >> 4)>0)
+					break;
+				if (((*data) & 0x0F) > 0) {
+					skipLeft = true;
+					break;
+				}
+				++data;
+			}
+		}
+		UInt8 ref(hex.options&HEX_UPPER_CASE ? '7' : 'W');
+		UInt8 value;
+		while (data<end) {
+			if (hex.options&HEX_CPP)
+				out.append(EXPAND("\\x"));
+			value = (*data) >> 4;
+			if (!skipLeft) {
+				value += value > 9 ? ref : '0';
+				out.append(STR &value, 1);
+			} else
+				skipLeft = false;
+			value = (*data++) & 0x0F;
+			value += value > 9 ? ref : '0';
+			out.append(STR &value, 1);
+		}
+		return Append<OutType>(out, std::forward<Args>(args)...);
+	}
+
 	template <typename OutType>
 	static OutType& Append(OutType& out) { return out; }
 

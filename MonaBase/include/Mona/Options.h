@@ -40,7 +40,7 @@ struct Options : virtual NullableObject {
 			ex.set<Ex::Application::Argument>("Invalid option (shortName is empty)");
 			return Option::Null();
 		}
-		auto& result = _options.emplace(fullName, shortName, args ...);
+		const auto& result = _options.emplace(fullName, shortName, args ...);
 		if (!result.second) {
 			ex.set<Ex::Application::Argument>("Option ", fullName, " (", shortName, ") duplicated with ", result.first->fullName(), " (", result.first->shortName(), ")");
 			return Option::Null();

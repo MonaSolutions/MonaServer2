@@ -20,6 +20,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <fcntl.h>
 #if defined(_WIN32)
 #include "windows.h"
+#else
+#include <unistd.h>
 #endif
 
 using namespace std;
@@ -36,7 +38,7 @@ File::~File() {
 #if defined(_WIN32)
 	CloseHandle((HANDLE)_handle);
 #else
-	close(_handle);
+	::close(_handle);
 #endif
 }
 
@@ -98,9 +100,9 @@ bool File::load(Exception& ex) {
 	_handle = open(_path.c_str(), flags);
 	if (_handle != -1) {
 		posix_fadvise(_handle, 0, 0, 1);  // ADVICE_SEQUENTIAL
-		struct stat  status;
+		struct stat status;
 		::fstat(_handle, &status);
-		_path._pImpl->setAttributes(stat.st_mode&S_IFDIR ? 0 : (UInt64)stat.st_size, stat.st_mtime * 1000ll, UInt8(major(stat.st_dev)));
+		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_mtime * 1000ll, UInt8(major(status.st_dev)));
 		return true;
 	}
 #endif
@@ -165,7 +167,7 @@ int File::read(Exception& ex, void* data, UInt32 size) {
 	if (!ReadFile((HANDLE)_handle, data, size, &readen, NULL))
 		readen = -1;
 #else
-	ssize_t readen = read(_handle, data, size);
+	ssize_t readen = ::read(_handle, data, size);
 #endif
 	if (readen >= 0)
 		return int(readen);
@@ -185,7 +187,7 @@ bool File::write(Exception& ex, const void* data, UInt32 size) {
 	if (!WriteFile((HANDLE)_handle, data, size, &written, NULL))
 		written = -1;
 #else
-	ssize_t written = write(_handle, data, size);
+	ssize_t written = ::write(_handle, data, size);
 #endif
 	if (written == -1) {
 		ex.set<Ex::System::File>("Impossible to write ", _path, " (size=", size, ")");

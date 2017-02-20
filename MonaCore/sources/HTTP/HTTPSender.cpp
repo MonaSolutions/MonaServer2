@@ -48,8 +48,7 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, co
 	writer.write(EXPAND("HTTP/1.1 ")).write(code);
 
 	/// Date + Mona
-	string buffer;
-	writer.write(EXPAND("\r\nDate: ")).write(Date().toString(Date::HTTP_FORMAT, buffer));
+	String::Append(writer, EXPAND("\r\nDate: "), String::Date(Date::FORMAT_HTTP));
 	writer.write(EXPAND("\r\nServer: Mona"));
 
 	/// Content Type/length

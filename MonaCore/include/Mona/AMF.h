@@ -22,8 +22,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-class AMF : virtual Static {
-public:
+struct AMF : virtual Static {
 	enum Type {
 		TYPE_EMPTY				=0x00,
 		TYPE_CHUNKSIZE			=0x01,

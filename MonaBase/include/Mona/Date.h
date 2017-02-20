@@ -18,45 +18,40 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Time.h"
-#include "Mona/Exceptions.h"
+#include "Mona/Timezone.h"
 
 namespace Mona {
 
+struct Exception;
 
-class Date : public Time, public virtual Object {
-public:
-	static const char* ISO8601_FORMAT; 		/// 2005-01-01T12:00:00+01:00 | 2005-01-01T11:00:00Z
-	static const char* ISO8601_FRAC_FORMAT;	/// 2005-01-01T12:00:00.000000+01:00 | 2005-01-01T11:00:00.000000Z
-	static const char* ISO8601_SHORT_FORMAT; 		// 20050101T120000+01:00 | 20050101T110000Z
-	static const char* ISO8601_SHORT_FRAC_FORMAT;	// 20050101T120000.000000+01:00 | 20050101T110000.000000Z
-	static const char* RFC822_FORMAT;		/// Sat, 1 Jan 05 12:00:00 +0100 | Sat, 1 Jan 05 11:00:00 GMT
-	static const char* RFC1123_FORMAT;		/// Sat, 1 Jan 2005 12:00:00 +0100 | Sat, 1 Jan 2005 11:00:00 GMT
-	static const char* HTTP_FORMAT;			/// Sat, 01 Jan 2005 12:00:00 +0100 | Sat, 01 Jan 2005 11:00:00 GMT
-	static const char* RFC850_FORMAT;		/// Saturday, 1-Jan-05 12:00:00 +0100 | Saturday, 1-Jan-05 11:00:00 GMT
-	static const char* RFC1036_FORMAT;		/// Saturday, 1 Jan 05 12:00:00 +0100 | Saturday, 1 Jan 05 11:00:00 GMT
-	static const char* ASCTIME_FORMAT;		/// Sat Jan  1 12:00:00 2005
-	static const char* SORTABLE_FORMAT;		/// 2005-01-01 12:00:00
-
-	enum Type {
-		GMT = (Int32)0x7FFFFFFF, /// Special value for offset (Int32 minimum)
-		LOCAL = (Int32)0x80000000 /// Special value for offset(Int32 maximum)
-	};
+struct Date : Time, virtual Object {
+	static const char* FORMAT_ISO8601; 				/// 2005-01-01T12:00:00+01:00 | 2005-01-01T11:00:00Z
+	static const char* FORMAT_ISO8601_FRAC;			/// 2005-01-01T12:00:00.000000+01:00 | 2005-01-01T11:00:00.000000Z
+	static const char* FORMAT_ISO8601_SHORT; 		/// 20050101T120000+01:00 | 20050101T110000Z
+	static const char* FORMAT_ISO8601_SHORT_FRAC;	/// 20050101T120000.000000+01:00 | 20050101T110000.000000Z
+	static const char* FORMAT_RFC822;				/// Sat, 1 Jan 05 12:00:00 +0100 | Sat, 1 Jan 05 11:00:00 GMT
+	static const char* FORMAT_RFC1123;				/// Sat, 1 Jan 2005 12:00:00 +0100 | Sat, 1 Jan 2005 11:00:00 GMT
+	static const char* FORMAT_HTTP;					/// Sat, 01 Jan 2005 12:00:00 +0100 | Sat, 01 Jan 2005 11:00:00 GMT
+	static const char* FORMAT_RFC850;				/// Saturday, 1-Jan-05 12:00:00 +0100 | Saturday, 1-Jan-05 11:00:00 GMT
+	static const char* FORMAT_RFC1036;				/// Saturday, 1 Jan 05 12:00:00 +0100 | Saturday, 1 Jan 05 11:00:00 GMT
+	static const char* FORMAT_ASCTIME;				/// Sat Jan  1 12:00:00 2005
+	static const char* FORMAT_SORTABLE;				/// 2005-01-01 12:00:00
 
 	static bool  IsLeapYear(Int32 year) { return (year % 400 == 0) || (!(year & 3) && year % 100); }
 
 	// build a NOW date, not initialized (is null)
 	// /!\ Keep 'Type' to avoid confusion with "build from time" constructor, if a explicit Int32 offset is to set, use Date::setOffset or "build from time" contructor
-	explicit Date(Type offset=LOCAL) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset((Int32)offset),_isLocal(true) {}
+	explicit Date(Timezone::Type offset=Timezone::GMT) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset((Int32)offset),_isLocal(true) {}
 	
 	// build from time
-	explicit Date(Int64 time,Int32 offset=LOCAL) : _isDST(false),_year(0), _month(0), _day(0),  _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset(offset),_isLocal(true), Time(time) {}
+	explicit Date(Int64 time,Int32 offset= Timezone::LOCAL) : _isDST(false),_year(0), _month(0), _day(0),  _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset(offset),_isLocal(true), Time(time) {}
 
 	// build from other  date
 	explicit Date(const Date& other) : Time((Time&)other), _isDST(other._isDST),_year(other._year), _month(other._month), _day(other._day),  _weekDay(other._weekDay),_hour(other._hour), _minute(other._minute), _second(other._second), _millisecond(other._millisecond), _changed(other._changed), _offset(other._offset),_isLocal(other._isLocal) {
 	}
 	
 	// build from date
-	explicit Date(Int32 year, UInt8 month, UInt8 day, Int32 offset=LOCAL) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(true), _offset(0),_isLocal(true), Time(0) {
+	explicit Date(Int32 year, UInt8 month, UInt8 day, Int32 offset= Timezone::LOCAL) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(true), _offset(0),_isLocal(true), Time(0) {
 		update(year,month,day,offset);
 	}
 
@@ -66,20 +61,20 @@ public:
 	}
 
 	// build from date+clock
-	explicit Date(Int32 year, UInt8 month, UInt8 day, UInt8 hour=0, UInt8 minute=0, UInt8 second=0, UInt16 millisecond=0, Int32 offset=LOCAL) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(true), _offset(0),_isLocal(true), Time(0) {
+	explicit Date(Int32 year, UInt8 month, UInt8 day, UInt8 hour=0, UInt8 minute=0, UInt8 second=0, UInt16 millisecond=0, Int32 offset= Timezone::LOCAL) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(true), _offset(0),_isLocal(true), Time(0) {
 		update(year,month,day,hour,minute,second,millisecond,offset);
 	}
 
 	 // now
 	Date& update() { return update(Time::Now()); }
 	// /!\ Keep 'Type' to avoid confusion with 'update(Int64 time)'
-	Date& update(Type offset) { return update(Time::Now(),offset); }
+	Date& update(Timezone::Type offset) { return update(Time::Now(),offset); }
 
 	// from other date
 	Date& update(const Date& date);
 
 	// from time
-	Date& update(Int64 time) { return update(time, _isLocal ? Int32(LOCAL) : _offset); }
+	Date& update(Int64 time) { return update(time, _isLocal ? Int32(Timezone::LOCAL) : _offset); }
 	Date& update(Int64 time,Int32 offset);
 
 	// from date
@@ -99,9 +94,6 @@ public:
 	Date& operator=(const Date& date) { update(date); return *this; }
 	Date& operator+= (Int64 time) { update(this->time()+time); return *this; }
 	Date& operator-= (Int64 time) { update(this->time()-time); return *this; }
-
-	// to string
-	std::string& toString(const char* format, std::string& value) const;
 
 	// to time
 	Int64 time() const;
@@ -142,13 +134,64 @@ public:
 	// offset
 	void	setOffset(Int32 offset);
 
+
+	template<typename OutType>
+	OutType& format(const char* format, OutType& out) const {
+		if (_day == 0)
+			init();
+
+		char buffer[32];
+		UInt32 formatSize = strlen(format);
+		UInt32 iFormat(0);
+
+		while (iFormat < formatSize) {
+			char c(format[iFormat++]);
+			if (c != '%') {
+				if (c != '[' && c != ']')
+					out.append(&c, 1);
+				continue;
+			}
+
+			if (iFormat == formatSize)
+				break;
+
+			switch (c = format[iFormat++]) {
+				case 'w': out.append(_WeekDayNames[weekDay()], 3); break;
+				case 'W': { const char* day(_WeekDayNames[weekDay()]); out.append(day, strlen(day)); break; }
+				case 'b': out.append(_MonthNames[_month - 1], 3); break;
+				case 'B': { const char* month(_MonthNames[_month - 1]); out.append(month, strlen(month)); break; }
+				case 'd': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", _day)); break;
+				case 'e': out.append(buffer, snprintf(buffer, sizeof(buffer), "%u", _day)); break;
+				case 'f': out.append(buffer, snprintf(buffer, sizeof(buffer), "%2d", _day)); break;
+				case 'm': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", _month)); break;
+				case 'n': out.append(buffer, snprintf(buffer, sizeof(buffer), "%u", _month)); break;
+				case 'o': out.append(buffer, snprintf(buffer, sizeof(buffer), "%2d", _month)); break;
+				case 'y': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", _year % 100)); break;
+				case 'Y': out.append(buffer, snprintf(buffer, sizeof(buffer), "%04d", _year)); break;
+				case 'H': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", _hour)); break;
+				case 'h': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", (_hour<1 ? 12 : (_hour>12 ? (_hour - 12) : _hour)))); break;
+				case 'a': out.append((_hour < 12) ? "am" : "pm", 2); break;
+				case 'A': out.append((_hour < 12) ? "AM" : "PM", 2); break;
+				case 'M': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", _minute)); break;
+				case 'S': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", _second)); break;
+				case 's': out.append(buffer, snprintf(buffer, sizeof(buffer), "%02d", _second));
+					out.append(EXPAND("."));
+				case 'F':
+				case 'i': out.append(buffer, snprintf(buffer, sizeof(buffer), "%03d", _millisecond)); break;
+				case 'c': out.append(buffer, snprintf(buffer, sizeof(buffer), "%u", _millisecond / 100)); break;
+				case 'z': Timezone::Format(isGMT() ? Timezone::GMT : offset(), out); break;
+				case 'Z': Timezone::Format(isGMT() ? Timezone::GMT : offset(), out, false); break;
+				default: out.append(&c, 1);
+			}
+		}
+		return out;
+	}
+
 private:
 	void  init() const { _day = 1; ((Date*)this)->update(Time::time(), _offset); }
 	void  computeWeekDay(Int64 days);
 	bool  parseAuto(Exception& ex, const char* data, std::size_t count);
-	void  formatTimezone(std::string& value, bool bISO = true) const;
 
-	
 	Int32			_year;
 	UInt8			_month; // 1 to 12
 	mutable UInt8	_day; // 1 to 31
@@ -161,7 +204,10 @@ private:
 	mutable bool	_isDST; // means that the offset is a Daylight Saving Time offset
 	mutable bool	_isLocal; // just used when offset is on the special Local value!
 
-	mutable bool _changed; // indicate that date information has changed, we have to refresh time value
+	mutable bool	_changed; // indicate that date information has changed, we have to refresh time value
+
+	static const char*    _WeekDayNames[];
+	static const char*    _MonthNames[];
 };
 
 

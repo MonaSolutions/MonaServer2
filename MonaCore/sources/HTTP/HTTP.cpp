@@ -70,7 +70,7 @@ void HTTP::Header::set(const char* key, const char* value) {
 		secWebsocketAccept = value;
 	} else if (String::ICompare(key, "if-modified-since") == 0) {
 		Exception ex;
-		AUTO_ERROR(ifModifiedSince.update(ex, value, Date::HTTP_FORMAT), "HTTP header")
+		AUTO_ERROR(ifModifiedSince.update(ex, value, Date::FORMAT_HTTP), "HTTP header")
 	} else if (String::ICompare(key, "access-control-request-headers") == 0) {
 		accessControlRequestHeaders = value;
 	} else if (String::ICompare(key, "access-control-request-method") == 0) {
@@ -138,7 +138,7 @@ const char* HTTP::ErrorToCode(Int32 error) {
 		case Session::ERROR_UNFOUND:
 			return HTTP_CODE_404; // Not Found
 		default: // User close!
-			return HTTP_CODE_406; // Not Acceptable
+			return NULL; // could be HTTP_CODE_406 = Not Acceptable
 	}
 }
 
@@ -204,7 +204,7 @@ private:
 
 
 static void WriteDirectoryEntry(BinaryWriter& writer, const Path& entry) {
-	string size, date;
+	string size;
 	if (entry.isFolder())
 		size.assign("-");
 	else if (entry.size()<1024)
@@ -218,8 +218,9 @@ static void WriteDirectoryEntry(BinaryWriter& writer, const Path& entry) {
 
 	writer.write(EXPAND("<tr><td><a href=\""))
 		.write(entry.name()).write(entry.isFolder() ? "/\">" : "\">")
-		.write(entry.name()).write(entry.isFolder() ? "/" : "").write(EXPAND("</a></td><td>&nbsp;"))
-		.write(Date(entry.lastModified()).toString("%d-%b-%Y %H:%M", date)).write(EXPAND("</td><td align=right>&nbsp;&nbsp;"))
+		.write(entry.name()).write(entry.isFolder() ? "/" : "").write(EXPAND("</a></td><td>&nbsp;"));
+	String::Append(writer, String::Date(Date(entry.lastModified()), "%d-%b-%Y %H:%M"))
+		.write(EXPAND("</td><td align=right>&nbsp;&nbsp;"))
 		.write(size).write(EXPAND("</td></tr>\n"));
 }
 
@@ -294,7 +295,7 @@ struct SetCookieWriter : DataWriter, virtual Object {
 
 	UInt64	writeDate(const Date& date) {
 		if ((_option <= 2 || date) && writeHeader())
-			writeContent(date.toString(Date::RFC1123_FORMAT, String()));
+			writeContent(String::Date(date, Date::FORMAT_RFC1123));
 		_option = NO;
 		return 0;
 	}
@@ -325,9 +326,9 @@ struct SetCookieWriter : DataWriter, virtual Object {
 	void	writeNumber(double value) {
 		if ((_option <= 2 || value) && writeHeader()) {
 			if (_option == EXPIRES)
-				writeContent(Date(Time::Now()+(Int64)(value*1000),Date::GMT).toString(Date::RFC1123_FORMAT, String()));
+				writeContent(String::Date(Date(Time::Now() + (Int64)(value * 1000), Timezone::GMT), Date::FORMAT_RFC1123));
 			else
-				writeContent(String(value));
+				writeContent(value);
 		}
 		_option = NO;
 	}
@@ -341,11 +342,12 @@ private:
 		return _option<=2;
 	}
 
-	void writeContent(const string& value) { writeContent(value.data(), value.size()); }
-	void writeContent(const char* data, UInt32 size) {
-		_buffer.append(data, size);
+	template <typename ...Args>
+	void writeContent(Args&&... args) {
+		UInt32 size = _buffer.size();
+		String::Append(_buffer, args ...);
 		if (_option == VALUE && _onCookie)
-			_onCookie(_key.c_str(), data, size);
+			_onCookie(_key.c_str(), STR _buffer.data()+size, _buffer.size()-size);
 	}
 	
 	enum Option {

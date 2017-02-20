@@ -84,7 +84,7 @@ BinaryWriter& Media::Audio::Tag::pack(BinaryWriter& writer, bool withTime) const
 	// channels 6 bits (0-62)
 	// rate 4 bits (0-15)
 	writer.write8((isConfig ? 0x80 : 0) | ((codec&0x1F)<<2) | ((channels&0x30)>>4));
-	return writer.write8((channels&0x0F)<<4 | ADTSWriter::RateToIndex(rate)&0x0F);
+	return writer.write8((channels&0x0F)<<4 | (ADTSWriter::RateToIndex(rate)&0x0F));
 }
 
 BinaryReader& Media::Audio::Tag::unpack(BinaryReader& reader, bool withTime) {
@@ -264,7 +264,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, IOFile
 	Path   path;
 	String::ForEach forEach([&](UInt32 index, const char* value) {
 		if (!index) {
-			if (isTarget = (*value == '@'))
+			if ((isTarget = (*value == '@')))
 				++value;
 			// Address[/path]
 	
@@ -347,7 +347,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, IOFile
 		} else if (MediaReader* pReader = MediaReader::New(format.empty() ? path.extension().c_str() : format.c_str()))
 			return new MediaFile::Reader(path, pReader, ioFile);
 		ex.set<Ex::Unsupported>("Stream file format ", format, " not supported");
-		return false;
+		return NULL;
 	}
 
 	if (format.empty()) {
@@ -365,7 +365,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, IOFile
 			}
 			default:
 				ex.set<Ex::Format>("Stream description have to indicate a media format");
-				return false;
+				return NULL;
 		}
 	} else if (!type)
 		type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
@@ -376,7 +376,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, IOFile
 	} else if (MediaReader* pReader = MediaReader::New(format.c_str()))
 		return new MediaSocket::Reader(type, path, pReader, address, ioSocket, isSecure ? pTLS : nullptr);
 	ex.set<Ex::Unsupported>("Stream ", TypeToString(type), " format ",format, " not supported");
-	return false;
+	return NULL;
 }
 
 } // namespace Mona

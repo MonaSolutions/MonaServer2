@@ -140,7 +140,7 @@ AMFWriter& RTMFPWriter::write(AMF::Type type, UInt32 time, Media::Data::Type pac
 }
 
 void RTMFPWriter::sendMember(const UInt8* id) {
-	DEBUG("Group member exchanged ", Util::FormatHex(id, Entity::SIZE, string()))
+	DEBUG("Group member exchanged ", String::Hex(id, Entity::SIZE))
 	newMessage(reliable)->write8(0x0b).write(id, Entity::SIZE);
 	flush();
 }

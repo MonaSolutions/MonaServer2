@@ -41,7 +41,7 @@ private:
 		return OTHER;
 	}
 
-	bool readOne(UInt8 type, DataWriter& writer) { string prefix;  return readOne(type, writer, prefix); }
+	bool readOne(UInt8 type, DataWriter& writer) { std::string prefix;  return readOne(type, writer, prefix); }
 
 	bool readOne(UInt8 type, DataWriter& writer, std::string& prefix) {
 		

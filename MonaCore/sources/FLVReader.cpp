@@ -173,9 +173,9 @@ UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
 				UInt16 track((UInt16)reader.read24());
 				_size -= 7;
 				if (memcmp(reader.current(), EXPAND("\x02\x00\x0AonMetaData")) == 0) {
-					AMFReader reader(reader.current() + 13, _size - 13);
-					if(reader.available())
-						source.writeProperties(track, reader);
+					AMFReader amf(reader.current() + 13, _size - 13);
+					if(amf.available())
+						source.writeProperties(track, amf);
 				} else
 					source.writeData(track, Media::Data::TYPE_AMF, Packet(packet, reader.current(), _size));
 				break;

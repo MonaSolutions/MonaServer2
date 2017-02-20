@@ -50,9 +50,8 @@ struct MediaWriter : virtual Object {
 	void writeMedia(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { writeData(track, type, packet, onWrite); }
 };
 
-class TrackWriter : public MediaWriter, public virtual Object {
+struct TrackWriter : MediaWriter, virtual Object {
 	/// Media container writer must be able to support a dynamic change of audio/video codec!
-public:
 	virtual void beginMedia() {} // no container for track writer!
 	virtual void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) = 0;
 	virtual void writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) = 0;

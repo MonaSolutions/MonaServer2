@@ -26,18 +26,18 @@ using namespace std;
 namespace Mona {
 
 
-mutex							Logs::_Mutex;
-shared<string> 				Logs::_PDump;
-Int32							Logs::_DumpLimit(-1);
-atomic<bool>					Logs::_DumpRequest(true);
-atomic<bool>					Logs::_DumpResponse(true);
+mutex					Logs::_Mutex;
+shared<string> 			Logs::_PDump;
+Int32					Logs::_DumpLimit(-1);
+atomic<bool>			Logs::_DumpRequest(true);
+atomic<bool>			Logs::_DumpResponse(true);
 #if defined(_DEBUG)
-LOG_LEVEL						Logs::_Level(LOG_DEBUG); // default log level
+LOG_LEVEL				Logs::_Level(LOG_DEBUG); // default log level
 #else
-LOG_LEVEL						Logs::_Level(LOG_INFO); // default log level
+LOG_LEVEL				Logs::_Level(LOG_INFO); // default log level
 #endif
-Logger							Logs::_DefaultLogger;
-Logger*							Logs::_PLogger(&_DefaultLogger);
+Logger					Logs::_DefaultLogger;
+Logger*					Logs::_PLogger(&_DefaultLogger);
 
 
 void Logs::SetDump(const char* name) {

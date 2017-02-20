@@ -166,7 +166,13 @@ const string& typeof(const type_info& info) {
 		return type;
 #if defined(_WIN32)
 	type = info.name();
-	for (size_t i = 0; (i+4) < type.size(); i) {
+#else
+	int status = -4;
+	const char* name = abi::__cxa_demangle(info.name(), NULL, NULL, &status);
+	type = status == 0 ? name : info.name();
+	delete[] name;
+#endif
+	for (size_t i = 0; (i + 4) < type.size();) {
 		if (String::ICompare(&type[i], EXPAND("Mona::")) == 0) {
 			type.erase(i, 6);
 			continue;
@@ -185,12 +191,6 @@ const string& typeof(const type_info& info) {
 		}
 		++i;
 	}
-#else
-	int status = -4;
-	const char* name = abi::__cxa_demangle(info.name(), NULL, NULL, &status);
-	type = status == 0 ? name : info.name();
-	delete[] buffer;
-#endif
 	return type;
 }
 

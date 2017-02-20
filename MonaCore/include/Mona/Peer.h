@@ -53,11 +53,11 @@ struct Peer : Client, virtual Object {
 	Time						pingTime;
 	UInt32						rto() const { return _rto; }
 
-	Time						recvTime() const { return _pNetStats ? _pNetStats->recvTime() : 0; }
+	Time						recvTime() const { if (_pNetStats) return _pNetStats->recvTime(); return 0; }
 	UInt64						recvByteRate() const { return _pNetStats ? _pNetStats->recvByteRate() : 0; }
 	double						recvLostRate() const { return _pNetStats ? _pNetStats->recvLostRate() : 0; }
 
-	Time						sendTime() const { return _pNetStats ? _pNetStats->sendTime() : 0; }
+	Time						sendTime() const { if (_pNetStats) return _pNetStats->sendTime(); return 0; }
 	UInt64						sendByteRate() const { return _pNetStats ? _pNetStats->sendByteRate() : 0; }
 	double						sendLostRate() const { return _pNetStats ? _pNetStats->sendLostRate() : 0; }
 

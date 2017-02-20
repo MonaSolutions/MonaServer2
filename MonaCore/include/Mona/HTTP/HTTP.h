@@ -31,7 +31,7 @@ namespace Mona {
 	__writer.write(EXPAND("</p><hr><address>Mona Server at ")).write(SERVER_ADDRESS).write(EXPAND("</address></body></html>")); }
 
 #define HTTP_BEGIN_HEADER(WRITER)  { BinaryWriter& __writer(WRITER); __writer.buffer().resize(__writer.buffer().size()-2);
-#define HTTP_ADD_HEADER(NAME,VALUE) { __writer.write(NAME": ").write(VALUE).write(EXPAND("\r\n")); }
+#define HTTP_ADD_HEADER(NAME, ...) { String::Append(__writer, ": ", __VA_ARGS__, "\r\n"); }
 #define HTTP_END_HEADER  __writer.write("\r\n");  }
 
 #define HTTP_CODE_100	"100 Continue"

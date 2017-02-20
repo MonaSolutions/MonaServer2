@@ -47,7 +47,7 @@ void Sessions::addByAddress(Session& session) {
 			return;
 
 		auto& map(dynamic_cast<UDProtocol*>(&session.protocol()) ? _sessionsByAddress[0] : _sessionsByAddress[1]);
-		auto& it = map.emplace(session.peer.address, &session);
+		const auto& it = map.emplace(session.peer.address, &session);
 		if (it.second)
 			return;
 		INFO(it.first->second->name(), " overloaded by ", session.name(), " (by ", session.peer.address, ")");
@@ -88,7 +88,7 @@ void Sessions::removeByAddress(const SocketAddress& address, Session& session) {
 
 void Sessions::addByPeer(Session& session) {
 	if (session._sessionsOptions&SESSION_BYPEER) {
-		auto& it = _sessionsByPeerId.emplace(session);
+		const auto& it = _sessionsByPeerId.emplace(session);
 		if (it.second)
 			return;
 		INFO(it.first->second->name(), " overloaded by ", session.name(), " (by peer id)");
@@ -104,10 +104,10 @@ void Sessions::addByPeer(Session& session) {
 void Sessions::removeByPeer(Session& session) {
 	if (session._sessionsOptions&SESSION_BYPEER) {
 		if (_sessionsByPeerId.erase(session.peer.id) == 0) {
-			ERROR(session.name(), " unfound in peer sessions collection with key ", Util::FormatHex(session.peer.id, Entity::SIZE, string()));
+			ERROR(session.name(), " unfound in peer sessions collection with key ", String::Hex(session.peer.id, Entity::SIZE));
 			for (auto it = _sessionsByPeerId.begin(); it != _sessionsByPeerId.end(); ++it) {
 				if (it->second == &session) {
-					INFO("The correct key was ", Util::FormatHex(it->first, Entity::SIZE, string()));
+					INFO("The correct key was ", String::Hex(it->first, Entity::SIZE));
 					_sessionsByPeerId.erase(it);
 					break;
 				}

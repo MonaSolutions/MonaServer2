@@ -134,7 +134,7 @@ void FLVWriter::write(UInt16 track, AMF::Type type, UInt8 codecs, bool isConfig,
 
 	if (type == AMF::TYPE_VIDEO) {
 		++size; // for codec byte
-		if (isAVC = ((codecs & 0x0F) == Media::Video::CODEC_H264)) {
+		if ((isAVC = ((codecs & 0x0F) == Media::Video::CODEC_H264))) {
 			size += 4; // for config byte + composition offset 3 bytes
 			if (isConfig) {
 				// find just sps and pps data, ignore the rest

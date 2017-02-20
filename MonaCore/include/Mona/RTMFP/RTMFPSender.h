@@ -94,7 +94,7 @@ private:
 };
 
 struct RTMFPCmdSender : RTMFPSender, virtual Object {
-	RTMFPCmdSender(UInt8 cmd) : RTMFPSender("RTMFPCmdSender", pQueue), _cmd(cmd) {}
+	RTMFPCmdSender(UInt8 cmd) : RTMFPSender("RTMFPCmdSender"), _cmd(cmd) {}
 private:
 	void	run();
 

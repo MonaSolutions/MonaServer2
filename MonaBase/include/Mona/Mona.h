@@ -35,11 +35,11 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define BIN		(Mona::UInt8*)
 #define STR		(char*)
 
+#define EXPAND(VALUE)	VALUE"",(sizeof(VALUE)-1) // "" concatenation is here to check that it's a valid const string is not a pointer of char*
 
 #define STRINGIZE(x) STRINGIZE2(x)
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
-
 
 //
 // Automatically link Base library.
@@ -350,8 +350,8 @@ inline const std::string& typeof() {
 }
 
 template<typename MapType>
-inline typename MapType::iterator lower_bound(MapType& map, typename const MapType::key_type& key, const std::function<bool(typename const MapType::key_type&, typename MapType::iterator&)>& validate) {
-	MapType::iterator it, result(map.begin());
+inline typename MapType::iterator lower_bound(MapType& map, const typename MapType::key_type& key, const std::function<bool(const typename MapType::key_type&, typename MapType::iterator&)>& validate) {
+	typename MapType::iterator it, result(map.begin());
 	UInt32 count(map.size()), step;
 	while (count) {
 		if (!validate(key, result)) {

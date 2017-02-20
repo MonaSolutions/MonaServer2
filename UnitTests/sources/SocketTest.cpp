@@ -44,10 +44,9 @@ private:
 
 
 
-static string				_Short0Data(1024, '\0');
-static string				_Long0Data(0xFFFF, '\0');
-static ThreadPool			_ThreadPool;
-
+static string		_Short0Data(1024, '\0');
+static string		_Long0Data(0xFFFF, '\0');
+static ThreadPool	_ThreadPool;
 
 ADD_TEST(SocketTest, UDP_Blocking) {
 
@@ -86,7 +85,7 @@ struct Connection : Thread {
 private:
 	bool run(Exception& ex, const volatile bool& stopping) { return _pServer->accept(ex, _pSocket) && _pSocket && !ex; }
 
-	Socket*				_pServer;
+	Socket*			_pServer;
 	shared<Socket>	_pSocket;
 };
 
@@ -106,10 +105,8 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 	// Test a IPv4 server
 	SocketAddress address;
 	CHECK(pServer->bind(ex, address) && !ex && pServer->address() && !pServer->address().host());
-	
-	UInt16 port = pServer->address().port();
-
 	CHECK(pServer->listen(ex) && !ex);
+	UInt16 port = pServer->address().port();
 	
 	// Test IPv6 client refused by IPv4 server
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
@@ -123,10 +120,10 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(connection->peerAddress() == pClient->address() && pClient->peerAddress() == connection->address());
 	pClient.reset(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
-
-	// Test a IPv6 server
-	address.set(IPAddress::Wildcard(IPAddress::IPv6), port);
 	pServer.reset(new TLS::Socket(Socket::TYPE_STREAM, pServerTLS));
+	
+	// Test a IPv6 server (and test bind overriding)
+	address.set(IPAddress::Wildcard(IPAddress::IPv6), port);
 	CHECK(pServer->bind(ex, address) && !ex && pServer->address() == address);
 	CHECK(pServer->listen(ex) && !ex);
 
@@ -177,8 +174,7 @@ ADD_TEST(SocketTest, TCP_SSL_Blocking) {
 }
 
 
-class UDPEchoClient : public UDPSocket {
-public:
+struct UDPEchoClient :  UDPSocket {
 	UDPEchoClient(IOSocket& io) : UDPSocket(io) {
 		onError = [this](const Exception& ex) { FATAL_ERROR("UDPEchoClient, ", ex); };
 		onPacket = [this](shared<Buffer>& pBuffer, const SocketAddress& address) {
@@ -244,9 +240,7 @@ ADD_TEST(SocketTest, UDP_NonBlocking) {
 	CHECK(!io.subscribers());
 }
 
-
-class TCPEchoClient : public TCPClient {
-public:
+struct TCPEchoClient : TCPClient {
 	TCPEchoClient(IOSocket& io, const shared<TLS>& pTLS) : TCPClient(io, pTLS) {
 
 		onError = [this](const Exception& ex) { this->ex = ex; };;
@@ -346,7 +340,7 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 
 	CHECK(!client.ex);
 	
-	// Test a connection refused
+	// Test a refused connection
 	SocketAddress unknown(IPAddress::Loopback(), 62434);
 	if (client.connect(ex, unknown)) {
 		CHECK(!ex && !client.connected() && client.connecting() && client->address() && client->peerAddress() == unknown);
@@ -356,14 +350,14 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 		CHECK(client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED);
 	}
 	CHECK(!client.connected() && !client.connecting());
-
+	
 	server.stop();
 	CHECK(!server.running());
 	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
 
 	server.onConnection = nullptr;
 	server.onError = nullptr;
-
+	
 	_ThreadPool.join();
 	handler.flush();
 	CHECK(!io.subscribers());

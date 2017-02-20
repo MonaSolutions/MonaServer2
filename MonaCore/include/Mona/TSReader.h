@@ -78,7 +78,7 @@ private:
 				it->second = new TrackReaderType(); // new codec
 			}
 		} else
-			it = _programs.emplace_hint(it, pid, new TrackReaderType());
+			it = _programs.emplace_hint(it, std::piecewise_construct, std::forward_as_tuple(pid), std::forward_as_tuple(new TrackReaderType()));
 		it->second.type = type;
 		it->second.pcrPID = pcrPID;
 	}

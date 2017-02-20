@@ -70,7 +70,7 @@ bool Path::setBaseName(const char* value) {
 	if (baseName)
 		value = baseName + 1;
 
-	const string& extension(extension());
+	const string& extension(this->extension());
 	// forbid . or .. or empty name
 	if ((!*value && (extension.empty() || extension == ".")) || (strcmp(value, ".") == 0 && extension.empty()))
 		return false;
@@ -88,7 +88,7 @@ bool Path::setExtension(const char* value) {
 	if (extension)
 		value = extension + 1;
 
-	const string& baseName(baseName());
+	const string& baseName(this->baseName());
 	// forbid . or .. or empty name
 	if ((!*value && (baseName.empty() || baseName == ".")) || (strcmp(value, ".") == 0 && baseName.empty()))
 		return false;

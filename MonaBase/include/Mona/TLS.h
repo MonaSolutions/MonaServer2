@@ -44,7 +44,7 @@ struct TLS : virtual Object {
 		bool  isSecure() const { return pTLS ? true : false; }
 
 		UInt32  available() const;
-		UInt64	queueing() const { return inHandshake() ? (Mona::Socket::queueing()+1) : Mona::Socket::queueing(); }
+		UInt64	queueing() const;
 	
 		bool accept(Exception& ex, shared<Mona::Socket>& pSocket);
 

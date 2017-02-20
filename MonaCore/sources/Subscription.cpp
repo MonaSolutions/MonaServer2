@@ -50,7 +50,7 @@ void Subscription::reportLost(Media::Type type, UInt32 lost) {
 }
 void Subscription::reportLost(Media::Type type, UInt16 track, UInt32 lost) {
 	if (!lost || (type && type != Media::TYPE_VIDEO)) return;
-	auto& it = _videos.find(track);
+	const auto& it = _videos.find(track);
 	if(it!=_videos.end())
 		it->second.waitKeyFrame = true;
 }
@@ -279,7 +279,7 @@ void Subscription::writeVideo(UInt16 track, const Media::Video::Tag& tag, const 
 		return;
 	bool isConfig(tag.frame == Media::Video::FRAME_CONFIG);
 	if (!_videos.enabled(track) && !isConfig) {
-		auto& it = _videos.find(track);
+		const auto& it = _videos.find(track);
 		if(it!=_videos.end())
 			it->second.waitKeyFrame = true;
 		return;
@@ -317,7 +317,7 @@ void Subscription::writeVideo(UInt16 track, const Media::Video::Tag& tag, const 
 	Media::Video::Tag video;
 	video.compositionOffset = tag.compositionOffset;
 	video.frame = tag.frame;
-	TRACE("Video time => ", video.time, "\t", Util::FormatHex(packet.data(), 5, string()));
+	TRACE("Video time => ", video.time, "\t", String::Hex(packet.data(), 5));
 	if (!target.writeVideo(track, fixTag(isConfig, tag, video), packet, isConfig || _videos.reliable))
 		_ejected = EJECTED_ERROR;
 }

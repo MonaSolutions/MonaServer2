@@ -31,7 +31,8 @@ struct StreamData {
 			_pBuffer = pBuffer;
 		pBuffer = _pBuffer;
 		// Just one time to prefer recursivity rather "while repeat", and allow a "flush" info!
-		UInt32 rest(onStreamData(Packet(_pBuffer), std::forward<Args>(args)...));
+		Packet packet(_pBuffer);
+		UInt32 rest(onStreamData(packet, std::forward<Args>(args)...));
 		if (!rest) {
 			pBuffer.reset();
 			return true; // no rest, can have deleted this, so return immediatly!

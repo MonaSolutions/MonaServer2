@@ -41,7 +41,7 @@ struct QueryWriter : DataWriter, virtual Object {
 	void   writeString(const char* value, UInt32 size) { Util::EncodeURI(value,size, writer()); }
 	void   writeBoolean(bool value) { writer().write(value ? "true" : "false"); }
 	void   writeNull() { writer().write("null",4); }
-	UInt64 writeDate(const Date& date) { std::string buffer; writer().write(date.toString(Date::ISO8601_SHORT_FORMAT,buffer)); return 0; }
+	UInt64 writeDate(const Date& date) { String::Append(writer(), String::Date(date, Date::FORMAT_ISO8601_SHORT)); return 0; }
 	UInt64 writeBytes(const UInt8* data, UInt32 size) { Util::ToBase64(data, size, writer()); return 0; }
 
 	void clear() { _isProperty = false; _first = true; _query = NULL;  DataWriter::clear(); }
@@ -49,8 +49,8 @@ struct QueryWriter : DataWriter, virtual Object {
 private:
 	BinaryWriter& writer();
 
-	bool _isProperty;
-	bool _first;
+	bool				_isProperty;
+	bool				_first;
 	mutable const char* _query;
 };
 

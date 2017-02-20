@@ -79,7 +79,7 @@ private:
 		_first = false;
 		return 0;
 	}
-	void onFlush(Media::Source& source) {
+	void onFlush(const Packet& packet, Media::Source& source) {
 		_profile.flush(source);
 		_first = true;
 		_time = 0;

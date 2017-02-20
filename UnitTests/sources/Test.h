@@ -79,7 +79,7 @@ private:
 #define LOOP _loop
 
 /// Macro for assert true function
-#define CHECK(CONDITION) FATAL_ASSERT(CONDITION)
+#define CHECK(CONDITION) FATAL_CHECK(CONDITION)
 
 #if defined(_DEBUG)
 #define DEBUG_CHECK(CONDITION) CHECK(CONDITION)

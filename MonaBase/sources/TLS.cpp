@@ -74,8 +74,10 @@ UInt32 TLS::Socket::available() const {
 		return available;
 	// don't call SSL_pending while handshake, it create a "wrong error 'don't call this function'"
 	if (inHandshake())
-		return 0x4000;
-	return 0x4000 + SSL_pending(_ssl);
+		return available ? 0x4000 : 0; // max buffer possible size
+	if (available)
+		return 0x4000 + SSL_pending(_ssl);  // max buffer possible size and has to read!
+	return SSL_pending(_ssl); // max buffer possible size (nothing to read)
 }
 
 Mona::Socket* TLS::Socket::newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr) {
@@ -137,23 +139,13 @@ int TLS::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 	lock_guard<mutex> lock(_mutex);
 	if (!_ssl)
 		return Mona::Socket::receive(ex, buffer, size, flags, pAddress); // normal socket
-	bool handshake(inHandshake());
 	int result = catchResult(ex, SSL_read(_ssl, buffer, size), " (from=", peerAddress(), ", size=", size, ", flags=", flags, ")");
 
 	// assign pAddress (no other way possible here)
 	if(pAddress)
 		pAddress->set(peerAddress());
-
-	// trick to fix a wrong SSL error (TODO check again on OpenSSL 1.1.0 upgrading)
-	if (size == 1 && handshake && result < 0 && ex.cast<Ex::Extern::Crypto>()) {
-		/// Here we have a TCP disconnection whereas SSL assign a hanshake error
-		ex = nullptr;
-		return 0;
-	}
-
 	if (result > 0)
 		Mona::Socket::receive(result);
-
 	return result;
 }
 
@@ -167,6 +159,15 @@ int TLS::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 	if (result > 0)
 		Mona::Socket::send(result);
 	return result;
+}
+
+UInt64 TLS::Socket::queueing() const {
+	if (!pTLS)
+		return Mona::Socket::queueing();
+	lock_guard<mutex> lock(_mutex);
+	if (_ssl && inHandshake())
+		return Mona::Socket::queueing() + 1;
+	return Mona::Socket::queueing();
 }
 
 bool TLS::Socket::flush(Exception& ex) {
@@ -192,8 +193,7 @@ bool TLS::Socket::inHandshake() const{
 }
 
 
-class SSLInitializer {
-public:
+struct SSLInitializer {
 	SSLInitializer() {
 		SSL_library_init(); // can't fail!
 		ERR_load_BIO_strings();

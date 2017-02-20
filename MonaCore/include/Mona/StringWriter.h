@@ -24,8 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class StringWriter : public DataWriter, public virtual Object {
-public:
+struct StringWriter : DataWriter, virtual Object {
 
 	StringWriter(Buffer& buffer) : _pString(NULL),DataWriter(buffer) {}
 	StringWriter(std::string& buffer) : _pString(&buffer) {}
@@ -42,7 +41,7 @@ public:
 	void   writeString(const char* value, UInt32 size) { append(value,size); }
 	void   writeBoolean(bool value) { append( value ? "true" : "false"); }
 	void   writeNull() { writer.write("null",4); }
-	UInt64 writeDate(const Date& date) { std::string buffer; append(date.toString(Date::SORTABLE_FORMAT, buffer)); return 0; }
+	UInt64 writeDate(const Date& date) { append(String::Date(date, Date::FORMAT_SORTABLE)); return 0; }
 	UInt64 writeBytes(const UInt8* data, UInt32 size) { append(data, size); return 0; }
 
 	void   clear() { if (_pString) _pString->clear(); else writer.clear(); }

@@ -27,7 +27,7 @@ namespace Mona {
 
 void RendezVous::setIntern(const UInt8* peerId, const SocketAddress& address, const SocketAddress& serverAddress, std::set<SocketAddress>& addresses, void* pData) {
 	lock_guard<mutex> lock(_mutex);
-	auto& it = _peers.find(peerId);
+	const auto& it = _peers.find(peerId);
 	Peer* pPeer;
 	if (it != _peers.end()) {
 		pPeer = &it->second;
@@ -44,7 +44,7 @@ void RendezVous::setIntern(const UInt8* peerId, const SocketAddress& address, co
 
 void RendezVous::erase(const UInt8* peerId) {
 	lock_guard<mutex> lock(_mutex);
-	auto& it = _peers.find(peerId);
+	const auto& it = _peers.find(peerId);
 	if (it == _peers.end())
 		return;
 	_peersByAddress.erase(it->second.address);
@@ -53,13 +53,13 @@ void RendezVous::erase(const UInt8* peerId) {
 
 void* RendezVous::meetIntern(const SocketAddress& aAddress, const UInt8* bPeerId, map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, map<SocketAddress, bool>& bAddresses) {
 	lock_guard<mutex> lock(_mutex);
-	auto& bIt = _peers.find(bPeerId);
+	const auto& bIt = _peers.find(bPeerId);
 	if (bIt == _peers.end())
 		return NULL;
 	Peer& b(bIt->second);
 	bAddress = b.address;
 	Peer* pA;
-	auto& aIt = _peersByAddress.find(aAddress);
+	const auto& aIt = _peersByAddress.find(aAddress);
 	if (aIt == _peersByAddress.end())
 		pA = NULL;
 	else

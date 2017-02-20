@@ -60,7 +60,7 @@ struct Session : virtual Object {
 	Peer&				peer;
 	ServerAPI&			api;
 
-	explicit operator const UInt8*() const { return peer.id; }
+	operator const UInt8*() const { return peer.id; }
 	
 	/*!
 	implement it to flush writers to avoid message queue exceed! */

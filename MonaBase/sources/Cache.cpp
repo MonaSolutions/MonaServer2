@@ -21,7 +21,7 @@ using namespace std;
 namespace Mona {
 
 void Cache::add(const shared<const Buffer>& pBuffer) {
-	auto& it = _buffers.emplace(pBuffer.get(), pBuffer);
+	const auto& it = _buffers.emplace(pBuffer.get(), pBuffer);
 	BufferPtr* pBufferFront(_pBufferFront);
 	_pBufferFront = &it.first->second;
 	if(pBufferFront && pBufferFront != _pBufferFront) {
@@ -54,7 +54,7 @@ void Cache::add(const shared<const Buffer>& pBuffer) {
 }
 
 void Cache::remove(const shared<const Buffer>& pBuffer) {
-	auto& it = _buffers.find(pBuffer.get());
+	const auto& it = _buffers.find(pBuffer.get());
 	if (it == _buffers.end())
 		return;
 	BufferPtr* pBufferPtr(&it->second);

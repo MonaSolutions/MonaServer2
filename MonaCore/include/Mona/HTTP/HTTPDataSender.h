@@ -29,7 +29,7 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 	HTTPDataSender(const shared<Socket>& pSocket,
 		const shared<const HTTP::Header>& pRequest,
 		shared<Buffer>& pSetCookie,
-		const char* code, MIME::Type mime, const char* subMime) : _mime(mime), _pBuffer(new Buffer(4, "\r\n\r\n")), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pSocket, pRequest, pSetCookie) {
+		const char* code, MIME::Type mime, const char* subMime=NULL) : _mime(mime), _pBuffer(new Buffer(4, "\r\n\r\n")), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pSocket, pRequest, pSetCookie) {
 		if (!mime || !subMime || !(_pWriter = Media::Data::NewWriter(Media::Data::ToType(subMime), *_pBuffer)))
 			_pWriter = new StringWriter(*_pBuffer);
 	}
@@ -40,7 +40,9 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 		shared<Buffer>& pSetCookie,
 		const char* errorCode, Args&&... args) :
 		_pBuffer(new Buffer(4, "\r\n\r\n")), _code(errorCode), _pWriter(NULL), _mime(MIME::TYPE_TEXT), _subMime("html; charset=utf-8"), HTTPSender("HTTPErrorSender", pSocket, pRequest, pSetCookie) {
-		writeError(*_pBuffer, errorCode, std::forward<Args>(args)...);
+		if (!_code)
+			_code = HTTP_CODE_406;
+		writeError(*_pBuffer, _code, std::forward<Args>(args)...);
 	}
 
 	virtual ~HTTPDataSender() { if (_pWriter) delete _pWriter; }

@@ -253,13 +253,14 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 					if (!value)
 						return false;
 					Buffer buffer;
-					if (Util::FromBase64(BIN value, size, buffer)) {
-						reader.next(2 + size); // skip "string"
+					reader.next(2 + size); // skip "data"
+					if (!Util::FromBase64(BIN value, size, buffer)) {
+						WARN("JSON raw ", string(name, _size), " data must be in a base64 encoding format to be acceptable");
+						writer.writeBytes(BIN value, size);
+					} else
 						writer.writeBytes(buffer.data(), buffer.size());
-						ignoreObjectRest();
-						return true;
-					}
-					WARN("JSON raw ", string(name, _size), " data must be in a base64 encoding format to be acceptable");
+					ignoreObjectRest();
+					return true;
 				}
 			}
 

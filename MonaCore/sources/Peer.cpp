@@ -33,9 +33,9 @@ Peer::Peer(ServerAPI& api) : _rttvar(0), _rto(Net::RTO_INIT), _pWriter(&Writer::
 
 Peer::~Peer() {
 	if (connected)
-		ERROR("Client ", Util::FormatHex(id, Entity::SIZE, string()), " deleting whereas connected, onDisconnection forgotten");
+		ERROR("Client ", String::Hex(id, Entity::SIZE), " deleting whereas connected, onDisconnection forgotten");
 	// Ices subscription can happen on peer not connected (virtual member for group for example)
-	for(auto& it: _ices) {
+	for(const auto& it: _ices) {
 		((Peer*)it.first)->_ices.erase(this);
 		delete it.second;
 	}
@@ -167,7 +167,7 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 
 		_api.onConnection(ex, *this, arguments, parameterAndResponse);
 		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(*this).second) {
-			ERROR(ex.set<Ex::Protocol>("Client ", Util::FormatHex(id, Entity::SIZE, buffer), " exists already"));
+			ERROR(ex.set<Ex::Protocol>("Client ", String::Hex(id, Entity::SIZE), " exists already"));
 			_api.onDisconnection(*this);
 		}
 		if (ex) {
@@ -183,7 +183,7 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		}
 		writer.flushable = true; // remove unflushable
 	} else
-		ERROR("Client ", Util::FormatHex(id, Entity::SIZE, string()), " seems already connected!")
+		ERROR("Client ", String::Hex(id, Entity::SIZE), " seems already connected!")
 }
 
 void Peer::onDisconnection() {
@@ -192,7 +192,7 @@ void Peer::onDisconnection() {
 	(bool&)connected = false;
 	(Time&)connectionTime = 0;
 	if (!((Entity::Map<Client>&)_api.clients).erase(id))
-		ERROR("Client ", Util::FormatHex(id, Entity::SIZE, string()), " seems already disconnected!");
+		ERROR("Client ", String::Hex(id, Entity::SIZE), " seems already disconnected!");
 	_pWriter->onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
 	_api.onDisconnection(*this);
 	(bool&)_pWriter->isMain = false;

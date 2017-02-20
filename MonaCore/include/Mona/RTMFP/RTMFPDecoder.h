@@ -60,7 +60,7 @@ private:
 			UInt32						_receiving;
 		};
 		Exception ex;
-		AUTO_ERROR(_threadPool.queue(ex, make_shared<Receive>(pReceiver, pBuffer, address, pSocket, _pReceiving), pReceiver->track), typeof<ReceiverType>());
+		AUTO_ERROR(_threadPool.queue(ex, std::make_shared<Receive>(pReceiver, pBuffer, address, pSocket, _pReceiving), pReceiver->track), typeof<ReceiverType>());
 	}
 
 

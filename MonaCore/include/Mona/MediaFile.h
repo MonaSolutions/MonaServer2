@@ -134,21 +134,21 @@ struct MediaFile : virtual Static {
 		struct Write : Runner, virtual Object {
 			Write(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter);
 		protected:
-			MediaWriter::OnWrite			onWrite;
-			shared<MediaWriter>	pWriter;
+			MediaWriter::OnWrite	onWrite;
+			shared<MediaWriter>		pWriter;
 		private:
 			virtual bool run(Exception& ex) { pWriter->beginMedia(onWrite); return true; }
 
-			shared<File>			_pFile;
+			shared<File>		_pFile;
 			shared<std::string>	_pName;
-			IOFile&							_io;
+			IOFile&				_io;
 		};
 
 		template<typename MediaType>
 		struct MediaWrite : Write, MediaType, virtual Object {
 			MediaWrite(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter,
 				   UInt16 track, const typename MediaType::Tag& tag, const Packet& packet) : Write(pName, io, pFile, pWriter), MediaType(track, tag, packet) {}
-			bool run(Exception& ex) { pWriter->writeMedia(track, tag, *this, onWrite); return true; }
+			bool run(Exception& ex) { pWriter->writeMedia(MediaType::track, MediaType::tag, *this, onWrite); return true; }
 		};
 		struct EndWrite : Write, virtual Object {
 			EndWrite(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter) : Write(pName, io, pFile, pWriter) {}

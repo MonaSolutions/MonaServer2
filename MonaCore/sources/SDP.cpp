@@ -198,9 +198,7 @@ bool SDP::build(Exception& ex, const char* text) {
 						ERROR("TODO")
 					} else if(pFields)
 						pFields->emplace_back(value);
-					else if(!fingerHash.empty())
-						int i=0; // TODO finger = talk_base::SSLFingerprint::CreateFromRfc4572(fingerHash, field);
-					else {
+					else if(fingerHash.empty()) {
 						const char* key(value);
 						const char* value(String::Empty().c_str());
 						const char* colon(strchr(value,':'));
@@ -226,7 +224,7 @@ bool SDP::build(Exception& ex, const char* text) {
 							pFields = &extensions[value];
 						else
 							WARN("SDP attribute ", key, " unknown");
-					}
+					} // else // TODO finger = talk_base::SSLFingerprint::CreateFromRfc4572(fingerHash, field);
 
 					return true;
 				});

@@ -250,7 +250,6 @@ bool String::ToUTF8(char value, char (&buffer)[2]) {
 	return false;
 }
 
-
 template float String::ToNumber(Exception& ex, float failValue, const char* value, size_t size);
 template bool  String::ToNumber(const char* value, size_t size, float& result);
 

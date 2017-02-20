@@ -6,7 +6,7 @@ Big Merge=>
 - RelayServer => onHandshake => SocketProxy?
 - Tester 64bits compilation + clang
 
-
+- Migrate to OpenSSL 1.1.0!
 
 - remplacer les "format" par des concaténations
 - vérifier peer.serverAddress assignation partout!
