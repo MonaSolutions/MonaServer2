@@ -48,7 +48,8 @@ bool ThreadQueue::run(Exception&, const volatile bool& stopping) {
 			}
 
 			Exception ex;
-			AUTO_ERROR(pRunner->run(ex), setName(pRunner->name));
+			setName(pRunner->name);
+			AUTO_ERROR(pRunner->run(ex), pRunner->name);
 		}
 	}
 	return true;
