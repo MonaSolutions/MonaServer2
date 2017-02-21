@@ -180,7 +180,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #elif defined(__sparc__) || defined(__sparc) || defined(sparc)
 #define _ARCH _ARCH_SPARC
 #define _ARCH_BIG_ENDIAN 1
-#elif defined(__arm__) || defined(__arm) || defined(ARM) || defined(_ARM_) || defined(__ARM__) || defined(_M_ARM)
+#elif defined(__arm__) || defined(__arm) || defined(ARM) || defined(_ARM_) || defined(__ARM__) || defined(_M_ARM) || defined(__ANDROID__)
 #define _ARCH _ARCH_ARM
 #if defined(__ARMEB__)
 #define _ARCH_BIG_ENDIAN 1

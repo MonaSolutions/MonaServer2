@@ -26,7 +26,6 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 using namespace std::chrono;
-using namespace std;
 
 // Test 
 ADD_TEST(TimeTest, General) {

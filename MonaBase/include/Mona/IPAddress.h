@@ -171,6 +171,8 @@ struct IPAddress : virtual NullableObject {
 
 	static bool Resolve(Exception& ex, const char* address, IPAddress& host);
 
+	// Returns a list for all local IP addresses (blocking method!)
+	static const std::vector<IPAddress>& Locals() { static LocalAddresses Locals; return Locals; }
 protected:
 	IPAddress(const sockaddr& addr);
 	IPAddress(const IPAddress& other, UInt16 port);
@@ -194,6 +196,8 @@ protected:
 
 private:
 	const std::string& toString() const;
+
+	struct LocalAddresses : std::vector<IPAddress> { LocalAddresses(); };
 
 	struct IPImpl;
 	struct IPv4Impl;

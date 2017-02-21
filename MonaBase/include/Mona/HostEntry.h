@@ -19,6 +19,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/IPAddress.h"
+#include <set>
 #include <vector>
 
 
@@ -45,12 +46,12 @@ public:
 	// Returns a vector containing alias names for the host name
 	const std::vector<std::string>& aliases() const {return _aliases;}
 	// Returns a vector containing the IPAddresses for the host
-	const std::vector<IPAddress>&	addresses() const { return _addresses;}
+	const std::set<IPAddress>&	addresses() const { return _addresses;}
 
 private:
-	std::string				  _name;
-	std::vector<std::string>  _aliases;
-	std::vector<IPAddress>	  _addresses;
+	std::string					_name;
+	std::vector<std::string>	_aliases;
+	std::set<IPAddress>			_addresses;
 };
 
 

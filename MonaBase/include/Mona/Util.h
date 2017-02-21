@@ -21,6 +21,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Time.h"
 #include "Mona/Exceptions.h"
 #include "Mona/Buffer.h"
+#include "Mona/Process.h"
 #include "math.h"
 #include <limits>
 #include <mutex>
@@ -85,7 +86,7 @@ struct Util : virtual Static {
 
 	template<typename Type=bool>
 	static Type Random() {
-		static UInt32 x = (UInt32)Time::Now();
+		static UInt32 x = (UInt32)Time::Now() * Process::Id();
 		static UInt32 y = 362436069, z = 521288629, w = 88675123;
 		UInt32 t = x ^ (x << 11);
 		x = y; y = z; z = w;

@@ -21,6 +21,11 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/String.h"
 #include "Mona/DNS.h"
 #include "Mona/Util.h"
+#if defined(WIN32)
+#include <Iphlpapi.h>
+#else
+#include <ifaddrs.h>
+#endif
 
 using namespace std;
 
@@ -463,7 +468,46 @@ private:
 //
 
 
-class IPBroadcaster : public IPAddress {
+IPAddress::LocalAddresses::LocalAddresses() {
+#if defined (WIN32)
+	IP_ADAPTER_ADDRESSES buffer[15000];
+	PIP_ADAPTER_ADDRESSES pAddresses = buffer, adapt = NULL;
+	PIP_ADAPTER_UNICAST_ADDRESS aip = NULL;
+
+	ULONG size;
+	if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, pAddresses, &size) != NO_ERROR) {
+		emplace_back(Loopback(IPAddress::IPv4));
+		return;
+	}
+
+	for (adapt = pAddresses; adapt; adapt = adapt->Next) {
+		for (aip = adapt->FirstUnicastAddress; aip; aip = aip->Next) {
+			if (aip->Address.lpSockaddr->sa_family == AF_INET6)
+				emplace_back(reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_scope_id);
+			else if (aip->Address.lpSockaddr->sa_family == AF_INET)
+				emplace_back(reinterpret_cast<struct sockaddr_in*>(aip->Address.lpSockaddr)->sin_addr);
+		}
+	}
+#else
+	struct ifaddrs * ifAddrStruct = NULL;
+	if (getifaddrs(&ifAddrStruct) == -1) {
+		emplace_back(Loopback(IPAddress::IPv4));
+		return;
+	}
+
+	for (struct ifaddrs * ifa = ifAddrStruct; ifa; ifa = ifa->ifa_next) {
+		if (!ifa->ifa_addr) // address can be empty
+			continue;
+
+		if (ifa->ifa_addr->sa_family == AF_INET6)
+			emplace_back(reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_addr)->sin6_scope_id);
+		else if (ifa->ifa_addr->sa_family == AF_INET)
+			emplace_back(reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)->sin_addr);
+	}
+#endif
+}
+
+struct IPBroadcaster : public IPAddress {
 public:
 	IPBroadcaster() : IPAddress(IPv4) {
 		struct in_addr ia;
@@ -612,7 +656,7 @@ bool IPAddress::Resolve(Exception& ex, const char* address, IPAddress& host) {
 			return true;
 		}
 	}
-	host = addresses.front();
+	host.set(*addresses.begin());
 	return true;
 }
 

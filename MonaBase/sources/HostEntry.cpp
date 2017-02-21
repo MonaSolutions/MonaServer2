@@ -37,9 +37,9 @@ void HostEntry::set(Exception& ex,const hostent& entry) {
 	if (address) {
 		while (*address) {
 			if (entry.h_addrtype == AF_INET6) {
-				_addresses.emplace_back(*reinterpret_cast<in_addr*>(*address));
+				_addresses.emplace(*reinterpret_cast<in_addr*>(*address));
 			} else if (entry.h_addrtype == AF_INET) {
-				_addresses.emplace_back(*reinterpret_cast<in6_addr*>(*address));
+				_addresses.emplace(*reinterpret_cast<in6_addr*>(*address));
 			} else
 				ex.set<Ex::Net::Address::Ip>("Unsupported host entry");
 			++address;
@@ -54,9 +54,9 @@ void HostEntry::set(Exception& ex, const addrinfo* ainfo) {
 			_name.assign(ainfo->ai_canonname);
 		if (ainfo->ai_addrlen && ainfo->ai_addr) {
 			if (ainfo->ai_addr->sa_family == AF_INET6)
-				_addresses.emplace_back(reinterpret_cast<sockaddr_in6*>(ainfo->ai_addr)->sin6_addr, (UInt32)reinterpret_cast<struct sockaddr_in6*>(ainfo->ai_addr)->sin6_scope_id);
+				_addresses.emplace(reinterpret_cast<sockaddr_in6*>(ainfo->ai_addr)->sin6_addr, (UInt32)reinterpret_cast<struct sockaddr_in6*>(ainfo->ai_addr)->sin6_scope_id);
 			else if (ainfo->ai_addr->sa_family == AF_INET)
-				_addresses.emplace_back(reinterpret_cast<sockaddr_in*>(ainfo->ai_addr)->sin_addr);
+				_addresses.emplace(reinterpret_cast<sockaddr_in*>(ainfo->ai_addr)->sin_addr);
 			else
 				ex.set<Ex::Net::Address::Ip>("Unknown ip family ", ainfo->ai_addr->sa_family);
 		}
