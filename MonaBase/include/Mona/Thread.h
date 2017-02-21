@@ -59,7 +59,8 @@ protected:
 	Thread(const char* name);
 
 	Signal wakeUp;
-	
+	template <typename ...Args>
+	const std::string& setName(Args&&... args) { SetSystemName(String::Assign(_Name, std::forward<Args>(args)...)); return _Name; }
 private:
 	virtual bool run(Exception& ex, const volatile bool& stopping) = 0;
 	void		 process();
