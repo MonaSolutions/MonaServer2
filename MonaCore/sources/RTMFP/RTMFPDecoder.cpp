@@ -27,13 +27,13 @@ namespace Mona {
 struct RTMFPDecoder::Handshake : virtual Object {
 	OnHandshake	onHandshake;
 
-	Handshake(const Handler& handler, const shared<RendezVous>& pRendezVous) : track(0), _pResponse(new Packet()), _pRendezVous(pRendezVous), _handler(handler) {}
+	Handshake(const Handler& handler, const shared<RendezVous>& pRendezVous) : _recvTime(Time::Now()), track(0), _pResponse(new Packet()), _pRendezVous(pRendezVous), _handler(handler) {}
 
 	Packet					tag;
 	UInt16					track;
 	shared<RTMFPReceiver>	pReceiver;
 
-	bool obsolete() const { return _timeout.isElapsed(95000); } // 95 seconds, must be less that RTMFPSession timeout (120 seconds), 95 = RTMFP spec.
+	bool obsolete() const { return _recvTime.isElapsed(95000); } // 95 seconds, must be less that RTMFPSession timeout (120 seconds), 95 = RTMFP spec.
 
 	void receive(Socket& socket, shared<Buffer>& pBuffer, const SocketAddress& address) {
 		Exception ex;
@@ -47,6 +47,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 			ERROR("Marker handshake ", String::Format<UInt8>("%.2x", marker), " wrong, should be 0b");
 			return;
 		}
+		_recvTime.update();
 		reader.read16(); // time
 		UInt8 type = reader.read8();
 		reader.shrink(reader.read16());
@@ -204,7 +205,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 	}
 
 	const Handler&			_handler;
-	Time					_timeout;
+	Time					_recvTime;
 	shared<RendezVous>		_pRendezVous;
 	shared<Packet>			_pResponse;
 };
@@ -214,7 +215,7 @@ RTMFPDecoder::RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool)
 		return keySearched != it->first && it->second.unique() && it->second->obsolete() ? false : true;
 	}),
 	_validateHandshake([this](const SocketAddress& keySearched, map<SocketAddress, shared<Handshake>>::iterator& it) {
-		return it->second->obsolete() ? false : true;
+		return it->second.unique() && it->second->obsolete() ? false : true;
 	}) {
 }
 
@@ -222,6 +223,7 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 	auto itHand = lower_bound(_handshakes, address, _validateHandshake);
 	if (itHand == _handshakes.end() || itHand->first != address || !itHand->second->pReceiver) {
 		// no "receiver"("session") handshake, address has changed?
+		DEBUG("Handshake iteration");
 		itHand = _handshakes.begin();
 		while (itHand != _handshakes.end()) {
 			// test unicity of pReceiver to test that EXISTS + NOT HANDSHAKING!

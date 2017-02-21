@@ -19,6 +19,13 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Net.h"
 
+//
+// Automatically link Base library.
+//
+#if defined(_MSC_VER)
+#pragma comment(lib, "iphlpapi.lib")
+#endif
+
 
 namespace Mona {
 
