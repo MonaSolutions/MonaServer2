@@ -620,6 +620,8 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 				read(pSocket, error);
 			} else if (event.filter&EVFILT_WRITE)
 				write(pSocket, error);
+			else if (event.flags&EV_ERROR) // on few unix system we can get an error without anything else
+				Action::Run(threadPool, make_shared<Action>("SocketError", error, handler, pSocket), pSocket->_threadReceive);
 
 #else
 			epoll_event& event(events[i]);
