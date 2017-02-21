@@ -44,6 +44,11 @@ struct IOSocket::Action : Runner, virtual Object {
 			pAction->run(pAction->_ex);
 	}
 
+	Action(const char* name, int error, const Handler& handler, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket), handler(handler) {
+		if (error)
+			Socket::SetException(_ex, error);
+	}
+
 protected:
 	const Handler&		handler;
 
@@ -82,13 +87,6 @@ protected:
 		const Handler&		_handler;
 	};
 
-
-
-	Action(const char* name, int error, const Handler& handler, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket), handler(handler) {
-		if (error)
-			Socket::SetException(_ex, error);
-	}
-
 	template<typename HandleType, typename ...Args>
 	void handle(Args&&... args) {
 		handler.queue(make_shared<HandleType>(name, _weakSocket, _ex, std::forward<Args>(args)...));
@@ -107,7 +105,7 @@ private:
 		return true;
 	}
 
-	virtual bool	process(Exception& ex, const shared<Socket>& pSocket) = 0;
+	virtual bool	process(Exception& ex, const shared<Socket>& pSocket) { return true; }
 	
 	weak<Socket>	_weakSocket;
 	Exception		_ex;
@@ -294,7 +292,7 @@ private:
 
 
 void IOSocket::write(const shared<Socket>& pSocket, int error) {
-	// ::printf("WRITE(%d) socket %d\n", error, pSocket->_sockfd);
+	//::printf("WRITE(%d) socket %d\n", error, pSocket->_sockfd);
 #if !defined(_WIN32)
 	if (pSocket->_firstWritable)
 		pSocket->_firstWritable = false;
@@ -303,7 +301,7 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 }
 
 void IOSocket::read(const shared<Socket>& pSocket, int error) {
-	// ::printf("READ(%d) socket %d\n", error, pSocket->_sockfd);
+	//::printf("READ(%d) socket %d\n", error, pSocket->_sockfd);
 	if(pSocket->_reading && !error)
 		return; // useless!
 	++pSocket->_reading;
@@ -425,7 +423,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 }
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
-	// ::printf("CLOSE(%d) socket %d\n", error, pSocket->_sockfd);
+	//::printf("CLOSE(%d) socket %d\n", error, pSocket->_sockfd);
 	if (pSocket->type != Socket::TYPE_STREAM)
 		return; // no Disconnection requirement!
 	struct Close : Action {
@@ -642,6 +640,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 			if(!pSocket)
 				continue; // socket error
 			// EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP
+			//printf("%u\n", event.events);
 			int error = 0;
 			if(event.events&EPOLLERR) {
 				socklen_t len(sizeof(error));
@@ -656,6 +655,8 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 				read(pSocket, error);
 			} else if (event.events&EPOLLOUT)
 				write(pSocket, error);
+			else if (event.events&EPOLLERR) // on few unix system we can get an error without anything else
+				Action::Run(threadPool, make_shared<Action>("SocketError", error, handler, pSocket), pSocket->_threadReceive);
 #endif
 		}
 
