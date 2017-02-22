@@ -82,7 +82,7 @@ struct SocketAddress : private IPAddress, virtual NullableObject {
 	
 	void setPort(UInt16 port) { IPAddress::setPort(port); }
 
-	void clear() { IPAddress::clear(); }
+	IPAddress& reset() { IPAddress::reset(); return *this; }
 
 	IPAddress::Family		family() const { return IPAddress::family(); }
 	IPAddress&				host() { return *this; }

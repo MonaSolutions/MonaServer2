@@ -148,10 +148,10 @@ struct String : std::string {
 	template <typename BufferType>
 	static BufferType& ToHex(const char* value, BufferType& buffer) {
 		while (*value) {
-			UInt8 left = toupper(*value++);
-			UInt8 byte = *value ? toupper(*value++) : '0';
+			char left = toupper(*value++);
+			char byte = *value ? toupper(*value++) : '0';
 			byte = ((left - (left <= '9' ? '0' : '7')) << 4) | ((byte - (byte <= '9' ? '0' : '7')) & 0x0F);
-			buffer.append(BIN &byte, 1);
+			buffer.append(&byte, 1);
 		}
 		return buffer;
 	}

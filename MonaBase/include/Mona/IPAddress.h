@@ -78,7 +78,7 @@ struct IPAddress : virtual NullableObject {
 	bool set(Exception& ex, const char* address, Family family);
 	bool set(Exception& ex, const std::string& address, Family family) { return set(ex, address.c_str(), family); }
 
-	void clear();
+	IPAddress& reset();
 
 	// Masks the IP address using the given netmask, which is usually a IPv4 subnet mask (Only supported for IPv4 addresses)
 	// The new address is (address & mask)

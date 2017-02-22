@@ -554,8 +554,9 @@ void IPAddress::setPort(UInt16 port) {
 		_pIPAddress.reset(new IPv4Impl(_pIPAddress->ipv4(), port));
 }
 
-void IPAddress::clear() {
+IPAddress& IPAddress::reset() {
 	_pIPAddress = Wildcard(_pIPAddress->family())._pIPAddress;
+	return *this;
 }
 
 IPAddress& IPAddress::set(const sockaddr& addr) {

@@ -188,6 +188,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				UInt8 decryptKey[Crypto::SHA256_SIZE];
 				size = UInt16(reader.read7BitValue());
 				RTMFP::ComputeAsymetricKeys(secret, secretSize, reader.current(), size, writer.data() + noncePos, dh.publicKeySize() + 11, decryptKey, encryptKey);
+				//TRACE(String::Hex(secret, DiffieHellman::SIZE));
 
 				// write size!
 				BinaryWriter(pOut->data() + 10, 2).write16(pOut->size() - 12);

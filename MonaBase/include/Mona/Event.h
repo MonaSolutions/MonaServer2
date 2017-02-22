@@ -47,6 +47,7 @@ struct Event<Result(Args ...)> : virtual NullableObject {
 	Event(std::nullptr_t) {} // Null Event, usefull just for (const Event& event=nullptr) default parameter
 	Event() : _pFunction(new std::function<Result(Args...)>()) {}
 	Event(const Event& event) : _pFunction(new std::function<Result(Args...)>()) { operator=(event); }
+	Event(const Event&& event) : _pFunction(event._pFunction) {}
 	/*!
 	Build an event subscriber from lambda function */
 	explicit Event(std::function<Result(Args...)>&& function) : _pFunction(new std::function<Result(Args...)>(std::move(function))) {}
@@ -83,6 +84,14 @@ struct Event<Result(Args ...)> : virtual NullableObject {
 			shared<std::function<Result(Args...)>> pFunction(weakFunction.lock());
 			return *pFunction ? (*pFunction)(std::forward<Args>(args)...) : Result();
 		};
+		return *this;
+	}
+	Event& operator=(const Event&& event) {
+		if (!_pFunction)
+			FATAL_ERROR(typeof(event), " try to subscribe to null event");
+		if (*_pFunction)
+			FATAL_ERROR("Event ", typeof(*this), " already subscribed, unsubscribe before with nullptr assignement");
+		_pFunction = event._pFunction;
 		return *this;
 	}
 	/*!

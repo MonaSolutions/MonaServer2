@@ -38,7 +38,7 @@ struct Handler : virtual Object {
 	template<typename ResultType, typename BaseType, typename ...Args>
 	void queue(const Event<void(BaseType&)>& onResult, Args&&... args) const {
 		struct Result : Runner, virtual Object {
-			Result(const Event<void(BaseType&)>& onResult, Args&&... args) : _result(std::forward<Args>(args)...), _onResult(onResult), Runner(typeof<ResultType>().c_str()) {}
+			Result(const Event<void(BaseType&)>& onResult, Args&&... args) : _result(std::forward<Args>(args)...), _onResult(std::move(onResult)), Runner(typeof<ResultType>().c_str()) {}
 			bool run(Exception& ex) { _onResult(_result); return true; }
 		private:
 			Event<void(BaseType&)>	_onResult;

@@ -172,6 +172,9 @@
     <ClCompile Include="sources\Cache.cpp">
       <Filter>Memory</Filter>
     </ClCompile>
+    <ClCompile Include="sources\Proxy.cpp">
+      <Filter>Net</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\BinaryReader.h">
@@ -360,6 +363,9 @@
     </ClInclude>
     <ClInclude Include="include\Mona\Cache.h">
       <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Proxy.h">
+      <Filter>Net</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

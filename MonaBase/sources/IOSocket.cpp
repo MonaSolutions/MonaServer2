@@ -199,6 +199,7 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 	return true;
 
 FAIL:
+	pSocket->pDecoder = nullptr;
 	pSocket->onFlush = nullptr;
 	pSocket->onReceived = nullptr;
 	pSocket->onDisconnection = nullptr;
@@ -208,7 +209,7 @@ FAIL:
 }
 
 void IOSocket::unsubscribe(shared<Socket>& pSocket) {
-
+	// don't touch to pDecoder because can be accessing by receiving thread (thread safety)
 	pSocket->onFlush = nullptr;
 	pSocket->onReceived = nullptr;
 	pSocket->onDisconnection = nullptr;
