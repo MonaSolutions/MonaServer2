@@ -11,15 +11,15 @@ The MonaServer project is not compiling for now because we are concentrated on t
 Feature                                      | State
 ---------------------------------------------|---------------------
 Windows                                      | OK
-Linux                                        | In progress
+Linux                                        | OK
 OS X                                         | NOK
 
 ##Protocols
 
 Feature                                      | State
 ---------------------------------------------|---------------------
-RTMP                                         | OK
-RTMFP                                        | In progress
+RTMP(E)                                      | OK
+RTMFP                                        | OK
 HTTP/HTTPS                                   | OK
 Websocket/Websocket SSL                      | OK
 RTSP                                         | NOK
@@ -28,8 +28,10 @@ RTSP                                         | NOK
 
 Feature                                      | State
 ---------------------------------------------|---------------------
-LUA (MonaServer)                             | NOK
 Recording                                    | OK
-VOD                                          | In progress
 Congestion control                           | OK
+Multi-servers		                         | NOK
+LUA (MonaServer)                             | NOK
+VOD                                          | In progress
+
 
