@@ -107,9 +107,9 @@ void HTTPWriter::flush(const shared<HTTPSender>& pSender) {
 					break; // Wait onFlush!
 				_flushings.pop_front();
 			}
-		};
+		};	
 	}
-	if(_flushings.empty())
+	if (_flushings.empty())
 		_session.send(pSender);
 	if (!flush || !_flushings.empty())
 		_flushings.emplace_back(pSender);

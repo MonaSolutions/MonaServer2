@@ -97,7 +97,7 @@ bool File::load(Exception& ex) {
 			flags |= O_APPEND;
 	} else
 		flags = O_RDONLY;
-	_handle = open(_path.c_str(), flags);
+	_handle = ::open(_path.c_str(), flags, S_IRWXU);
 	if (_handle != -1) {
 		posix_fadvise(_handle, 0, 0, 1);  // ADVICE_SEQUENTIAL
 		struct stat status;

@@ -18,11 +18,11 @@ else
 	SHARED=-shared
 endif
 SOURCES = $(filter-out sources/Win%.cpp, $(wildcard $(SRCDIR)sources/*.cpp))
-OBJECT = $(SOURCES:sources/%.cpp=tmp/Release/%.o)
-OBJECTD = $(SOURCES:sources/%.cpp=tmp/Debug/%.o)
+OBJECT = $(SOURCES:sources/%.cpp=tmp/release/%.o)
+OBJECTD = $(SOURCES:sources/%.cpp=tmp/debug/%.o)
 
 release:
-	mkdir -p tmp/Release
+	mkdir -p tmp/release
 	mkdir -p lib
 	@$(MAKE) -k $(OBJECT)
 	@echo creating dynamic lib $(LIB)
@@ -31,7 +31,7 @@ release:
 	@ar rcs $(AR) $(OBJECT)
 
 debug:
-	mkdir -p tmp/Debug
+	mkdir -p tmp/debug
 	mkdir -p lib
 	@$(MAKE) -k $(OBJECTD)
 	@echo creating dynamic debug lib $(LIB)
@@ -39,13 +39,13 @@ debug:
 	@echo creating static lib $(AR)
 	@ar rcs $(AR) $(OBJECTD)
 
-$(OBJECT): tmp/Release/%.o: sources/%.cpp
-	@echo compiling $(@:tmp/Release/%.o=sources/%.cpp)
-	@$(CXX) $(CFLAGS) -fpic $(INCLUDES) -c -o $(@) $(@:tmp/Release/%.o=sources/%.cpp)
+$(OBJECT): tmp/release/%.o: sources/%.cpp
+	@echo compiling $(@:tmp/release/%.o=sources/%.cpp)
+	@$(CXX) $(CFLAGS) -fpic $(INCLUDES) -c -o $(@) $(@:tmp/release/%.o=sources/%.cpp)
 
-$(OBJECTD): tmp/Debug/%.o: sources/%.cpp
-	@echo compiling $(@:tmp/Debug/%.o=sources/%.cpp)
-	@$(CXX) -g -D_DEBUG $(CFLAGS) -fpic $(INCLUDES) -c -o $(@) $(@:tmp/Debug/%.o=sources/%.cpp)
+$(OBJECTD): tmp/debug/%.o: sources/%.cpp
+	@echo compiling $(@:tmp/debug/%.o=sources/%.cpp)
+	@$(CXX) -g -D_DEBUG $(CFLAGS) -fpic $(INCLUDES) -c -o $(@) $(@:tmp/debug/%.o=sources/%.cpp)
 
 clean:
 	@echo cleaning project MonaBase

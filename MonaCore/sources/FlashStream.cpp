@@ -84,8 +84,6 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 
 	writer.amf0 = amf0;
 
-	UInt8 offset(0);
-
 	// if exception, it closes the connection, and print an ERROR message
 	switch(type) {
 
@@ -95,7 +93,6 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 		case AMF::TYPE_VIDEO:
 			videoHandler(time,packet);
 			break;
-
 		case AMF::TYPE_DATA_AMF3:
 			dataHandler(time, packet+1);
 			break;
@@ -103,10 +100,9 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 			dataHandler(time, packet);
 			break;
 		case AMF::TYPE_INVOCATION_AMF3:
-			offset=1;
 		case AMF::TYPE_INVOCATION: {
 			string name;
-			AMFReader reader(packet.data() + offset, packet.size()- offset);
+			AMFReader reader(packet.data() + (type & 1), packet.size() - (type & 1)); // packet+1 for TYPE_INVOCATION_AMF3
 			reader.readString(name);
 			double number(0);
 			reader.readNumber(number);
