@@ -59,13 +59,13 @@ private:
 
 HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0),_requesting(false),_session(session) {}
 
+HTTPWriter::~HTTPWriter() {
+	for (shared<HTTPSender>& pSender : _flushings)
+		pSender->onFlush = nullptr;
+}
+
 void HTTPWriter::closing(Int32 error, const char* reason) {
 	// if normal close, or negative error (can't answer), or no before request (one request = one response) => no response
-	if (!_flushings.empty()) {
-		// We can not send an error or something else because a response can't be terminate
-		_flushings.clear();
-		return;
-	}
 	if (error <= 0 || !_requestCount)
 		return;
 	if(!_requestCount)

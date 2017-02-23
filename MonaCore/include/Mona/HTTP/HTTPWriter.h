@@ -30,6 +30,7 @@ namespace Mona {
 
 struct HTTPWriter : Writer, virtual Object {
 	HTTPWriter(TCPSession& session);
+	~HTTPWriter();
 
 	void			beginRequest(const shared<const HTTP::Header>& pRequest);
 	void			endRequest();
