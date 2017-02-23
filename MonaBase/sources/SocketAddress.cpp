@@ -44,9 +44,9 @@ bool SocketAddress::setIntern(Exception& ex, const char* hostAndPort, bool resol
 		ex.set<Ex::Net::Address::Port>("Missing port number in ", hostAndPort);
 		return false;
 	}
-	String::Scoped scoped(colon);
-	UInt16 port = resolveService(ex, colon + 1);
-	return port ? setIntern(ex, hostAndPort, port, resolveHost) : false;
+	
+	UInt16 port = resolveService(ex, colon+1);
+	return port ? setIntern(ex, string(hostAndPort, colon - hostAndPort).c_str(), port, resolveHost) : false;
 }
 
 UInt16 SocketAddress::resolveService(Exception& ex,const char* service) {

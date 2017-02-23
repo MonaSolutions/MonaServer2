@@ -168,9 +168,9 @@ const string& typeof(const type_info& info) {
 	type = info.name();
 #else
 	int status = -4;
-	const char* name = abi::__cxa_demangle(info.name(), NULL, NULL, &status);
-	type = status == 0 ? name : info.name();
-	delete[] name;
+	char* name = abi::__cxa_demangle(info.name(), NULL, NULL, &status);
+	type = name ? name : info.name();
+	free(name);
 #endif
 	for (size_t i = 0; (i + 4) < type.size();) {
 		if (String::ICompare(&type[i], EXPAND("Mona::")) == 0) {
