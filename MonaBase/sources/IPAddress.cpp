@@ -510,7 +510,7 @@ namespace Mona {
 			else if (ifa->ifa_addr->sa_family == AF_INET)
 				emplace_back(reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)->sin_addr);
 		}
-		freeifaddrs(ifaddrs);
+		freeifaddrs(ifAddrStruct);
 #endif
 	}
 
