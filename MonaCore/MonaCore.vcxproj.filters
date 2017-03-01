@@ -297,6 +297,7 @@
     <ClInclude Include="include\Mona\RendezVous.h">
       <Filter>Protocols\Shared</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\Publish.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -504,5 +505,6 @@
     <ClCompile Include="sources\RendezVous.cpp">
       <Filter>Protocols\Shared</Filter>
     </ClCompile>
+    <ClCompile Include="sources\Publish.cpp" />
   </ItemGroup>
 </Project>

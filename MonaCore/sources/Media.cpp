@@ -193,16 +193,16 @@ DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer) {
 	return NULL;
 }
 
-void Media::Source::writeMedia(Media::Base& media) {
+void Media::Source::writeMedia(const Media::Base& media) {
 	switch (media.type) {
 		case Media::TYPE_AUDIO:
-			return writeAudio(media.track, ((Media::Audio&)media).tag, media);
+			return writeAudio(media.track, ((const Media::Audio&)media).tag, media);
 		case Media::TYPE_VIDEO:
-			return writeVideo(media.track, ((Media::Video&)media).tag, media);
+			return writeVideo(media.track, ((const Media::Video&)media).tag, media);
 		case Media::TYPE_DATA:
-			return writeData(media.track, ((Media::Data&)media).tag, media);
+			return writeData(media.track, ((const Media::Data&)media).tag, media);
 		default: {
-			Media::Data& data = (Media::Data&)media;
+			const Media::Data& data = (const Media::Data&)media;
 			unique_ptr<DataReader> pReader(Media::Data::NewReader(data.tag, data));
 			return writeProperties(media.track, *pReader);
 		}

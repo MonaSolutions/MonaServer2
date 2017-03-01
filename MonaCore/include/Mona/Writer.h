@@ -30,7 +30,6 @@ struct Writer : Media::Target, virtual NullableObject {
 
 	virtual ~Writer();
 
-	const bool				isMain;
 	bool					reliable;
 	/*!
 	Allow to cancel temporary flush, to allow to write a safe transaction sequence cancelable */
@@ -62,7 +61,7 @@ struct Writer : Media::Target, virtual NullableObject {
 	static Writer&			Null();
 
 protected:
-	Writer() : isMain(false), reliable(true), _closed(false), flushable(true) {}
+	Writer() : reliable(true), _closed(false), flushable(true) {}
 
 private:
 	virtual void			flushing() {}

@@ -56,11 +56,11 @@ struct DataWriter : virtual NullableObject {
 ////////////////////
 
 	void		   writeNullProperty(const char* name) { writePropertyName(name); writeNull(); }
-	void		   writeDateProperty(const char* name,const Date& date) { writePropertyName(name); writeDate(date); }
-	void		   writeNumberProperty(const char* name,double value) { writePropertyName(name); writeNumber(value); }
-	void		   writeBooleanProperty(const char* name,bool value) { writePropertyName(name); writeBoolean(value); }
+	void		   writeDateProperty(const char* name, const Date& date) { writePropertyName(name); writeDate(date); }
+	void		   writeNumberProperty(const char* name, double value) { writePropertyName(name); writeNumber(value); }
+	void		   writeBooleanProperty(const char* name, bool value) { writePropertyName(name); writeBoolean(value); }
 	void		   writeStringProperty(const char* name, const char* value, std::size_t size = std::string::npos) { writePropertyName(name); writeString(value, size==std::string::npos ? strlen(value) : size); }
-	void		   writeStringProperty(const char* name,const std::string& value) { writePropertyName(name); writeString(value.data(), value.size()); }
+	void		   writeStringProperty(const char* name, const std::string& value) { writePropertyName(name); writeString(value.data(), value.size()); }
 
 	operator bool() const { return writer.operator bool(); }
 

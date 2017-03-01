@@ -218,10 +218,17 @@ void Application::log(LOG_LEVEL level, const Path& file, long line, const string
 	static string temp;
 	static Exception ex;
 
-	String::Append(Buffer, String::Date("%d/%m %H:%M:%S.%c  "), LogLevels[level - 1], '\t', Thread::CurrentName(), '(', Thread::CurrentId(), ")\t");
+	String::Assign(Buffer, String::Date("%d/%m %H:%M:%S.%c  "), LogLevels[level - 1]);
+	Buffer.append(25-Buffer.size(),' ');
+	
+	String::Append(Buffer, Thread::CurrentId(), ' ');
 	if (String::ICompare(FileSystem::GetName(file.parent(), temp), "sources") != 0 && String::ICompare(temp, "mona") != 0)
 		String::Append(Buffer, temp,'/');
-	String::Append(Buffer, file.name(), '[' , line , "]  " , message , '\n');
+	String::Append(Buffer, file.name(), '[' , line , "] ");
+	if (Buffer.size() < 60)
+		Buffer.append(60 - Buffer.size(), ' ');
+	String::Append(Buffer, message, '\n');
+
 	if (!_pLogFile->write(ex, Buffer.data(), Buffer.size())) {
 		Logger::log(LOG_CRITIC, __FILE__, __LINE__, ex);
 		return _pLogFile.reset();

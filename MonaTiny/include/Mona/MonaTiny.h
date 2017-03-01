@@ -43,7 +43,7 @@ protected:
 	void manage();
 
 	//// Client Events /////
-	void onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, std::set<SocketAddress>& addresses);
+	SocketAddress& onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection);
 	void onConnection(Exception& ex, Client& client, DataReader& parameters, DataWriter& response);
 	void onDisconnection(Client& client);
 

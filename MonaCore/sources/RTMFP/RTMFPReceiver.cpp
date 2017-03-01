@@ -23,7 +23,7 @@ using namespace std;
 
 namespace Mona {
 
-#define KILL(error) {_died.update(); ping=error; size = reader.available();}
+#define KILL(error) { _pBuffer.reset(); _died.update(); ping=error; size = reader.available();}
 
 RTMFPReceiver::RTMFPReceiver(const Handler& handler,
 		UInt32 id, UInt32 farId,
@@ -111,8 +111,9 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 
 		switch (type) {
 			case 0x0c:
-				BUFFER_RESET(_pBuffer, 6);  // overwrite!
-				write(socket, address, 0x4c, 0);
+				// just 4C message!
+				BinaryWriter(RTMFP::InitBuffer(_pBuffer)).write24(0x4c << 16);
+				RTMFP::Send(socket, Packet(pEncoder->encode(_pBuffer, farId, address)), address);
 			case 0x4c:
 				KILL(0);
 				break;

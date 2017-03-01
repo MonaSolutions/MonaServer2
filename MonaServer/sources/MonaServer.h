@@ -57,7 +57,7 @@ private:
 	void					onStop();
 
 	void					onRendezVousUnknown(const std::string& protocol, const Mona::UInt8* id, std::set<Mona::SocketAddress>& addresses);
-	void					onHandshake(const std::string& protocol, const Mona::SocketAddress& address, const std::string& path, const Mona::Parameters& properties, Mona::UInt32 attempts, std::set<Mona::SocketAddress>& addresses);
+	Mona::SocketAddress&	onHandshake(const std::string& protocol, const Mona::SocketAddress& address, const std::string& path, const Mona::Parameters& properties, Mona::UInt32 attempts, Mona::SocketAddress& redirection);
 
 	void					onConnection(Mona::Exception& ex, Mona::Client& client,Mona::DataReader& parameters,Mona::DataWriter& response);
 	void					onDisconnection(Mona::Client& client);

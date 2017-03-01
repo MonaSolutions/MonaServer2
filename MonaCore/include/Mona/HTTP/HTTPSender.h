@@ -64,7 +64,7 @@ protected:
 		String::Append(writer, std::forward<Args>(args)...);
 		if (size == writer.size()) // nothing has been written, write code in content!
 			writer.write(code);
-		HTML_END_COMMON_RESPONSE(_pRequest->serverAddress)
+		HTML_END_COMMON_RESPONSE(_pRequest->host)
 	}
 private:
 	virtual void run(const HTTP::Header& request) = 0;

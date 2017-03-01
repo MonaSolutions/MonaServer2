@@ -29,6 +29,7 @@ struct FlashWriter : Writer, virtual Object {
 	// For AMF response!
 	bool					amf0;
 
+	const bool				isMain;
 
 	AMFWriter&				writeMessage();
 	AMFWriter&				writeInvocation(const char* name) { return writeInvocation(name,0); }
@@ -38,7 +39,7 @@ struct FlashWriter : Writer, virtual Object {
 	AMFWriter&				writeAMFSuccess(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_result", code, false, description, withoutClosing); }
 	void					writeAMFStatus(const char* code, const std::string& description) { writeAMFState("onStatus", code, false, description); }
 	void					writeAMFStatusError(const char* code, const std::string& description) { writeAMFState("onStatus", code, true, description); }
-	void					writeAMFError(const char* code, const std::string& description) { writeAMFState("_error", code, true, description); }
+	AMFWriter&				writeAMFError(const char* code, const std::string& description, bool withoutClosing = false);
 	
 	AMFWriter&				writeAMFData(const std::string& name);
 

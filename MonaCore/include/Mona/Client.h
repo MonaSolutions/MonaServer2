@@ -60,7 +60,7 @@ struct Client : Entity, virtual Object, Net::Stats {
 	virtual Writer&				writer() = 0;
 
 protected:
-	Client() : _pData(NULL), connected(false), connectionTime(0) {}
+	Client(const char* protocol) : protocol(protocol), _pData(NULL), connected(false), connectionTime(0) {}
 
 private:
 	mutable void*				_pData;

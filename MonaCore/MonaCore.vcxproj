@@ -228,6 +228,7 @@
     <ClInclude Include="include\Mona\MediaSocket.h" />
     <ClInclude Include="include\Mona\PacketWriter.h" />
     <ClInclude Include="include\Mona\Peer.h" />
+    <ClInclude Include="include\Mona\Publish.h" />
     <ClInclude Include="include\Mona\QueryReader.h" />
     <ClInclude Include="include\Mona\QueryWriter.h" />
     <ClInclude Include="include\Mona\ReferableReader.h" />
@@ -330,6 +331,7 @@
     <ClCompile Include="sources\MP3Reader.cpp" />
     <ClCompile Include="sources\FLVWriter.cpp" />
     <ClCompile Include="sources\Protocol.cpp" />
+    <ClCompile Include="sources\Publish.cpp" />
     <ClCompile Include="sources\RendezVous.cpp" />
     <ClCompile Include="sources\RTMFP\RTMFPReceiver.cpp" />
     <ClCompile Include="sources\RTMP\RTMPDecoder.cpp" />

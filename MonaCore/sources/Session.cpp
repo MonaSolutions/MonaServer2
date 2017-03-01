@@ -43,7 +43,7 @@ Session::Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name
 	init();
 }
 	
-Session::Session(Protocol& protocol, const SocketAddress& address, const char* name) : peer(*new Peer(protocol.api)),
+Session::Session(Protocol& protocol, const SocketAddress& address, const char* name) : peer(*new Peer(protocol.api, protocol.name)),
 	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0) {
 	_pPeer.reset(&peer);
 	peer.setAddress(address);
@@ -59,13 +59,7 @@ Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer),
 }
 
 void Session::init() {
-	((string&)peer.protocol) = _protocol.name;
-
-	if (!peer.serverAddress)
-		((SocketAddress&)peer.serverAddress).set(_protocol.address);
-	else if (!peer.serverAddress.port())
-		((SocketAddress&)peer.serverAddress).setPort(_protocol.address.port());
-
+	peer.setServerAddress(_protocol.address);
 	DEBUG("peer.id ", String::Hex(peer.id, Entity::SIZE));
 
 	peer.onParameters = [this](Parameters& parameters) {

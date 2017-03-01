@@ -41,13 +41,13 @@ HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSessio
 				closeSusbcription();
 
 				//// Disconnection if requested or query changed (path changed is done in setPath)
-				if (request->connection&HTTP::CONNECTION_UPDATE || String::ICompare(peer.query, request->query) != 0)
+				if (request->connection&HTTP::CONNECTION_UPGRADE || request->connection&HTTP::CONNECTION_UPDATE || String::ICompare(peer.query, request->query) != 0)
 					peer.onDisconnection();
 
 				////  Fill peers infos
 				peer.setPath(request->path);
 				peer.setQuery(request->query);
-				peer.setServerAddress(request.serverAddress);
+				peer.setServerAddress(request->host);
 				// properties = version + headers + cookies
 				peer.properties() = move(request);
 
@@ -58,32 +58,33 @@ HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSessio
 
 				// Upgrade protocol
 				if (request->connection&HTTP::CONNECTION_UPGRADE) {
-					// Upgrade to WebSocket
-					if (request->pWSDecoder) {
-						Protocol* pProtocol(this->api.protocols.find(socket()->isSecure() ? "WSS" : "WS"));
-						if (pProtocol) {
-							// Close HTTP
-							close();
-							// HTTP disconnection
-							peer.onDisconnection();
-							// Create WSSession
-							WSSession* pSession = new WSSession(*pProtocol, *this, request->pWSDecoder);
-							_pUpgradeSession = pSession;
-							HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
-								HTTP_ADD_HEADER("Upgrade", "WebSocket")
-								WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
-							HTTP_END_HEADER
+					if (handshake(request))  {
+						// Upgrade to WebSocket
+						if (request->pWSDecoder) {
+							Protocol* pProtocol(this->api.protocols.find(socket()->isSecure() ? "WSS" : "WS"));
+							if (pProtocol) {
+								// Close HTTP
+								close();
+		
+								// Create WSSession
+								WSSession* pSession = new WSSession(*pProtocol, *this, request->pWSDecoder);
+								_pUpgradeSession = pSession;
+								HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
+									HTTP_ADD_HEADER("Upgrade", "WebSocket")
+									WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
+								HTTP_END_HEADER
 
 								// SebSocket connection
 								peer.onConnection(ex, pSession->writer, *socket(), parameters); // No response in WebSocket handshake (fail for few clients)
+							} else
+								ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
 						} else
-							ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
-					} else
-						ex.set<Ex::Unsupported>("Unsupported ", request->upgrade, " upgrade");
+							ex.set<Ex::Unsupported>("Unsupported ", request->upgrade, " upgrade");
+					}
 				} else {
 
 					// onConnection
-					if (!peer.connected) {
+					if (!peer.connected && handshake(request)) {
 						peer.onConnection(ex, _writer, *socket(), parameters);
 						parameters.reset();
 					}
@@ -93,23 +94,21 @@ HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSessio
 
 						/// HTTP GET & HEAD
 						switch (request->type) {
-						case HTTP::TYPE_HEAD:
-						case HTTP::TYPE_GET:
-							processGet(ex, request, parameters);
-							break;
-						case HTTP::TYPE_POST:
-						{
-							processPost(ex, request);
-							break;
-						}
-						case HTTP::TYPE_OPTIONS: // happen when Move Redirection is sent
-							processOptions(ex, *request);
-							break;
-						case HTTP::TYPE_PUT:
-							processPut(ex, request);
-							break;
-						default:
-							ex.set<Ex::Protocol>(name(), ", unsupported command");
+							case HTTP::TYPE_HEAD:
+							case HTTP::TYPE_GET:
+								processGet(ex, request, parameters);
+								break;
+							case HTTP::TYPE_POST:
+								processPost(ex, request);
+								break;
+							case HTTP::TYPE_OPTIONS: // happen when Move Redirection is sent
+								processOptions(ex, *request);
+								break;
+							case HTTP::TYPE_PUT:
+								processPut(ex, request);
+								break;
+							default:
+								ex.set<Ex::Protocol>(name(), ", unsupported command");
 						}
 					}
 				}
@@ -164,6 +163,17 @@ HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSessio
 		return _writer.writeSetCookie(reader, onCookie);
 	};
 
+}
+
+bool HTTPSession::handshake(HTTP::Request& request) {
+	SocketAddress redirection;
+	if (!peer.onHandshake(redirection))
+		return true;
+	HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_307))
+		HTTP_ADD_HEADER("Location", request->protocol, "://", redirection, request->path, '/', request.file.isFolder() ? "" : request.file.name())
+	HTTP_END_HEADER
+	kill();
+	return false;
 }
 
 shared<Socket::Decoder> HTTPSession::newDecoder() {
@@ -236,11 +246,13 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	else
 		close();
 
-	// kill (onDisconnection) after "unpublish or unsubscribe", but BEFORE _writers.close() because call onDisconnection and writers can be used here
-	TCPSession::kill(error, reason);
+	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.close() because call onDisconnection and writers can be used here
+	peer.onDisconnection();
 
 	// close writer (flush)
 	_writer.close(error, reason);
+
+	TCPSession::kill(error, reason);
 }
 
 void HTTPSession::openSubscribtion(Exception& ex, const string& stream, Writer& writer) {
@@ -290,11 +302,10 @@ void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 
 void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
 	// use index http option in the case of GET request on a directory
-
+	
 	Path& file(request.file);
 	if (!file.isFolder()) {
 		// FILE //
-
 
 		// TODO m3u8
 		// https://developer.apple.com/library/ios/technotes/tn2288/_index.html

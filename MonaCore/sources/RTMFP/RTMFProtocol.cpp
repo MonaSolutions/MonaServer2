@@ -40,7 +40,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		BinaryReader reader(handshake.data(), handshake.size());
 
 		// Fill peer infos
-		shared<Peer> pPeer(new Peer(this->api));
+		shared<Peer> pPeer(new Peer(this->api, "RTMFP"));
 		string serverAddress;
 		{
 			const char* url = STR reader.current();
@@ -58,9 +58,12 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		BinaryWriter writer(initBuffer(pBuffer));
 		writer.write8(16).write(reader.current(), 16); // tag
 
-		set<SocketAddress> addresses;
-		pPeer->onHandshake(addresses);
-		if (addresses.empty()) {
+		SocketAddress redirection;
+		if (pPeer->onHandshake(redirection)) {
+			// redirection
+			RTMFP::WriteAddress(writer, redirection, RTMFP::LOCATION_REDIRECTION);
+			send(0x71, pBuffer, handshake.address, handshake.pResponse);
+		}else {
 			// Create session and write id in cookie response!
 			writer.write8(RTMFP::SIZE_COOKIE);
 			writer.write32(this->sessions.create<RTMFPSession>(*this, this->api, pPeer).id());
@@ -68,16 +71,6 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 			// instance id (certificat in the middle)
 			writer.write(_certificat, sizeof(_certificat));
 			send(0x70, pBuffer, handshake.address, handshake.pResponse);
-		} else {
-			// redirection
-			set<SocketAddress>::iterator it;
-			for (it = addresses.begin(); it != addresses.end(); ++it) {
-				if (it->host().isWildcard())
-					RTMFP::WriteAddress(writer, pPeer->serverAddress, RTMFP::LOCATION_REDIRECTION);
-				else
-					RTMFP::WriteAddress(writer, *it, RTMFP::LOCATION_REDIRECTION);
-			}
-			send(0x71, pBuffer, handshake.address, handshake.pResponse);
 		}
 	};
 	_onSession = [this](shared<RTMFP::Session>& pSession) {

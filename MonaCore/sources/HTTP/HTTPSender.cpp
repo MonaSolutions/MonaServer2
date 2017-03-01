@@ -48,7 +48,7 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, co
 	writer.write(EXPAND("HTTP/1.1 ")).write(code);
 
 	/// Date + Mona
-	String::Append(writer, EXPAND("\r\nDate: "), String::Date(Date::FORMAT_HTTP));
+	Date().format(Date::FORMAT_HTTP, writer.write(EXPAND("\r\nDate: ")));
 	writer.write(EXPAND("\r\nServer: Mona"));
 
 	/// Content Type/length
@@ -77,7 +77,7 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, co
 		writer.write(EXPAND("\r\nConnection: close"));
 
 	/// allow cross request, indeed if onConnection has not been rejected, every cross request are allowed
-	if (_pRequest->origin && String::ICompare(_pRequest->origin, _pRequest->serverAddress) != 0)
+	if (_pRequest->origin && String::ICompare(_pRequest->origin, _pRequest->host) != 0)
 		writer.write(EXPAND("\r\nAccess-Control-Allow-Origin: ")).write(_pRequest->origin);
 
 	/// write Cookies line

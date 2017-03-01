@@ -33,10 +33,14 @@ struct ThreadPool : virtual Object {
 
 
 	template<typename RunnerType>
-	bool  queue(Exception& ex, const shared<RunnerType>& pRunner) const { return _threads[_current++%_size].queue(ex, pRunner); }
+	bool  queue(Exception& ex, const shared<RunnerType>& pRunner) const {
+		FATAL_CHECK(pRunner);
+		return _threads[_current++%_size].queue(ex, pRunner);
+	}
 
 	template<typename RunnerType>
 	bool  queue(Exception& ex, const shared<RunnerType>& pRunner, UInt16& track) const {
+		FATAL_CHECK(pRunner);
 		Thread* pThread;
 		if (track > _size) {
 			ex.set<Ex::Intern>("Thread track out of ThreadPool bounds");

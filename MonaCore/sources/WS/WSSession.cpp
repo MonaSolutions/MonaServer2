@@ -205,15 +205,15 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 			// audio/video/data playload
 			switch ((_media >> 1) & 0x7F) {
 				case Media::TYPE_VIDEO:
-					return _pPublication->writeVideo(_media >> 8, _video, content, peer.ping());
+					return _pPublication->writeVideo(_media >> 8, _video, content);
 				case Media::TYPE_AUDIO:
-					return _pPublication->writeAudio(_media >> 8, _audio, content, peer.ping());
+					return _pPublication->writeAudio(_media >> 8, _audio, content);
 				default: break;
 			}
-			return _pPublication->writeData(_media >> 8, Media::Data::Type(_media >> 24), content, peer.ping());
+			return _pPublication->writeData(_media >> 8, Media::Data::Type(_media >> 24), content);
 		}
 
-		_pPublication->writeData(_media >> 8, isJSON ? Media::Data::TYPE_JSON : Media::Data::TYPE_UNKNOWN, message, peer.ping());
+		_pPublication->writeData(_media >> 8, isJSON ? Media::Data::TYPE_JSON : Media::Data::TYPE_UNKNOWN, message);
 		return;
 	}
 
@@ -254,7 +254,7 @@ bool WSSession::manage() {
 void WSSession::flush() {
 	// flush publication
 	if (_pPublication)
-		_pPublication->flush();
+		_pPublication->flush(peer.ping());
 	// flush writer
 	writer.flush();
 }

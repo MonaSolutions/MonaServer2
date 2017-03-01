@@ -56,7 +56,10 @@ void RTMFP::Group::join(RTMFP::Member& member) {
 		};
 	}
 
+	if (it != end() && member == *it->second)
+		return;
 	emplace_hint(it, member); // insert now, not before!
+	DEBUG(member->address, " join group ", String::Hex(id, Entity::SIZE));
 }
 
 void RTMFP::Group::unjoin(RTMFP::Member& member) {
@@ -64,6 +67,7 @@ void RTMFP::Group::unjoin(RTMFP::Member& member) {
 		ERROR(String::Hex(member, Entity::SIZE)," was not member of group ", String::Hex(id, Entity::SIZE));
 		return;
 	}
+	DEBUG(member->address, " unjoin group ", String::Hex(id, Entity::SIZE));
 	if (!empty())
 		return;
 	_groups.erase(id);

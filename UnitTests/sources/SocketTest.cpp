@@ -29,9 +29,10 @@ using namespace Mona;
 
 
 struct MainHandler : Handler {
+	MainHandler() : Handler(_signal) {}
 	bool join(const function<bool()>& joined) {
 		while(!joined()) {
-			if (!waitQueue(_signal, 14000))
+			if (!_signal.wait(14000))
 				return false;
 			flush();
 		};
@@ -221,6 +222,7 @@ ADD_TEST(SocketTest, UDP_NonBlocking) {
 	CHECK(client.connect(ex, target) && client.connect(ex, target) && !ex && client.connected() && client->address() && client->peerAddress());
 	client.send(EXPAND("hi mathieu and thomas"));
 	client.send(_Short0Data.c_str(), _Short0Data.size());
+	client.send(NULL, 0);
 	CHECK(handler.join([&client]()->bool { return !client.echoing();}));
 
 	client.disconnect();

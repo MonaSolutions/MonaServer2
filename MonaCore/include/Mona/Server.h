@@ -19,21 +19,39 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/ServerAPI.h"
 #include "Mona/Sessions.h"
+#include "Mona/Publish.h"
 
 namespace Mona {
 
 struct Server : protected ServerAPI, private Thread {
+	struct Action : Runner {
+		Action(const char* name, ServerAPI& api) : Runner(name), _api(api) {}
+	private:
+		virtual void run(ServerAPI& api) = 0;
+		bool run(Exception& ex) { run(_api); return true; }
+		ServerAPI& _api;
+	};
+
 	Server(UInt16 cores=0);
 	virtual ~Server();
 
-	bool	start() { Parameters parameters;  return start(parameters); }// params by default
-	bool	start(const Parameters& parameters);
-	void	stop() { Thread::stop(); }
-	bool	running() { return Thread::running(); }
+	bool start() { Parameters parameters;  return start(parameters); }// params by default
+	bool start(const Parameters& parameters);
+	void stop() { Thread::stop(); }
+	bool running() { return Thread::running(); }
+
+	template<typename ActionType>
+	bool queue(const shared<ActionType>& pAction) { return ServerAPI::queue(pAction); }
+
+	bool publish(const char* name, shared<Publish>& pPublish);
+
+protected:
+	template<typename  ...Args>
+	Publication* publish(Exception& ex, Args&&... args) { return ServerAPI::publish(ex, args ...); }
 
 private:
+	
 	virtual void	manage() {}
 
 	void  loadStreams(std::multimap<std::string, Media::Stream*>& streams);

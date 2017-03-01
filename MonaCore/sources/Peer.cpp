@@ -28,7 +28,7 @@ using namespace std;
 
 namespace Mona {
 
-Peer::Peer(ServerAPI& api) : _rttvar(0), _rto(Net::RTO_INIT), _pWriter(&Writer::Null()), _pNetStats(NULL), _ping(0), pingTime(0), _api(api) {
+Peer::Peer(ServerAPI& api, const char* protocol) : Client(protocol), _rttvar(0), _rto(Net::RTO_INIT), _pWriter(&Writer::Null()), _pNetStats(NULL), _ping(0), pingTime(0), _api(api) {
 }
 
 Peer::~Peer() {
@@ -143,8 +143,11 @@ ICE& Peer::ice(const Peer& peer) {
 
 /// EVENTS ////////
 
-void Peer::onHandshake(set<SocketAddress>& addresses) {
-	_api.onHandshake(path,  protocol, address, properties(), addresses);
+SocketAddress& Peer::onHandshake(SocketAddress& redirection) {
+	_api.onHandshake(path,  protocol, address, properties(), redirection);
+	if (redirection)
+		INFO(protocol, " redirection from ", serverAddress, " to ", redirection);
+	return redirection;
 }
 
 void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& arguments,DataWriter& response) {
@@ -154,7 +157,6 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		_pWriter = &writer;
 		_pNetStats = &netStats;
 		writer.flushable = false; // response parameter causes unflushable to avoid a data corruption
-		(bool&)writer.isMain = true;
 		writer.onClose = onClose;
 		
 
@@ -174,7 +176,6 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 			(Time&)connectionTime = 0;
 			(bool&)connected = false;
 			writer.clear();
-			(bool&)_pWriter->isMain = false;
 			_pWriter = NULL;
 			_pNetStats = NULL;
 		} else {
@@ -195,7 +196,6 @@ void Peer::onDisconnection() {
 		ERROR("Client ", String::Hex(id, Entity::SIZE), " seems already disconnected!");
 	_pWriter->onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
 	_api.onDisconnection(*this);
-	(bool&)_pWriter->isMain = false;
 	_pWriter = NULL;
 	_pNetStats = NULL;
 }

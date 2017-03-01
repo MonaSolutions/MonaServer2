@@ -25,14 +25,14 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct Handler : virtual Object {
-	Handler() : _pSignal(NULL) {}
+	Handler(Signal& signal) : _signal(signal) {}
 
 	template<typename RunnerType>
 	void queue(const shared<RunnerType>& pRunner) const {
+		FATAL_CHECK(pRunner);
 		std::lock_guard<std::mutex> lock(_mutex);
 		_runners.emplace_back(pRunner);
-		if (_pSignal)
-			_pSignal->set();
+		_signal.set();
 	}
 
 	template<typename ResultType, typename BaseType, typename ...Args>
@@ -53,15 +53,13 @@ struct Handler : virtual Object {
 	void queue(const Event<void()>& onResult) const;
 
 
-	// two following methods should be used by the same thread!
-	bool   waitQueue(Signal& signal, UInt32 timeout = 0);
 	UInt32 flush(UInt32 count = 0);
 
 private:
 
-	mutable std::mutex							_mutex;
-	mutable std::deque<shared<Runner>>			_runners;
-	Signal*										_pSignal;
+	mutable std::mutex					_mutex;
+	mutable std::deque<shared<Runner>>	_runners;
+	Signal&								_signal;
 };
 
 

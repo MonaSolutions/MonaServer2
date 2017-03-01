@@ -28,7 +28,7 @@ using namespace std;
 namespace Mona {
 
 
-Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_application, _www, _handler, _protocols, _timer, cores), _protocols(*this) {
+Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_application, _www, _handler, _protocols, _timer, cores), _protocols(*this), _handler(wakeUp) {
 	DEBUG("Socket receiving buffer size of ", Net::GetRecvBufferSize(), " bytes");
 	DEBUG("Socket sending buffer size of ", Net::GetSendBufferSize(), " bytes");
 	DEBUG(threadPool.threads(), " threads in server threadPool");
@@ -62,6 +62,15 @@ bool Server::start(const Parameters& parameters) {
 	bool result;
 	AUTO_ERROR(result = Thread::start(ex), "Server");
 	return result;
+}
+
+bool Server::publish(const char* name, shared<Publish>& pPublish) {
+	if (!running()) {
+		ERROR("Start ", typeof(*this), " before to publish ", name);
+		return false;
+	}
+	pPublish.reset(new Publish(*this, name));
+	return true;
 }
 
 bool Server::run(Exception&, const volatile bool& stopping) {
@@ -125,7 +134,7 @@ bool Server::run(Exception&, const volatile bool& stopping) {
 		}); // manage every 2 seconds!
 		_timer.set(onManage, 2000);
 		while (!stopping) {
-			if (_handler.waitQueue(wakeUp, _timer.raise()))
+			if (wakeUp.wait(_timer.raise()))
 				_handler.flush();
 		}
 
@@ -138,6 +147,7 @@ bool Server::run(Exception&, const volatile bool& stopping) {
 		FATAL("Server, unknown error");
 	}
 #endif
+	Thread::stop(); // to set running() to false (and not more allows to handler to queue Runner)
 	// Stop onManage (useless now)
 	_timer.set(onManage, 0);
 
@@ -160,10 +170,13 @@ bool Server::run(Exception&, const volatile bool& stopping) {
 	onStop();
 
 	// stop socket sending (it waits the end of sending last session messages)
-	threadPool.join();	
+	threadPool.join();
 
 	// finish writing file before to detach buffer allocator
 	ioFile.join();
+
+	// empty handler!
+	_handler.flush();
 
 	// release memory
 	INFO("Server memory release");

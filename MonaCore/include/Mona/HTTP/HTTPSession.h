@@ -39,6 +39,8 @@ private:
 	void			close(); // usefull for Protocol upgrade like WebSocket upgrade
 	void			kill(Int32 error=0, const char* reason = NULL);
 
+	bool			handshake(HTTP::Request& request);
+
 	void			openSubscribtion(Exception& ex, const std::string& stream, Writer& writer);
 	void			closeSusbcription();
 

@@ -52,6 +52,22 @@ RTMPSession::RTMPSession(Protocol& protocol) : _first(true), _controller(2, *thi
 				kill(ERROR_PROTOCOL);
 				return;
 			}
+			if (!peer.connected) {
+				SocketAddress address;
+				if (peer.onHandshake(address)) {
+					// redirection
+					AMFWriter& amf = writer.writeAMFError("NetConnection.Connect.Rejected", "Redirection (see info.ex.redirect)", true);
+					amf.writePropertyName("ex");
+					amf.beginObject();
+					amf.writeNumberProperty("code", 302);
+					amf.writeStringProperty("redirect", String(String::Lower(peer.protocol), "://", address, peer.path));
+					amf.endObject();
+					amf.endObject();
+					writer.writeInvocation("close");
+					kill();
+					return;
+				}
+			}
 			if(pStream->process(request.type, request.time, request, writer, *socket()))
 				writer.flush();
 		}
@@ -97,13 +113,16 @@ void RTMPSession::kill(Int32 error, const char* reason) {
 	_mainStream.onStop = nullptr;
 	_mainStream.clearStreams();
 	
-	// kill (onDisconnection) after "unpublish or unsubscribe", but BEFORE _writers.clear() because call onDisconnection and writers can be used here
-	TCPSession::kill(error, reason);
+	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.clear() because call onDisconnection and writers can be used here
+	peer.onDisconnection();
 
 	// close writer (flush)
 	for (auto& it : _writers)
 		it.second.close(error, reason);
 	_writers.clear(); 
+
+	// to disconnect!
+	TCPSession::kill(error, reason);
 }
 
 bool RTMPSession::manage() {

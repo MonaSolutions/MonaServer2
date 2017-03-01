@@ -67,7 +67,6 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	const Tracks<VideoTrack>&		videos;
 	const Tracks<Track>&			datas;
 
-
 	UInt16							latency() const { return _latency; }
 	UInt64							byteRate() const { return _byteRate; }
 	double							lostRate() const { return _lostRate; }
@@ -87,25 +86,22 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	void							reportLost(Media::Type type, UInt32 lost);
 	void							reportLost(Media::Type type, UInt16 track, UInt32 lost);
 
-	void							writeProperties(UInt16 track, DataReader& reader) { writeProperties(track, reader, 0); }
-	void							writeProperties(UInt16 track, DataReader& reader, UInt16 ping);
+	void							writeProperties(UInt16 track, DataReader& reader);
 /*! 
 	Push audio packet, an empty audio "isConfig" packet is required by some protocol to signal "audio end".
 	Good practice would be to send an audio empty "isConfig" packet for publishers which can stop "dynamically" just audio track.
 	/!\ Audio timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
-	void							writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) { writeAudio(track, tag, packet, 0); }
-	void							writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, UInt16 ping);
+	void							writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet);
 /*!
 	Push video packet
 	Video timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
-	void							writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) { writeVideo(track, tag, packet, 0); }
-	void							writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, UInt16 ping);
+	void							writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet);
 /*!
 	Push data packet */
-	void							writeData(UInt16 track, Media::Data::Type type, const Packet& packet) { writeData(track, type, packet, 0); }
-	void							writeData(UInt16 track, Media::Data::Type type, const Packet& packet, UInt16 ping);
+	void							writeData(UInt16 track, Media::Data::Type type, const Packet& packet);
 
 	void							flush();
+	void							flush(UInt16 ping);
 
 private:
 	void startRecording(MediaFile::Writer& recorder, bool append);

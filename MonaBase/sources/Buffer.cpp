@@ -63,7 +63,7 @@ Buffer& Buffer::clip(UInt32 offset) {
 	return *this;
 }
 
-Buffer& Buffer::resize(UInt32 size,bool preserveData) {
+Buffer& Buffer::resize(UInt32 size, bool preserveData) {
 	if (size <= _capacity) {
 		if (_offset && !preserveData) {
 			// fix possible clip

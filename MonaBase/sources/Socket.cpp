@@ -27,7 +27,7 @@ Socket::Socket(Type type) :
 #if !defined(_WIN32)
 	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_listening(false), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _sockfd(NET_INVALID_SOCKET), _threadReceive(0) {
+	_listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _sockfd(NET_INVALID_SOCKET), _threadReceive(0) {
 
 	init();
 }
@@ -37,7 +37,7 @@ Socket::Socket(NET_SOCKET sockfd, const sockaddr& addr) : _peerAddress(addr), _a
 #if !defined(_WIN32)
 	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_listening(false), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _sockfd(sockfd), _threadReceive(0) {
+	_listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _sockfd(sockfd), _threadReceive(0) {
 
 	init();
 }
@@ -312,7 +312,7 @@ int Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketA
 				struct sockaddr_in6 sa_in6;
 			} addr;
 			NET_SOCKLEN addrSize = sizeof(addr);
-			if ((rc = ::recvfrom(_sockfd, reinterpret_cast<char*>(buffer), size, flags, reinterpret_cast<sockaddr*>(&addr), &addrSize)) > 0)
+			if ((rc = ::recvfrom(_sockfd, reinterpret_cast<char*>(buffer), size, flags, reinterpret_cast<sockaddr*>(&addr), &addrSize)) >= 0)
 				pAddress->set(type == TYPE_STREAM ? peerAddress() : reinterpret_cast<const sockaddr&>(addr)); // check socket stream because WinSock doesn't assign correctly peerAddress on recvfrom for TCP socket
 		} else
 			rc = ::recv(_sockfd, reinterpret_cast<char*>(buffer), size, flags);
@@ -383,7 +383,7 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 		return 0;
 	}
 
-	int	sent(sendTo(ex, packet.data(), packet.size(), address));
+	int	sent = sendTo(ex, packet.data(), packet.size(), address);
 	if (sent < 0) {
 		if ((ex.cast<Ex::Net::Socket>().code == NET_ENOTCONN && _peerAddress) || ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK) {
 			// queue and wait onFlush, no error!

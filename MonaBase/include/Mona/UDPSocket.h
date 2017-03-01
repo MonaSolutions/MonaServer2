@@ -39,7 +39,7 @@ struct UDPSocket : virtual Object {
 
 	bool bind(Exception& ex, const SocketAddress& address);
 	bool bind(Exception& ex, const IPAddress& ip = IPAddress::Wildcard()) { return bind(ex, SocketAddress(ip, 0)); }
-	bool bound() { return _bound;  }	
+	bool bound() { return _bound;  }
 
 	void disconnect();
 	void close();

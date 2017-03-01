@@ -38,7 +38,7 @@ FlashStream::~FlashStream() {
 
 void FlashStream::flush() {
 	if (_pPublication)
-		_pPublication->flush();
+		_pPublication->flush(peer.ping());
 	if (_pSubscription && _pSubscription->ejected())
 		disengage((FlashWriter*)&_pSubscription->target);
 }
@@ -320,14 +320,14 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 			switch (_media & 0xFF) {
 				case Media::Type::TYPE_AUDIO:
 					_audio.time = timestamp;
-					_pPublication->writeAudio(_media >> 8, _audio, content, peer.ping());
+					_pPublication->writeAudio(_media >> 8, _audio, content);
 					break;
 				case Media::Type::TYPE_VIDEO:
 					_video.time = timestamp;
-					_pPublication->writeVideo(_media >> 8, _video, content, peer.ping());
+					_pPublication->writeVideo(_media >> 8, _video, content);
 					break;
 				default:
-					_pPublication->writeData(_media >> 8, Media::Data::Type(_media >> 24), content, peer.ping());
+					_pPublication->writeData(_media >> 8, Media::Data::Type(_media >> 24), content);
 			}
 			return dataHandler(timestamp, packet + reader->position());
 		} 
@@ -335,7 +335,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 
 		if (reader.nextType() == DataReader::NIL) {
 			// To allow a handler null with a bytearray or string following
-			_pPublication->writeData(_track, Media::Data::TYPE_AMF, packet + reader->position(), peer.ping());
+			_pPublication->writeData(_track, Media::Data::TYPE_AMF, packet + reader->position());
 			return;
 		}
 		
@@ -371,7 +371,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 		}
 	}
 
-	_pPublication->writeData(_track, Media::Data::TYPE_AMF, packet, peer.ping());
+	_pPublication->writeData(_track, Media::Data::TYPE_AMF, packet);
 }
 
 void FlashStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer) {
@@ -389,7 +389,7 @@ void FlashStream::audioHandler(UInt32 timestamp, const Packet& packet) {
 	}
 
 	_audio.time = timestamp;
-	_pPublication->writeAudio(_track, _audio, packet + FLVReader::ReadMediaHeader(packet.data(), packet.size(), _audio), peer.ping());
+	_pPublication->writeAudio(_track, _audio, packet + FLVReader::ReadMediaHeader(packet.data(), packet.size(), _audio));
 }
 
 void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
@@ -403,11 +403,11 @@ void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
 	if (_video.codec == Media::Video::CODEC_H264 && _video.frame == Media::Video::FRAME_CONFIG) {
 		shared<Buffer> pBuffer(new Buffer());
 		readen += FLVReader::ReadAVCConfig(packet.data()+readen, packet.size()-readen, *pBuffer);
-		_pPublication->writeVideo(_track, _video, Packet(pBuffer), peer.ping());
+		_pPublication->writeVideo(_track, _video, Packet(pBuffer));
 		if (packet.size() <= readen)
 			return; //rest nothing
 	}
-	_pPublication->writeVideo(_track, _video, packet+readen, peer.ping());
+	_pPublication->writeVideo(_track, _video, packet+readen);
 }
 
 

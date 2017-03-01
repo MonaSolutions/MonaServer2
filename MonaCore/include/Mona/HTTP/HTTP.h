@@ -31,7 +31,7 @@ namespace Mona {
 	__writer.write(EXPAND("</p><hr><address>Mona Server at ")).write(SERVER_ADDRESS).write(EXPAND("</address></body></html>")); }
 
 #define HTTP_BEGIN_HEADER(WRITER)  { BinaryWriter& __writer(WRITER); __writer.buffer().resize(__writer.buffer().size()-2);
-#define HTTP_ADD_HEADER(NAME, ...) { String::Append(__writer, ": ", __VA_ARGS__, "\r\n"); }
+#define HTTP_ADD_HEADER(NAME, ...) { String::Append(__writer, NAME, ": ", __VA_ARGS__, "\r\n"); }
 #define HTTP_END_HEADER  __writer.write("\r\n");  }
 
 #define HTTP_CODE_100	"100 Continue"
@@ -158,7 +158,7 @@ struct HTTP : virtual Static {
 		HTTP::Type		type;
 		std::string		path;
 		std::string		query;
-		std::string		serverAddress;
+		std::string		host;
 		float			version;
 		const char*		origin;
 
@@ -181,27 +181,27 @@ struct HTTP : virtual Static {
 
 
 	struct Request : Packet, Parameters, virtual Object {
-		Request(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true), _pHeader(pHeader) { init(pHeader); }
-		Request(shared<Header>& pHeader, const Path& file, const Packet& packet, bool flush) : file(std::move(file)), lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(pHeader) { init(pHeader); }
+		Request(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true), _pHeader(std::move(pHeader)) {}
+		Request(shared<Header>& pHeader, const Path& file, const Packet& packet, bool flush) : file(std::move(file)), lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
 		/*!
 		Post media packet */
-		Request(shared<Header>& pHeader, UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Audio(track, tag, packet)), _pHeader(pHeader), flush(false) { init(pHeader); }
-		Request(shared<Header>& pHeader, UInt16 track, const Media::Video::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Video(track, tag, packet)), _pHeader(pHeader), flush(false) { init(pHeader); }
-		Request(shared<Header>& pHeader, UInt16 track, Media::Data::Type type, const Packet& packet) : lost(0), pMedia(new Media::Data(track, type, packet)), _pHeader(pHeader), flush(false) { init(pHeader); }
-		Request(shared<Header>& pHeader, UInt16 track, DataReader& reader) : lost(0), pMedia(new Media::Data(track, reader)), _pHeader(pHeader), flush(false) { init(pHeader); }
+		Request(shared<Header>& pHeader, UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Audio(track, tag, packet)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, UInt16 track, const Media::Video::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Video(track, tag, packet)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, UInt16 track, Media::Data::Type type, const Packet& packet) : lost(0), pMedia(new Media::Data(track, type, packet)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, UInt16 track, DataReader& reader) : lost(0), pMedia(new Media::Data(track, reader)), _pHeader(std::move(pHeader)), flush(false) {}
 		/*!
 		Post media lost infos */
-		Request(shared<Header>& pHeader, Media::Type type, UInt32 lost) : lost(-Int32(lost)), pMedia(new Media::Base(type, 0)), _pHeader(pHeader), flush(false) { init(pHeader); }
-		Request(shared<Header>& pHeader, Media::Type type, UInt16 track, UInt32 lost) : lost(lost), pMedia(new Media::Base(type, track)), _pHeader(pHeader), flush(false) { init(pHeader); }
+		Request(shared<Header>& pHeader, Media::Type type, UInt32 lost) : lost(-Int32(lost)), pMedia(new Media::Base(type, 0)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, Media::Type type, UInt16 track, UInt32 lost) : lost(lost), pMedia(new Media::Base(type, track)), _pHeader(std::move(pHeader)), flush(false) {}
 		/*!
 		Post reset */
-		Request(shared<Header>& pHeader) : lost(1), pMedia(NULL), _pHeader(pHeader), flush(false) { init(pHeader); }
+		Request(shared<Header>& pHeader) : lost(1), pMedia(NULL), _pHeader(std::move(pHeader)), flush(false) {}
 		/*!
 		Post flush or publish end */
-		Request(shared<Header>& pHeader, bool end) : lost(end ? 1 : 0), pMedia(NULL), _pHeader(pHeader), flush(true) { init(pHeader); }
+		Request(shared<Header>& pHeader, bool end) : lost(end ? 1 : 0), pMedia(NULL), _pHeader(std::move(pHeader)), flush(true) {}
 		/*!
 		Put */
-		Request(shared<Header>& pHeader, const Packet& packet) : lost(0), pMedia(NULL), _pHeader(pHeader), flush(true), Packet(std::move(packet)) { init(pHeader); }
+		Request(shared<Header>& pHeader, const Packet& packet) : lost(0), pMedia(NULL), _pHeader(std::move(pHeader)), flush(true), Packet(std::move(packet)) {}
 
 		~Request() { if (pMedia) delete pMedia; }
 
@@ -210,14 +210,12 @@ struct HTTP : virtual Static {
 		Int32					lost;
 		const bool				flush;
 		Path					file;
-		SocketAddress			serverAddress;
 
 		const Header* operator->() const { return _pHeader.get(); }
 		const Header& operator*() const { return *_pHeader; }
 		operator const shared<const Header>&() const { return _pHeader; }
 		operator bool() const { return _pHeader.operator bool(); }
 	private:
-		void init(shared<Header>& pHeader);
 		shared<const Header> _pHeader;
 	};
 };

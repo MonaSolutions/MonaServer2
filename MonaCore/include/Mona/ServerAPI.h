@@ -27,11 +27,20 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/TLS.h"
 #include "Mona/Protocols.h"
 #include "Mona/Client.h"
-#include <set>
 
 namespace Mona {
 
 struct ServerAPI : virtual Object, Parameters {
+	template<typename RunnerType>
+	bool queue(const shared<RunnerType>& pRunner) {
+		if (!running()) {
+			ERROR("Start ", typeof(*this), " before to queue ", pRunner->name);
+			return false;
+		}
+		handler.queue(pRunner);
+		return true;
+	}
+
 	// invocations
 	const Handler&			handler;
 	const Timer&			timer;
@@ -74,11 +83,12 @@ struct ServerAPI : virtual Object, Parameters {
 	void					unsubscribe(Subscription& subscription) { unsubscribe(subscription, NULL); }
 	void					unsubscribe(Client& client, Subscription& subscription) { unsubscribe(subscription, &client); }
 
+	virtual bool			running() = 0;
 	// events	
 	virtual void			onStart(){}
 	virtual void			onStop(){}
 
-	virtual void			onHandshake(const std::string& path,  const std::string& protocol,const SocketAddress& address, const Parameters& properties, std::set<SocketAddress>& addresses){}
+	virtual SocketAddress& 	onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) { return redirection; }
 	virtual void			onConnection(Exception& ex,Client& client,DataReader& arguments,DataWriter& response) {} // Exception::SOFTWARE, Exception::APPLICATION
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}

@@ -28,15 +28,13 @@ struct Proxy : virtual Object {
 	typedef Socket::OnError			ON(Error);
 	typedef Socket::OnDisconnection	ON(Disconnection);
 
-	Proxy(IOSocket& io, const shared<TLS>& pTLS = nullptr);
+	Proxy(IOSocket& io);
 	virtual ~Proxy();
 
 	IOSocket&				io;
-	const shared<Socket>&	socket();
-	Socket*					operator->() { return socket().get(); }
-	
-	bool relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressFrom, const SocketAddress& addressTo);
-	void close();
+
+	const shared<Socket>&	relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressFrom, const SocketAddress& addressTo);
+	void					close();
 
 private:
 	struct Decoder : Socket::Decoder {
@@ -53,9 +51,7 @@ private:
 
 	shared<Socket>			_pSocket;
 	Socket::OnFlush			_onFlush;
-	shared<TLS>				_pTLS;
 	bool					_connected;
-	bool					_subscribed;
 };
 
 

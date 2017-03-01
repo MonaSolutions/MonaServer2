@@ -25,9 +25,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class FLVReader : public virtual Object, public MediaReader {
-
-public:
+struct FLVReader : virtual Object, MediaReader {
 	FLVReader() : _begin(true),_size(0),_type(AMF::TYPE_EMPTY),_rate(0),_channels(0), _syncError(false) {}
 
 	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::Tag& tag);

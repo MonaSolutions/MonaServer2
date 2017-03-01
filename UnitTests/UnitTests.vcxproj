@@ -217,6 +217,9 @@
     <ClCompile Include="sources\ParametersTest.cpp" />
     <ClCompile Include="sources\PathTest.cpp" />
     <ClCompile Include="sources\PersistentDataTest.cpp" />
+    <ClCompile Include="sources\ProxyTest.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="sources\SocketAddressTest.cpp" />
     <ClCompile Include="sources\StopwatchTest.cpp" />
     <ClCompile Include="sources\StringTest.cpp" />

@@ -52,12 +52,10 @@ void MonaTiny::onStop() {
 }
 
 //// Client Events /////
-void MonaTiny::onHandshake(const string& path, const string& protocol, const SocketAddress& address, const Parameters& properties, set<SocketAddress>& addresses) {
+SocketAddress& MonaTiny::onHandshake(const string& path, const string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) {
 	DEBUG(protocol, " ", address, " handshake to ", path.empty() ? "/" : path);
 	const auto& it(_applications.find(path));
-	if (it == _applications.end())
-		return;
-	it->second->onHandshake(protocol, address, properties, addresses);
+	return it == _applications.end() ? redirection : it->second->onHandshake(protocol, address, properties, redirection);
 }
 
 void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& parameters, DataWriter& response) {

@@ -55,12 +55,29 @@ ADD_TEST(FileTest, File) {
 	}
 }
 
-static Handler		_Handler;
+struct MainHandler : Handler {
+	MainHandler() : Handler(_signal) {}
+	bool join(UInt32 count) {
+		UInt32 done(0);
+		do {
+			done += Handler::flush();
+			if (done == count)
+				return true;
+			if (done > count)
+				return false;
+		} while (_signal.wait(14000));
+		return false;
+	}
+
+private:
+	void flush();
+	Signal _signal;
+};
 static ThreadPool	_ThreadPool;
 
 ADD_TEST(FileTest, FileReader) {
-	
-	IOFile		io(_Handler, _ThreadPool);
+	MainHandler	handler;
+	IOFile		io(handler, _ThreadPool);
 
 	const char* name("temp.mona");
 	Exception ex;
@@ -83,13 +100,12 @@ ADD_TEST(FileTest, FileReader) {
 		}
 	};
 	reader.open(name).read();
-	do {
-		io.join();
-	} while (_Handler.flush());
+	CHECK(handler.join(3));
 }
 
 ADD_TEST(FileTest, FileWriter) {
-	IOFile		io(_Handler, _ThreadPool);
+	MainHandler	handler;
+	IOFile		io(handler, _ThreadPool);
 	const char* name("temp.mona");
 	Exception ex;
 	Packet salut(EXPAND("Salut"));
@@ -111,6 +127,6 @@ ADD_TEST(FileTest, FileWriter) {
 	CHECK(writer->size() == 15);
 	writer.close();
 
-	CHECK(!_Handler.flush());
+	CHECK(handler.join(0));
 	CHECK(FileSystem::Delete(ex, name) && !ex);
 }

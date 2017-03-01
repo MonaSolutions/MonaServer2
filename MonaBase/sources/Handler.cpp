@@ -33,20 +33,6 @@ void Handler::queue(const Event<void()>& onResult) const {
 	queue(make_shared<Result>(onResult));
 }
 
-bool Handler::waitQueue(Signal& signal, UInt32 timeout) {
-	signal.reset();
-	{
-		lock_guard<mutex> lock(_mutex);
-		if (!_runners.empty())
-			return true;
-		_pSignal = &signal;
-	}
-	signal.wait(timeout);
-	lock_guard<mutex> lock(_mutex);
-	_pSignal = NULL;
-	return !_runners.empty();
-}
-
 UInt32 Handler::flush(UInt32 count) {
 	bool all(count==0);
 	UInt32 done(0);

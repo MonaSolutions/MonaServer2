@@ -198,6 +198,12 @@ void Publication::stop() {
 	onEnd();
 }
 
+void Publication::flush(UInt16 ping) {
+	if(_running && ping)
+		_latency = ping >> 1;
+	flush();
+}
+
 void Publication::flush() {
 	if (!_running) {
 		ERROR("Publication flush called on publication ", _name, " stopped");
@@ -238,13 +244,11 @@ void Publication::flush() {
 }
 
 
-void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, UInt16 ping) {
+void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) {
 	if (!_running) {
 		ERROR("Audio packet on publication ", _name, " stopped");
 		return;
 	}
-	if (ping)
-		_latency = ping >> 1;
 	_idleSince.update();
 
 	TRACE("Audio time ", tag.time);
@@ -303,13 +307,11 @@ void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const P
 
 
 
-void Publication::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, UInt16 ping) {
+void Publication::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) {
 	if (!_running) {
 		ERROR("Video packet on publication ", _name, " stopped");
 		return;
 	}
-	if (ping)
-		_latency = ping >> 1;
 	_idleSince.update();
 
 	// create track
@@ -341,13 +343,11 @@ void Publication::writeVideo(UInt16 track, const Media::Video::Tag& tag, const P
 		video.config.set(tag, packet);
 }
 
-void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& packet, UInt16 ping) {
+void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& packet) {
 	if (!_running) {
 		ERROR("Data packet on '", _name, "' publication stopped");
 		return;
 	}
-	if (ping)
-		_latency = ping >> 1;
 	_idleSince.update();
 
 	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
@@ -370,13 +370,11 @@ void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& 
 	onData(track, type, packet);
 }
 
-void Publication::writeProperties(UInt16 track, DataReader& reader, UInt16 ping) {
+void Publication::writeProperties(UInt16 track, DataReader& reader) {
 	if (!_running) {
 		ERROR("Properties on '", _name, "' publication stopped");
 		return;
 	}
-	if (ping)
-		_latency = ping >> 1;
 	_idleSince.update();
 
 	MapWriter<Parameters> writer(*this);

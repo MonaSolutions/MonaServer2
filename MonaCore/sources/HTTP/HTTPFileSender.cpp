@@ -109,7 +109,7 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 				shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
 				BinaryWriter writer(*pBuffer);
 				// Full URL required here relating RFC2616 section 10.3.3
-				String::Assign(buffer,request.protocol, "://", request.serverAddress, request.path, '/', _file.name(), '/');
+				String::Assign(buffer,request.protocol, "://", request.host, request.path, '/', _file.name(), '/');
 				HTTP_BEGIN_HEADER(writer)
 					HTTP_ADD_HEADER("Location", buffer);
 				HTTP_END_HEADER

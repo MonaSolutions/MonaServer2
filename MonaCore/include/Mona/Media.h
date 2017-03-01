@@ -261,7 +261,7 @@ struct Media : virtual Static {
 		void writeVideo(const Media::Video::Tag& tag, const Packet& packet) { writeVideo(0, tag, packet); }
 		void writeData(Media::Data::Type type, const Packet& packet) { writeData(0, type, packet); }
 	
-		void writeMedia(Media::Base& media);
+		void writeMedia(const Media::Base& media);
 
 		static Source& Null();
 	};

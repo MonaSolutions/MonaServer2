@@ -44,16 +44,16 @@ struct IOSocket::Action : Runner, virtual Object {
 			pAction->run(pAction->_ex);
 	}
 
-	Action(const char* name, int error, const Handler& handler, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket), handler(handler) {
+	Action(const char* name, int error, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket), _handler(*pSocket->_pHandler) {
 		if (error)
 			Socket::SetException(_ex, error);
 	}
 
 protected:
-	const Handler&		handler;
 
+	
 	struct Handle : Runner, virtual Object {
-		Handle(const char* name, const weak<Socket>& weakSocket, const Exception& ex) : Runner(name), _ex(ex), _weakSocket(weakSocket) {}
+		Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Runner(name), _ex(ex), _weakSocket(pSocket) {}
 	private:
 		bool run(Exception&) {
 			// Handler safe thread!
@@ -71,25 +71,9 @@ protected:
 		Exception		_ex;
 	};
 
-	template<typename ActionType>
-	struct Rearm : Handle {
-		Rearm(const char* name, const weak<Socket>& weakSocket, const Exception& ex, const Handler& handler) :
-			_handler(handler), _pThread(ThreadQueue::Current()), Action::Handle(name, weakSocket, ex) {}
-	private:
-		void handle(const shared<Socket>& pSocket) {
-		//	if (!--pSocket->_readable)
-		//		return;
-			Exception ex;
-			if (!_pThread->queue(ex, make_shared<ActionType>(0, _handler, pSocket)))
-				pSocket->onError(ex);
-		}
-		ThreadQueue*		_pThread;
-		const Handler&		_handler;
-	};
-
 	template<typename HandleType, typename ...Args>
-	void handle(Args&&... args) {
-		handler.queue(make_shared<HandleType>(name, _weakSocket, _ex, std::forward<Args>(args)...));
+	void handle(const shared<Socket>& pSocket, Args&&... args) {
+		_handler.queue(make_shared<HandleType>(name, pSocket, _ex, std::forward<Args>(args)...));
 		_ex = NULL;
 	}
 
@@ -101,7 +85,7 @@ private:
 		if (!process(_ex, pSocket) && !_ex)
 			_ex.set<Ex::Net::Socket>();
 		if (_ex)
-			handle<Handle>();
+			handle<Handle>(pSocket);
 		return true;
 	}
 
@@ -109,6 +93,7 @@ private:
 	
 	weak<Socket>	_weakSocket;
 	Exception		_ex;
+	const Handler&  _handler;
 };
 
 
@@ -146,6 +131,7 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 	pSocket->onReceived = onReceived;
 	pSocket->pDecoder = move(pDecoder);
 	pSocket->onFlush = onFlush;
+	pSocket->_pHandler = &handler;
 
 	{
 		lock_guard<mutex> lock(_mutex); // must protect "start" + _system (to avoid a write operation on restarting) + _subscribers increment
@@ -268,21 +254,20 @@ void IOSocket::unsubscribe(shared<Socket>& pSocket) {
 
 
 struct IOSocket::Send : IOSocket::Action {
-	Send(int error, const Handler& handler, const shared<Socket>& pSocket) :
-		Action("SocketSend", error, handler, pSocket) {}
+	Send(int error, const shared<Socket>& pSocket) : Action("SocketSend", error, pSocket) {}
 
 	bool process(Exception& ex, const shared<Socket>& pSocket) {
 		if (!pSocket->flush(ex))
 			return false;
 		// handle if no more queueing data
 		if (!pSocket->queueing())
-			handle<Handle>();
+			handle<Handle>(pSocket);
 		return true;
 	}
 
 private:
 	struct Handle : Action::Handle {
-		Handle(const char* name, const weak<Socket>& weakSocket, const Exception& ex) : Action::Handle(name, weakSocket, ex) {}
+		Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Action::Handle(name, pSocket, ex) {}
 	private:
 		void handle(const shared<Socket>& pSocket) {
 			if (!pSocket->queueing()) // check again on handle, "queueing" can had changed
@@ -298,7 +283,7 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	if (pSocket->_firstWritable)
 		pSocket->_firstWritable = false;
 #endif
-	Action::Run(threadPool, make_shared<Send>(error, handler, pSocket));
+	Action::Run(threadPool, make_shared<Send>(error, pSocket));
 }
 
 void IOSocket::read(const shared<Socket>& pSocket, int error) {
@@ -310,86 +295,108 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 	if (pSocket->_listening) {
 
 		struct Accept : Action {
-			Accept(int error, const Handler& handler, const shared<Socket>& pSocket) :
-				Action("SocketAccept", error, handler, pSocket) {}
+			Accept(int error, const shared<Socket>& pSocket) : Action("SocketAccept", error, pSocket) {}
 		private:
 			struct Handle : Action::Handle {
-				Handle(const char* name, const weak<Socket>& weakSocket, const Exception& ex, const shared<Socket>& pSocket) :
-					_pSocket(pSocket), Action::Handle(name, weakSocket, ex) {}
+				Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex, shared<Socket>& pConnection, bool& stop) :
+					Action::Handle(name, pSocket, ex), _pConnection(move(pConnection)), _pThread(NULL) {
+					if (++pSocket->_receiving < Socket::BACKLOG_MAX)
+						return;
+					stop = true;
+					_pThread = ThreadQueue::Current();
+					++pSocket->_reading;
+				}
 			private:
-				void handle(const shared<Socket>& pSocket) { pSocket->onAccept(_pSocket); }
-				shared<Socket>		_pSocket;
+				void handle(const shared<Socket>& pSocket) {
+					pSocket->onAccept(_pConnection);
+					UInt32 receiving = --pSocket->_receiving;
+					if (!_pThread)
+						return;
+					if (receiving < Socket::BACKLOG_MAX) {
+						// REARM
+						Exception ex;
+						if (!_pThread->queue(ex, make_shared<Accept>(0, pSocket)))
+							pSocket->onError(ex);
+					} else
+						--pSocket->_reading;
+				}
+				shared<Socket>		_pConnection;
+				ThreadQueue*		_pThread;
 			};
 			bool process(Exception& ex, const shared<Socket>& pSocket) {
 				if (!pSocket->_reading--) // me and something else! useless!
 					return true;
-				bool rearm(false);
-				UInt8 max(200); // blacklog maximum, see http://tangentsoft.net/wskfaq/advanced.html#backlog
-				while (max) { // /!\ Continue just if is in a possible blacklog range, Then wait rearm!
-					shared<Socket> pConnection;
-					if (!pSocket->accept(ex, pConnection)) {
-						if (ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK) {
-							ex = nullptr;
-							break;
-						}
-						if (!ex)
-							ex.set<Ex::Net::Socket>();
-						Action::handle<Action::Handle>(); // to call onError immediatly (and continue reception!)
-						continue;
-					}
-					if (!rearm) {
-						rearm = true;
-						++pSocket->_reading;
-					}
-					handle<Handle>(pConnection);
-					--max;
-				}
-				if (rearm)
-					handle<Rearm<Accept>>(handler);
+				shared<Socket> pConnection;
+				bool stop(false);
+				while(!stop && pSocket->accept(ex, pConnection))
+					handle<Handle>(pSocket, pConnection, stop);
+				if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
+					return false;
+				ex = nullptr;
 				return true;
 			}
 		};
 
-		return Action::Run(threadPool, make_shared<Accept>(error, handler, pSocket), pSocket->_threadReceive);
+		return Action::Run(threadPool, make_shared<Accept>(error, pSocket), pSocket->_threadReceive);
 	}
 
 
 	struct Receive : Action {
-		Receive(int error, const Handler& handler, const shared<Socket>& pSocket) :
-			Action("SocketReceive", error, handler, pSocket) {}
+		Receive(int error, const shared<Socket>& pSocket) : Action("SocketReceive", error, pSocket) {}
 
 	private:
 		struct Handle : Action::Handle {
-			Handle(const char* name, const weak<Socket>& weakSocket, const Exception& ex, const shared<Buffer>& pBuffer, const SocketAddress& address) :
-				Action::Handle(name, weakSocket, ex), _address(address), _pBuffer(pBuffer) {}
+			Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex, shared<Buffer>& pBuffer, const SocketAddress& address, bool& stop) :
+				Action::Handle(name, pSocket, ex), _address(address), _pBuffer(move(pBuffer)), _pThread(NULL) {
+				if ((pSocket->_receiving += _pBuffer->size()) < pSocket->recvBufferSize())
+					return;
+				stop = true;
+				_pThread = ThreadQueue::Current();
+				++pSocket->_reading;
+			}
 		private:
-			void handle(const shared<Socket>& pSocket) { pSocket->onReceived(_pBuffer, _address); }
+			void handle(const shared<Socket>& pSocket) {
+				UInt32 receiving = _pBuffer->size();
+				pSocket->onReceived(_pBuffer, _address);
+				receiving = pSocket->_receiving -= receiving;
+				if (!_pThread)
+					return;
+				if(receiving < pSocket->recvBufferSize()) {
+					// REARM
+					Exception ex;
+					if (!_pThread->queue(ex, make_shared<Receive>(0, pSocket)))
+						pSocket->onError(ex);
+				} else
+					--pSocket->_reading;
+			}
 			shared<Buffer>		_pBuffer;
 			SocketAddress		_address;
+			ThreadQueue*		_pThread;
 		};
+
 		bool process(Exception& ex, const shared<Socket>& pSocket) {
 			if (!pSocket->_reading--) // me and something else! useless!
 				return true;
-			bool rearm(false);
-			UInt32 bufferSize = pSocket->recvBufferSize();
-			while(UInt32 available = pSocket->available()) {
+			UInt32 available = pSocket->available();
+			bool stop(false);
+			while (!stop) {
 				shared<Buffer>	pBuffer(new Buffer(available));
 				SocketAddress	address;
 				bool queueing(pSocket->queueing() ? true : false);
 				int received = pSocket->receive(ex, pBuffer->data(), available, 0, &address);
 				if (received < 0) {
 					// error, but not necessary a disconnection
-					if (ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK) {
-						ex = nullptr;
-						// Should almost never happen, when happen it's usually a "would block" relating a writing request (SSL handshake for example)
-						if (queueing)
-							Send(0, handler, pSocket).process(ex, pSocket);
+					if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
+						return false;
+					// ::printf("NET_EWOULDBLOCK %d\n", pSocket->_sockfd);
+					ex = nullptr;
+					// Should almost never happen, when happen it's usually a "would block" relating a writing request (SSL handshake for example)
+					if (queueing)
+						Send(0, pSocket).process(ex, pSocket);
+					available = pSocket->available();
+					if (available)
 						continue;
-					}
-					if (!ex)
-						ex.set<Ex::Net::Socket>();
-					handle<Action::Handle>(); // to call onError immediatly (will continue reception!)
-					continue; // continue to rearm on end if need!
+					break;
 				}
 
 				pBuffer->resize(received);
@@ -397,30 +404,18 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				// decode can't happen BEFORE onDisconnection because this call decode + push to _handler in this call!
 				if (pSocket->pDecoder) {
 					UInt32 decoded = pSocket->pDecoder->decode(pBuffer, address, pSocket);
-					if (!pBuffer)
-						continue;
-					if (decoded < pBuffer->size())
+					if (pBuffer && decoded < pBuffer->size())
 						pBuffer->resize(decoded);
 				}
-				if (!rearm) {
-					rearm = true;
-					++pSocket->_reading;
-				}
-
-				handle<Handle>(pBuffer, address);
-
-				// /!\ Continue just if less than socket.recvBufferSize! Then wait rearm!
-				if (bufferSize <= UInt32(received))
-					break;
-				bufferSize -= received;	
+				if(pBuffer)
+					handle<Handle>(pSocket, pBuffer, address, stop);
+				available = pSocket->available();
 			};
-			if (rearm)
-				handle<Rearm<Receive>>(handler);
 			return true;
 		}
 	};
 
-	Action::Run(threadPool, make_shared<Receive>(error, handler, pSocket), pSocket->_threadReceive);
+	Action::Run(threadPool, make_shared<Receive>(error, pSocket), pSocket->_threadReceive);
 }
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
@@ -428,10 +423,10 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 	if (pSocket->type != Socket::TYPE_STREAM)
 		return; // no Disconnection requirement!
 	struct Close : Action {
-		Close(int error, const Handler& handler, const shared<Socket>& pSocket) : Action("SocketClose", error, handler, pSocket) {}
+		Close(int error, const shared<Socket>& pSocket) : Action("SocketClose", error, pSocket) {}
 	private:
 		struct Handle : Action::Handle {
-			Handle(const char* name, const weak<Socket>& weakSocket, const Exception& ex) : Action::Handle(name, weakSocket, ex) {}
+			Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Action::Handle(name, pSocket, ex) {}
 		private:
 			void handle(const shared<Socket>& pSocket) {
 				pSocket->onDisconnection();
@@ -440,11 +435,11 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 		};
 		bool process(Exception& ex, const shared<Socket>& pSocket) {
 			pSocket->_reading = 0xFF; // block reception!
-			handle<Handle>();
+			handle<Handle>(pSocket);
 			return true;
 		}
 	};
-	Action::Run(threadPool, make_shared<Close>(error, handler, pSocket), pSocket->_threadReceive);
+	Action::Run(threadPool, make_shared<Close>(error, pSocket), pSocket->_threadReceive);
 }
 
 
@@ -622,7 +617,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 			} else if (event.filter&EVFILT_WRITE)
 				write(pSocket, error);
 			else if (event.flags&EV_ERROR) // on few unix system we can get an error without anything else
-				Action::Run(threadPool, make_shared<Action>("SocketError", error, handler, pSocket), pSocket->_threadReceive);
+				Action::Run(threadPool, make_shared<Action>("SocketError", error, pSocket), pSocket->_threadReceive);
 
 #else
 			epoll_event& event(events[i]);
@@ -663,7 +658,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 			} else if (event.events&EPOLLOUT)
 				write(pSocket, error);
 			else if (event.events&EPOLLERR) // on few unix system we can get an error without anything else
-				Action::Run(threadPool, make_shared<Action>("SocketError", error, handler, pSocket), pSocket->_threadReceive);
+				Action::Run(threadPool, make_shared<Action>("SocketError", error, pSocket), pSocket->_threadReceive);
 #endif
 		}
 

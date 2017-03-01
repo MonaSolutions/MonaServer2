@@ -66,7 +66,12 @@ struct RTMFP : virtual Static {
 		virtual RTMFPWriter&	writer() = 0;
 	};
 	struct Group : virtual Object, Entity, Entity::Map<Member> {
-		Group(const UInt8* id, Entity::Map<Group>& groups) : Entity(id), _groups(groups) {}
+		Group(const UInt8* id, Entity::Map<Group>& groups) : Entity(id), _groups(groups) {
+			INFO("Creation group ", String::Hex(id, Entity::SIZE));
+		}
+		~Group() {
+			INFO("Deletion group ", String::Hex(id, Entity::SIZE));
+		}
 		void join(Member& member);
 		void unjoin(Member& member);
 	private:

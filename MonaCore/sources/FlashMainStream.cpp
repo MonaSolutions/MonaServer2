@@ -77,6 +77,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 		response.writeNumberProperty("objectEncoding", writer.amf0 ? 0.0 : 3.0);
 		response.amf0 = writer.amf0;
 		Exception ex;
+		(bool&)writer.isMain = true;
 		peer.onConnection(ex, writer, netStats, message,response);
 		if (ex) {
 			if (ex.cast<Ex::Application::Unfound>())
@@ -142,16 +143,16 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 			ERROR("deleteStream message without id on flash stream ", streamId)
 		return;
 	}
-	
-	// not close the main flash stream for that!
+
 	Exception ex;
-	if (peer.onInvocation(ex, name, message)) {
-		if (ex) {
-			ERROR(ex);
-			writer.writeAMFError("NetConnection.Call.Failed", ex);
-		}
-	} else
-		LOG(name == "setPeerInfo" ? LOG_DEBUG : LOG_WARN, "Method client ", name, " not found in application ", peer.path); // warn because for flash there is some auto messages not necessary catched/programmed by user application
+	if (!peer.onInvocation(ex, name, message)) {
+		if (name != "setPeerInfo")
+			ERROR(ex.set<Ex::Unfound>("Method client ", name, " not found in application ", peer.path))
+		else
+			DEBUG("Method client setPeerInfo not found in application ", peer.path);
+	}
+	if(ex)
+		writer.writeAMFError("NetConnection.Call.Failed", ex);
 }
 
 void FlashMainStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer) {

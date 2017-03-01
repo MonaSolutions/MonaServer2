@@ -111,7 +111,8 @@ struct String : std::string {
 	static std::string&	TrimRight(std::string& value) { while (!value.empty() && isspace(value.back())) value.pop_back(); return value; }
 	static std::string&	Trim(std::string& value) { TrimLeft(value); return TrimRight(value); }
 	
-	static std::string&	ToLower(std::string& value) { for (auto it = value.begin(); it != value.end(); ++it) *it = tolower(*it); return value; }
+	static std::string&	ToLower(std::string& value) { for (char& c : value) c = tolower(c); return value; }
+	static std::string&	ToUpper(std::string& value) { for (char& c : value) c = toupper(c); return value; }
 
 	static int ICompare(const char* value1, const char* value2,  std::size_t size = std::string::npos);
 	static int ICompare(const std::string& value1, const std::string& value2, std::size_t size = std::string::npos) { return ICompare(value1.empty() ? NULL : value1.c_str(), value2.empty() ? NULL : value2.c_str(), size); }
@@ -174,6 +175,13 @@ struct String : std::string {
 	static OutType& Append(OutType& out, const std::string& value, Args&&... args) {
 		return Append<OutType>((OutType&)out.append(value.data(), value.size()), std::forward<Args>(args) ...);
 	}
+
+	/// \brief match "const char*" case
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const char* value, Args&&... args) {
+		return Append<OutType>((OutType&)out.append(value, strlen(value)), std::forward<Args>(args)...);
+	}
+
 	template <typename OutType, typename ...Args>
 	static OutType& Append(String& out, std::string&& value, Args&&... args) { return Append<String>(out, value, std::forward<Args>(args) ...); }
 	template <typename OutType, typename ...Args>
@@ -185,10 +193,29 @@ struct String : std::string {
 		return Append<std::string>(out, std::forward<Args>(args)...);
 	}
 
+	struct Lower : virtual Object {
+		Lower(const char* data, std::size_t size=std::string::npos) : data(data), size(size== std::string::npos ? std::strlen(data) : size) {}
+		Lower(const std::string& data) : data(data.data()), size(data.size()) {}
+		const char*			data;
+		const std::size_t	size;
+	};
 	/// \brief match "const char*" case
 	template <typename OutType, typename ...Args>
-	static OutType& Append(OutType& out, const char* value, Args&&... args) {
-		return Append<OutType>((OutType&)out.append(value, strlen(value)), std::forward<Args>(args)...);
+	static OutType& Append(OutType& out, const Lower& value, Args&&... args) {
+		for (std::size_t i = 0; i < value.size; ++i) {
+			char c = tolower(value.data[i]);
+			out.append(&c, 1);
+		}
+		return Append<OutType>(out, std::forward<Args>(args)...);
+	}
+	struct Upper : Lower { using Lower::Lower; };
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const Upper& value, Args&&... args) {
+		for (std::size_t i = 0; i < value.size; ++i) {
+			char c = toupper(value.data[i]);
+			out.append(&c, 1);
+		}
+		return Append<OutType>(out, std::forward<Args>(args)...);
 	}
 
 #if defined(_WIN32)

@@ -25,7 +25,22 @@ using namespace Mona;
 using namespace std;
 
 static ThreadPool _ThreadPool;
-static Handler	  _Handler;
+static struct MainHandler : Handler {
+	MainHandler() : Handler(_signal) {}
+	UInt32 join(UInt32 min) {
+		UInt32 count(0);
+		while(count<min) {
+			if (!_signal.wait(14000))
+				return false;
+			count += Handler::flush();
+		};
+		return count;
+	}
+
+private:
+	void flush() {}
+	Signal _signal;
+} _Handler;
 
 struct Decoded : virtual Object, Packet {
 	Decoded(const Packet& packet, const SocketAddress& address) : address(address), Packet(move(packet)) {}
@@ -35,9 +50,8 @@ struct Decoded : virtual Object, Packet {
 struct Decoder : virtual Object, Socket::Decoder {
 	typedef Event<void(Decoded&)> ON(Decoded);
 
-	Decoder() : count(0) {}
+	Decoder() : count(0), _end(false) {}
 	UInt8	count;
-	bool	join() { return _completed.wait(7000); }
 
 	UInt32 decode(Packet& packet, const SocketAddress& address) {
 		CHECK(Thread::CurrentId() != Thread::MainId);
@@ -47,10 +61,7 @@ struct Decoder : virtual Object, Socket::Decoder {
 				_Handler.queue(onDecoded, Packet(packet, packet.data() + 2, 3), address);  // second time
 			else
 				_Handler.queue(onDecoded, Packet(packet, packet.data(), 5), address);  // first time
-			packet += 5;
-		} while (packet);
-		CHECK(count == 2);
-		_completed.set();
+		} while (packet += 5);
 		return 0;
 	}
 private:
@@ -58,7 +69,7 @@ private:
 		Packet packet(pBuffer);
 		return decode(packet, address);
 	}
-	Signal _completed;
+	volatile bool _end;
 };
 
 
@@ -75,12 +86,11 @@ ADD_TEST(DecoderTest, Manual) {
 		CHECK(memcmp(decoded.data(), (count++ ? "msg" : "hello"), decoded.size())==0);
 		CHECK(decoded.address == address);
 	};
-	std::thread([&] { 
+	std::thread([&] {
 		Packet packet(EXPAND("hello10msg"));
 		decoder.decode(packet, address); }
-	).detach();
-	decoder.join();
-	CHECK(_Handler.flush() == 2 && count == 2 && decoder.count == count);
+	).join();
+	CHECK(_Handler.join(2)==2 && count == 2 && decoder.count == count);
 }
 
 
@@ -92,7 +102,6 @@ ADD_TEST(DecoderTest, Socket) {
 
 	struct UDPReceiver : UDPSocket {
 		UDPReceiver(IOSocket& io) : UDPSocket(io), _count(0) {}
-		bool	join() { return _pDecoder->join(); }
 	private:
 		shared<Socket::Decoder> newDecoder() {
 			CHECK(!_pDecoder);
@@ -109,15 +118,11 @@ ADD_TEST(DecoderTest, Socket) {
 	};
 
 	UDPReceiver receiver(io);
-	CHECK(receiver.bind(ex, SocketAddress(IPAddress::Wildcard(),62435)) && !ex);
+	CHECK(receiver.bind(ex, SocketAddress::Wildcard()) && !ex);
 
-	sender.bind(ex, IPAddress::Loopback());
-	
 	CHECK(sender.sendTo(ex, EXPAND("hello10msg"), SocketAddress(IPAddress::Loopback(), receiver->address().port())) == 10 && !ex)
 
-	CHECK(receiver.join());
-
-	CHECK(_Handler.flush() >= 2); // 2 or 3 with SocketSend (udp writable!)
+	CHECK(_Handler.join(2)); // 2 or 3 with SocketSend (udp writable!)
 }
 
 
@@ -130,43 +135,32 @@ ADD_TEST(DecoderTest, File) {
 	struct Decoder : File::Decoder {
 		typedef Event<void(Decoded&)> ON(Decoded);
 
-		bool join() { return _completed.wait(7000); }
-
 	private:
 		UInt32 decode(shared<Buffer>& pBuffer, bool end) {
 			CHECK(Thread::CurrentId() != Thread::MainId);
 			Packet packet(pBuffer);
 			_Handler.queue(onDecoded, packet, end);
-			if (!end) {
-				CHECK(packet.size() == 0xFFFF);
-				return packet.size();
-			}
-			_completed.set();
-			return 0;
+			if (end)
+				return 0;
+			CHECK(packet.size() == 0xFFFF);
+			return packet.size();
 		}
-		Signal _completed;
 	};
 	struct Reader : FileReader {
-		Reader(IOFile& io) :FileReader(io),count(0), end(false) {}
+		Reader(IOFile& io) :FileReader(io),count(0) {}
 		UInt8	count;
-		bool	end;
-		bool	join() { return _pDecoder->join(); }
+
 	private:
 		shared<File::Decoder> newDecoder() {
-			CHECK(!_pDecoder);
-			_pDecoder.reset(new Decoder());
-			_pDecoder->onDecoded = [this](Decoded& decoded) {
+			shared<Decoder> pDecoder(new Decoder());
+			pDecoder->onDecoded = [this](Decoded& decoded) {
 				CHECK(Thread::CurrentId() == Thread::MainId);
-				if (decoded.end) {
-					CHECK(count > 0);
-					end = true;
-				} else
-					CHECK(decoded.size() == 0xFFFF);
 				++count;
+				if (!decoded.end)
+					CHECK(decoded.size() == 0xFFFF);
 			};
-			return _pDecoder;
+			return pDecoder;
 		}
-		shared<Decoder> _pDecoder;
 	};
 	
 	Exception ex;
@@ -177,7 +171,5 @@ ADD_TEST(DecoderTest, File) {
 	CHECK(reader.open(Path::CurrentApp()));
 	reader.read();
 
-	CHECK(reader.join());
-
-	CHECK(_Handler.flush() == reader.count && reader.count && reader.end);
+	CHECK(_Handler.join(reader) == reader.count && reader.count);
 }

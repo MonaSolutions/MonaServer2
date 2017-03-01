@@ -19,8 +19,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/SocketAddress.h"
 #include "Mona/ByteRate.h"
-#include "Mona/Event.h"
 #include "Mona/Packet.h"
+#include "Mona/Handler.h"
 #include <deque>
 
 namespace Mona {
@@ -47,6 +47,10 @@ struct Socket : virtual Object, Net::Stats {
 		SHUTDOWN_RECV = 0,
 		SHUTDOWN_SEND = 1,
 		SHUTDOWN_BOTH = 2
+	};
+
+	enum {
+		BACKLOG_MAX = 200 // blacklog maximum, see http://tangentsoft.net/wskfaq/advanced.html#backlog
 	};
 
 	/*!
@@ -207,7 +211,9 @@ private:
 	OnDisconnection				onDisconnection;
 
 	UInt16						_threadReceive;
+	std::atomic<UInt32>			_receiving;
 	std::atomic<UInt8>			_reading;
+	const Handler*				_pHandler;
 	bool						_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
 
 #if !defined(_WIN32)

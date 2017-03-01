@@ -29,14 +29,12 @@ using namespace std;
 namespace Mona {
 
 
-FlashWriter::FlashWriter() : _callbackHandleOnAbort(0),_callbackHandle(0), amf0(false) {
+FlashWriter::FlashWriter() : _callbackHandleOnAbort(0),_callbackHandle(0), amf0(false), isMain(false) {
 }
 
 void FlashWriter::closing(Int32 error, const char* reason) {
 	if (!isMain || error <= 0)
 		return;
-	_callbackHandle = 1; // required for any NetConnection.Connect response!
-
 	switch(error) {
 		case Session::ERROR_SERVER:
 			writeAMFError("NetConnection.Connect.AppShutdown", reason ? reason : "Server shutdown");
@@ -85,6 +83,11 @@ AMFWriter& FlashWriter::writeInvocation(const char* name, double callback) {
 	writer->write8(AMF::AMF0_NULL); // for RTMP compatibility! (requiere it)
 	writer.amf0 = amf0;
 	return writer;
+}
+
+AMFWriter& FlashWriter::writeAMFError(const char* code, const std::string& description, bool withoutClosing) {
+	_callbackHandle = 1; // Always answers AMF error to main NetConnection FlashStream
+	return writeAMFState("_error", code, true, description, withoutClosing);
 }
 
 AMFWriter& FlashWriter::writeAMFState(const char* name,const char* code,bool isError, const string& description,bool withoutClosing) {

@@ -24,16 +24,18 @@ This file is a part of Mona.
 
 namespace Mona {
 
-#define LOG_LEVEL	UInt8
+typedef UInt8 LOG_LEVEL;
 
-#define LOG_FATAL	1
-#define LOG_CRITIC	2
-#define LOG_ERROR	3
-#define LOG_WARN	4
-#define LOG_NOTE	5
-#define LOG_INFO	6
-#define LOG_DEBUG	7
-#define LOG_TRACE	8
+enum {
+	LOG_FATAL = 1,
+	LOG_CRITIC = 2,
+	LOG_ERROR = 3,
+	LOG_WARN = 4,
+	LOG_NOTE = 5,
+	LOG_INFO = 6,
+	LOG_DEBUG = 7,
+	LOG_TRACE = 8
+};
 
 struct Logger : virtual Object {
     virtual void log(LOG_LEVEL level, const Path& file, long line, const std::string& message);

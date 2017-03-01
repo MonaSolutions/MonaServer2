@@ -46,7 +46,7 @@ HTTP::Header::Header(const char* protocol, const SocketAddress& serverAddress) :
 	secWebsocketKey(NULL),
 	secWebsocketAccept(NULL),
 	accessControlRequestHeaders(NULL),
-	serverAddress(serverAddress) {
+	host(serverAddress) {
 }
 
 void HTTP::Header::set(const char* key, const char* value) {
@@ -59,7 +59,7 @@ void HTTP::Header::set(const char* key, const char* value) {
 	} else if (String::ICompare(key, "connection") == 0) {
 		connection = ParseConnection(value);
 	} else if (String::ICompare(key, "host") == 0) {
-		serverAddress = value;
+		host = value;
 	} else if (String::ICompare(key, "origin") == 0) {
 		origin = value;
 	} else if (String::ICompare(key, "upgrade") == 0) {
@@ -105,17 +105,6 @@ void HTTP::Header::set(const char* key, const char* value) {
 		});
 		String::Split(value, ";", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
 	}
-}
-
-void HTTP::Request::init(shared_ptr<Header>& pHeader) {
-	if (!pHeader)
-		return;
-	// If assignation fails, the previous value is preserved (allow to try different assignation and keep just what is working)
-	Exception ex;
-	if (!serverAddress.set(ex, pHeader->serverAddress) && ex.cast<Ex::Net::Address::Port>())
-		serverAddress.host().set(ex, pHeader->serverAddress);
-	Parameters::operator=(std::move(*pHeader));
-	pHeader.reset();
 }
 
 const char* HTTP::ErrorToCode(Int32 error) {

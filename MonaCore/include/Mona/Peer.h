@@ -32,7 +32,7 @@ struct Peer : Client, virtual Object {
 	typedef Event<void(const SocketAddress& oldAddress)> ON(AddressChanged);
 	typedef Event<void(Int32 error, const char* reason)> ON(Close);
 
-	Peer(ServerAPI& api);
+	Peer(ServerAPI& api, const char* protocol);
 	virtual ~Peer();
 
 	Writer&						writer() { return _pWriter ? *_pWriter : Writer::Null(); }
@@ -72,7 +72,7 @@ struct Peer : Client, virtual Object {
 	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response);
 	void onDisconnection();
 
-	void onHandshake(std::set<SocketAddress>& addresses);
+	SocketAddress& onHandshake(SocketAddress& redirection);
 
 	bool onInvocation(Exception& ex, const std::string& name, DataReader& reader, UInt8 responseType = 0);
 	/// \brief call the onRead lua function ang get result in properties

@@ -32,7 +32,7 @@ UInt32 Proxy::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& addr
 	return 0;
 }
 
-Proxy::Proxy(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io), _connected(false), _subscribed(false),
+Proxy::Proxy(IOSocket& io) : io(io), _connected(false),
 		_onFlush([this](){
 			_connected = true;
 			onFlush();
@@ -40,46 +40,43 @@ Proxy::Proxy(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io), _conn
 }
 
 Proxy::~Proxy() {
-	if (_subscribed)
+	if (_pSocket)
 		io.unsubscribe(_pSocket);
 }
 
-const shared<Socket>& Proxy::socket() {
-	if (!_pSocket)
-		_pSocket.reset(_pTLS ? new TLS::Socket(Socket::TYPE_STREAM, _pTLS) : new Socket(Socket::TYPE_STREAM));
-	return _pSocket;
-}
-
-bool Proxy::relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressFrom, const SocketAddress& addressTo) {
+const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressFrom, const SocketAddress& addressTo) {
 	if (_pSocket && _pSocket->peerAddress() != addressTo)
 		close(); // destinator has changed!
-	if (!_subscribed) {
+	if (!_pSocket) {
+		_pSocket.reset(pSocket->isSecure() ? new TLS::Socket(pSocket->type, ((TLS::Socket*)pSocket.get())->pTLS) : new Socket(pSocket->type));
 		shared<Decoder> pDecoder(new Decoder(io.handler, pSocket, addressFrom));
 		pDecoder->onError = onError;
-		if (!(_subscribed = io.subscribe(ex, socket(), pDecoder, nullptr, _onFlush, onError, onDisconnection))) {
+		if (!io.subscribe(ex, _pSocket, pDecoder, nullptr, _onFlush, onError, onDisconnection)) {
 			_pSocket.reset();
-			return false;
+			return _pSocket;
 		}
 	}
 	if (!_pSocket->peerAddress() || !_connected) {
 		// Pulse connect if always not writable
 		if (!_pSocket->connect(ex = nullptr, addressTo)) {
-			if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
-				return false;
+			if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK) {
+				_pSocket.reset();
+				return _pSocket;
+			}
 			ex = nullptr;
 		}
 	}
 	Exception exWrite;
-	if (!_pSocket->write(exWrite, packet) || ex)
+	if (_pSocket->write(exWrite, packet)<0 || ex)
 		onError(exWrite);
-	return true;
+	return _pSocket;
 }
 
 void Proxy::close() {
-	if (!_subscribed)
+	if (!_pSocket)
 		return;
 	io.unsubscribe(_pSocket);
-	_subscribed = _connected = false;
+	_connected = false;
 }
 
 } // namespace Mona
