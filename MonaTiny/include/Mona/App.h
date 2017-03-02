@@ -29,7 +29,7 @@ struct App : virtual Object {
 	App(const Parameters& configs) {}
 
 
-	virtual SocketAddress& onHandshake(const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) {}
+	virtual SocketAddress& onHandshake(const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) { return redirection; }
 
 	virtual App::Client* newClient(Exception& ex, Mona::Client& client, DataReader& parameters, DataWriter& response) {
 		return NULL;

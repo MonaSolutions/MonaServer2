@@ -69,12 +69,12 @@
   <PropertyGroup>
     <_ProjectFileVersion>11.0.50727.1</_ProjectFileVersion>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <OutDir>$(ProjectDir)lib\</OutDir>
     <IntDir>tmp/$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)d</TargetName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <TargetName>$(ProjectName)64d</TargetName>
     <OutDir>$(ProjectDir)lib\</OutDir>
     <IntDir>tmp64\$(Configuration)\</IntDir>
@@ -88,7 +88,7 @@
     <IntDir>tmp64\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)64</TargetName>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
@@ -109,7 +109,7 @@
       <OutputFile>$(OutDir)$(ProjectName)d.lib</OutputFile>
     </Lib>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
@@ -233,10 +233,7 @@
     <ClInclude Include="include\Mona\QueryWriter.h" />
     <ClInclude Include="include\Mona\ReferableReader.h" />
     <ClInclude Include="include\Mona\RendezVous.h" />
-    <ClInclude Include="include\Mona\RTMFP\RTMFPDecoder.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-    </ClInclude>
+    <ClInclude Include="include\Mona\RTMFP\RTMFPDecoder.h" />
     <ClInclude Include="include\Mona\FLVWriter.h" />
     <ClInclude Include="include\Mona\RTMFP\RTMFPReceiver.h" />
     <ClInclude Include="include\Mona\RTMP\RTMPDecoder.h" />
@@ -258,26 +255,11 @@
     <ClInclude Include="include\Mona\Writer.h" />
     <ClInclude Include="include\Mona\Protocol.h" />
     <ClInclude Include="include\Mona\Protocols.h" />
-    <ClInclude Include="include\Mona\RTMFP\RTMFP.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="include\Mona\RTMFP\RTMFProtocol.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="include\Mona\RTMFP\RTMFPSender.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="include\Mona\RTMFP\RTMFPSession.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="include\Mona\RTMFP\RTMFPWriter.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-    </ClInclude>
+    <ClInclude Include="include\Mona\RTMFP\RTMFP.h" />
+    <ClInclude Include="include\Mona\RTMFP\RTMFProtocol.h" />
+    <ClInclude Include="include\Mona\RTMFP\RTMFPSender.h" />
+    <ClInclude Include="include\Mona\RTMFP\RTMFPSession.h" />
+    <ClInclude Include="include\Mona\RTMFP\RTMFPWriter.h" />
     <ClInclude Include="include\Mona\RTMP\RTMP.h" />
     <ClInclude Include="include\Mona\RTMP\RTMProtocol.h" />
     <ClInclude Include="include\Mona\RTMP\RTMPSender.h" />
@@ -343,14 +325,8 @@
     <ClCompile Include="sources\QueryReader.cpp" />
     <ClCompile Include="sources\QueryWriter.cpp" />
     <ClCompile Include="sources\ReferableReader.cpp" />
-    <ClCompile Include="sources\RTMFP\RTMFPDecoder.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="sources\RTMFP\RTMFPSender.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="sources\RTMFP\RTMFPDecoder.cpp" />
+    <ClCompile Include="sources\RTMFP\RTMFPSender.cpp" />
     <ClCompile Include="sources\RTMP\RTMPSender.cpp" />
     <ClCompile Include="sources\SDP.cpp" />
     <ClCompile Include="sources\Server.cpp" />
@@ -361,22 +337,10 @@
     <ClCompile Include="sources\UDProtocol.cpp" />
     <ClCompile Include="sources\Writer.cpp" />
     <ClCompile Include="sources\Protocols.cpp" />
-    <ClCompile Include="sources\RTMFP\RTMFP.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="sources\RTMFP\RTMFProtocol.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="sources\RTMFP\RTMFPSession.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="sources\RTMFP\RTMFPWriter.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="sources\RTMFP\RTMFP.cpp" />
+    <ClCompile Include="sources\RTMFP\RTMFProtocol.cpp" />
+    <ClCompile Include="sources\RTMFP\RTMFPSession.cpp" />
+    <ClCompile Include="sources\RTMFP\RTMFPWriter.cpp" />
     <ClCompile Include="sources\RTMP\RTMP.cpp" />
     <ClCompile Include="sources\RTMP\RTMPSession.cpp" />
     <ClCompile Include="sources\RTMP\RTMPWriter.cpp" />

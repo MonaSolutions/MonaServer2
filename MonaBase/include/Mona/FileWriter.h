@@ -33,7 +33,7 @@ struct FileWriter : virtual NullableObject {
 	UInt64	queueing() const { return _pFile ? _pFile->queueing() : 0; }
 
 	File* operator->() const { return _pFile.get(); }
-	operator bool() const { return _pFile.operator bool(); }
+	explicit operator bool() const { return _pFile.operator bool(); }
 	bool opened() const { return operator bool(); }
 
 	/*!

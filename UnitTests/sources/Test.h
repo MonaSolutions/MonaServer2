@@ -64,7 +64,7 @@ struct PoolTest : virtual Mona::Object {
 		/// \brief PoolTest Instance accessor
 
 private:
-    std::multimap<const std::string, std::unique_ptr<Test>> _mapTests;
+    std::multimap<const std::string, std::unique_ptr<Test>, Mona::String::IComparator> _mapTests;
 		/// multimap of Test name to Tests functions
 			
 	PoolTest(){}

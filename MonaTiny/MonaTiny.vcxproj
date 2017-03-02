@@ -68,12 +68,12 @@
   <PropertyGroup>
     <_ProjectFileVersion>11.0.50727.1</_ProjectFileVersion>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <OutDir>$(ProjectDir)$(Configuration)\</OutDir>
     <IntDir>tmp/$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)$(Configuration)\</OutDir>
     <IntDir>tmp64/$(Configuration)\</IntDir>
@@ -88,7 +88,7 @@
     <OutDir>$(ProjectDir)$(Configuration)\</OutDir>
     <IntDir>tmp64/$(Configuration)\</IntDir>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
@@ -120,7 +120,7 @@
       <Command>if exist "$(SolutionDir).git\\hooks" if not exist "$(SolutionDir).git\\hooks\\pre-commit" (copy "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>

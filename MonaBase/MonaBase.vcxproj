@@ -69,12 +69,12 @@
   <PropertyGroup>
     <_ProjectFileVersion>11.0.50727.1</_ProjectFileVersion>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <OutDir>$(ProjectDir)lib\</OutDir>
     <IntDir>tmp/$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)d</TargetName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <TargetName>$(ProjectName)64d</TargetName>
     <OutDir>$(ProjectDir)lib\</OutDir>
     <IntDir>tmp64\$(Configuration)\</IntDir>
@@ -113,7 +113,7 @@
       <OutputFile>$(OutDir)$(ProjectName)d.lib</OutputFile>
     </Lib>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
