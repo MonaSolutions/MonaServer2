@@ -25,6 +25,8 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
+namespace DateTest {
+
 static String	_Out;
 static Date		_Date;
 
@@ -67,7 +69,7 @@ bool Update(Int32 year, UInt8 month, UInt8 day, UInt8 hour, UInt8 minute, UInt8 
 }
 
 
-ADD_TEST(DateTest, General) {
+ADD_TEST(General) {
 
 	_Date.update();
 	Int32 year(_Date.year());
@@ -125,7 +127,7 @@ ADD_TEST(DateTest, General) {
 }
 
 
-ADD_TEST(DateTest, ParseISO8601) {
+ADD_TEST(ParseISO8601) {
 
 	CHECK(Parse("2005-01-08T12:30:00Z", 2005, 1, 8, 6, 12, 30, 0, 0,Timezone::GMT));
 	CHECK(_Date.format(Date::FORMAT_ISO8601,_Out.clear()) == "2005-01-08T12:30:00Z");
@@ -143,7 +145,7 @@ ADD_TEST(DateTest, ParseISO8601) {
 	CHECK(Parse("2005", 2005, 1, 1, 6, 0, 0, 0, 0, Timezone::LOCAL,Date::FORMAT_ISO8601));
 }
 
-ADD_TEST(DateTest, ParseISO8601Frac) {
+ADD_TEST(ParseISO8601Frac) {
 	
 	CHECK(Parse("2005-01-08T12:30:00.1Z", 2005, 1, 8,6, 12, 30, 0, 100, Timezone::GMT));
 	CHECK(_Date.format(Date::FORMAT_ISO8601_FRAC, _Out.clear()) == "2005-01-08T12:30:00.100Z");
@@ -180,7 +182,7 @@ ADD_TEST(DateTest, ParseISO8601Frac) {
 }
 
 
-ADD_TEST(DateTest, ParseRFC822) {
+ADD_TEST(ParseRFC822) {
 
 	CHECK(Parse("Sat, 8 Jan 05 12:30:00 GMT", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::GMT));
 	CHECK(_Date.format(Date::FORMAT_RFC822,_Out.clear()) == "Sat, 8 Jan 05 12:30:00 GMT");
@@ -207,7 +209,7 @@ ADD_TEST(DateTest, ParseRFC822) {
 }
 
 
-ADD_TEST(DateTest, ParseRFC1123) {
+ADD_TEST(ParseRFC1123) {
 
 	CHECK(Parse("Sat, 8 Jan 2005 12:30:00 GMT", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::GMT));
 	CHECK(_Date.format(Date::FORMAT_RFC1123,_Out.clear()) == "Sat, 8 Jan 2005 12:30:00 GMT");
@@ -226,7 +228,7 @@ ADD_TEST(DateTest, ParseRFC1123) {
 }
 
 
-ADD_TEST(DateTest, ParseHTTP) {
+ADD_TEST(ParseHTTP) {
 
 	CHECK(Parse("Sat, 08 Jan 2005 12:30:00 GMT", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::GMT));
 	CHECK(_Date.format(Date::FORMAT_HTTP,_Out.clear()) == "Sat, 08 Jan 2005 12:30:00 GMT");
@@ -239,7 +241,7 @@ ADD_TEST(DateTest, ParseHTTP) {
 }
 
 
-ADD_TEST(DateTest, ParseRFC850) {
+ADD_TEST(ParseRFC850) {
 	
 	CHECK(Parse("Saturday, 8-Jan-05 12:30:00 GMT", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::GMT));
 	CHECK(_Date.format(Date::FORMAT_RFC850, _Out.clear()) == "Saturday, 8-Jan-05 12:30:00 GMT");
@@ -256,7 +258,7 @@ ADD_TEST(DateTest, ParseRFC850) {
 }
 
 
-ADD_TEST(DateTest, ParseRFC1036) {
+ADD_TEST(ParseRFC1036) {
 
 	CHECK(Parse("Saturday, 8 Jan 05 12:30:00 GMT", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::GMT));
 	CHECK(_Date.format(Date::FORMAT_RFC1036,_Out.clear()) == "Saturday, 8 Jan 05 12:30:00 GMT");
@@ -270,14 +272,14 @@ ADD_TEST(DateTest, ParseRFC1036) {
 
 
 
-ADD_TEST(DateTest, ParseASCTIME) {
+ADD_TEST(ParseASCTIME) {
 
 	CHECK(Parse("Sat Jan  8 12:30:00 2005", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::LOCAL));
 	CHECK(_Date.format(Date::FORMAT_ASCTIME,_Out.clear()) == "Sat Jan  8 12:30:00 2005");
 }
 
 
-ADD_TEST(DateTest, ParseSORTABLE) {
+ADD_TEST(ParseSORTABLE) {
 
 	CHECK(Parse("2005-01-08 12:30:00", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::LOCAL));
 	CHECK(_Date.format(Date::FORMAT_SORTABLE,_Out.clear()) == "2005-01-08 12:30:00");
@@ -287,7 +289,7 @@ ADD_TEST(DateTest, ParseSORTABLE) {
 }
 
 
-ADD_TEST(DateTest, ParseCustom){
+ADD_TEST(ParseCustom){
 
 	CHECK(Parse("18-Jan-2005", 2005, 1, 18,2, 0, 0, 0, 0, Timezone::LOCAL,"%d-%b-%Y"));
 	CHECK(_Date.format("%d-%b-%Y",_Out.clear()) == "18-Jan-2005");
@@ -307,7 +309,7 @@ ADD_TEST(DateTest, ParseCustom){
 }
 
 
-ADD_TEST(DateTest, ParseGuess) {
+ADD_TEST(ParseGuess) {
 
 	CHECK(Parse("2005-01-08T12:30:00Z", 2005, 1, 8,6, 12, 30, 0, 0, Timezone::GMT));
 
@@ -328,3 +330,4 @@ ADD_TEST(DateTest, ParseGuess) {
 	CHECK(Parse("2005-01-08T12:30:00.123456-02:00", 2005,1,8, 6, 12, 30, 0, 123, -7200000));
 }
 
+}

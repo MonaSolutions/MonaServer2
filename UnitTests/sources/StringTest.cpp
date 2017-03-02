@@ -24,8 +24,9 @@ details (or else see http://www.gnu.org/licenses/).
 #include "float.h"
 
 using namespace Mona;
-
 using namespace std;
+
+namespace StringTest {
 
 template<typename T>
 bool tryToNumber(const std::string& value, T expected) { return tryToNumber<T>(value.c_str(), expected); }
@@ -62,7 +63,7 @@ bool tryToNumber<double>(const char * value, double expected) {
 
 
 
-ADD_TEST(StringTest, General) {
+ADD_TEST(General) {
 
 	for (signed char c=0; c >= -10; ++c)
 		CHECK((isalpha(c) && ((c>='a' && c<='z') || (c>='A' && c<='Z'))) || c < 'A' || (c > 'Z' && c<'a') || c>'z')
@@ -107,7 +108,7 @@ ADD_TEST(StringTest, General) {
 
 string _Str;
 
-ADD_TEST(StringTest, TestFormat) {
+ADD_TEST(TestFormat) {
 
 	CHECK(String::Assign(_Str, 123) == "123");
 	CHECK(String::Assign(_Str, -123) == "-123");
@@ -137,7 +138,7 @@ ADD_TEST(StringTest, TestFormat) {
 }
 
 
-ADD_TEST(StringTest, TestFormat0) {
+ADD_TEST(TestFormat0) {
 
 	CHECK(String::Assign(_Str, String::Format<int>("%05d", 123)) == "00123");
 	CHECK(String::Assign(_Str, String::Format<int>("%05d", -123)) == "-0123");
@@ -150,7 +151,7 @@ ADD_TEST(StringTest, TestFormat0) {
 	CHECK(String::Assign(_Str, String::Format<UInt64>("%05llu", 123)) == "00123");
 }
 
-ADD_TEST(StringTest, TestFloat) {
+ADD_TEST(TestFloat) {
 
 	string s(String::Assign(_Str, 1.0f));
 	CHECK(s == "1");
@@ -163,7 +164,7 @@ ADD_TEST(StringTest, TestFloat) {
 	CHECK(s == "0.1");
 }
 
-ADD_TEST(StringTest, TestMultiple) {
+ADD_TEST(TestMultiple) {
 
 	double pi = 3.1415926535897;
 	CHECK(String::Assign(_Str, "Pi ~= ", String::Format<double>("%.2f", pi), " (", pi, ")") == "Pi ~= 3.14 (3.1415926535897)");
@@ -177,12 +178,9 @@ ADD_TEST(StringTest, TestMultiple) {
 	
     float bigf = 1234567890123456789.1234567890f;
     CHECK(String::Assign(_Str, bigf) == "1.2345679e+18");
-
-	// TODO
-    //CHECK(tryToNumber<float>(_Str, bigf));
 }
 
-ADD_TEST(StringTest, ToNumber) {
+ADD_TEST(ToNumber) {
 
 	double value1(12.123456789);
 	string format;
@@ -222,7 +220,7 @@ ADD_TEST(StringTest, ToNumber) {
 	
 }
 
-ADD_TEST(StringTest, TrimLeft) {
+ADD_TEST(TrimLeft) {
 
 	string s = "abc";
 	CHECK(String::TrimLeft(s) == "abc");
@@ -235,7 +233,7 @@ ADD_TEST(StringTest, TrimLeft) {
 }
 
 
-ADD_TEST(StringTest, TrimRight) {
+ADD_TEST(TrimRight) {
 
 	string s = "abc";
 	CHECK(String::TrimRight(s) == "abc");
@@ -247,7 +245,7 @@ ADD_TEST(StringTest, TrimRight) {
 	CHECK(String::TrimRight(s) == "  ab c");
 }
 
-ADD_TEST(StringTest, Trim) {
+ADD_TEST(Trim) {
 
 	string s = "abc";
 	CHECK(String::Trim(s) == "abc");
@@ -259,7 +257,7 @@ ADD_TEST(StringTest, Trim) {
 	CHECK(String::Trim(s) == "ab c");
 }
 
-ADD_TEST(StringTest, Split) {
+ADD_TEST(Split) {
 
 	int test = 0;
 	String::ForEach forEach([&test](UInt32 index,const char* value) {
@@ -307,16 +305,21 @@ ADD_TEST(StringTest, Split) {
 	CHECK(String::Split(s,"|",forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM) == 3);
 }
 
-ADD_TEST(StringTest, ToLower) {
-
+ADD_TEST(ToLower) {
 	string s = "ABC";
 	CHECK(String::ToLower(s) == "abc");
-	
 	s = "aBC";
 	CHECK(String::ToLower(s) == "abc");
 }
 
-ADD_TEST(StringTest, ICompare) {
+ADD_TEST(ToUpper) {
+	string s = "abc";
+	CHECK(String::ToUpper(s) == "ABC");
+	s = "Abc";
+	CHECK(String::ToUpper(s) == "ABC");
+}
+
+ADD_TEST(ICompare) {
 
 	string s1 = "AAA";
 	string s2 = "aaa";
@@ -356,7 +359,7 @@ ADD_TEST(StringTest, ICompare) {
 	CHECK(String::ICompare("true salut", "true", 10)>0);
 }
 
-ADD_TEST(StringTest, Hex) {
+ADD_TEST(Hex) {
 	string buffer;
 
 	String::Assign(buffer, String::Hex(BIN EXPAND("\00\01\02\03\04\05"), HEX_CPP));
@@ -371,4 +374,6 @@ ADD_TEST(StringTest, Hex) {
 
 	String::ToHex(buffer.assign(EXPAND("36393CB1428ECC178FE88D37094D0B3D34B95C0E985177E45336997EBEAB58CD")), out.clear());
 	CHECK(out.size() == 32 && memcmp(out.data(), EXPAND("\x36\x39\x3C\xB1\x42\x8E\xCC\x17\x8F\xE8\x8D\x37\x09\x4D\x0B\x3D\x34\xB9\x5C\x0E\x98\x51\x77\xE4\x53\x36\x99\x7E\xBE\xAB\x58\xCD")) == 0)
+}
+
 }

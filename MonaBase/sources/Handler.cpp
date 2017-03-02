@@ -42,8 +42,6 @@ UInt32 Handler::flush(UInt32 count) {
 			lock_guard<mutex> lock(_mutex);
 			if (_runners.empty() || (!all && count--))
 				break;
-			if (!all && count--)
-				break;
 			pRunner = move(_runners.front());
 			_runners.pop_front();
 		}

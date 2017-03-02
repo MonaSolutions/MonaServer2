@@ -23,11 +23,12 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
-template<typename Type>
-struct Obj {
-};
+namespace BaseTest {
 
-ADD_TEST(BaseTest, typeof) {
+template<typename Type>
+struct Obj {};
+
+ADD_TEST(typeof) {
 	Buffer buffer;
 	CHECK(typeof(buffer) == "Buffer");
 	int i;
@@ -35,10 +36,10 @@ ADD_TEST(BaseTest, typeof) {
 	XMLParser::XMLState state;
 	CHECK(typeof(state) == "XMLParser::XMLState");
 	Obj<Buffer> type;
-	CHECK(typeof(type) == "Obj<Buffer>");
+	CHECK(typeof(type) == "BaseTest::Obj<Buffer>");
 }
 
-ADD_TEST(BaseTest, parameters) {
+ADD_TEST(parameters) {
 	Parameters parameters;
 	parameters.setString("name1", "value1");
 	parameters.setString("name2", "value2");
@@ -60,4 +61,6 @@ ADD_TEST(BaseTest, parameters) {
 		++size;
 	}
 	CHECK(size == 3);
+}
+
 }

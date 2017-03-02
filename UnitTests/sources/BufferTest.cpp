@@ -21,8 +21,10 @@ details (or else see http://www.gnu.org/licenses/).
 
 using namespace Mona;
 using namespace std;
-/*
-ADD_TEST(BufferTest, Buffer) {
+
+namespace BufferTest {
+
+ADD_TEST(Buffer) {
 	Buffer buffer;
 	CHECK(buffer.size()==0);
 	CHECK(buffer.capacity() == 0);
@@ -42,9 +44,9 @@ ADD_TEST(BufferTest, Buffer) {
 	CHECK(buffer.size()>0);
 	buffer.clear();
 	CHECK(buffer.size()==0);
-}*/
+}
 
-ADD_TEST(BufferTest, BufferPool) {
+ADD_TEST(BufferPool) {
 	Timer timer;
 	BufferPool	bufferPool(timer);
 	UInt32 size(10000);
@@ -77,4 +79,6 @@ ADD_TEST(BufferTest, BufferPool) {
 		Buffer buffer;
 		CHECK(bufferPool.available()==1);
 	}
+}
+
 }

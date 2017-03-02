@@ -27,6 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
+namespace SocketTest {
 
 struct MainHandler : Handler {
 	MainHandler() : Handler(_signal) {}
@@ -44,12 +45,11 @@ private:
 };
 
 
-
 static string		_Short0Data(1024, '\0');
 static string		_Long0Data(0xFFFF, '\0');
 static ThreadPool	_ThreadPool;
 
-ADD_TEST(SocketTest, UDP_Blocking) {
+ADD_TEST(UDP_Blocking) {
 
 	Socket server(Socket::TYPE_DATAGRAM);
 
@@ -162,11 +162,11 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 }
 
 
-ADD_TEST(SocketTest, TCP_Blocking) {
+ADD_TEST(TCP_Blocking) {
 	TestTCPBlocking();
 }
 
-ADD_TEST(SocketTest, TCP_SSL_Blocking) {
+ADD_TEST(TCP_SSL_Blocking) {
 	Exception ex;
 	shared<TLS> pClientTLS, pServerTLS;
 	CHECK(TLS::Create(ex, pClientTLS) && !ex);
@@ -203,7 +203,7 @@ private:
 };
 
 
-ADD_TEST(SocketTest, UDP_NonBlocking) {
+ADD_TEST(UDP_NonBlocking) {
 	MainHandler	handler;
 	IOSocket	io(handler,_ThreadPool);
 	Exception ex;
@@ -366,14 +366,16 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 }
 
 
-ADD_TEST(SocketTest, TCP_NonBlocking) {
+ADD_TEST(TCP_NonBlocking) {
 	TestTCPNonBlocking();
 }
 
-ADD_TEST(SocketTest, TCP_SSL_NonBlocking) {
+ADD_TEST(TCP_SSL_NonBlocking) {
 	Exception ex;
 	shared<TLS> pClientTLS, pServerTLS;
 	CHECK(TLS::Create(ex, pClientTLS) && !ex);
 	CHECK(TLS::Create(ex, "cert.pem", "key.pem", pServerTLS) && !ex);
 	TestTCPNonBlocking(pClientTLS, pServerTLS);
+}
+
 }

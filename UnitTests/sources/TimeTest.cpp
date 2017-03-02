@@ -27,8 +27,10 @@ using namespace Mona;
 using namespace std;
 using namespace std::chrono;
 
+namespace TimeTest {
+
 // Test 
-ADD_TEST(TimeTest, General) {
+ADD_TEST(General) {
 
 	Time t1;
 	Thread::Sleep(200);
@@ -68,7 +70,7 @@ ADD_TEST(TimeTest, General) {
 
 
 
-ADD_TEST(TimeTest, DateConversion) {
+ADD_TEST(DateConversion) {
 	Date date,date2;
 	for (int i = -100; i <= 2000; ++i) {
 		for (int m = 1; m <= 12; ++m) {
@@ -98,3 +100,4 @@ ADD_TEST(TimeTest, DateConversion) {
 	}
 }
 
+}

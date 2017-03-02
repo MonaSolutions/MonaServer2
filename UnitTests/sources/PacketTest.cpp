@@ -24,6 +24,8 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
+namespace PacketTest {
+
 void PacketATA(const Packet& packet, bool buffered) {
 	CHECK(memcmp(packet.data(), "ata", 3) == 0 && packet.size() == 3 && packet.buffer().operator bool()==buffered);
 }
@@ -36,7 +38,7 @@ void PacketT(const Packet& packet, bool buffered) {
 	CHECK(memcmp(packet.data(), "t", 1) == 0 && packet.size() == 1 && packet.buffer().operator bool()==buffered);
 }
 
-ADD_TEST(PacketTest, Unbuffered) {
+ADD_TEST(Unbuffered) {
 
 	Packet packet;
 
@@ -59,7 +61,7 @@ ADD_TEST(PacketTest, Unbuffered) {
 	CHECK(!packet.data() && packet.size() == 0 && !packet.buffer());
 }
 
-ADD_TEST(PacketTest, Buffered) {
+ADD_TEST(Buffered) {
 
 	shared<Buffer> pBuffer(new Buffer(4,"data"));
 
@@ -84,7 +86,7 @@ ADD_TEST(PacketTest, Buffered) {
 	CHECK(!packet.data() && packet.size() == 0 && !packet.buffer());
 }
 
-ADD_TEST(PacketTest, Bufferize) {
+ADD_TEST(Bufferize) {
 	std::deque<Packet> packets;
 	Packet packet(EXPAND("data"));
 	
@@ -103,4 +105,6 @@ ADD_TEST(PacketTest, Bufferize) {
 
 	packet = nullptr;
 	CHECK(!packet.buffer());
+}
+
 }

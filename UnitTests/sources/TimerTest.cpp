@@ -24,8 +24,9 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
+namespace TimerTest {
 
-ADD_TEST(TimerTest, All) {
+ADD_TEST(All) {
 
 	
 	Stopwatch stopwatch;
@@ -68,4 +69,6 @@ ADD_TEST(TimerTest, All) {
 	timer.set(onTimer50, 0);
 
 	CHECK(!timer.count() && !timer.raise())
+}
+
 }

@@ -20,9 +20,9 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Util.h"
 
 using namespace Mona;
-
 using namespace std;
 
+namespace UtilTest {
 
 bool TestEncode(const char* data,UInt32 size, const char* result) {
 	static string Value;
@@ -34,7 +34,7 @@ bool TestDecode(string data, const char* result, UInt32 size) {
 }
 
 
-ADD_TEST(UtilTest, UnpackQuery) {
+ADD_TEST(UnpackQuery) {
 	string value;
 	Parameters properties;
 	CHECK(Util::UnpackQuery("name1=value1&name2=value2", properties).count()==2)
@@ -62,7 +62,7 @@ ADD_TEST(UtilTest, UnpackQuery) {
 }
 
 
-ADD_TEST(UtilTest, UnpackUrlPerf) {
+ADD_TEST(UnpackUrlPerf) {
 	string address;
 	string path;
 	string query;
@@ -70,7 +70,7 @@ ADD_TEST(UtilTest, UnpackUrlPerf) {
 }
 
 
-ADD_TEST(UtilTest, UnpackUrl) {
+ADD_TEST(UnpackUrl) {
 	string address;
 	string path;
 	string query;
@@ -104,7 +104,7 @@ ADD_TEST(UtilTest, UnpackUrl) {
 }
 
 
-ADD_TEST(UtilTest, Base64) {
+ADD_TEST(Base64) {
 	CHECK(TestEncode(EXPAND("\00\01\02\03\04\05"),"AAECAwQF"));
 	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw=="));
 	CHECK(TestEncode(EXPAND("ABCDEF"),"QUJDREVG"));
@@ -128,5 +128,7 @@ ADD_TEST(UtilTest, Base64) {
 	Util::ToBase64(data, sizeof(data), Result);
 	CHECK(Util::FromBase64(Result));
 	CHECK(memcmp(Result.data(), data, sizeof(data)) == 0);
+}
+
 }
 

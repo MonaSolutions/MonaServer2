@@ -23,6 +23,8 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
+namespace BinaryTest {
+
 template <typename ...Args>
 void Write(Args&&... args) {
 	BinaryWriter writer(args ...);
@@ -132,20 +134,22 @@ void Read(Args&&... args) {
 }
 
 
-ADD_TEST(BinaryTest, Native) {
+ADD_TEST(Native) {
 	Buffer buffer(128);
 	Write(buffer.data(),buffer.size(), Byte::ORDER_NATIVE);
 	Read(buffer.data(),buffer.size(), Byte::ORDER_NATIVE);
 }
 
-ADD_TEST(BinaryTest, BigEndian) {
+ADD_TEST(BigEndian) {
 	Buffer buffer(128);
 	Write(buffer.data(),buffer.size(), Byte::ORDER_BIG_ENDIAN);
 	Read(buffer.data(),buffer.size(), Byte::ORDER_BIG_ENDIAN);
 }
 
-ADD_TEST(BinaryTest, LittleEndian) {
+ADD_TEST(LittleEndian) {
 	Buffer buffer(128);
 	Write(buffer.data(),buffer.size(), Byte::ORDER_LITTLE_ENDIAN);
 	Read(buffer.data(), buffer.size(), Byte::ORDER_LITTLE_ENDIAN);
+}
+
 }

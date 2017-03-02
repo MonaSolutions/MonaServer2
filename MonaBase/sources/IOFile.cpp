@@ -26,10 +26,15 @@ static struct IODevices : virtual Object {
 		lock_guard<mutex> lock(_mutex);
 		return _devices[device];
 	}
-	void join() {
+	UInt32 join() {
+		UInt32 count(0);
 		lock_guard<mutex> lock(_mutex);
-		for (auto& it : _devices)
+		for (auto& it : _devices) {
+			if (it.second.running())
+				++count;
 			it.second.stop();
+		}
+		return count;
 	}
 private:
 	map<UInt8, IODevice> _devices;
@@ -93,7 +98,8 @@ void IOFile::join() {
 	// wait end of dispath file
 	((ThreadPool&)threadPool).join(); // can cast because IOFile constructor takes a non-const threadPool object
 	// join devices (reading and writing operation)
-	_IODevices.join();
+	while(_IODevices.join()) // while reading/writing operation
+		((ThreadPool&)threadPool).join(); // wait possible decoding!
 }
 
 void IOFile::dispatch(File& file, const shared<Action>& pAction) {

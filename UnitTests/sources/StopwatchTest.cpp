@@ -23,7 +23,9 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
-ADD_TEST(StopwatchTest, All) {
+namespace StopwatchTest {
+
+ADD_TEST(All) {
 	
 	Stopwatch sw;
 	sw.start();
@@ -40,4 +42,6 @@ ADD_TEST(StopwatchTest, All) {
 	Thread::Sleep(200);
 	sw.stop();
 	CHECK(180 < sw.elapsed() && sw.elapsed() < 220);
+}
+
 }

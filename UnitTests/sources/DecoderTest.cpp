@@ -24,15 +24,16 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
+namespace DecoderTest {
+
 static ThreadPool _ThreadPool;
 static struct MainHandler : Handler {
 	MainHandler() : Handler(_signal) {}
 	UInt32 join(UInt32 min) {
 		UInt32 count(0);
-		while(count<min) {
+		while((count += Handler::flush())<min) {
 			if (!_signal.wait(14000))
-				return false;
-			count += Handler::flush();
+				return 0;
 		};
 		return count;
 	}
@@ -73,7 +74,7 @@ private:
 };
 
 
-ADD_TEST(DecoderTest, Manual) {
+ADD_TEST(Manual) {
 
 	Exception ex;
 	Decoder decoder;
@@ -94,27 +95,31 @@ ADD_TEST(DecoderTest, Manual) {
 }
 
 
-ADD_TEST(DecoderTest, Socket) {
+ADD_TEST(Socket) {
 
 	Exception ex;
 	IOSocket io(_Handler,_ThreadPool);
 	Socket sender(Socket::TYPE_DATAGRAM);
 
 	struct UDPReceiver : UDPSocket {
-		UDPReceiver(IOSocket& io) : UDPSocket(io), _count(0) {}
+		UDPReceiver(IOSocket& io) : UDPSocket(io), _count(0),
+			_onDecoded([this](Decoded& decoded) {
+				CHECK(Thread::CurrentId() == Thread::MainId);
+				CHECK(_count < 2);
+				CHECK(memcmp(decoded.data(), (_count++ ? "msg" : "hello"), decoded.size()) == 0);
+			}) {
+		}
+		~UDPReceiver() { _onDecoded = nullptr; }
 	private:
 		shared<Socket::Decoder> newDecoder() {
 			CHECK(!_pDecoder);
 			_pDecoder.reset(new Decoder());
-			_pDecoder->onDecoded = [this](Decoded& decoded) {
-				CHECK(Thread::CurrentId() == Thread::MainId);
-				CHECK(_count < 2);
-				CHECK(memcmp(decoded.data(), (_count++ ? "msg" : "hello"), decoded.size()) == 0);
-			};
+			_pDecoder->onDecoded = _onDecoded;
 			return _pDecoder;
 		}
 		UInt8			_count;
 		shared<Decoder> _pDecoder;
+		Decoder::OnDecoded _onDecoded;
 	};
 
 	UDPReceiver receiver(io);
@@ -122,11 +127,11 @@ ADD_TEST(DecoderTest, Socket) {
 
 	CHECK(sender.sendTo(ex, EXPAND("hello10msg"), SocketAddress(IPAddress::Loopback(), receiver->address().port())) == 10 && !ex)
 
-	CHECK(_Handler.join(2)); // 2 or 3 with SocketSend (udp writable!)
+	CHECK(_Handler.join(3)==3); // 3 with SocketSend (udp writable!)
 }
 
 
-ADD_TEST(DecoderTest, File) {
+ADD_TEST(File) {
 
 	struct Decoded : Packet {
 		Decoded(const Packet& packet, bool end) : end(end), Packet(move(packet)) {}
@@ -134,7 +139,8 @@ ADD_TEST(DecoderTest, File) {
 	};
 	struct Decoder : File::Decoder {
 		typedef Event<void(Decoded&)> ON(Decoded);
-
+		UInt32 count;
+		Decoder() : count(0) {}
 	private:
 		UInt32 decode(shared<Buffer>& pBuffer, bool end) {
 			CHECK(Thread::CurrentId() != Thread::MainId);
@@ -147,22 +153,26 @@ ADD_TEST(DecoderTest, File) {
 		}
 	};
 	struct Reader : FileReader {
-		Reader(IOFile& io) :FileReader(io),count(0) {}
+		Reader(IOFile& io) :FileReader(io), count(0),
+			_onDecoded([this](Decoded& decoded) {
+				CHECK(Thread::CurrentId() == Thread::MainId);
+				if (!decoded.end)
+					CHECK(decoded.size() == 0xFFFF);
+				++count;
+			}) {
+		}
+		~Reader() { _onDecoded = nullptr; }
 		UInt8	count;
 
 	private:
 		shared<File::Decoder> newDecoder() {
 			shared<Decoder> pDecoder(new Decoder());
-			pDecoder->onDecoded = [this](Decoded& decoded) {
-				CHECK(Thread::CurrentId() == Thread::MainId);
-				++count;
-				if (!decoded.end)
-					CHECK(decoded.size() == 0xFFFF);
-			};
+			pDecoder->onDecoded = _onDecoded;
 			return pDecoder;
 		}
+		Decoder::OnDecoded _onDecoded;
 	};
-	
+
 	Exception ex;
 	IOFile io(_Handler, _ThreadPool);
 	Reader reader(io);
@@ -170,6 +180,9 @@ ADD_TEST(DecoderTest, File) {
 
 	CHECK(reader.open(Path::CurrentApp()));
 	reader.read();
+	io.join();
 
-	CHECK(_Handler.join(reader) == reader.count && reader.count);
+	CHECK(_Handler.join(UInt32(Path::CurrentApp().size() / 0xFFFF)) == reader.count && reader.count);
+}
+
 }

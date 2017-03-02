@@ -22,56 +22,58 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
-static const string Key("key");
-static string Value;
+namespace ParametersTest {
+
+static const string _Key("key");
+static string		_Value;
 
 
-ADD_TEST(ParametersTest, MapParameters) {
+ADD_TEST(MapParameters) {
 	Parameters params;
 
 	bool   bValue;
 	double dValue;
 
 	// Set STRING
-	params.setString(Key, "1");
-	CHECK(params.getString(Key, Value) && Value == "1");
-	CHECK(params.getBoolean(Key,bValue) && bValue);
-	CHECK(params.getBoolean(Key));
-	CHECK(params.getNumber(Key,dValue) && dValue==1);
-	CHECK(params.getNumber(Key)==1);
-	params.setString(Key, "1",1);
-	CHECK(params.getString(Key, Value) && Value == "1");
+	params.setString(_Key, "1");
+	CHECK(params.getString(_Key, _Value) && _Value == "1");
+	CHECK(params.getBoolean(_Key,bValue) && bValue);
+	CHECK(params.getBoolean(_Key));
+	CHECK(params.getNumber(_Key,dValue) && dValue==1);
+	CHECK(params.getNumber(_Key)==1);
+	params.setString(_Key, "1",1);
+	CHECK(params.getString(_Key, _Value) && _Value == "1");
 	
 
 	// Set BOOL
-	params.setBoolean(Key, true);
-	CHECK(params.getString(Key, Value) && Value == "true");
-	CHECK(params.getBoolean(Key,bValue) && bValue);
-	CHECK(params.getBoolean(Key));
+	params.setBoolean(_Key, true);
+	CHECK(params.getString(_Key, _Value) && _Value == "true");
+	CHECK(params.getBoolean(_Key,bValue) && bValue);
+	CHECK(params.getBoolean(_Key));
 
-	params.setBoolean(Key, false);
-	CHECK(params.getString(Key, Value) && Value == "false");
-	CHECK(params.getBoolean(Key,bValue) && !bValue);
-	CHECK(!params.getBoolean<true>(Key));
+	params.setBoolean(_Key, false);
+	CHECK(params.getString(_Key, _Value) && _Value == "false");
+	CHECK(params.getBoolean(_Key,bValue) && !bValue);
+	CHECK(!params.getBoolean<true>(_Key));
 
 	// Set Number
-	params.setNumber(Key, 1);
-	CHECK(params.getString(Key, Value) && Value == "1");
-	CHECK(params.getBoolean(Key,bValue) && bValue);
-	CHECK(params.getBoolean(Key));
-	CHECK(params.getNumber(Key,dValue) && dValue==1);
-	CHECK(params.getNumber(Key)==1);
+	params.setNumber(_Key, 1);
+	CHECK(params.getString(_Key, _Value) && _Value == "1");
+	CHECK(params.getBoolean(_Key,bValue) && bValue);
+	CHECK(params.getBoolean(_Key));
+	CHECK(params.getNumber(_Key,dValue) && dValue==1);
+	CHECK(params.getNumber(_Key)==1);
 
-	params.setNumber(Key, 0);
-	CHECK(params.getString(Key, Value) && Value == "0");
-	CHECK(params.getBoolean(Key,bValue) && !bValue);
-	CHECK(!params.getBoolean<true>(Key));
-	CHECK(params.getNumber(Key,dValue) && dValue==0);
-	CHECK(params.getNumber(Key)==0);
+	params.setNumber(_Key, 0);
+	CHECK(params.getString(_Key, _Value) && _Value == "0");
+	CHECK(params.getBoolean(_Key,bValue) && !bValue);
+	CHECK(!params.getBoolean<true>(_Key));
+	CHECK(params.getNumber(_Key,dValue) && dValue==0);
+	CHECK(params.getNumber(_Key)==0);
 
 	// Erase
 	CHECK(params.count() == 1 && !params.empty());
-	params.erase(Key);
+	params.erase(_Key);
 	CHECK(params.count() == 0 && params.empty());
 	params.setString("hello", EXPAND("mona"));
 	CHECK(params.count() == 1 && !params.empty());
@@ -79,4 +81,4 @@ ADD_TEST(ParametersTest, MapParameters) {
 	CHECK(params.count() == 0 && params.empty());
 }
 
-
+}

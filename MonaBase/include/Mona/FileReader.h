@@ -31,7 +31,7 @@ struct FileReader : virtual NullableObject {
 	IOFile&	io;
 
 	File* operator->() const { return _pFile.get(); }
-	operator bool() const { return _pFile.operator bool(); }
+	explicit operator bool() const { return _pFile.operator bool(); }
 	bool opened() const { return operator bool(); }
 
 	/*!

@@ -23,12 +23,14 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
+namespace FileSystemTest {
+
 static string Home;
 static string Path1;
 static string Path2;
 static size_t ExtPos;
 
-ADD_TEST(FileSystemTest, Static) {
+ADD_TEST(Static) {
 	CHECK(FileSystem::GetCurrentApp(Home) && FileSystem::GetCurrentApp());
 	CHECK(!Home.empty() && FileSystem::IsAbsolute(Home));
 	CHECK(FileSystem::IsAbsolute(FileSystem::GetCurrentDir()));
@@ -39,7 +41,7 @@ ADD_TEST(FileSystemTest, Static) {
 #define CHECK_FILE(PATH,TYPE, PARENT,NAME,EXTENSION_POS) CHECK(FileSystem::GetFile(PATH,Path1,ExtPos, Path2)==TYPE && EXTENSION_POS==ExtPos && Path1==NAME && Path2==PARENT);
 
 
-ADD_TEST(FileSystemTest, Resolve) {
+ADD_TEST(Resolve) {
 
 	Path parent(Path::CurrentDir().parent());
 
@@ -325,7 +327,7 @@ ADD_TEST(FileSystemTest, Resolve) {
 
 }
 
-ADD_TEST(FileSystemTest, Creation) {
+ADD_TEST(Creation) {
 	Path1.assign(Home).append(".MonaFileSystemTest/");
 	Path2.assign(Path1).append("/SubFolder/Folder/");
 
@@ -357,7 +359,7 @@ ADD_TEST(FileSystemTest, Creation) {
 	CHECK(FileSystem::Delete(ex,FileSystem::MakeFile(Path2)) && !ex);
 }
 
-ADD_TEST(FileSystemTest, Attributes) {
+ADD_TEST(Attributes) {
 	FileSystem::Attributes attributes;
 	CHECK(!FileSystem::GetAttributes(Path1.assign(Home).append(".MonaFileSystemTests"), attributes) && !attributes && !attributes.lastModified);
 	CHECK(FileSystem::GetAttributes(Path1.append("/"), attributes) && attributes && attributes.lastModified);
@@ -386,8 +388,10 @@ ADD_TEST(FileSystemTest, Attributes) {
 	CHECK(!FileSystem::Exists(Path1))
 }
 
-ADD_TEST(FileSystemTest, Deletion) {
+ADD_TEST(Deletion) {
 	Exception ex;
 	CHECK(FileSystem::Delete(ex,Path1.assign(Home).append(".MonaFileSystemTests"),FileSystem::MODE_HEAVY) && !ex);
+}
+
 }
 

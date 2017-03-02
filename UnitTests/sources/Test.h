@@ -25,11 +25,7 @@ details (or else see http://www.gnu.org/licenses/).
 /// \brief The fixture for testing class Foo.
 struct Test : virtual Mona::Object {
 
-	Test(const char * testName) {_name = testName;}
-		/// \brief You can overload the constructor to do job before each test function
-
-	virtual ~Test() {}
-		/// \brief You can do clean-up work that doesn't throw exceptions here.
+	Test(const std::string& type) : _name(type.data(), type.size()-4) {}
 
 	void run(Mona::UInt32 loop);
 
@@ -47,8 +43,12 @@ private:
 /// \class Container of Test classes
 struct PoolTest : virtual Mona::Object {
 
-	template<typename TestClass>
-    bool makeAndRegister(const char * className, const char * testName) { _mapTests.emplace(className, std::unique_ptr<TestClass>(new TestClass(testName))); return true; }
+	template<typename TestType>
+    bool makeAndRegister() {
+		const std::string& type = Mona::typeof<TestType>();
+		_mapTests.emplace(std::piecewise_construct, std::forward_as_tuple(std::string(type.data(), type.find("::"))), std::forward_as_tuple(new TestType(type)));
+		return true;
+	}
 		/// \brief create the test and add it to the PoolTest
 
     void getListTests(std::vector<std::string>& lTests);
@@ -88,18 +88,17 @@ private:
 #endif
 
 /// Macro for adding new tests in a Test cpp
-#define ADD_TEST(CLASSNAME, TESTNAME) struct CLASSNAME ## TESTNAME : Test { \
-	CLASSNAME ## TESTNAME(const char * testName) : Test(testName) {}\
-	virtual ~CLASSNAME ## TESTNAME() {}\
-	virtual void TestFunction();\
+#define ADD_TEST(NAME) struct NAME##TEST : Test { \
+	NAME##TEST(const std::string& type) : Test(type) {}\
+	void TestFunction();\
 private:\
 	static const bool _TestCreated;\
 };\
-const bool CLASSNAME ## TESTNAME::_TestCreated = PoolTest::PoolTestInstance().makeAndRegister<CLASSNAME ## TESTNAME>(#CLASSNAME, #CLASSNAME "::" #TESTNAME);\
-void CLASSNAME ## TESTNAME::TestFunction()
+const bool NAME##TEST::_TestCreated = PoolTest::PoolTestInstance().makeAndRegister<NAME##TEST>();\
+void NAME##TEST::TestFunction()
 
 #if defined(_DEBUG)
-#define ADD_DEBUG_TEST(CLASSNAME, TESTNAME) ADD_TEST(CLASSNAME,TESTNAME)
+#define ADD_DEBUG_TEST(NAME) ADD_TEST(NAME)
 #else
-#define ADD_DEBUG_TEST(CLASSNAME, TESTNAME) void CLASSNAME ## TESTNAME()
+#define ADD_DEBUG_TEST(NAME) void TEST##NAME()
 #endif

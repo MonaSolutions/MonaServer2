@@ -23,15 +23,17 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
+namespace IPAddressTest {
+
 static IPAddress	_IpAddress;
 
-ADD_TEST(IPAddressTest, Parse) {
+ADD_TEST(Parse) {
 	Exception ex;
 	CHECK(_IpAddress.set(ex, "192.168.1.120") && !ex);
 	CHECK(!_IpAddress.set(ex, "192.168.1.280") && ex);
 }
 
-ADD_TEST(IPAddressTest, StringConv) {
+ADD_TEST(StringConv) {
 	
 	Exception ex;
 	CHECK(_IpAddress.set(ex, "127.0.0.1"));
@@ -56,7 +58,7 @@ ADD_TEST(IPAddressTest, StringConv) {
 }
 
 
-ADD_TEST(IPAddressTest, StringConv6) {
+ADD_TEST(StringConv6) {
 
 	Exception ex;
 	CHECK(_IpAddress.set(ex, "1080:0:0:0:8:600:200A:425C"));
@@ -80,7 +82,7 @@ ADD_TEST(IPAddressTest, StringConv6) {
 	CHECK(_IpAddress == "::FFFF:192.168.1.120");
 }
 
-ADD_TEST(IPAddressTest, Classification) {
+ADD_TEST(Classification) {
 
 	Exception ex;
 	CHECK(_IpAddress.set(ex, "0.0.0.0")); // wildcard
@@ -246,7 +248,7 @@ ADD_TEST(IPAddressTest, Classification) {
 	CHECK(_IpAddress.prefixLength()==29);
 }
 
-ADD_TEST(IPAddressTest, MCClassification) {
+ADD_TEST(MCClassification) {
 
 	Exception ex;
 	CHECK(_IpAddress.set(ex, "224.0.0.100")); // well-known multicast
@@ -340,7 +342,7 @@ ADD_TEST(IPAddressTest, MCClassification) {
 	CHECK(_IpAddress.prefixLength()==31);
 }
 
-ADD_TEST(IPAddressTest, Classification6) {
+ADD_TEST(Classification6) {
 
 	Exception ex;
 	CHECK(_IpAddress.set(ex, "::")); // wildcard
@@ -453,7 +455,7 @@ ADD_TEST(IPAddressTest, Classification6) {
 }
 
 
-ADD_TEST(IPAddressTest, MCClassification6) {
+ADD_TEST(MCClassification6) {
 
 	Exception ex;
 	CHECK(_IpAddress.set(ex, "ff02:0:0:0:0:0:0:c")); // well-known link-local multicast
@@ -548,7 +550,7 @@ ADD_TEST(IPAddressTest, MCClassification6) {
 }
 
 
-ADD_TEST(IPAddressTest, Relationals) {
+ADD_TEST(Relationals) {
 
 	Exception ex;
 	IPAddress ip1;
@@ -575,7 +577,7 @@ ADD_TEST(IPAddressTest, Relationals) {
 }
 
 
-ADD_TEST(IPAddressTest, Relationals6) {
+ADD_TEST(Relationals6) {
 
 	Exception ex;
 	IPAddress ip1;
@@ -615,4 +617,6 @@ ADD_TEST(IPAddressTest, Relationals6) {
 	CHECK(!(ip1 <= ip4));
 	CHECK(!(ip4 > ip1));
 	CHECK(!(ip4 >= ip1));
+}
+
 }

@@ -259,7 +259,7 @@ struct IOSocket::Send : IOSocket::Action {
 	bool process(Exception& ex, const shared<Socket>& pSocket) {
 		if (!pSocket->flush(ex))
 			return false;
-		// handle if no more queueing data
+		// handle if no more queueing data (and on first time allow to get connection info!)
 		if (!pSocket->queueing())
 			handle<Handle>(pSocket);
 		return true;
@@ -381,13 +381,13 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 			bool stop(false);
 			while (!stop) {
 				if (!available) // always get something (maybe a new reception has been gotten since the last pSocket->available() call)
-					available = 2048; // in UDP allows to avoid a NET_EMSGSIZE error, and 2048 to be greater than max possible MTU (~1500 bytes)
+					available = 2048; // in UDP allows to avoid a NET_EMSGSIZE error (where packet is lost!), and 2048 to be greater than max possible MTU (~1500 bytes)
 				shared<Buffer>	pBuffer(new Buffer(available));
 				SocketAddress	address;
 				bool queueing(pSocket->queueing() ? true : false);
 				int received = pSocket->receive(ex, pBuffer->data(), available, 0, &address);
 				if (received < 0) {
-					if(ex)
+					// if NET_EMSGSIZE => UDP packet lost! (can happen on windows! error displaid!)
 					// error, but not necessary a disconnection
 					if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 						return false;

@@ -22,8 +22,9 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
+namespace DNSTest {
 
-ADD_TEST(DNSTest, HostByName) {
+ADD_TEST(HostByName) {
 	Exception ex;
 	HostEntry hostEntry;
 
@@ -47,7 +48,7 @@ ADD_TEST(DNSTest, HostByName) {
 	CHECK(hostEntry2.addresses().size() == 1);
 }
 
-ADD_TEST(DNSTest, HostByAddress) {
+ADD_TEST(HostByAddress) {
 	Exception ex;
 	HostEntry hostEntry;
 
@@ -66,3 +67,6 @@ ADD_TEST(DNSTest, HostByAddress) {
 	DNS::HostByAddress(ex, ip, hostEntry);
 	CHECK(ex)
 }
+
+}
+

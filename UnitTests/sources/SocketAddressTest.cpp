@@ -24,9 +24,11 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
+namespace SocketAddressTest {
+
 static string _Buffer;
 
-ADD_TEST(SocketAddressTest, Behavior) {
+ADD_TEST(Behavior) {
 	
 	SocketAddress sa;
 	Exception ex;
@@ -100,20 +102,20 @@ ADD_TEST(SocketAddressTest, Behavior) {
 	CHECK(!ex);
 }
 
-ADD_TEST(SocketAddressTest, ToString) {
+ADD_TEST(ToString) {
 	// toString performance (for loop test)
 	SocketAddress sa;
 	CHECK(!sa.empty());
 }
 
-ADD_TEST(SocketAddressTest, ParsePerformance) {
+ADD_TEST(ParsePerformance) {
 	// Parse performance (for loop test)
 	SocketAddress sa;
 	Exception ex;
 	CHECK(sa.set(ex,"192.168.1.100",100) && !ex)
 }
 
-ADD_TEST(SocketAddressTest, ComparaisonPerformance) {
+ADD_TEST(ComparaisonPerformance) {
 	// Comparaison performance (for loop test)
 	SocketAddress sa;
 	SocketAddress sa2(sa);
@@ -121,7 +123,7 @@ ADD_TEST(SocketAddressTest, ComparaisonPerformance) {
 		CHECK(false)
 }
 
-ADD_TEST(SocketAddressTest, Behavior6) {
+ADD_TEST(Behavior6) {
 	
 	SocketAddress sa;
 	Exception ex;
@@ -195,7 +197,7 @@ ADD_TEST(SocketAddressTest, Behavior6) {
 	CHECK(!ex);
 }
 
-ADD_TEST(SocketAddressTest, Comparisons6) {
+ADD_TEST(Comparisons6) {
 	string address, addressAndPort;
 	Exception ex;
 	SocketAddress sAddress1, sAddress2;
@@ -209,4 +211,6 @@ ADD_TEST(SocketAddressTest, Comparisons6) {
 
 	CHECK(!ex);
 	CHECK(sAddress1==sAddress2);
+}
+
 }

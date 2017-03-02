@@ -22,7 +22,9 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
-ADD_TEST(PathTest, Getters) {
+namespace PathTest {
+
+ADD_TEST(Getters) {
 
 	Path path;
 	CHECK(!path);
@@ -38,8 +40,7 @@ ADD_TEST(PathTest, Getters) {
 	
 }
 
-
-ADD_TEST(PathTest, Setters) {
+ADD_TEST(Setters) {
 
 	Path path("home/name");
 	CHECK(path.parent()=="home/" && path.name() == "name" && !path.isFolder());
@@ -59,7 +60,7 @@ ADD_TEST(PathTest, Setters) {
 	CHECK(resolved == Path::CurrentDir().parent());
 }
 
-ADD_TEST(PathTest, Attributes) {
+ADD_TEST(Attributes) {
 	
 	Exception ex;
 	CHECK(Path::CurrentApp().exists());
@@ -73,5 +74,7 @@ ADD_TEST(PathTest, Attributes) {
 	CHECK(path.lastModified());
 	CHECK(!path.exists(true));
 	CHECK(!path.lastModified());
+
+}
 
 }

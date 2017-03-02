@@ -22,10 +22,11 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
+namespace XMLParserTest {
+
 static string		_StringBuffer;
 
-class SuccessParser : XMLParser {
-public:
+struct SuccessParser : XMLParser {
 	SuccessParser() : _oneShoot(false),_order(0), XMLParser(_XML.data(),_XML.size()) {}
 
 	void parse(bool oneShoot) {
@@ -117,8 +118,7 @@ string SuccessParser::_XML(EXPAND("<?xml version = '1.0' encoding = 'UTF-8' ?> \
 										</root>"));
 
 
-class FailureParser : public XMLParser {
-public:
+struct FailureParser : XMLParser {
 	FailureParser(const std::string& xml) : XMLParser(xml.data(), xml.size()) {}
 	void parse() { CHECK(XMLParser::parse(_ex)==XMLParser::RESULT_ERROR && _ex); }
 	bool onStartXMLElement(const char* name, Parameters& attributes) { return true;}
@@ -151,16 +151,16 @@ static string _XMLFail5(EXPAND("<?xml version = '1.0' encoding = 'UTF-8' ?> \
 										<root name='value'>"));
 
 
-ADD_TEST(XMLParserTest, OneShot) {
+ADD_TEST(OneShot) {
 	SuccessParser().parse(true);
 }
 
-ADD_TEST(XMLParserTest, StepByStep) {
+ADD_TEST(StepByStep) {
 	SuccessParser().parse(false);
 }
 
 
-ADD_TEST(XMLParserTest, Failure) {
+ADD_TEST(Failure) {
 	FailureParser(_XMLFail1).parse();
 	FailureParser(_XMLFail2).parse();
 	FailureParser(_XMLFail3).parse();
@@ -168,3 +168,4 @@ ADD_TEST(XMLParserTest, Failure) {
 	FailureParser(_XMLFail5).parse();
 }
 
+}

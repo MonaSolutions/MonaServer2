@@ -23,6 +23,7 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
+namespace PersistentDataTest {
 
 static PersistentData	_Data;
 static string			_Path;
@@ -33,7 +34,7 @@ static PersistentData::ForEach	_ForEach([](const string& path, const UInt8* valu
 });
 
 
-ADD_TEST(PersistentData, Load) {
+ADD_TEST(Load) {
 	// create base of test
 	Exception ex;
 	FileSystem::MakeFolder(_Path.assign(FileSystem::GetHome("")).append(".MonaTests/"));
@@ -42,7 +43,7 @@ ADD_TEST(PersistentData, Load) {
 }
 
 
-ADD_TEST(PersistentData, Add) {
+ADD_TEST(Add) {
 	Exception ex;
 	CHECK(_Data.add(ex, "", Packet(EXPAND("salut"))) && !ex);
 	CHECK(_Data.add(ex, "Test", Packet(EXPAND("aurevoir"))) && !ex);
@@ -55,14 +56,14 @@ ADD_TEST(PersistentData, Add) {
 	CHECK(FileSystem::Exists(_Path+"Sub/"));
 }
 
-ADD_TEST(PersistentData, Reload) {
+ADD_TEST(Reload) {
 	// create base of test
 	Exception ex;
 	_Data.load(ex,_Path,_ForEach);
 	CHECK(!ex);
 }
 
-ADD_TEST(PersistentData, Remove) {
+ADD_TEST(Remove) {
 	// create base of test
 	Exception ex;
 	CHECK(_Data.remove(ex, "/Test/NoExists") && !ex);
@@ -79,3 +80,4 @@ ADD_TEST(PersistentData, Remove) {
 	CHECK(!FileSystem::Exists(_Path));;
 }
 
+}

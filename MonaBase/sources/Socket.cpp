@@ -95,8 +95,11 @@ UInt32 Socket::available() const {
 		return value;
 #endif
 	value = ioctl(FIONREAD);
+#if defined(_WIN32)
 	// size UDP packet on windows is impossible to determinate so take a multiple of 2 grater than max possible MTU (~1500 bytes)
 	return type == TYPE_DATAGRAM && value>2048 ? 2048 : value;
+#endif
+	return value;
 }
 
 bool Socket::setRecvBufferSize(Exception& ex, int size) { 

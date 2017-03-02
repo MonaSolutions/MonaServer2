@@ -23,8 +23,9 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace std;
 using namespace Mona;
 
+namespace FileTest {
 
-ADD_TEST(FileTest, File) {
+ADD_TEST(File) {
 
 	Exception ex;
 	const char* name("temp.mona");
@@ -40,7 +41,7 @@ ADD_TEST(FileTest, File) {
 		File file(name, File::MODE_READ);
 		CHECK(file.size() == 10);
 		char data[10];
-		CHECK(file.read(ex, data, 20)==10 && !ex && memcmp(data, EXPAND("SalutSalut"))==0);
+		CHECK(file.read(ex, data, 20) == 10 && !ex && memcmp(data, EXPAND("SalutSalut")) == 0);
 		CHECK(!file.write(ex, data, sizeof(data)) && ex && ex.cast<Ex::Intern>());
 		ex = nullptr;
 	}
@@ -50,34 +51,30 @@ ADD_TEST(FileTest, File) {
 		CHECK(file.write(ex, EXPAND("Salut")) && !ex);
 		CHECK(file.size() == 5);
 		char data[10];
-		CHECK(file.read(ex, data, sizeof(data))==-1 && ex && ex.cast<Ex::Intern>());
+		CHECK(file.read(ex, data, sizeof(data)) == -1 && ex && ex.cast<Ex::Intern>());
 		ex = nullptr;
 	}
 }
 
-struct MainHandler : Handler {
+static struct MainHandler : Handler {
 	MainHandler() : Handler(_signal) {}
 	bool join(UInt32 count) {
 		UInt32 done(0);
-		do {
-			done += Handler::flush();
-			if (done == count)
-				return true;
-			if (done > count)
+		while ((done += Handler::flush()) < count) {
+			if (!_signal.wait(14000))
 				return false;
-		} while (_signal.wait(14000));
-		return false;
+		};
+		return count == done;
 	}
 
 private:
 	void flush();
 	Signal _signal;
-};
+} _Handler;
 static ThreadPool	_ThreadPool;
 
-ADD_TEST(FileTest, FileReader) {
-	MainHandler	handler;
-	IOFile		io(handler, _ThreadPool);
+ADD_TEST(FileReader) {
+	IOFile		io(_Handler, _ThreadPool);
 
 	const char* name("temp.mona");
 	Exception ex;
@@ -100,12 +97,11 @@ ADD_TEST(FileTest, FileReader) {
 		}
 	};
 	reader.open(name).read();
-	CHECK(handler.join(3));
+	CHECK(_Handler.join(3));
 }
 
-ADD_TEST(FileTest, FileWriter) {
-	MainHandler	handler;
-	IOFile		io(handler, _ThreadPool);
+ADD_TEST(FileWriter) {
+	IOFile		io(_Handler, _ThreadPool);
 	const char* name("temp.mona");
 	Exception ex;
 	Packet salut(EXPAND("Salut"));
@@ -127,6 +123,8 @@ ADD_TEST(FileTest, FileWriter) {
 	CHECK(writer->size() == 15);
 	writer.close();
 
-	CHECK(handler.join(0));
+	CHECK(_Handler.join(0));
 	CHECK(FileSystem::Delete(ex, name) && !ex);
+}
+
 }

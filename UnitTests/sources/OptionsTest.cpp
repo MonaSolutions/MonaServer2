@@ -23,7 +23,9 @@ details (or else see http://www.gnu.org/licenses/).
 using namespace Mona;
 using namespace std;
 
-Options _Options;
+namespace OptionsTest {
+
+static Options _Options;
 static int _I;
 
 bool GetOption(const string& fullName) { return _Options.get(fullName) ? true : false; }
@@ -50,7 +52,7 @@ bool ProcessArg(const char* arg, const Options::ForEach& handler=nullptr) {
 	return _Options.process(ex, 2, argv, handler) && !ex;
 }
 
-ADD_TEST(OptionsTest, TestOption) {
+ADD_TEST(TestOption) {
 
 	Option incOpt("include-dir", "I", "specify an include search path");
 	incOpt.required(false)
@@ -115,7 +117,7 @@ ADD_TEST(OptionsTest, TestOption) {
 	CHECK(!optOpt.argumentRequired());
 }
 
-ADD_TEST(OptionsTest, TestOptionsAdd) {
+ADD_TEST(TestOptionsAdd) {
 
 	//removeAllOptions();
 
@@ -172,7 +174,7 @@ void TestProcessOptimize(const string& name, const string& value) {
 		CHECK(value == "2")
 }
 
-ADD_TEST(OptionsTest, TestProcess) {
+ADD_TEST(TestProcess) {
 	//_Options.clear();
 	Exception ex;
 	CHECK(AddOption("include-dir", "I", "specify an include search path", false, true, "path", true));
@@ -215,4 +217,6 @@ ADD_TEST(OptionsTest, TestProcess) {
 
 	_Options.clear();
 	CHECK(_Options.count()==0 && _Options.empty());
+}
+
 }
