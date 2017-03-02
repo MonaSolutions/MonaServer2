@@ -46,7 +46,7 @@ UInt32 Handler::flush(UInt32 count) {
 			_runners.pop_front();
 		}
 		Exception ex;
-		Thread::ChangeName newName(Thread::CurrentName(), ":", pRunner->name);
+		Thread::ChangeName newName(pRunner->name);
 		AUTO_ERROR(pRunner->run(ex), newName);
 		++done;
 	}

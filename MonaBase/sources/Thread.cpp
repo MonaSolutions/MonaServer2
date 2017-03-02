@@ -61,12 +61,23 @@ void Thread::SetSystemName(const string& name) {
 		RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
 	} __except (EXCEPTION_EXECUTE_HANDLER) {
 	}
-#elif defined(__APPLE__)
-    pthread_setname_np(name.c_str());
-#elif defined(_OS_BSD)
-	pthread_set_name_np(pthread_self(), name.c_str());
 #else
-	prctl(PR_SET_NAME, name.c_str(), 0, 0, 0);
+	// 15 size restriction!
+	const char* threadName;
+	if (name.size() > 15) {
+		thread_local string Name;
+		Name.assign(name.data(), 7) += '~';
+		Name.append(name.data()+ name.size() - 7, 7);
+		threadName = Name.c_str();
+	} else
+		threadName = name.c_str();
+#if defined(__APPLE__)
+    pthread_setname_np(threadName);
+#elif defined(_OS_BSD)
+	pthread_set_name_np(pthread_self(), threadName);
+#else
+	prctl(PR_SET_NAME, threadName, 0, 0, 0);
+#endif
 #endif
 #endif
 }
