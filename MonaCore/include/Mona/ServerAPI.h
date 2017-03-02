@@ -95,7 +95,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION
 	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient){return true;}  // Exception::SOFTWARE
 
-	virtual bool			onPublish(Exception& ex, const Publication& publication, Client* pClient){return true;}
+	virtual bool			onPublish(Exception& ex, Publication& publication, Client* pClient){return true;}
 	virtual void			onUnpublish(const Publication& publication, Client* pClient){}
 
 	virtual bool			onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication, Client* pClient){return true;}

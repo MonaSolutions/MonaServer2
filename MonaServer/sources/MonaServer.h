@@ -68,7 +68,7 @@ private:
 	void					onJoinGroup(Mona::Client& client,Mona::Group& group);
 	void					onUnjoinGroup(Mona::Client& client,Mona::Group& group);
 
-	bool					onPublish(Mona::Exception& ex,const Mona::Publication& publication, Mona::Client* pClient);
+	bool					onPublish(Mona::Exception& ex, Mona::Publication& publication, Mona::Client* pClient);
 	void					onUnpublish(const Mona::Publication& publication, Mona::Client* pClient);
 
 	bool					onSubscribe(Mona::Exception& ex, Mona::Client& client,const Mona::Listener& listener);

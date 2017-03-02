@@ -659,7 +659,7 @@ bool MonaServer::onFileAccess(Exception& ex, Client& client, Client::FileAccessT
 
 
 //// PUBLICATION_HANDLER /////
-bool MonaServer::onPublish(Exception& ex, const Publication& publication, Client* pClient) {
+bool MonaServer::onPublish(Exception& ex, Publication& publication, Client* pClient) {
 	Script::AddObject<LUAPublication>(_pState, publication);
 	bool result(true);
 	if (pClient) {

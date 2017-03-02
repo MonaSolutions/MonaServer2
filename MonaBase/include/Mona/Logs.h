@@ -95,24 +95,24 @@ private:
 #undef DEBUG
 #undef TRACE
 
-#define LOG(LEVEL, ...)  { LOG_LEVEL __level(LEVEL); if(Mona::Logs::GetLevel()>=__level) { Mona::Logs::Log(__level, __FILE__,__LINE__, __VA_ARGS__); } }
+#define LOG(LEVEL, ...)  { Mona::LOG_LEVEL __level(LEVEL); if(Mona::Logs::GetLevel()>=__level) { Mona::Logs::Log(__level, __FILE__,__LINE__, __VA_ARGS__); } }
 
-#define FATAL(...)	LOG(LOG_FATAL, __VA_ARGS__)
-#define CRITIC(...) LOG(LOG_CRITIC, __VA_ARGS__)
-#define ERROR(...)	LOG(LOG_ERROR, __VA_ARGS__)
-#define WARN(...)	LOG(LOG_WARN, __VA_ARGS__)
-#define NOTE(...)	LOG(LOG_NOTE, __VA_ARGS__)
-#define INFO(...)	LOG(LOG_INFO, __VA_ARGS__)
-#define DEBUG(...)	LOG(LOG_DEBUG, __VA_ARGS__)
-#define TRACE(...)	LOG(LOG_TRACE, __VA_ARGS__)
+#define FATAL(...)	LOG(Mona::LOG_FATAL, __VA_ARGS__)
+#define CRITIC(...) LOG(Mona::LOG_CRITIC, __VA_ARGS__)
+#define ERROR(...)	LOG(Mona::LOG_ERROR, __VA_ARGS__)
+#define WARN(...)	LOG(Mona::LOG_WARN, __VA_ARGS__)
+#define NOTE(...)	LOG(Mona::LOG_NOTE, __VA_ARGS__)
+#define INFO(...)	LOG(Mona::LOG_INFO, __VA_ARGS__)
+#define DEBUG(...)	LOG(Mona::LOG_DEBUG, __VA_ARGS__)
+#define TRACE(...)	LOG(Mona::LOG_TRACE, __VA_ARGS__)
 
 #define DUMP(NAME,...) { if(Mona::Logs::IsDumping()) Mona::Logs::Dump(NAME,__VA_ARGS__); }
 
 #define DUMP_REQUEST(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::IsDumping()) Mona::Logs::DumpRequest(NAME, DATA, SIZE, NAME, " <= ", ADDRESS); }
-#define DUMP_REQUEST_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= LOG_DEBUG) DUMP_REQUEST(NAME, DATA, SIZE, ADDRESS)
+#define DUMP_REQUEST_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= Mona::LOG_DEBUG) DUMP_REQUEST(NAME, DATA, SIZE, ADDRESS)
 
 #define DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::IsDumping()) Mona::Logs::DumpResponse(NAME, DATA, SIZE, NAME, " => ", ADDRESS); }
-#define DUMP_RESPONSE_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= LOG_DEBUG) DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS)
+#define DUMP_RESPONSE_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= Mona::LOG_DEBUG) DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS)
 
 #define AUTO_CRITIC(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { CRITIC( __VA_ARGS__,", ", ex) } }
 #define AUTO_ERROR(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { ERROR( __VA_ARGS__,", ", ex) } }

@@ -103,7 +103,7 @@ bool MonaTiny::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataRead
 
 //// Publication Events /////
 
-bool MonaTiny::onPublish(Exception& ex, const Publication& publication, Client* pClient) {
+bool MonaTiny::onPublish(Exception& ex, Publication& publication, Client* pClient) {
 	if (pClient) {
 		NOTE("Client publish ", publication.name());
 		if (pClient->hasCustomData())

@@ -17,7 +17,7 @@ struct App : virtual Object {
 		virtual bool onInvocation(Exception& ex, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; }
 		virtual bool onFileAccess(Exception& ex, Mona::File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) { return true; }
 
-		virtual bool onPublish(Exception& ex, const Publication& publication) { return true; }
+		virtual bool onPublish(Exception& ex, Publication& publication) { return true; }
 		virtual void onUnpublish(const Publication& publication) {}
 
 		virtual bool onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication) { return true; }
