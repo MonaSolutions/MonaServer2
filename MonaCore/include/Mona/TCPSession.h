@@ -56,7 +56,7 @@ protected:
 	virtual bool manage();
 	
 private:
-	void setSocketParameters(const Parameters& parameters);
+	void setSocketParameters(Socket& socket, const Parameters& parameters);
 
 	UInt32			_timeout;
 	UInt16			_sendingTrack;

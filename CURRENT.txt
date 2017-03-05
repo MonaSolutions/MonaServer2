@@ -1,5 +1,4 @@
-﻿SocketAddress => match resolveService error/warn with ex.portMissing!?
-Répondre au mail: quand Mona2 sortira?
+﻿=> c'est fou la différence entre les logs windows sous mona et sous testclient
 
 Tom 19 =>
 - Comprendre comment utiliser libRTMFP pour le présenter à Marc

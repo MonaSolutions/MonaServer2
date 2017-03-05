@@ -47,7 +47,7 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 
 	virtual ~HTTPDataSender() { if (_pWriter) delete _pWriter; }
 
-	bool			hasHeader() const { return true; }
+
 	DataWriter&		writer() { return _pWriter ? *_pWriter : DataWriter::Null(); }
 
 private:

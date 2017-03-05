@@ -33,7 +33,7 @@ struct HTTPFileSender : HTTPSender, FileReader, virtual Object {
 			   shared<Buffer>& pSetCookie,
 				IOFile& ioFile, const Path& file, Parameters& properties);
 
-	bool hasHeader() const { return true; }
+
 	bool flush();
 
 private:

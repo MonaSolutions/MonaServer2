@@ -29,8 +29,8 @@ namespace Mona {
 struct HTTPSender : Runner, virtual Object {
 	typedef Event<void()>	ON(Flush);
 
-	virtual bool hasHeader() { return true; }
-	virtual bool flush() { return false; }
+	virtual bool hasHeader() const { return true; }
+	virtual bool flush() { return true; }
 
 protected:
 	HTTPSender(const char* name,

@@ -86,7 +86,8 @@ AMFWriter& FlashWriter::writeInvocation(const char* name, double callback) {
 }
 
 AMFWriter& FlashWriter::writeAMFError(const char* code, const std::string& description, bool withoutClosing) {
-	_callbackHandle = 1; // Always answers AMF error to main NetConnection FlashStream
+	if (!_callbackHandle)
+		_callbackHandle = 1; // Always answers AMF error to main NetConnection FlashStream if is initiatied from server (is not a response)
 	return writeAMFState("_error", code, true, description, withoutClosing);
 }
 

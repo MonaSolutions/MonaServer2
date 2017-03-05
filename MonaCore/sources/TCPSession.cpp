@@ -28,7 +28,7 @@ TCPSession::TCPSession(Protocol& protocol) : TCPClient(api.ioSocket), onData(TCP
 
 void TCPSession::connect(const shared<Socket>& pSocket) {
 	peer.setAddress(pSocket->peerAddress());
-	setSocketParameters(protocol());
+	setSocketParameters(*pSocket, protocol());
 
 	onError = [this](const Exception& ex) { WARN(name(), ", ", ex); };
 	onDisconnection = [this](const SocketAddress&) { kill(ERROR_SOCKET); };
@@ -36,33 +36,32 @@ void TCPSession::connect(const shared<Socket>& pSocket) {
 	bool success;
 	Exception ex;
 	AUTO_ERROR(success = TCPClient::connect(ex, pSocket), name());
-	if (success)
-		onFlush = [this]() { flush(); }; // allow to signal end of congestion, and so was congestion so force flush (HTTPSession/HTTPFileSender uses it for example to continue to read a file)
-	else
-		kill(ERROR_SOCKET);
+	if (!success)
+		return kill(ERROR_SOCKET);
+	onFlush = [this]() { flush(); }; // allow to signal end of congestion, and so was congestion so force flush (HTTPSession/HTTPFileSender uses it for example to continue to read a file)
 }
 
-void TCPSession::setSocketParameters(const Parameters& parameters) {
+void TCPSession::setSocketParameters(Socket& socket, const Parameters& parameters) {
 	UInt32 bufferSize;
 	Exception ex;
 	if (parameters.getNumber("bufferSize", bufferSize)) {
-		AUTO_ERROR((*this)->setRecvBufferSize(ex, bufferSize), name(), " receiving buffer setting");
-		AUTO_ERROR((*this)->setSendBufferSize(ex = nullptr, bufferSize), name(), " sending buffer setting");
+		AUTO_ERROR(socket.setRecvBufferSize(ex, bufferSize), name(), " receiving buffer setting");
+		AUTO_ERROR(socket.setSendBufferSize(ex = nullptr, bufferSize), name(), " sending buffer setting");
 	}
 	if (parameters.getNumber("recvBufferSize", bufferSize))
-		AUTO_ERROR((*this)->setRecvBufferSize(ex = nullptr, bufferSize), name(), " receiving buffer setting");
+		AUTO_ERROR(socket.setRecvBufferSize(ex = nullptr, bufferSize), name(), " receiving buffer setting");
 	if (parameters.getNumber("sendBufferSize", bufferSize))
-		AUTO_ERROR((*this)->setSendBufferSize(ex = nullptr, bufferSize), name(), " sending buffer setting");
+		AUTO_ERROR(socket.setSendBufferSize(ex = nullptr, bufferSize), name(), " sending buffer setting");
 
-	DEBUG(name(), " receiving buffer size of ", (*this)->recvBufferSize(), " bytes");
-	DEBUG(name(), " sending buffer size of ", (*this)->sendBufferSize(), " bytes");
+	DEBUG(name(), " receiving buffer size of ", socket.recvBufferSize(), " bytes");
+	DEBUG(name(), " sending buffer size of ", socket.sendBufferSize(), " bytes");
 }
 
 void TCPSession::onParameters(const Parameters& parameters) {
 	Session::onParameters(parameters);
 	if (parameters.getNumber("timeout", _timeout))
 		_timeout *= 1000;
-	setSocketParameters(parameters);
+	setSocketParameters(*socket(), parameters);
 }
 
 void TCPSession::send(const Packet& packet) {
