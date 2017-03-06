@@ -402,6 +402,12 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 					break;
 				}
 
+				// a recv returns 0 without any error can happen on TCP socket one time disconncted!
+				if (!received && pSocket->type == Socket::TYPE_STREAM) {
+					pSocket->_reading = 0xFF; // block reception!
+					return true;
+				}
+
 				pBuffer->resize(received);
 
 				// decode can't happen BEFORE onDisconnection because this call decode + push to _handler in this call!

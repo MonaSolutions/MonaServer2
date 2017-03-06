@@ -35,7 +35,7 @@ namespace Mona {
 
 Publication::Publication(const string& name): _latency(0),
 	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate),
-	_running(false),_new(false), _newProperties(false), _newLost(false), _name(name) {
+	_publishing(false),_new(false), _newProperties(false), _newLost(false), _name(name) {
 	DEBUG("New publication ",name);
 }
 
@@ -44,7 +44,7 @@ Publication::~Publication() {
 	// delete _listeners!
 	if (!subscriptions.empty())
 		CRITIC("Publication ",_name," with subscribers is deleting")
-	if (_running)
+	if (_publishing)
 		CRITIC("Publication ",_name," running is deleting")
 	DEBUG("Publication ",_name," deleted");
 }
@@ -108,7 +108,7 @@ void Publication::reportLost(Media::Type type, UInt16 track, UInt32 lost) {
 
 void Publication::startRecording(MediaFile::Writer& recorder, bool append) {
 	stopRecording();
-	_pRecording.reset(new Subscription(recorder, false));
+	_pRecording.reset(new Subscription(recorder));
 	NOTE("Start ", _name, "=>", recorder.path.name(), " recording");
 	_pRecording->pPublication = this;
 	_pRecording->setBoolean("append",append);
@@ -135,8 +135,8 @@ MediaFile::Writer* Publication::recorder() {
 }
 
 void Publication::start(MediaFile::Writer* pRecorder, bool append) {
-	if (!_running) {
-		_running = true;
+	if (!_publishing) {
+		_publishing = true;
 		INFO("Publication ", _name, " started");
 	}
 	if(pRecorder)
@@ -145,7 +145,7 @@ void Publication::start(MediaFile::Writer* pRecorder, bool append) {
 }
 
 void Publication::reset() {
-	if (!_running)
+	if (!_publishing)
 		return;
 	INFO("Publication ", _name, " reseted");
 	_audios.clear();
@@ -172,12 +172,12 @@ void Publication::reset() {
 }
 
 void Publication::stop() {
-	if(!_running)
+	if(!_publishing)
 		return; // already done
 
 	stopRecording();
 
-	_running=false;
+	_publishing =false;
 
 	_audios.clear();
 	_videos.clear();
@@ -199,13 +199,13 @@ void Publication::stop() {
 }
 
 void Publication::flush(UInt16 ping) {
-	if(_running && ping)
+	if(_publishing && ping)
 		_latency = ping >> 1;
 	flush();
 }
 
 void Publication::flush() {
-	if (!_running) {
+	if (!_publishing) {
 		ERROR("Publication flush called on publication ", _name, " stopped");
 		return;
 	}
@@ -245,11 +245,10 @@ void Publication::flush() {
 
 
 void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) {
-	if (!_running) {
+	if (!_publishing) {
 		ERROR("Audio packet on publication ", _name, " stopped");
 		return;
 	}
-	_idleSince.update();
 
 	TRACE("Audio time ", tag.time);
 
@@ -308,11 +307,10 @@ void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const P
 
 
 void Publication::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) {
-	if (!_running) {
-		ERROR("Video packet on publication ", _name, " stopped");
+	if (!_publishing) {
+		ERROR("Video packet on stopped ", _name, " publication");
 		return;
 	}
-	_idleSince.update();
 
 	// create track
 	VideoTrack& video = _videos[track];
@@ -321,6 +319,9 @@ void Publication::writeVideo(UInt16 track, const Media::Video::Tag& tag, const P
 		DEBUG("Video configuration received on publication ", _name);
 	} else if (tag.frame == Media::Video::FRAME_KEY) {
 		video.waitKeyFrame = false;
+		if (video.keyFrameTime &&  tag.time > video.keyFrameTime)
+			video.keyFrameInterval = tag.time-video.keyFrameTime;
+		video.keyFrameTime = tag.time;
 		onKeyFrame(track); // can add a new subscription for this publication!
 	} else if (video.waitKeyFrame) {
 		// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
@@ -344,11 +345,10 @@ void Publication::writeVideo(UInt16 track, const Media::Video::Tag& tag, const P
 }
 
 void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& packet) {
-	if (!_running) {
+	if (!_publishing) {
 		ERROR("Data packet on '", _name, "' publication stopped");
 		return;
 	}
-	_idleSince.update();
 
 	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
 	if (pReader) {
@@ -371,11 +371,10 @@ void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& 
 }
 
 void Publication::writeProperties(UInt16 track, DataReader& reader) {
-	if (!_running) {
+	if (!_publishing) {
 		ERROR("Properties on '", _name, "' publication stopped");
 		return;
 	}
-	_idleSince.update();
 
 	MapWriter<Parameters> writer(*this);
 	writer.beginObject();

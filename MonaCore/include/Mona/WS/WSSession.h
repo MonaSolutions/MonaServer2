@@ -27,7 +27,7 @@ namespace Mona {
 
 
 struct WSSession : Session, virtual Object {
-	WSSession(Protocol& protocol, TCPSession& session, const shared<WSDecoder>& pDecoder);
+	WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder);
 
 	WSWriter	writer;
 
@@ -56,7 +56,7 @@ private:
 	Media::Audio::Tag		_audio;
 	UInt32					_media; // 1 byte for data type, 2 bytes for track, 7 bits for media type, 1 bit for "header"
 	Subscription*			_pSubscription;
-	TCPSession&				_httpSession;
+	TCPSession&				_tcpSession;
 };
 
 

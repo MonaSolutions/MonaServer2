@@ -59,9 +59,6 @@ void FlashStream::disengage(FlashWriter* pWriter) {
 		const string& name(_pSubscription->name());
 		if (pWriter) {
 			switch (_pSubscription->ejected()) {
-				case Subscription::EJECTED_TIMEOUT:
-					pWriter->writeAMFStatusError("NetStream.Play.StreamNotFound", name + " not found");
-					break;
 				case Subscription::EJECTED_BANDWITDH:
 					pWriter->writeAMFStatusError("NetStream.Play.InsufficientBW", "Insufficient bandwidth to play " + name);
 					break;

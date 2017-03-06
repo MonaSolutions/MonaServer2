@@ -61,7 +61,7 @@ private:
 	Subscription*		_pSubscription;
 	Publication*		_pPublication;
 
-	Session*			_pUpgradeSession;
+	unique<Session>		_pUpgradeSession;
 
 	// options
 	std::string			_index;

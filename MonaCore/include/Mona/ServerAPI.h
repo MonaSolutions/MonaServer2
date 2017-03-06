@@ -125,7 +125,7 @@ private:
 				auto it = subscriptions.begin();
 				while (it != subscriptions.end()) {
 					if (it->first->videos.enabled(track)) {
-						raise(*it->first, it->second.second);
+						raise(*it->first, it->second);
 						it = subscriptions.erase(it);
 					} else
 						++it;
@@ -139,9 +139,10 @@ private:
 			_api.unsubscribe(subscription, *subscription.pPublication, pClient);
 			subscription.pNextPublication = NULL;
 			subscription.pPublication = &publication;
+			subscription.reset(); // to get properties(metadata) and new state of new publication...
 		}
-		Publication&										publication;
-		std::map<Subscription*, std::pair<Int64, Client*>>	subscriptions;
+		Publication&						publication;
+		std::map<Subscription*, Client*>	subscriptions;
 	private:
 		ServerAPI&					  _api;
 	};

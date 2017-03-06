@@ -31,8 +31,18 @@ Timer::~Timer() {
 }
 
 void Timer::set(const OnTimer& onTimer,  UInt32 timeout) const {
-	remove(onTimer);
-	add(onTimer, timeout);
+	shared<std::set<const OnTimer*>> pMove;
+	if (!remove(onTimer, pMove))
+		return add(onTimer, timeout);
+	if (!timeout)
+		return;
+	// MOVE (more efficient!)
+	++_count;
+	const auto& it = _timers.emplace(onTimer._nextRaising = Time::Now() + timeout, move(pMove));
+	if (!it.second)
+		it.first->second->emplace(&onTimer);
+	 else if (!it.first->second)
+		it.first->second.reset(new std::set<const OnTimer*>({ &onTimer }));
 }
 
 void Timer::add(const OnTimer& onTimer,  UInt32 timeout) const {
@@ -44,23 +54,25 @@ void Timer::add(const OnTimer& onTimer,  UInt32 timeout) const {
 		it.reset(new std::set<const OnTimer*>());
 	it->emplace(&onTimer);
 }
-void Timer::remove(const OnTimer& onTimer) const {
+
+bool Timer::remove(const OnTimer& onTimer, shared<std::set<const OnTimer*>>& pMove) const {
 	if (!onTimer._nextRaising)
-		return;
+		return false;
 	const auto& it(_timers.find(onTimer._nextRaising));
 	if (it != _timers.end()) {
-		const auto& itTimer(it->second->find(&onTimer));
-		if (itTimer != it->second->end()) {
-			if (it->second->size()==1)
+		onTimer._nextRaising = 0;
+		--_count;
+		if (it->second->size() == 1) {
+			if(*it->second->begin() == &onTimer) {
+				pMove = move(it->second);
 				_timers.erase(it);
-			else
-				it->second->erase(itTimer);
-			onTimer._nextRaising = 0;
-			--_count;
-			return;
-		}
+				return true;
+			}
+		} else if(it->second->erase(&onTimer))
+			return true;
 	}
 	FATAL_ERROR("Timer already used on an other Timer machine, create both individual Timer::Type rather");
+	return false;
 }
 
 UInt32 Timer::raise() {

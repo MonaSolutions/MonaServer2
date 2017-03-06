@@ -48,10 +48,9 @@ UInt16 WS::ErrorToCode(Int32 error) {
 }
 
 BinaryWriter& WS::WriteKey(BinaryWriter& writer, const string& key) {
-	string value;
-	value.append("258EAFA5-E914-47DA-95CA-C5AB0DC85B11"); // WEBSOCKET_GUID
-	Crypto::Hash::SHA1(BIN value.data(), value.size());
-	return Util::ToBase64(BIN value.data(), value.size(), writer);
+	string value(key);
+	value.append(EXPAND("258EAFA5-E914-47DA-95CA-C5AB0DC85B11"));  // WEBSOCKET_GUID
+	return Util::ToBase64(Crypto::Hash::SHA1(BIN value.data(), value.size()), Crypto::SHA1_SIZE, writer, true);
 }
 
 BinaryReader& WS::Unmask(BinaryReader& reader) {

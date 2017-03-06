@@ -235,7 +235,7 @@ void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publica
 		Media::Stream* pStream(it->second);
 		if (Media::Target* pTarget = dynamic_cast<Media::Target*>(pStream)) {
 			INFO(pStream->description(), " loaded on publication ", it->first);
-			Subscription* pSubscription(new Subscription(*pTarget, false));
+			Subscription* pSubscription(new Subscription(*pTarget));
 			pStream->start(); // Start stream before subscription to call Stream::start before Target::beginMedia
 			if (!subscribe(ex, name.assign(it->first), *pSubscription)) {  // logs already displaid by subscribe
 				delete pSubscription;

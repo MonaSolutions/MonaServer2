@@ -80,7 +80,7 @@ protected:
 	Session(Protocol& protocol, Session& session);
 	
 private:
-	void init();
+	void init(Session& session);
 
 	shared<Peer>				_pPeer;
 	UInt32						_id;

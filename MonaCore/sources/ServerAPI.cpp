@@ -37,9 +37,9 @@ void ServerAPI::manage() {
 	while (it != _waitingKeys.end()) {
 		auto itSubscription = it->second.subscriptions.begin();
 		while (itSubscription != it->second.subscriptions.end()) {
-			if (Time::Now() > itSubscription->second.first) {
-				// timeout publication switch
-				it->second.raise(*itSubscription->first, itSubscription->second.second);
+			if (itSubscription->first->ejected()) {
+				// congested/error (ejected) => switch immediatly!
+				it->second.raise(*itSubscription->first, itSubscription->second);
 				itSubscription = it->second.subscriptions.erase(itSubscription);
 				continue;
 			}
@@ -79,7 +79,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	const auto& it = _publications.emplace(piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
 	Publication& publication(it.first->second);
 
-	if (publication.running()) {
+	if (publication.publishing()) {
 		ERROR(ex.set<Ex::Intern>(stream, " is already publishing"));
 		return NULL;
 	}
@@ -167,18 +167,19 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 		return false;
 	}
 
+	// update new properties with new queryParameters!
+	subscription.clear();
+	if (queryParameters)
+		Util::UnpackQuery(queryParameters, subscription);
+
 	auto it = _publications.lower_bound(stream);
-	const char* mode = subscription.getString("mode");
 	if (it == _publications.end() || it->first != stream) {
-		if (String::ICompare(mode, "play") == 0) {
-			WARN(ex.set<Ex::Unfound>("Publication ",stream," unfound"));
+		UInt32 timeout;
+		if (subscription.getNumber("timeout", timeout) && !timeout) {
+			WARN(ex.set<Ex::Unfound>("Publication ", stream, " unfound"));
 			return false;
 		}
 		it = _publications.emplace_hint(it, piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
-	} else if (String::ICompare(mode, "play") == 0 && subscription.timeout() && it->second.idleSince().isElapsed(subscription.timeout())) {
-		// timeout!
-		WARN(ex.set<Ex::Unfound>("Publication ",stream," idle since ", subscription.timeout()/1000," seconds"));
-		return false;
 	}
 
 	Publication& publication(it->second);
@@ -187,11 +188,9 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 		return true;
 	}
 
-	if (queryParameters)
-		Util::UnpackQuery(queryParameters, subscription);
 	if (!onSubscribe(ex, subscription, publication, pClient)) {
 		 // if ex, it has already been displayed as log	
-		if (!publication.running() && publication.subscriptions.empty())
+		if (!publication)
 			_publications.erase(it);
 		if (!ex)
 			WARN(ex.set<Ex::Permission>("Not authorized to play ", stream));
@@ -204,11 +203,21 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 		// publication switch (MBR)
 		if (subscription.pNextPublication)
 			unsubscribe(subscription, *subscription.pNextPublication, pClient); // unsubscribe previous publication switching
-		subscription.pNextPublication = &publication;
-		_waitingKeys.emplace(piecewise_construct,forward_as_tuple(&publication),forward_as_tuple(*this,publication)).first->second
-			.subscriptions.emplace(piecewise_construct, forward_as_tuple(&subscription), forward_as_tuple(Time::Now()+subscription.timeout(), pClient));
-	} else
+		for (const auto& it : publication.videos) {
+			if (subscription.videos.enabled(it.first)) {
+				subscription.pNextPublication = &publication;
+				_waitingKeys.emplace(piecewise_construct, forward_as_tuple(&publication), forward_as_tuple(*this, publication)).first->second
+					.subscriptions.emplace(piecewise_construct, forward_as_tuple(&subscription), forward_as_tuple(pClient));
+				return true;
+			}
+		}
+		// no videos track matching => switch immediatly
+		subscription.pNextPublication = NULL;
+		unsubscribe(subscription, *subscription.pPublication, pClient);
 		subscription.pPublication = &publication;
+		subscription.reset(); // to get properties(metadata) and new state of new publication...
+	}
+	subscription.pPublication = &publication;
 	return true;
 }
 
@@ -234,7 +243,7 @@ void ServerAPI::unsubscribe(Subscription& subscription, Publication& publication
 		if (itWaitingKey->second.subscriptions.empty())
 			_waitingKeys.erase(itWaitingKey);
 	}
-	if (!publication.running() && publication.subscriptions.empty())
+	if (!publication)
 		_publications.erase(publication.name());
 }
 

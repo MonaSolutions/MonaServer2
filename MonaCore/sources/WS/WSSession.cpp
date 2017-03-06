@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-WSSession::WSSession(Protocol& protocol, TCPSession& session, const shared<WSDecoder>& pDecoder) : _httpSession(session), Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
+WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder) : _tcpSession(session), Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
 	_onRequest([this](WS::Request& request) {
 		Exception ex;
 
@@ -44,34 +44,34 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, const shared<WSDec
 				if (reader.available()) // if message, display a log, otherwise not necessary
 					ERROR(name(), " close, ", string(STR reader.current(), reader.available()));
 				switch (code) {
-				case 0: // no error code
-				case WS::CODE_NORMAL_CLOSE:
-					// normal error
-					kill();
-					break;
-				case WS::CODE_ENDPOINT_GOING_AWAY:
-					// client is dying
-					kill(ERROR_SOCKET);
-					break;
-				case WS::CODE_POLICY_VIOLATION:
-					// no permission
-					kill(ERROR_REJECTED);
-					break;
-				case WS::CODE_PROTOCOL_ERROR:
-				case WS::CODE_PAYLOAD_NOT_ACCEPTABLE:
-				case WS::CODE_MALFORMED_PAYLOAD:
-				case WS::CODE_PAYLOAD_TOO_BIG:
-					// protocol error
-					kill(ERROR_PROTOCOL);
-					break;
-				case WS::CODE_EXTENSION_REQUIRED:
-					// Unsupported
-					kill(ERROR_UNSUPPORTED);
-					break;
-				default:
-					// unexpected
-					kill(ERROR_UNEXPECTED);
-					break;
+					case 0: // no error code
+					case WS::CODE_NORMAL_CLOSE:
+						// normal error
+						kill();
+						break;
+					case WS::CODE_ENDPOINT_GOING_AWAY:
+						// client is dying
+						kill(ERROR_SOCKET);
+						break;
+					case WS::CODE_POLICY_VIOLATION:
+						// no permission
+						kill(ERROR_REJECTED);
+						break;
+					case WS::CODE_PROTOCOL_ERROR:
+					case WS::CODE_PAYLOAD_NOT_ACCEPTABLE:
+					case WS::CODE_MALFORMED_PAYLOAD:
+					case WS::CODE_PAYLOAD_TOO_BIG:
+						// protocol error
+						kill(ERROR_PROTOCOL);
+						break;
+					case WS::CODE_EXTENSION_REQUIRED:
+						// Unsupported
+						kill(ERROR_UNSUPPORTED);
+						break;
+					default:
+						// unexpected
+						kill(ERROR_UNEXPECTED);
+						break;
 				}
 				return;
 			}
@@ -101,7 +101,6 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, const shared<WSDec
 	pDecoder->onRequest = _onRequest;
 }
 
-
 void WSSession::kill(Int32 error, const char* reason) {
 	if (died)
 		return;
@@ -113,11 +112,14 @@ void WSSession::kill(Int32 error, const char* reason) {
 	closePublication();
 	closeSusbcription();
 
-	// kill (onDisconnection) after "unpublish or unsubscribe", but BEFORE _writers.clear() because call onDisconnection and writers can be used here
-	Session::kill(error, reason);
+	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.clear() because call onDisconnection and writers can be used here
+	peer.onDisconnection();
 
 	// close writer (flush)
 	writer.close(error, reason);
+
+	// kill session!
+	Session::kill(error, reason);
 }
 
 void WSSession::openSubscribtion(Exception& ex, string& stream, Writer& writer) {
@@ -228,7 +230,7 @@ bool WSSession::manage() {
 	if (!Session::manage())
 		return false;
 
-	if (peer.connected && peer.pingTime.isElapsed(_httpSession.timeout()>>1)) { // = timeout/2
+	if (peer.connected && peer.pingTime.isElapsed(_tcpSession.timeout()/2)) {
 		writer.writePing();
 		peer.pingTime.update();
 	}
@@ -236,9 +238,6 @@ bool WSSession::manage() {
 	if (!_pSubscription)
 		return true;
 	switch (_pSubscription->ejected()) {
-		case Subscription::EJECTED_TIMEOUT:
-			writer.writeInvocation("@unsubscribe").writeString(EXPAND("Publication stopped"));
-			break;
 		case Subscription::EJECTED_BANDWITDH:
 			writer.writeInvocation("@unsubscribe").writeString(EXPAND("Insufficient bandwidth"));
 			break;

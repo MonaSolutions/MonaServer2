@@ -40,37 +40,37 @@ Int32 Session::ToError(const Exception& ex) {
 
 Session::Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name) : _pPeer(pPeer), peer(*pPeer),
 	_protocol(protocol), _name(name ? name : ""), api(protocol.api), died(false), _id(0) {
-	init();
+	init(*this);
 }
 	
 Session::Session(Protocol& protocol, const SocketAddress& address, const char* name) : peer(*new Peer(protocol.api, protocol.name)),
 	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0) {
 	_pPeer.reset(&peer);
 	peer.setAddress(address);
-	init();
+	init(*this);
 }
 
 Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer), peer(*session._pPeer),
 	_sessionsOptions(session._sessionsOptions), _protocol(protocol), api(protocol.api), died(false), _id(session._id) {
 	// Morphing
-	// Same id but no same name! Useless to subscribe to kill here, "session" wrapper have already it, and they share the same peer!
 	((string&)peer.protocol) = protocol.name;
+	peer.onParameters = nullptr;
 	DEBUG("Upgrading ", session.name(), " to ", protocol.name, " session");
+	init(session);
 }
 
-void Session::init() {
+void Session::init(Session& session) {
 	peer.setServerAddress(_protocol.address);
-	DEBUG("peer.id ", String::Hex(peer.id, Entity::SIZE));
-
-	peer.onParameters = [this](Parameters& parameters) {
+	peer.onParameters = [this, &session](Parameters& parameters) {
 		struct Params : Parameters {
 			Params(Protocol& protocol, Parameters& parameters) : protocol(protocol), Parameters(move(parameters)) {}
 			const char* onParamUnfound(const std::string& key) const { return protocol.getString(key); }
 			Protocol& protocol;
 		};
-		onParameters(Params(_protocol, parameters));
+		session.onParameters(Params(_protocol, parameters));
 	};
-	peer.onClose = [this](Int32 error, const char* reason) { kill(error, reason); };
+	if(_pPeer.unique()) // in morphing case, use the kill "wrapper session" rather (already subscribed to kill of "wrapper session")
+		peer.onClose = [this](Int32 error, const char* reason) { kill(error, reason); };
 }
 
 Session::~Session() {

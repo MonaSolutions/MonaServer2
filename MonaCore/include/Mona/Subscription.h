@@ -33,7 +33,6 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	enum EJECTED {
 		EJECTED_NONE = 0,
 		EJECTED_BANDWITDH,
-		EJECTED_TIMEOUT,
 		EJECTED_ERROR
 	};
 
@@ -59,7 +58,7 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 		bool waitKeyFrame;
 	};
 
-	Subscription(Media::Target& target, bool timeoutOnEnd=true);
+	Subscription(Media::Target& target);
 	~Subscription();
 
 	/*!
@@ -75,12 +74,11 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	Publication*  pNextPublication;
 
 	const std::string& name() const;
-	const UInt32 timeout() const { return _timeout; }
 	/*!
 	Allow to reset the reference live timestamp */
 	void seek(UInt32 time);
 
-	bool streaming() const { return _streaming; }
+	bool streaming() const { return _streaming ? true : false; }
 	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet);
 	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet);
 	void writeData(UInt16 track, Media::Data::Type type, const Packet& packet);
@@ -135,14 +133,12 @@ private:
 	UInt32					_startTime;
 	UInt32					_lastTime;
 
-	bool					_timeoutOnEnd;
-	Time					_idleSince;
-	bool					_streaming;
+	Time					_streaming;
 
 	UInt8					_congested;
 	Congestion				_congestion;
 
-	UInt32					_timeout; // for congestion and publication without data
+	UInt32					_timeout;
 	mutable EJECTED			_ejected;
 };
 

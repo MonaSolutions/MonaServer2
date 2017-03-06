@@ -71,7 +71,7 @@ struct Timer : virtual Object {
 
 private:
 	void add(const OnTimer& onTimer,  UInt32 timeout) const;
-	void remove(const OnTimer& onTimer) const;
+	bool remove(const OnTimer& onTimer, shared<std::set<const OnTimer*>>& pMove) const;
 
 	mutable	UInt32														_count;
 	mutable std::map<Int64, shared<std::set<const OnTimer*>>>	_timers;

@@ -51,7 +51,7 @@ UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				_masked = true;
 			}
 			
-			DUMP_REQUEST(socket.isSecure() ? "WSS" : "WS", reader.data(), reader.current()-reader.data(), socket.peerAddress());
+			DUMP_REQUEST_DEBUG(socket.isSecure() ? "WSS" : "WS", reader.data(), reader.current()-reader.data(), socket.peerAddress());
 		}
 
 		if (reader.shrink(_size)<_size)

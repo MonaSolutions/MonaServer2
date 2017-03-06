@@ -28,7 +28,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct Publication : Media::Source, Media::Properties, virtual Object {
+struct Publication : Media::Source, Media::Properties, virtual NullableObject {
 	typedef Event<void(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet)>	ON(Audio);
 	typedef Event<void(UInt16 track, const Media::Video::Tag& tag, const Packet& packet)>	ON(Video);
 	typedef Event<void(UInt16 track, Media::Data::Type type, const Packet& packet)>			ON(Data);
@@ -52,14 +52,18 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 		Media::Audio::Config	config;
 	};
 	struct VideoTrack : Track, virtual Object {
-		VideoTrack() {}
+		VideoTrack() : keyFrameTime(0), keyFrameInterval(0), waitKeyFrame(true) {}
 		Media::Video::Config	config;
 		bool					waitKeyFrame;
+		UInt32					keyFrameTime;
+		UInt32					keyFrameInterval;
 	};
 
 
 	Publication(const std::string& name);
 	virtual ~Publication();
+
+	explicit operator bool() const { return _publishing || !subscriptions.empty(); }
 
 	const std::string&				name() const { return _name; }
 
@@ -75,8 +79,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 	void							start(MediaFile::Writer* pRecorder=NULL, bool append = false);
 	void							reset();
-	const Time&						idleSince() const { return _idleSince; }
-	bool							running() const { return _running; }
+	bool							publishing() const { return _publishing; }
 	void							stop();
 
 	MediaFile::Writer*				recorder();
@@ -119,9 +122,8 @@ private:
 
 	UInt16							_latency;
 
-	bool							_running;
+	bool							_publishing;
 	std::string						_name;
-	Time							_idleSince;
 
 	bool							_new;
 	bool							_newLost;

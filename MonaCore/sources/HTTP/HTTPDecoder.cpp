@@ -82,7 +82,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 					// Upgrade session?
 					if (_pHeader->connection&HTTP::CONNECTION_UPGRADE && String::ICompare(_pHeader->upgrade, "websocket") == 0) {
 						_pHeader->pWSDecoder.reset(new WSDecoder(_handler));
-						_pUpgradeDecoder = _pUpgradeDecoder;
+						_pUpgradeDecoder = _pHeader->pWSDecoder;
 					}
 
 					_stage = BODY;

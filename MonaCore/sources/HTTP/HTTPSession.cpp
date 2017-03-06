@@ -29,7 +29,7 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _writer(*this),
+HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _writer(*this),
 	_onRequest([this](HTTP::Request& request) {
 		if (request) { // else progressive! => PUT or POST media!
 
@@ -67,8 +67,8 @@ HTTPSession::HTTPSession(Protocol& protocol) : _pUpgradeSession(NULL), TCPSessio
 								close();
 		
 								// Create WSSession
-								WSSession* pSession = new WSSession(*pProtocol, *this, request->pWSDecoder);
-								_pUpgradeSession = pSession;
+								WSSession* pSession = new WSSession(*pProtocol, *this, move(request->pWSDecoder));
+								_pUpgradeSession.reset(pSession);
 								HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
 									HTTP_ADD_HEADER("Upgrade", "WebSocket")
 									WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
@@ -210,8 +210,6 @@ bool HTTPSession::manage() {
 	if (_pSubscription && _pSubscription->ejected()) {
 		if (_pSubscription->ejected() == Subscription::EJECTED_BANDWITDH)
 			_writer.writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
-		else if(_pSubscription->ejected() == Subscription::EJECTED_TIMEOUT)
-			_writer.writeError(HTTP_CODE_404, _pSubscription->name(), " not found");
 		// else HTTPWriter error, error already written!
 		closeSusbcription();
 	}
@@ -258,7 +256,6 @@ void HTTPSession::kill(Int32 error, const char* reason){
 void HTTPSession::openSubscribtion(Exception& ex, const string& stream, Writer& writer) {
 	closeSusbcription();
 	_pSubscription = new Subscription(writer);
-	_pSubscription->setString("mode", "play");
 	if (api.subscribe(ex, stream, peer, *_pSubscription, peer.query.c_str()))
 		return;
 	delete _pSubscription;

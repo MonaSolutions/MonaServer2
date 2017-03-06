@@ -82,7 +82,7 @@ private:
 
 		if (track != _profile.track) {
 			if (!_profile.supportTracks) {
-				ERROR(typeof<RTP_ProfileType>()," profile doesn't support multiple tracks, ", isAudio ? "audio " : "video track ", track, " ignored");
+				ERROR(typeof<RTP_ProfileType>()," profile doesn't support multiple tracks, ", isAudio ? "audio track " : "video track ", track, " ignored");
 				return;
 			}
 			_profile.track = track;

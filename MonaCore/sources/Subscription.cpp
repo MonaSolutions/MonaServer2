@@ -27,12 +27,10 @@ using namespace std;
 
 namespace Mona {
 
-Subscription::Subscription(Media::Target& target, bool timeoutOnEnd) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target),
-	audios(_audios), videos(_videos), datas(_datas), _streaming(false), _timeoutOnEnd(timeoutOnEnd),
-	_firstTime(true), _seekTime(0), _timeout(7000),_ejected(EJECTED_NONE),
+Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target),
+	audios(_audios), videos(_videos), datas(_datas), _streaming(0),
+	_firstTime(true), _seekTime(0), _timeout(-1),_ejected(EJECTED_NONE),
 	_startTime(0),_lastTime(0) {
-	if (!_timeoutOnEnd)
-		_idleSince = 0;
 }
 
 Subscription::~Subscription() {
@@ -60,11 +58,13 @@ const string& Subscription::name() const {
 }
 
 Subscription::EJECTED Subscription::ejected() const {
-	if (_idleSince && _timeout && !_ejected && _idleSince.isElapsed(_timeout)) {
-		INFO(name(), " subscription timeout, idle since ", _timeout/1000, " seconds");
-		_ejected = EJECTED_TIMEOUT;
+	if (_ejected)
+		return _ejected;
+	if (_streaming && _timeout > 0 && _streaming.isElapsed(_timeout)) {
+		INFO(name(), " timeout, idle since ", _timeout / 1000, " seconds");
+		((Subscription&)*this).endMedia();
 	}
-	return _ejected;
+	return EJECTED_NONE;
 }
 
 template<typename TracksType>
@@ -88,8 +88,8 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 		_datas.reliable = pValue && String::IsFalse(*pValue) ? false : true;
 	else if (String::ICompare(key, EXPAND("timeout")) == 0) {
 		if (!pValue)
-			_timeout = 7000;
-		else if (String::ToNumber<UInt32>(*pValue, _timeout))
+			_timeout = -1;
+		else if (String::ToNumber(*pValue, _timeout))
 			_timeout *= 1000;
 	} else if (String::ICompare(key, EXPAND("audioEnable")) == 0)
 		Enable(_audios, pValue);
@@ -101,7 +101,7 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 }
 void Subscription::onParamClear() {
 	_audios.reliable = _videos.reliable = _datas.reliable = true;
-	_timeout = 7000;
+	_timeout = -1;
 	_audios.enable();
 	_videos.enable();
 	_datas.enable();
@@ -111,19 +111,14 @@ void Subscription::beginMedia() {
 	if (_streaming)
 		endMedia();
 
-	// update idleSince to timeout from subscription start
-	_idleSince.update();
-	// here can just be TIMEOUT, on start reset timeout!
-	_ejected = EJECTED_NONE;
-	
-	if (pPublication && !pPublication->running())
+	if (pPublication && !pPublication->publishing())
 		return; // wait publication running to start subscription
 
 	if (!target.beginMedia(name(), *this)) {
 		_ejected = EJECTED_ERROR;
 		return;
 	}
-	_streaming = true;
+	_streaming.update();
 
 	if (!pPublication) {
 		if(*this)
@@ -158,17 +153,14 @@ void Subscription::beginMedia() {
 }
 
 void Subscription::endMedia() {
-	if (!_timeoutOnEnd)
-		_idleSince = 0;
 	_ejected = EJECTED_NONE; // Reset => maybe the next publication will solve ejection
-	
 	if (!_streaming)
 		return;
 
 	target.endMedia(name());
 	target.flush();
 
-	_streaming = false;
+	_streaming = 0;
 	_seekTime = _lastTime;
 	_audios.clear();
 	_videos.clear();
@@ -191,7 +183,8 @@ void Subscription::writeProperties(const Media::Properties& properties) {
 		beginMedia();
 		if (pPublication == &properties)
 			return; // already done in beginMedia!
-	}
+	} else
+		_streaming.update();
 	if (_ejected)
 		return;
 	INFO("Properties sent to one ",name()," subscription")
@@ -212,11 +205,12 @@ void Subscription::writeProperties(UInt16 track, DataReader& reader) {
 void Subscription::writeData(UInt16 track, Media::Data::Type type, const Packet& packet) {
 	if (!_streaming)
 		beginMedia();
+	else
+		_streaming.update();
 	if (_ejected)
 		return;
 	if (!_datas.enabled(track))
 		return;
-	_idleSince.update();
 
 	// Create track!
 	_datas[track];
@@ -240,11 +234,12 @@ void Subscription::writeData(UInt16 track, Media::Data::Type type, const Packet&
 void Subscription::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) {
 	if (!_streaming)
 		beginMedia();
+	else
+		_streaming.update();
 	if (_ejected)
 		return;
 	if (!_audios.enabled(track) && !tag.isConfig)
 		return;
-	_idleSince.update();
 
 	// Create track!
 	_audios[track];
@@ -275,6 +270,8 @@ void Subscription::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const 
 void Subscription::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) {
 	if (!_streaming)
 		beginMedia();
+	else
+		_streaming.update();
 	if (_ejected)
 		return;
 	bool isConfig(tag.frame == Media::Video::FRAME_CONFIG);
@@ -284,8 +281,6 @@ void Subscription::writeVideo(UInt16 track, const Media::Video::Tag& tag, const 
 			it->second.waitKeyFrame = true;
 		return;
 	}
-	_idleSince.update();
-
 
 	// Create track!
 	VideoTrack& videoTrack = _videos[track];
