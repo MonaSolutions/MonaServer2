@@ -30,7 +30,7 @@ Feature                                      | State
 ---------------------------------------------|---------------------
 Recording                                    | OK
 Congestion control                           | OK
-Multi-servers		                         | NOK
+Multi-servers		                             | NOK
 LUA (MonaServer)                             | NOK
 VOD                                          | In progress
 
