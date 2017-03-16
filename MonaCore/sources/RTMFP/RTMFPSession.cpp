@@ -73,6 +73,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 		if (_pFlow)
 			_pFlow->pWriter->flush();
 		if (!message) {
+			_pFlow = NULL;
 			// flow end!
 			DEBUG("Flow ", message.flowId, " consumed on session ", name());
 			_flows.erase(message.flowId);

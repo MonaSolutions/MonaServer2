@@ -17,8 +17,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Runner.h"
 #include "Mona/Time.h"
+#include "Mona/Logs.h"
 #include <set>
 
 namespace Mona {
@@ -37,7 +37,7 @@ struct Timer : virtual Object {
 		template<typename FunctionType>
 		explicit OnTimer(FunctionType&& function) : _nextRaising(0), count(0), std::function<UInt32(UInt32)>(std::move(function)) {}
 
-		~OnTimer() { if (_nextRaising) FATAL_ERROR("OnTimer function deleting while running"); }
+		~OnTimer() { if (_nextRaising) CRITIC("OnTimer function deleting while running"); }
 
 		template<typename FunctionType>
 		OnTimer& operator=(FunctionType&& function) {
