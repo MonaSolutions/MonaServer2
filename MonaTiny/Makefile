@@ -5,7 +5,7 @@ CXX?=g++
 EXEC?=MonaTiny
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-unknown-pragmas
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wno-unknown-pragmas
 override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I./include -I../
 LIBDIRS+=-L../MonaBase/lib/ -L../MonaCore/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,../MonaCore/lib/,-rpath,/usr/local/lib/"
