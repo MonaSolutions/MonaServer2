@@ -5,7 +5,7 @@ CXX?=g++
 EXEC?=UnitTests
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-unknown-pragmas -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wno-unknown-pragmas -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I../MonaBase/include/ -I../
 LIBDIRS+=-L../MonaBase/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/"

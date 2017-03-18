@@ -1,0 +1,11 @@
+/MonaBase/tmp
+/MonaCore/tmp
+/MonaServer/tmp
+/MonaTiny/tmp
+/UnitTests/tmp
+/MonaTiny/debug
+/MonaBase/lib
+/MonaCore/lib
+/MonaTiny/logs
+/MonaTiny/MonaTiny
+/UnitTests/Debug
