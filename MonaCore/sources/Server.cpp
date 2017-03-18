@@ -112,7 +112,7 @@ bool Server::run(Exception&, const volatile bool& stopping) {
 		// Start streams
 		startStreams(streams, publications, subscriptions);
 
-		onManage = ([&](UInt32 count) {
+		onManage = ([&](UInt32) {
 			ServerAPI::manage(); // in first to mark obsolete publication/subscription
 			sessions.manage(); // in first to detect session useless died
 			_protocols.manage(); // manage custom protocol manage (resource protocols)
@@ -214,7 +214,7 @@ void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
 			if (!it2.second.empty())
 				continue;
 			Media::Stream* pStream;
-			AUTO_ERROR(pStream = Media::Stream::New(ex=nullptr, name, ioFile, ioSocket, pTLSClient), name);
+			AUTO_ERROR(pStream = Media::Stream::New(ex=nullptr, name, timer, ioFile, ioSocket, pTLSClient), name);
 			if (!pStream)
 				continue;
 			streams.emplace(it.first, pStream);

@@ -342,9 +342,13 @@ void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& pa
 		Packet packet(_pBuffer);
 		if (packet)
 			_output(id, _lost, packet);
-		return;
-			
+		return;	
 	}
+	if (flags&RTMFP::MESSAGE_WITH_BEFOREPART) {
+		_lost += packet.size();
+		return; // the beginning of this message is lost, ignore it!
+	}
+
 	// add options flag on AMF type on message beginning (compatible with AMF type value!)
 	if (flags & RTMFP::MESSAGE_OPTIONS)
 		*(UInt8*)packet.data() |= RTMFP::MESSAGE_OPTIONS;

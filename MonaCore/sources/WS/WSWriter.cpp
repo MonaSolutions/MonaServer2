@@ -72,23 +72,10 @@ bool WSWriter::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Pack
 }
 
 bool WSWriter::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-	BinaryReader reader(packet.data(), packet.size());
-	do {
-		UInt32 size = tag.codec == Media::Video::CODEC_H264 ? reader.read32() : reader.available();
-		if (size > reader.available())
-			size = reader.available();
-
-		BinaryWriter& writer(*write(WS::TYPE_BINARY, Packet(packet, reader.current(), size)));
-		if (reader.position() < 5) {
-			if (track)
-				tag.pack(writer.write8(tag.packSize() + 2)).write16(track);
-			else
-				tag.pack(writer.write8(tag.packSize()));
-		} else
-			writer.write8(0); // no need to repeat tag!
-
-		reader.next(size);
-	} while (reader.available());
+	if (track)
+		tag.pack(write(WS::TYPE_BINARY, packet)->write8(tag.packSize() + 2)).write16(track);
+	else
+		tag.pack(write(WS::TYPE_BINARY, packet)->write8(tag.packSize()));
 	return true;
 }
 

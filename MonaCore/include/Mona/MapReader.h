@@ -25,18 +25,18 @@ namespace Mona {
 
 template<typename MapType>
 struct MapReader : DataReader, virtual Object {
-	MapReader(const MapType& map) : _begin(map.begin()),_it(map.begin()),_end(map.end()) {}
-	MapReader(const MapType& map, const typename MapType::const_iterator itBegin) : _begin(itBegin), _it(itBegin), _end(map.end()) {}
-	MapReader(const MapType& map, const typename MapType::const_iterator itBegin, const typename MapType::const_iterator itEnd) : _begin(itBegin), _it(itBegin), _end(itEnd) {}
+	MapReader(const MapType& map) : _done(false), _begin(map.begin()),_it(map.begin()),_end(map.end()) {}
+	MapReader(const MapType& map, const typename MapType::const_iterator itBegin) :_done(false), _begin(itBegin), _it(itBegin), _end(map.end()) {}
+	MapReader(const MapType& map, const typename MapType::const_iterator itBegin, const typename MapType::const_iterator itEnd) : _done(false), _begin(itBegin), _it(itBegin), _end(itEnd) {}
 	template<typename BandType>
-	MapReader(const BandType& band) : _begin(band.begin()), _it(band.begin()), _end(band.end()) {}
+	MapReader(const BandType& band) : _done(false), _begin(band.begin()), _it(band.begin()), _end(band.end()) {}
 
-	void			reset() { _it = _begin; }
+	void			reset() { _it = _begin; _done = false; }
 
 private:
 
 	UInt8 followingType() {
-		if (_it == _end)
+		if (_done && _it == _end)
 			return END;
 		return OTHER;
 	}
@@ -46,6 +46,7 @@ private:
 	bool readOne(UInt8 type, DataWriter& writer, std::string& prefix) {
 		
 		// read all
+		_done = true;
 		writer.beginObject();
 		while (_it != _end) {
 			const char* key = _it->first.c_str();
@@ -88,6 +89,7 @@ private:
 	}
 
 	Date								_date;
+	bool								_done;
 	typename MapType::const_iterator	_begin;
 	typename MapType::const_iterator	_it;
 	typename MapType::const_iterator	_end;

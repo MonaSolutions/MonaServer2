@@ -27,6 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/IOFile.h"
 #include "Mona/TLS.h"
 #include "Mona/MIME.h"
+#include "Mona/Timer.h"
 #include "Mona/Logs.h"
 
 
@@ -227,9 +228,7 @@ struct Media : virtual Static {
 	static Media::Type TagType(const Audio::Tag& tag) { return TYPE_AUDIO; }
 	static Media::Type TagType(const Video::Tag& tag) { return TYPE_VIDEO; }
 
-	struct Properties : Parameters, virtual NullableObject {
-		explicit operator bool() const { return !Parameters::empty(); }
-
+	struct Properties : Parameters, virtual Object {
 		const Packet& operator[](Media::Data::Type type) const;
 
 	protected:
@@ -316,7 +315,7 @@ struct Media : virtual Static {
 		Writer => @[address:]port...
 		Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126] 
 		File => @file[.format] [MediaFormat] [parameter] */
-		static Stream* New(Exception& ex, const char* description, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS);
+		static Stream* New(Exception& ex, const char* description, const Timer&	timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS);
 
 		/*!
 		/!\ Implementation have to support a pulse start! */

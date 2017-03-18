@@ -26,17 +26,22 @@ namespace Mona {
 
 UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	DUMP_RESPONSE(_name.c_str(), pBuffer->data(), pBuffer->size(), _path);
-	Packet packet(pBuffer);
+	Packet packet(pBuffer); // to capture pBuffer!
 	if (_pReader.unique())
 		return 0;
+	_flushed = false;
 	_pReader->read(packet, *this);
 	if (end)
 		_handler.queue(onEnd);
-	return packet.size();
+	return _flushed ? 0 : 0x2000;
 }
 
-MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, IOFile& io) :
-	Media::Stream(type), io(io), path(path), _pReader(pReader) {
+MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io) :
+	Media::Stream(type), io(io), path(path), _pReader(pReader), timer(timer),
+		_onTimer([this](UInt32 delay) {
+			this->io.read(_pFile, 0x2000); // continue to read
+			return 0;
+		}) {
 	_onFileError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 }
 
@@ -47,20 +52,50 @@ void MediaFile::Reader::start() {
 	}
 	if (_pFile)
 		return;
+	_realTime =	0; // reset realTime
 	shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, path, _pSource->name()));
 	pDecoder->onEnd = _onEnd = [this]() {  stop(); };
-	pDecoder->onFlush = _onFlush = [this]() { _pSource->flush(); };
+	pDecoder->onFlush = _onFlush = [this]() {
+		_pSource->flush();
+		Int64 delta = _realTime ? _mediaTime - _realTime.elapsed() : 0;
+		TRACE(_mediaTime, " ", _realTime.elapsed(), " ", delta);
+		if (delta > 0) {
+			if (delta < 0x7FFF)
+				return timer.set(_onTimer, UInt32(delta));
+			// can't have readen 33 seconds in 0x2000 bytes!
+			WARN(description(), " resets horloge (impossible forward)");
+			_realTime = 0;
+		} else if (delta < -0x7FFF) {
+			WARN(description(), " delayed, resets horloge (impossible rewind)");
+			_realTime = 0;
+		}
+		io.read(_pFile, 0x2000); // continue to read immediatly
+	};
 	pDecoder->onReset = _onReset = [this]() { _pSource->reset(); };
 	pDecoder->onLost = _onLost = [this](Lost& lost) { lost.report(*_pSource); };
-	pDecoder->onMedia = _onMedia = [this](Media::Base& media) { _pSource->writeMedia(media); };
+	pDecoder->onMedia = _onMedia = [this](Media::Base& media) {
+		_pSource->writeMedia(media);
+		switch (media.type) {
+			default: return;	
+			case Media::TYPE_AUDIO:
+				_mediaTime = ((const Media::Audio&)media).tag.time;
+				break;
+			case Media::TYPE_VIDEO:
+				_mediaTime = ((const Media::Video&)media).tag.time;
+				break;
+		}
+		if (!_realTime)
+			_realTime.update(Time::Now() - _mediaTime);
+	};
 	io.open(_pFile, path, pDecoder, nullptr, _onFileError);
-	io.read(_pFile);
+	io.read(_pFile, 0x2000);
 	INFO(description(), " starts");
 }
 
 void MediaFile::Reader::stop() {
 	if (!_pFile)
 		return;
+	timer.set(_onTimer, 0);
 	io.close(_pFile);
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	_pReader.reset(MediaReader::New(_pReader->format()));

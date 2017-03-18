@@ -215,6 +215,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define sprintf sprintf_s
 #define snprintf sprintf_s
 #define PATH_MAX 4096 // to match Linux!
+#define assert _ASSERT
 #endif
 
 namespace Mona {
@@ -297,7 +298,12 @@ private:
 	static const UInt16 _CharacterTypes[128];
 };
 
-inline UInt32 abs(double value) { return (UInt32)std::abs((long long int)value); }
+inline UInt64 abs(double value) { return (UInt64)std::abs((long long int)value); }
+inline UInt64 abs(float value) { return (UInt64)std::abs((long long int)value); }
+inline UInt64 abs(Int64 value) { return (UInt64)std::abs(value); }
+inline UInt32 abs(Int32 value) { return (UInt32)std::abs(value); }
+inline UInt16 abs(Int16 value) { return (UInt16)std::abs(value); }
+inline UInt8 abs(Int8 value) { return (UInt8)std::abs(value); }
 
 template<typename Type>
 inline Type abs(Type a,Type b) {

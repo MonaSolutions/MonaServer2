@@ -31,7 +31,7 @@ namespace Mona {
 struct MediaFile : virtual Static {
 
 	struct Reader : Media::Stream, virtual Object {
-		Reader(const Path& path, MediaReader* pReader, IOFile& io);
+		Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io);
 		virtual ~Reader() { stop(); }
 
 		void start();
@@ -41,6 +41,7 @@ struct MediaFile : virtual Static {
 
 		const Path					path;
 		IOFile&						io;
+		const Timer&				timer;
 
 	private:
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pReader->format()); }
@@ -72,13 +73,16 @@ struct MediaFile : virtual Static {
 			void writeProperties(UInt16 track, DataReader& reader) { _handler.queue<Media::Data>(onMedia, track, reader); }
 			void reportLost(Media::Type type, UInt32 lost) { _handler.queue(onLost, type, lost); }
 			void reportLost(Media::Type type, UInt16 track, UInt32 lost) { _handler.queue(onLost, type, track, lost); }
-			void flush() { _handler.queue(onFlush); }
+			void flush() { _flushed = true; _handler.queue(onFlush); }
 			void reset() { _handler.queue(onReset); }
 
+			
 			shared<MediaReader>		_pReader;
 			std::string				_name;
 			const Handler&			_handler;
 			Path					_path;
+			bool					_flushed;
+			
 		};
 
 		Decoder::OnEnd			_onEnd;
@@ -93,6 +97,10 @@ struct MediaFile : virtual Static {
 		Media::Source*			_pSource;
 		shared<File>			_pFile;
 		shared<Decoder>			_pDecoder;
+
+		Timer::OnTimer			_onTimer;
+		Time					_realTime;
+		UInt32					_mediaTime;
 	};
 
 

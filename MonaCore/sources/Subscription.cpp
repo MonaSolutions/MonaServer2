@@ -126,7 +126,7 @@ void Subscription::beginMedia() {
 		return;
 	}
 
-	if(*pPublication)
+	if(pPublication->count())
 		writeProperties(*pPublication);
 
 	// Send codecs settings on start! Time is 0 (like following first packet)

@@ -78,14 +78,14 @@ bool Timer::remove(const OnTimer& onTimer, shared<std::set<const OnTimer*>>& pMo
 UInt32 Timer::raise() {
 	while (!_timers.empty()) {
 		const auto& it(_timers.begin());
-		Int64 now(Time::Now());
-		if (it->first > now)
-			return UInt32(it->first - now); // > 0!
+		Int64 waiting(it->first-Time::Now());
+		if (waiting>0)
+			return UInt32(waiting); // > 0!
 		auto itTimers(it->second);
 		_timers.erase(it);
 		for (const OnTimer* pTimer : *itTimers) {
 			pTimer->_nextRaising = 0;
-			UInt32 timeout = (*pTimer)();
+			UInt32 timeout = (*pTimer)(UInt32(-waiting));
 			--_count;
 			if(timeout)
 				add(*pTimer, timeout);

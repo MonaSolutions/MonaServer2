@@ -121,12 +121,7 @@ private:
 };
 
 #if defined(_DEBUG)
-
-#if defined(_WIN32)
-#define		FATAL_CHECK(CONDITION)			{_ASSERTE(CONDITION);}
-#else
 #define		FATAL_CHECK(CONDITION)			{assert(CONDITION);}
-#endif
 #if defined(_WIN32)
 #define		FATAL_ERROR(...)				{ if (_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, NULL, Mona::String(__VA_ARGS__).c_str()) == 1) _CrtDbgBreak(); }
 #elif defined(_OS_BSD) // BSD has no asser_fail function

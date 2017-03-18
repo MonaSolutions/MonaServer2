@@ -72,13 +72,13 @@ ADD_TEST(MapParameters) {
 	CHECK(params.getNumber(_Key)==0);
 
 	// Erase
-	CHECK(params.count() == 1 && !params.empty());
+	CHECK(params.count() == 1);
 	params.erase(_Key);
-	CHECK(params.count() == 0 && params.empty());
+	CHECK(params.count() == 0);
 	params.setString("hello", EXPAND("mona"));
-	CHECK(params.count() == 1 && !params.empty());
+	CHECK(params.count() == 1);
 	params.clear();
-	CHECK(params.count() == 0 && params.empty());
+	CHECK(params.count() == 0);
 }
 
 }

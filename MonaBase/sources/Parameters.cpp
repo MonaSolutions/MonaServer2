@@ -23,19 +23,16 @@ using namespace std;
 namespace Mona {
 
 Parameters& Parameters::operator=(Parameters&& other) {
-	if (other.empty()) {
+	if (!other.count()) {
 		clear();
 		return *this;
 	}
 	// clear self!
 	_pMap.reset();
-	_bytes = 0;
 	onParamClear();
 	// move data
 	_pMap = std::move(other._pMap);
-	_bytes = other._bytes;
 	// clear other
-	other._bytes = 0;
 	other.onParamClear();
 	// onChange!
 	for (auto& it : *this)
@@ -81,6 +78,14 @@ const char* Parameters::getParameter(const string& key) const {
 	return onParamUnfound(key);
 }
 
+Parameters& Parameters::clear() {
+	if (!_pMap || _pMap->empty())
+		return *this;
+	_pMap->clear();
+	onParamClear();
+	return *this;
+}
+
 bool Parameters::erase(const string& key) {
 	// erase
 	if (!_pMap)
@@ -89,7 +94,6 @@ bool Parameters::erase(const string& key) {
 	if (it == _pMap->end())
 		return true;
 	if (_pMap->size() > 1) {
-		_bytes -= it->second.size();
 		onParamChange(it->first, NULL);
 		_pMap->erase(it);
 	} else

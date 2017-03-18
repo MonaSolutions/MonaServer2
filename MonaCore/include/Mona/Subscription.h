@@ -74,6 +74,7 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	Publication*  pNextPublication;
 
 	const std::string& name() const;
+
 	/*!
 	Allow to reset the reference live timestamp */
 	void seek(UInt32 time);
@@ -82,13 +83,12 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet);
 	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet);
 	void writeData(UInt16 track, Media::Data::Type type, const Packet& packet);
+	void writeProperties(const Media::Properties& properties);
 	void reportLost(Media::Type type, UInt32 lost);
 	void reportLost(Media::Type type, UInt16 track, UInt32 lost);
 	void flush();
 	void reset() { endMedia(); }
-
-	void writeProperties(const Media::Properties& properties);
-
+	
 private:
 	void beginMedia();
 	void endMedia();

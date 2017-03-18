@@ -94,8 +94,8 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	}
 	if (String::ICompare(getString(stream), EXPAND("publication"))==0) {
 		// Write static metadata configured
-		string name(stream);
-		for (auto& it : band(name += '.'))
+		String name(stream,'.');
+		for (auto& it : band(name))
 			publication.setString(it.first.c_str()+name.size(), it.second);
 	}
 

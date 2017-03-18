@@ -109,8 +109,7 @@ const Packet& Media::Properties::operator[](Media::Data::Type type) const {
 		ERROR("Media properties requested with an unknown data type");
 		return Packet::Null();
 	}
-	if (empty())
-		return Packet::Null();
+	// not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
 	_packets.resize(type);
 	Packet& packet(_packets[type - 1]);
 	if (packet)
@@ -253,7 +252,7 @@ void Media::Stream::stop(const Exception& ex) {
 UInt32	Media::Stream::RecvBufferSize(0);
 UInt32	Media::Stream::SendBufferSize(0);
 
-Media::Stream* Media::Stream::New(Exception& ex, const char* description, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
+Media::Stream* Media::Stream::New(Exception& ex, const char* description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
 	// Net => [@][address] [type/TLS][/MediaFormat] [parameter MediaFormat]
 	// File = > @file[.format][MediaFormat][parameter]
 	
@@ -345,7 +344,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, IOFile
 			if (MediaWriter* pWriter = MediaWriter::New(format.empty() ? path.extension().c_str() : format.c_str()))
 				return new MediaFile::Writer(path, pWriter, ioFile);
 		} else if (MediaReader* pReader = MediaReader::New(format.empty() ? path.extension().c_str() : format.c_str()))
-			return new MediaFile::Reader(path, pReader, ioFile);
+			return new MediaFile::Reader(path, pReader, timer, ioFile);
 		ex.set<Ex::Unsupported>("Stream file format ", format, " not supported");
 		return NULL;
 	}

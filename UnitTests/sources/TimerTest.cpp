@@ -33,12 +33,12 @@ ADD_TEST(All) {
 	
 	Timer timer;
 
-	Timer::OnTimer onTimer10([](UInt32 count) { return 10; });
-	Timer::OnTimer onTimer20([](UInt32 count) { return 20; });
-	Timer::OnTimer onTimer40([](UInt32 count) { return 40; });
-	Timer::OnTimer onTimer50([](UInt32 count) { return 50; });
-	Timer::OnTimer onInsideRemove; onInsideRemove = [&](UInt32 count) { timer.set(onInsideRemove, 0);  return 0; };
-	Timer::OnTimer onAutoRemove([](UInt32 count) { return 0; });
+	Timer::OnTimer onTimer10([](UInt32 delay) { return 10; });
+	Timer::OnTimer onTimer20([](UInt32 delay) { return 20; });
+	Timer::OnTimer onTimer40([](UInt32 delay) { return 40; });
+	Timer::OnTimer onTimer50([](UInt32 delay) { return 50; });
+	Timer::OnTimer onInsideRemove; onInsideRemove = [&](UInt32 delay) { timer.set(onInsideRemove, 0);  return 0; };
+	Timer::OnTimer onAutoRemove([](UInt32 delay) { return 0; });
 
 	timer.set(onTimer10, 10);
 	timer.set(onTimer20, 20);

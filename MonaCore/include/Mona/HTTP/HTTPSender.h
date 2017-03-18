@@ -61,9 +61,9 @@ protected:
 		BinaryWriter writer(buffer);
 		HTML_BEGIN_COMMON_RESPONSE(writer, code)
 			UInt32 size(writer.size());
-		String::Append(writer, std::forward<Args>(args)...);
-		if (size == writer.size()) // nothing has been written, write code in content!
-			writer.write(code);
+			String::Append(writer, std::forward<Args>(args)...);
+			if (size == writer.size()) // nothing has been written, write code in content!
+				writer.write(code);
 		HTML_END_COMMON_RESPONSE(_pRequest->host)
 	}
 private:

@@ -46,8 +46,6 @@ ADD_TEST(parameters) {
 	parameters.setString("name2_", "value2_");
 	parameters.setString("name3", "value4");
 
-	CHECK(parameters.bytes() == 25);
-
 	UInt32 size(0);
 	for (auto& it : parameters.band("name2")) {
 		CHECK(it.first.compare(0,5, "name2") == 0);

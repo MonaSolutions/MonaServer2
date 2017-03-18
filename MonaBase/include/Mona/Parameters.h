@@ -40,7 +40,7 @@ private:
 	};
 public:
 
-	Parameters() : _bytes(0) {}
+	Parameters() {}
 	Parameters(Parameters&& other) { operator=(std::move(other));  }
 	Parameters& operator=(Parameters&& other);
 
@@ -48,11 +48,9 @@ public:
 	const_iterator	end() const { return _pMap ? _pMap->end() : Null().end(); }
 	ForEach			from(const std::string& prefix) { return _pMap ? ForEach(_pMap->lower_bound(prefix), _pMap->end()) : ForEach(); }
 	ForEach			band(const std::string& prefix);
-	bool			empty() const { return _pMap ? _pMap->empty() : true; }
 	UInt32			count() const { return _pMap ? _pMap->size() : 0; }
-	UInt32			bytes() const { return _bytes; };
-
-	void			clear() { if (!_pMap || _pMap->empty()) return; _pMap->clear(); _bytes = 0; onParamClear(); }
+	
+	Parameters&		clear();
 
 	/*!
 	Return false if key doesn't exist (and don't change 'value'), otherwise return true and assign string 'value' */
@@ -112,15 +110,12 @@ private:
 	const std::string& setParameter(const std::string& key, Args&& ...args) {
 		if (!_pMap)
 			_pMap.reset(new std::map<std::string, std::string, String::IComparator>());
-		auto it = _pMap->emplace(key, std::string());
-		if (!it.second) // already exists
-			_bytes -= it.first->second.size();
-		_bytes += it.first->second.assign(std::forward<Args>(args)...).size();
-		onParamChange(it.first->first, &it.first->second);
-		return it.first->second;
+		const auto& it = _pMap->emplace(key, std::string()).first;
+		it->second.assign(std::forward<Args>(args)...);
+		onParamChange(it->first, &it->second);
+		return it->second;
 	}
 
-	UInt32													_bytes;
 	// shared because a lot more faster than using st::map move constructor!
 	// Also build _pMap just if required, and then not erase it but clear it (more faster that reset the shared)
 	shared<std::map<std::string, std::string, String::IComparator>>	_pMap;

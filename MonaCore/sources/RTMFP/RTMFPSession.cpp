@@ -73,6 +73,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 		if (_pFlow)
 			_pFlow->pWriter->flush();
 		if (!message) {
+			_pFlow = NULL;
 			// flow end!
 			DEBUG("Flow ", message.flowId, " consumed on session ", name());
 			_flows.erase(message.flowId);
@@ -228,6 +229,9 @@ void RTMFPSession::onParameters(const Parameters& parameters) {
 void RTMFPSession::kill(Int32 error, const char* reason) {
 	if (died)
 		return;
+
+	// if kill _flows is cleared so _pFlow becomes invalid!
+	_pFlow = NULL;
 
 	if (_mainStream.onStart) { // else already done
 		

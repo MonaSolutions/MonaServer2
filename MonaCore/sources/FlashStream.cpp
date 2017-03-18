@@ -342,7 +342,8 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 			case 15:
 				if (memcmp(packet.data() + 3, EXPAND("@clearDataFrame")) != 0)
 					break;
-				return _pPublication->clear();
+				_pPublication->clear();
+				return;
 			case 13: {
 				if (memcmp(packet.data() + 3, EXPAND("@setDataFrame")) != 0)
 					break;
@@ -351,8 +352,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 				reader.next(); // @setDataFrame
 				if (reader.nextType() == DataReader::STRING)
 					reader.next(); // remove onMetaData
-				_pPublication->clear();
-				MapWriter<Parameters> writer(*_pPublication);
+				MapWriter<Parameters> writer(_pPublication->clear());
 				reader.read(writer);
 				return;
 			}

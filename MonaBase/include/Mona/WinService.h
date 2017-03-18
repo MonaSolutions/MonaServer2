@@ -26,8 +26,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
-class WinService : public virtual Object {
-public:
+struct WinService : virtual Object {
 	enum Startup {
 		UNKNOWN,
 		AUTO_START,

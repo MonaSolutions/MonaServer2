@@ -16,9 +16,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Util.h"
 #include <iostream>
-#if defined(_WIN32)
-#include <windows.h>
-#endif
 #include "Mona/Logs.h"
 
 using namespace std;

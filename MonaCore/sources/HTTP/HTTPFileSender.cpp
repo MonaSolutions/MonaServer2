@@ -72,7 +72,7 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 			HTTP::Sort		sort(HTTP::SORT_ASC);
 			HTTP::SortBy	sortBy(HTTP::SORTBY_NAME);
 
-			if (!_properties.empty()) {
+			if (_properties.count()) {
 				if (_properties.getString("N", buffer))
 					sortBy = HTTP::SORTBY_NAME;
 				else if (_properties.getString("M", buffer))
@@ -129,7 +129,7 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 	}
 
 	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
-	if (_properties.empty() && request.ifModifiedSince >= (*this)->lastModified()) {
+	if (!_properties.count() && request.ifModifiedSince >= (*this)->lastModified()) {
 		if(send(HTTP_CODE_304) && !_head) // NOT MODIFIED
 			io.handler.queue(onFlush);
 		return;
@@ -140,11 +140,11 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 	// - Allow to control "304 not modified code" response in checking arguments "If-Modified-Since" and update properties time
 	// - Allow by default to never parsing the document!
 
-	if (!_properties.empty() && (*this)->size() > 0xFFFF) {
+	if (_properties.count() && (*this)->size() > 0xFFFF) {
 		ERROR(request.path, '/', _file.name(), " exceeds limit size of 65535 to allow parameter parsing, file parameters ignored");
 		_properties.clear();
 	}
-	if(!_properties.empty()) {
+	if(_properties.count()) {
 		// parsing file!
 		shared<Buffer> pBuffer(new Buffer(0xFFFF));
 		int readen;
