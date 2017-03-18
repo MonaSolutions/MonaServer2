@@ -121,7 +121,7 @@ void Subscription::beginMedia() {
 	_streaming.update();
 
 	if (!pPublication) {
-		if(*this)
+		if(this->count())
 			writeProperties(*this);
 		return;
 	}
