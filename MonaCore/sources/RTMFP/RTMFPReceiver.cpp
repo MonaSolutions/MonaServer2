@@ -215,6 +215,10 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 				++stage;	
 				if (pFlow)
 					pFlow->input(stage, flags, Packet(packet, message.current(), message.available()));
+				if (pFlow->fragmentation > socket.recvBufferSize()) {
+					ERROR("Peer continue to send packets until exceeds buffer capacity whereas lost data have been requested");
+					KILL(Mona::Session::ERROR_CONGESTED);
+				}
 				break;
 			}
 			default:
@@ -300,15 +304,20 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 	}
 	if (stage>nextStage) {
 		// not following stage, bufferizes the stage
-		if(!_fragments.emplace(piecewise_construct, forward_as_tuple(stage), forward_as_tuple(flags, packet)).second)
+		if(_fragments.empty())
+			DEBUG("Wait stage ", nextStage, " lost on flow ", id);
+		if (_fragments.emplace(piecewise_construct, forward_as_tuple(stage), forward_as_tuple(flags, packet)).second) {
+			fragmentation += packet.size();
+			if (_fragments.size()>100)
+				DEBUG("_fragments.size()=", _fragments.size());
+		} else
 			DEBUG("Stage ", stage, " on flow ", id, " has already been received")
-		else if (_fragments.size()>100)
-			DEBUG("_fragments.size()=", _fragments.size());
 	} else {
 		onFragment(nextStage++, flags, packet);
 		auto it = _fragments.begin();
 		while (it != _fragments.end() && it->first <= nextStage) {
 			onFragment(nextStage++, it->second.flags, it->second);
+			fragmentation -= it->second.size();
 			it = _fragments.erase(it);
 		}
 		if (_fragments.empty() && _stageEnd)

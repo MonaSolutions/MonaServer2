@@ -46,11 +46,12 @@ private:
 	typedef std::function<void(UInt64 flowId, UInt32& lost, const Packet& packet)> Output;
 
 	struct Flow {
-		Flow(UInt64	id, const Output& output) : _stage(0), id(id), _lost(0), _stageEnd(0), _output(output) {}
+		Flow(UInt64	id, const Output& output) : fragmentation(0), _stage(0), id(id), _lost(0), _stageEnd(0), _output(output) {}
 
 		const UInt64	id;
 		bool			consumed() const { return _stageEnd && _fragments.empty(); }
 		UInt64			buildAck(std::vector<UInt64>& losts, UInt16& size);
+		UInt32			fragmentation;
 
 		void	input(UInt64 stage, UInt8 flags, const Packet& packet);
 	private:
