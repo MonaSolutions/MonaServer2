@@ -125,19 +125,22 @@ struct String : std::string {
 	static bool ToNumber(const char* value, Type& result) { return ToNumber(value, std::string::npos, result); }
 	template<typename Type>
 	static bool ToNumber(const char* value, std::size_t size, Type& result);
+	template<typename Type, long long defaultValue=0>
+	static Type ToNumber(const std::string& value) { Type result; return ToNumber(value.data(), value.size(), result) ? result : defaultValue; }
+	template<typename Type, long long defaultValue = 0>
+	static Type ToNumber(const char* value, std::size_t size = std::string::npos) { Type result; return ToNumber(value, size, result) ? result : defaultValue; }
 
 	template<typename Type>
-	static Type ToNumber(Exception& ex, const std::string& value) { return ToNumber<Type>(ex, 0, value.data(),value.size()); }
+	static bool ToNumber(Exception& ex, const std::string& value, Type& result) { return ToNumber<Type>(ex, value.data(), value.size(), result); }
 	template<typename Type>
-	static Type ToNumber(Exception& ex, const char* value, std::size_t size = std::string::npos) { return ToNumber<Type>(ex, 0, value, size ); }
+	static bool ToNumber(Exception& ex, const char* value, Type& result) { return ToNumber<Type>(ex, value, std::string::npos, result); }
 	template<typename Type>
-	static Type ToNumber(Exception& ex, Type failValue, const std::string& value) { return ToNumber<Type>(ex, failValue, value.data(),value.size()); }
-	template<typename Type>
-	static Type ToNumber(Exception& ex, Type failValue, const char* value, std::size_t size = std::string::npos);
-	template<typename Type>
-	static Type ToNumber(Type failValue, const std::string& value) { Exception ex; return ToNumber<Type>(ex, failValue, value.data(), value.size()); }
-	template<typename Type>
-	static Type ToNumber(Type failValue, const char* value, std::size_t size = std::string::npos) { Exception ex; return ToNumber<Type>(ex, failValue, value, size); }
+	static bool ToNumber(Exception& ex, const char* value, std::size_t size, Type& result);
+	template<typename Type, long long defaultValue = 0>
+	static Type ToNumber(Exception& ex, const std::string& value) { Type result;  return ToNumber(ex, value.data(), value.size(), result) ? result : defaultValue; }
+	template<typename Type, long long defaultValue = 0>
+	static Type ToNumber(Exception& ex, const char* value, std::size_t size = std::string::npos) { Type result; return ToNumber(ex, value, size, result) ? result : defaultValue; }
+	
 
 	static bool IsTrue(const std::string& value) { return IsTrue(value.data(),value.size()); }
 	static bool IsTrue(const char* value,std::size_t size=std::string::npos) { return ICompare(value, "1", size) == 0 || String::ICompare(value, "true", size) == 0 || String::ICompare(value, "yes", size) == 0 || String::ICompare(value, "on", size) == 0; }

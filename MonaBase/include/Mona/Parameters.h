@@ -62,7 +62,7 @@ public:
 	/*!
 	Return false if key doesn't exist or if it's not a numeric type, otherwise return true and assign numeric 'value' */
 	template<typename NumberType>
-	bool getNumber(const std::string& key, NumberType& value) const { const char* temp = getParameter(key); return temp ? String::ToNumber<NumberType>(temp, value) : false; }
+	bool getNumber(const std::string& key, NumberType& value) const { const char* temp = getParameter(key); return temp && String::ToNumber<NumberType>(temp, value); }
 	/*!
 	A short version of getNumber with template default argument to get value by returned result */
 	template<typename NumberType = double, int defaultValue = 0>

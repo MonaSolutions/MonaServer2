@@ -28,37 +28,27 @@ using namespace std;
 
 namespace StringTest {
 
-template<typename T>
-bool tryToNumber(const std::string& value, T expected) { return tryToNumber<T>(value.c_str(), expected); }
+template<typename Type>
+bool tryToNumber(const std::string& value, Type expected) { return tryToNumber<Type>(value.c_str(), expected); }
 
 
-template<typename T>
-bool tryToNumber(const char * value, T expected) {
-
-	Exception ex;
-	T result = String::ToNumber<T>(ex, value);
-	if (ex || result != expected)
-		return false;
-	return true;
+template<typename Type>
+bool tryToNumber(const char * value, Type expected) {
+	Type result;
+	return String::ToNumber(value, result) && result == expected;
 }
 
 /// \brief Use FLT_EPSILON by default
 template<>
 bool tryToNumber<float>(const char * value, float expected) {
-	Exception ex;
-	float result = String::ToNumber<float>(ex, value);
-	if (ex || fabs(result - expected) > FLT_EPSILON)
-		return false;
-	return true;
+	float result;
+	return String::ToNumber(value, result) && fabs(result - expected) <= FLT_EPSILON;
 }
 
 template<>
 bool tryToNumber<double>(const char * value, double expected) {
-	Exception ex;
-	double result = String::ToNumber<double>(ex, value);
-	if (ex || fabs(result - expected) > DBL_EPSILON)
-		return false;
-	return true;
+	double result;
+	return String::ToNumber(value, result) && fabs(result - expected) <= DBL_EPSILON;
 }
 
 

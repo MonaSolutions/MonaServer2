@@ -170,9 +170,9 @@ void Application::defineOptions(Exception& ex, Options& options) {
 		.argument("level")
 		.handler([this](Exception& ex, const string& value) {
 #if defined(_DEBUG)
-		Logs::SetLevel(String::ToNumber<UInt8>(ex, LOG_DEBUG, value));
+		Logs::SetLevel(String::ToNumber<UInt8, LOG_DEBUG>(ex, value));
 #else
-		Logs::SetLevel(String::ToNumber<UInt8>(ex, LOG_INFO, value));
+		Logs::SetLevel(String::ToNumber<UInt8, LOG_INFO>(ex, value));
 #endif
 		return true;
 	});
@@ -183,7 +183,7 @@ void Application::defineOptions(Exception& ex, Options& options) {
 	
 	options.add(ex, "dumpLimit", "dl", "If dump is activated this option set the limit of dump messages. Argument is an unsigned integer defining the limit of bytes to show. By default there is not limit.")
 		.argument("limit", true)
-		.handler([this](Exception& ex, const string& value) { Logs::SetDumpLimit(String::ToNumber<Int32>(ex,-1, value)); return true; });
+		.handler([this](Exception& ex, const string& value) { Logs::SetDumpLimit(String::ToNumber<Int32, -1>(ex, value)); return true; });
 
 	options.add(ex,"help", "h", "Displays help information about command-line usage.");
 

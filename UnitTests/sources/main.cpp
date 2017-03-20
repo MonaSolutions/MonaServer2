@@ -57,16 +57,14 @@ private:
 		cout << endl << "Choose the index of the test to run (or type enter to run all) : ";
 		string input;
 		getline(cin, input);
-		Exception ex;
+		
 		
 		int number(0);
 		if (!input.empty()) {
-			number = String::ToNumber<int>(ex, input);
-			if (!ex) {
-				PoolTest::PoolTestInstance().run(lTests.at(number),_loop);
-				return;
-			}
-			WARN("Unvalid test index, all tests will run")
+			Exception ex;
+			if (String::ToNumber<int>(ex, input)) 
+				return PoolTest::PoolTestInstance().run(lTests.at(number), _loop);
+			WARN("Invalid test index, ", ex);
 		}
         PoolTest::PoolTestInstance().runAll(_loop);
 	}

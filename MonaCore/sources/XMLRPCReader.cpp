@@ -272,7 +272,7 @@ bool XMLRPCReader::readOne(UInt8 type, DataWriter& writer) {
 			writer.writeString(_data,_size);
 			return true;
 		case NUMBER: {
-			 double number(String::ToNumber<double>(ex, _data, _size));
+			double number(String::ToNumber<double>(ex, _data, _size));
 			 if (ex) {
 				ERROR("Bad XML-RPC number value, ",ex);
 				writer.writeNull();
@@ -282,7 +282,7 @@ bool XMLRPCReader::readOne(UInt8 type, DataWriter& writer) {
 		}
 		case DATE: {
 			Date date;
-			date.update(ex,_data, _size);
+			date.update(ex, _data, _size);
 			 if (ex) {
 				ERROR("Bad XML-RPC dateTime value, ",ex);
 				writer.writeNull();
