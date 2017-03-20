@@ -62,7 +62,7 @@ private:
 		int number(0);
 		if (!input.empty()) {
 			Exception ex;
-			if (String::ToNumber<int>(ex, input)) 
+			if (String::ToNumber<int>(ex, input, number))
 				return PoolTest::PoolTestInstance().run(lTests.at(number), _loop);
 			WARN("Invalid test index, ", ex);
 		}
