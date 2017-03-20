@@ -23,8 +23,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Util.h"
 #if defined(_WIN32)
 #include <Iphlpapi.h>
-#else
-#include <ifaddrs.h>
+#elif !defined(__ANDROID__)
+	#include <ifaddrs.h>
 #endif
 
 using namespace std;
@@ -468,7 +468,7 @@ namespace Mona {
 	//
 
 
-	IPAddress::LocalAddresses::LocalAddresses() {
+	IPAddress::LocalAddresses::LocalAddresses(Exception& ex) {
 #if defined (_WIN32)
 		Buffer buffer(sizeof(IP_ADAPTER_ADDRESSES));
 		ULONG size = sizeof(IP_ADAPTER_ADDRESSES);
@@ -481,23 +481,23 @@ namespace Mona {
 			buffer.resize(size);
 			res = GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, pAddresses = (IP_ADAPTER_ADDRESSES *)buffer.data(), &size);
 		}
-		if (res != NO_ERROR) {
-			emplace_back(Loopback(IPAddress::IPv4));
-			return;
-		}
+		if (res != NO_ERROR)
+			ex.set<Ex::Net::System>("Error in GetAdaptersAddresses call : ", res);
+		else {
 
-		for (adapt = pAddresses; adapt; adapt = adapt->Next) {
-			for (aip = adapt->FirstUnicastAddress; aip; aip = aip->Next) {
-				if (aip->Address.lpSockaddr->sa_family == AF_INET6)
-					emplace_back(reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_scope_id);
-				else if (aip->Address.lpSockaddr->sa_family == AF_INET)
-					emplace_back(reinterpret_cast<struct sockaddr_in*>(aip->Address.lpSockaddr)->sin_addr);
+			for (adapt = pAddresses; adapt; adapt = adapt->Next) {
+				for (aip = adapt->FirstUnicastAddress; aip; aip = aip->Next) {
+					if (aip->Address.lpSockaddr->sa_family == AF_INET6)
+						emplace_back(reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_scope_id);
+					else if (aip->Address.lpSockaddr->sa_family == AF_INET)
+						emplace_back(reinterpret_cast<struct sockaddr_in*>(aip->Address.lpSockaddr)->sin_addr);
+				}
 			}
 		}
-#else
+#elif !defined(__ANDROID__)
 		struct ifaddrs * ifAddrStruct = NULL;
 		if (getifaddrs(&ifAddrStruct) == -1) {
-			emplace_back(Loopback(IPAddress::IPv4));
+			ex.set<Ex::Net::System>("Unable to run getifaddrs");
 			return;
 		}
 
@@ -511,6 +511,44 @@ namespace Mona {
 				emplace_back(reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)->sin_addr);
 		}
 		freeifaddrs(ifAddrStruct);
+#else // getifaddrs is not supported on Android so we use ioctl
+	// Create UDP socket
+	int fd = socket(AF_INET6, SOCK_STREAM, 0);
+	if (fd < 0) {
+		ex.set<Ex::Net::System>("Error in GetAdaptersAddresses call : ", fd);
+		return;
+	}
+
+	// Get ip config
+	struct ifconf ifc;
+	memset(&ifc, 0, sizeof(ifconf));
+
+	int res;
+	if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0)
+		ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF) call : ", res);
+	else {
+		Buffer buffer(ifc.ifc_len);
+		ifc.ifc_buf = (caddr_t)buffer.data();
+		if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0) 
+			ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF)  call : ", res);
+		else {
+
+			// Read all addresses
+			struct ifreq * ifr;
+			for (int i = 0; i < ifc.ifc_len; i += sizeof(struct ifreq)) {
+				ifr = (struct ifreq *)(ifc.ifc_buf + i);
+
+				if (ifr->ifr_addr.sa_family == AF_INET6)
+					emplace_back(reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_scope_id);
+				else if (ifr->ifr_addr.sa_family == AF_INET)
+					emplace_back(reinterpret_cast<struct sockaddr_in*>(&ifr->ifr_addr)->sin_addr);
+			}
+		}
+	}
+
+	// close socket
+	if ((res = close(fd)) != 0)
+		ex.set<Ex::Net::System>("Error in Socket close call : ", res);
 #endif
 	}
 
