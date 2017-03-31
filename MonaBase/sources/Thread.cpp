@@ -88,6 +88,8 @@ UInt32 Thread::CurrentId() {
 	return (UInt32)GetCurrentThreadId();
 #elif _OS_BSD
 	return (UInt32)syscall(SYS_thread_selfid);
+#elif __ANDROID__
+	return (UInt32)pthread_self();
 #else
 	return (UInt32)syscall(SYS_gettid);
 #endif

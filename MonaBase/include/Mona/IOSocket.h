@@ -55,6 +55,8 @@ struct IOSocket : private Thread, virtual Object {
 
 private:
 
+	enum { MAXEVENTS = 0xFFFF}; // max possible linux sockets = port available
+
 	bool					subscribe(Exception& ex, const shared<Socket>& pSocket,
 								shared<Socket::Decoder>&& pDecoder,
 								const Socket::OnReceived& onReceived,

@@ -28,6 +28,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 	#include <fcntl.h>
 #endif
 
+#if !defined(EPOLLRDHUP)  // ANDROID
+#define EPOLLRDHUP 0x2000 
+#endif  // !defined(EPOLLRDHUP) 
+
 using namespace std;
 
 namespace Mona {
@@ -37,12 +41,12 @@ struct IOSocket::Action : Runner, virtual Object {
 	static void Run(const ThreadPool& threadPool, const shared<ActionType>& pAction) {
 		if (!threadPool.queue(pAction->_ex, pAction))
 			pAction->run(pAction->_ex);
-	}
+		}
 	template<typename ActionType>
 	static void Run(const ThreadPool& threadPool, const shared<ActionType>& pAction, UInt16& track) {
 		if (!threadPool.queue(pAction->_ex, pAction, track))
 			pAction->run(pAction->_ex);
-	}
+		}	
 
 	Action(const char* name, int error, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket), _handler(*pSocket->_pHandler) {
 		if (error)
@@ -115,7 +119,6 @@ IOSocket::~IOSocket() {
 	Thread::stop();
 }
 
-
 bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 											shared<Socket::Decoder>&& pDecoder,
 											const Socket::OnReceived& onReceived,
@@ -137,7 +140,7 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		lock_guard<mutex> lock(_mutex); // must protect "start" + _system (to avoid a write operation on restarting) + _subscribers increment
 		if (!running()) {
 			_initSignal.reset();
-			if (!start(ex)) // alone way to start IOSocket::run
+			if (!start(ex)) // only way to start IOSocket::run
 				goto FAIL;
 			_initSignal.wait(); // wait _system assignment
 		}
@@ -157,7 +160,11 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		_sockets.emplace(*pSocket, pSocket);
 #else
 		pSocket->_pWeakThis = new weak<Socket>(pSocket);
-		pSocket->ioctl(FIONBIO, true);
+		int flags = fcntl(*pSocket, F_GETFL, 0);
+		if (flags == -1 || fcntl(*pSocket, F_SETFL, flags | O_NONBLOCK) == -1) {
+			ex.set<Ex::Net::System>(name(), " hasn't been able to set the non blocking mode");
+			goto FAIL;
+		}
 		int res;
 #if defined(_OS_BSD)
 		struct kevent events[2];
@@ -168,7 +175,6 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		epoll_event event;
 		memset(&event, 0, sizeof(event));
 		event.events = EPOLLIN  | EPOLLRDHUP | EPOLLOUT | EPOLLET;
-		event.data.fd = *pSocket;
 		event.data.ptr = pSocket->_pWeakThis;
 		res = epoll_ctl(_system, EPOLL_CTL_ADD,*pSocket, &event);
 #endif
@@ -465,7 +471,6 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 	_system = CreateWindow(name(), name(), WS_EX_LEFT, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
 
 #else
-	UInt16 maxevents(0xFFFF); // max possible sockets = port available
 	int pipefds[2] = {};
 	int readFD(0);
 	_system=_eventFD=0;
@@ -474,13 +479,13 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 		_eventFD = pipefds[1];
 	}
 #if defined(_OS_BSD)
-	struct kevent events[maxevents];
+	struct kevent *events = new struct kevent[MAXEVENTS];
 	if(readFD>0 && _eventFD>0 && fcntl(readFD, F_SETFL, fcntl(readFD, F_GETFL, 0) | O_NONBLOCK)!=-1)
         _system = kqueue();
 #else
-	epoll_event events[maxevents];
+	epoll_event *events = new epoll_event[MAXEVENTS];
 	if(readFD>0 && _eventFD>0 && fcntl(readFD, F_SETFL, fcntl(readFD, F_GETFL, 0) | O_NONBLOCK)!=-1)
-		_system = epoll_create(maxevents); // Argument is ignored on new system, otherwise must be >= to events[] size
+		_system = epoll_create(MAXEVENTS); // Argument is ignored on new system, otherwise must be >= to events[] size
 #endif
 	if(_system<=0) {
 		if(_eventFD>0)
@@ -488,6 +493,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 		if(readFD>0)
 			::close(readFD);
 		_system = 0;
+		delete[] events;
 	} else {
 		// Add the event to terminate the epoll_wait!
 #if defined(_OS_BSD)
@@ -509,8 +515,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 	if (!_system) {
 		ex.set<Ex::Net::System>("impossible to start IOSocket");
 		return false;
-	}
-	
+	}	
 
 	int result(0);
 
@@ -576,9 +581,9 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 	for (;;) {
 
 #if defined(_OS_BSD)
-		result = kevent(_system, NULL, 0, events, maxevents, NULL);
+		result = kevent(_system, NULL, 0, events, MAXEVENTS, NULL);
 #else
-		result = epoll_wait(_system,events,maxevents, -1);
+		result = epoll_wait(_system,events,MAXEVENTS, -1);
 #endif
 
 		int i;
@@ -642,7 +647,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 					removedSockets.emplace_back(pWeakSocket);
 				continue;
 			}
-
+			
 			shared<Socket> pSocket(reinterpret_cast<weak<Socket>*>(event.data.ptr)->lock());
 			if(!pSocket)
 				continue; // socket error
@@ -686,12 +691,14 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 				::close(readFD);  // close reader pipe side
 				::close(_system); // close the system message
 				stop(); // to set running=false!
+				delete[] events;
 				return true;
 			}
 		}
 	}
 	::close(readFD);  // close reader pipe side
 	::close(_system); // close the system message
+	delete[] events;
 
 	if (result < 0) { // error
 		ex.set<Ex::Net::System>("impossible to manage sockets (error ", errno, ")");

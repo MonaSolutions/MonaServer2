@@ -18,10 +18,11 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Path.h"
-#include "Mona/ThreadQueue.h"
 #include "Mona/Event.h"
 
 namespace Mona {
+
+struct ThreadQueue;
 
 /*!
 File is a Path file with read and write operation 

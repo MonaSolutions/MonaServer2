@@ -56,7 +56,6 @@ void Logs::SetDump(const char* name) {
 
 void Logs::Dump(const string& header, const UInt8* data, UInt32 size) {
 	Buffer out;
-	lock_guard<mutex> lock(_Mutex);
 	Util::Dump(data, (_DumpLimit<0 || size<UInt32(_DumpLimit)) ? size : _DumpLimit, out);
 	_PLogger->dump(header, out.data(), out.size());
 }

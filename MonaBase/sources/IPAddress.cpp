@@ -468,7 +468,7 @@ namespace Mona {
 	//
 
 
-	IPAddress::LocalAddresses::LocalAddresses(Exception& ex) {
+	IPAddress::LocalAddresses::LocalAddresses() {
 #if defined (_WIN32)
 		Buffer buffer(sizeof(IP_ADAPTER_ADDRESSES));
 		ULONG size = sizeof(IP_ADAPTER_ADDRESSES);

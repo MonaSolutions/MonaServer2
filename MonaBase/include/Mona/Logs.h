@@ -52,6 +52,7 @@ struct Logs : virtual Static {
 
 	template <typename ...Args>
 	static void Dump(const char* name, const UInt8* data, UInt32 size, Args&&... args) {
+		std::lock_guard<std::mutex> lock(_Mutex);
 		shared<std::string> pDump(_PDump);
 		if (pDump && (pDump->empty() || String::ICompare(*pDump, name) == 0))
 			Dump(String(std::forward<Args>(args)...), data, size);
@@ -71,7 +72,10 @@ struct Logs : virtual Static {
 
 #if defined(_DEBUG)
 	// To dump easly during debugging => no name filter = always displaid even if no dump argument
-	static void Dump(const UInt8* data, UInt32 size) { Dump(String::Empty(), data, size); }
+	static void Dump(const UInt8* data, UInt32 size) {
+		std::lock_guard<std::mutex> lock(_Mutex);
+		Dump(String::Empty(), data, size); 
+	}
 #endif
 
 private:
