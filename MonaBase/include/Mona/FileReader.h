@@ -42,7 +42,7 @@ struct FileReader : virtual NullableObject {
 	bool		open(Exception& ex, const Path& path) { close(); return io.open(ex, _pFile, path, newDecoder(), onReaden, onError); }
 	/*!
 	Read data */
-	void		read(UInt32 size = 0xFFFF) { io.read(_pFile, size); }
+	void		read(UInt32 size = 0xFFFF) { if (_pFile) io.read(_pFile, size); }
 	void		close() { if (_pFile) io.close(_pFile); }
 
 private:
