@@ -69,7 +69,7 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 				HTTP_ADD_HEADER("Last-Modified", String::Date(Date(_file.lastModified()), Date::FORMAT_HTTP));
 			HTTP_END_HEADER
 
-			HTTP::Sort		sort(HTTP::SORT_ASC);
+				HTTP::Sort		sort(HTTP::SORT_ASC);
 			HTTP::SortBy	sortBy(HTTP::SORTBY_NAME);
 
 			if (_properties.count()) {
@@ -89,8 +89,12 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 				send(HTTP_CODE_200, MIME::TYPE_TEXT, "html; charset=utf-8", Packet(pBuffer));
 			else
 				sendError(HTTP_CODE_500, "List folder files, ", ex);
-		} else
+		}
+		else
 			sendError(HTTP_CODE_404, "The requested URL ", request.path, "/ was not found on the server");
+		return;
+	} else if (!_file.exists()) {
+		sendError(HTTP_CODE_404, "The requested URL ", request.path, " was not found on the server");
 		return;
 	}
 
