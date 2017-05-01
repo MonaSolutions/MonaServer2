@@ -25,7 +25,7 @@ struct Byte : virtual Static {
         ORDER_BIG_ENDIAN=1, // network order!
 		ORDER_LITTLE_ENDIAN,
 		ORDER_NETWORK=ORDER_BIG_ENDIAN,
-#if defined(_ARCH_BIG_ENDIAN)
+#if (__BIG_ENDIAN__ || __BIG_ENDIAN || _BIG_ENDIAN || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__))
 		ORDER_NATIVE=ORDER_BIG_ENDIAN
 #else
 		ORDER_NATIVE=ORDER_LITTLE_ENDIAN

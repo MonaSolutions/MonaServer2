@@ -125,9 +125,9 @@ struct String : std::string {
 	static bool ToNumber(const char* value, Type& result) { return ToNumber(value, std::string::npos, result); }
 	template<typename Type>
 	static bool ToNumber(const char* value, std::size_t size, Type& result);
-	template<typename Type, long long defaultValue=0>
+	template<typename Type, long long defaultValue>
 	static Type ToNumber(const std::string& value) { Type result; return ToNumber(value.data(), value.size(), result) ? result : defaultValue; }
-	template<typename Type, long long defaultValue = 0>
+	template<typename Type, long long defaultValue>
 	static Type ToNumber(const char* value, std::size_t size = std::string::npos) { Type result; return ToNumber(value, size, result) ? result : defaultValue; }
 
 	template<typename Type>
@@ -136,9 +136,9 @@ struct String : std::string {
 	static bool ToNumber(Exception& ex, const char* value, Type& result) { return ToNumber<Type>(ex, value, std::string::npos, result); }
 	template<typename Type>
 	static bool ToNumber(Exception& ex, const char* value, std::size_t size, Type& result);
-	template<typename Type, long long defaultValue = 0>
+	template<typename Type, long long defaultValue>
 	static Type ToNumber(Exception& ex, const std::string& value) { Type result;  return ToNumber(ex, value.data(), value.size(), result) ? result : defaultValue; }
-	template<typename Type, long long defaultValue = 0>
+	template<typename Type, long long defaultValue>
 	static Type ToNumber(Exception& ex, const char* value, std::size_t size = std::string::npos) { Type result; return ToNumber(ex, value, size, result) ? result : defaultValue; }
 	
 

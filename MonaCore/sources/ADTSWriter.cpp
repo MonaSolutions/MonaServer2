@@ -106,7 +106,7 @@ void ADTSWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, 
 	}
 
 	writer.write8((_codecType<<6) | ((_codecType ? _rateIndex : RateToIndex(tag.rate)) << 2) | (((_channels ? _channels : tag.channels) >> 2) & 0x01));
-	writer.write32(((_channels ? _channels : tag.channels) & 0x03)<<30 | (finalSize &0x1FFF)<<13 | 0x1FFC); // 0x1FFC => buffer fullness all bits to 1 + 1 AAC frame per ADTS frame minus 1 (for compatibility maximum)
+	writer.write32(((_channels ? _channels : tag.channels) & 0x03)<<30 | (finalSize & 0x1FFF)<<13 | 0x1FFC); // 0x1FFC => buffer fullness all bits to 1 + 1 AAC frame per ADTS frame minus 1 (for compatibility maximum)
 
 	onWrite(Packet(writer)); // header
 	onWrite(packet); // content

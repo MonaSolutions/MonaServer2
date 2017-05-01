@@ -79,10 +79,8 @@ struct Event<Result(Args ...)> : virtual NullableObject {
 			FATAL_ERROR("Event ", typeof(*this), " already subscribed, unsubscribe before with nullptr assignement");
 		weak<std::function<Result(Args...)>> weakFunction(event._pFunction);
 		*_pFunction = [weakFunction](Args... args) {
-			if (weakFunction.expired()) // accelerate detection
-				return Result();
 			shared<std::function<Result(Args...)>> pFunction(weakFunction.lock());
-			return *pFunction ? (*pFunction)(std::forward<Args>(args)...) : Result();
+			return (pFunction && *pFunction) ? (*pFunction)(std::forward<Args>(args)...) : Result();
 		};
 		return *this;
 	}

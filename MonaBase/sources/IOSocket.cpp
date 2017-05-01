@@ -15,7 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/IOSocket.h"
-#if defined(_OS_BSD)
+#if defined(_BSD)
     #include <sys/types.h>
     #include <sys/event.h>
     #include <sys/time.h>
@@ -27,6 +27,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
     #include <vector>
 	#include <fcntl.h>
 #endif
+
+
 
 using namespace std;
 
@@ -159,7 +161,7 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		pSocket->_pWeakThis = new weak<Socket>(pSocket);
 		pSocket->ioctl(FIONBIO, true);
 		int res;
-#if defined(_OS_BSD)
+#if defined(_BSD)
 		struct kevent events[2];
 		EV_SET(&events[0], sockfd, EVFILT_READ, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
 		EV_SET(&events[1], sockfd, EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
@@ -231,7 +233,7 @@ void IOSocket::unsubscribe(shared<Socket>& pSocket) {
 	}
 #else
 	if (running() && _system) {
-#if defined(_OS_BSD)
+#if defined(_BSD)
 		struct kevent events[2];
 		EV_SET(&events[0], sockfd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
 		EV_SET(&events[1], sockfd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
@@ -465,7 +467,6 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 	_system = CreateWindow(name(), name(), WS_EX_LEFT, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
 
 #else
-	UInt16 maxevents(0xFFFF); // max possible sockets = port available
 	int pipefds[2] = {};
 	int readFD(0);
 	_system=_eventFD=0;
@@ -473,14 +474,18 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 		readFD = pipefds[0];
 		_eventFD = pipefds[1];
 	}
-#if defined(_OS_BSD)
-	struct kevent events[maxevents];
+
+// max possible socket, must be limited to the maximum threads possible on the system (and not too high because can exceeds stack limitation of 1Mo like on Android)
+#define MAXEVENTS  1024;
+
+#if defined(_BSD)
+	struct kevent events[MAXEVENTS];
 	if(readFD>0 && _eventFD>0 && fcntl(readFD, F_SETFL, fcntl(readFD, F_GETFL, 0) | O_NONBLOCK)!=-1)
         _system = kqueue();
 #else
-	epoll_event events[maxevents];
+	epoll_event events[MAXEVENTS];
 	if(readFD>0 && _eventFD>0 && fcntl(readFD, F_SETFL, fcntl(readFD, F_GETFL, 0) | O_NONBLOCK)!=-1)
-		_system = epoll_create(maxevents); // Argument is ignored on new system, otherwise must be >= to events[] size
+		_system = epoll_create(MAXEVENTS); // Argument is ignored on new system, otherwise must be >= to events[] size
 #endif
 	if(_system<=0) {
 		if(_eventFD>0)
@@ -490,7 +495,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 		_system = 0;
 	} else {
 		// Add the event to terminate the epoll_wait!
-#if defined(_OS_BSD)
+#if defined(_BSD)
 		struct kevent event;
         EV_SET(&event, readFD, EVFILT_READ, EV_ADD, 0, 0, NULL);
         kevent(_system, &event, 1, NULL, 0, NULL);
@@ -575,10 +580,10 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 
 	for (;;) {
 
-#if defined(_OS_BSD)
-		result = kevent(_system, NULL, 0, events, maxevents, NULL);
+#if defined(_BSD)
+		result = kevent(_system, NULL, 0, events, MAXEVENTS, NULL);
 #else
-		result = epoll_wait(_system,events,maxevents, -1);
+		result = epoll_wait(_system,events, MAXEVENTS, -1);
 #endif
 
 		int i;
@@ -591,7 +596,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 		// for each ready socket
 		for(i=0;i<result;++i) {
 
-#if defined(_OS_BSD)
+#if defined(_BSD)
 
 			kevent& event(events[i]);
 			if(event.ident==readFD) {

@@ -48,7 +48,7 @@ Application::Application() : _logSizeByFile(1000000), _logRotation(10), _version
 #endif
 }
 
-#if defined(_OS_UNIX)
+#if !defined(_WIN32)
 void Application::HandleSignal(int sig) {
 	switch (sig) {
 		case SIGILL:

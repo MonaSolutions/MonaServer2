@@ -81,7 +81,7 @@ protected:
 	virtual void			dump(const std::string& header, const UInt8* data, UInt32 size);
 	
 private:
-#if defined(_OS_UNIX)
+#if !defined(_WIN32)
 	static void HandleSignal(int sig);
 #endif
 

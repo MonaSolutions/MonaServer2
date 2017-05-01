@@ -312,6 +312,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 					_audio.unpack(header, false);
 					_media = header.read16() << 8 | Media::Type::TYPE_AUDIO; // track + audio
 				}
+				content.set(packet, reader->current(), reader->available());
 				reader.read(DataReader::BYTES, content);
 			} // else use the old tag
 			switch (_media & 0xFF) {

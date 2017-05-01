@@ -48,7 +48,7 @@ bool SDP::build(Exception& ex, const char* text) {
 		// RFC 4566
 		switch(type) {
 			case 'v': // v=  (protocol version)
-				version = String::ToNumber<UInt32>(ex, line);
+				String::ToNumber(ex, line, version);
 				break;
 			case 'o': { // o=<username> <sess-id> <sess-version> <nettype> <addrtype> <unicast-address>
 				String::ForEach forEach([&ex,this](UInt32 index, const char* value) {
@@ -57,10 +57,10 @@ bool SDP::build(Exception& ex, const char* text) {
 							user.assign(value);
 							break;
 						case 1:
-							sessionId = String::ToNumber<UInt32>(ex, value);
+							 String::ToNumber(ex, value, sessionId);
 							break;
 						case 2:
-							sessionVersion = String::ToNumber<UInt32>(ex, value);
+							 String::ToNumber(ex, value, sessionVersion);
 							break;
 						case 4:
 							unicastAddress.set(IPAddress::Wildcard(String::ICompare(value,"IP6")==0 ? IPAddress::IPv6 : IPAddress::IPv4));
@@ -138,7 +138,7 @@ bool SDP::build(Exception& ex, const char* text) {
 							name = value;
 							break;
 						case 1:
-							port = String::ToNumber<UInt16>(ex, value);
+							String::ToNumber(ex, value, port);
 							break;
 						case 2:
 							pMedia = addMedia(name, port, value);

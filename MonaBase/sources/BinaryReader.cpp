@@ -22,12 +22,8 @@ namespace Mona {
 
 BinaryReader BinaryReader::Null(NULL,0);
 
-BinaryReader::BinaryReader(const UInt8* data, UInt32 size, Byte::Order byteOrder) : _end(data+size),_data(data),_size(size),_current(data) {
-#if defined(_ARCH_BIG_ENDIAN)
-	_flipBytes = byteOrder == Byte::ORDER_LITTLE_ENDIAN;
-#else
-    _flipBytes = byteOrder == Byte::ORDER_BIG_ENDIAN;
-#endif
+BinaryReader::BinaryReader(const UInt8* data, UInt32 size, Byte::Order byteOrder) :
+	_end(data+size),_data(data),_size(size),_current(data), _flipBytes(byteOrder != Byte::ORDER_NATIVE) {
 }
 
 UInt32 BinaryReader::next(UInt32 count) {

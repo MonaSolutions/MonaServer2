@@ -272,22 +272,15 @@ bool XMLRPCReader::readOne(UInt8 type, DataWriter& writer) {
 			writer.writeString(_data,_size);
 			return true;
 		case NUMBER: {
-			double number(String::ToNumber<double>(ex, _data, _size));
-			 if (ex) {
-				ERROR("Bad XML-RPC number value, ",ex);
-				writer.writeNull();
-			} else
-				writer.writeNumber(number);
+			double number(0);
+			AUTO_ERROR(String::ToNumber(ex, _data, _size, number),"Number parsing");
+			writer.writeNumber(number);	
 			return true;
 		}
 		case DATE: {
-			Date date;
-			date.update(ex, _data, _size);
-			 if (ex) {
-				ERROR("Bad XML-RPC dateTime value, ",ex);
-				writer.writeNull();
-			} else
-				writer.writeDate(date);
+			Date date(0);
+			AUTO_ERROR(date.update(ex, _data, _size), "Date parsing");
+			writer.writeDate(date);
 			return true;
 		}
 		case BOOLEAN: {

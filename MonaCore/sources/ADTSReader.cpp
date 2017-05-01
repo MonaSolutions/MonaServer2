@@ -40,11 +40,15 @@ UInt8 ADTSReader::ReadConfig(const UInt8* data, UInt32 size, UInt8& rateIndex, U
 	// http://www.mpeg-audio.org/docs/w14751_(mpeg_AAC_TransportFormats).pdf
 
 	if (size < 2) {
-		WARN("ACC configuration packet must have a minimum size of 2 bytes");
+		WARN("AAC configuration packet must have a minimum size of 2 bytes");
 		return 0;
 	}
 
 	UInt8 type(data[0]>>3);
+	if(!type) {
+		WARN("AAC configuration packet invalid");
+		return 0;
+	}
 
 	rateIndex = (data[0] & 3)<<1;
 	rateIndex |= data[1]>>7;
@@ -109,12 +113,12 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 			time += UInt32(round(1024000.0/ _tag.rate)); // t = 1/rate... 1024 samples/frame and srMap is in kHz
 
 			// one private bit
-			_tag.channels = ((header[2] & 0x01) << 2) && ((header[3] >> 6) & 0x03);
+			_tag.channels = ((header[2] & 0x01) << 2) | ((header[3] >> 6) & 0x03);
 			// if tag.channels==0 => info in inband PCE = too complicated to get, assumed than it's stereo (TODO?)
 			// Keep it because WMP is unable to read inband PCE (so sound will not worked)
 			if (!_tag.channels)
 				_tag.channels = 2;
-		
+	
 			// Config header
 			if (_tag.isConfig) {
 				// http://wiki.multimedia.cx/index.php?title=MPEG-4_Audio
@@ -132,9 +136,8 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 
 		if(reader.available()<_size)
 			return reader.available();
-
-		// AAC packet
-		source.writeAudio(track, _tag, Packet(packet, reader.current(),_size));
+	
+		source.writeAudio(track, _tag, Packet(packet, reader.current(), _size));
 		reader.next(_size);
 		_size = 0;
 	};

@@ -110,8 +110,21 @@ Packet& Packet::set(const void* data, UInt32 size) {
 Packet& Packet::setArea(const UInt8* data, UInt32 size) {
 	if (!data && !_data)
 		return set(NULL, 0);
+#if defined(_DEBUG)
 	if (data<_data || (data + size)>(_data + _size))
 		FATAL_ERROR("Area of data requested outside data referenced");
+#else
+	// In release fix the error, avoid a crash issue on user error for example
+	if (data < _data)
+		data = _data;
+	if ((data + size)>(_data + _size)) {
+		if (data > (_data + _size)) {
+			data = _data + _size;
+			size = 0;
+		} else
+			size = _data + _size - data;
+	}
+#endif
 	_data = data;
 	_size = size;
 	return *this;

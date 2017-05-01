@@ -29,7 +29,7 @@ UInt8 FLVWriter::ToCodecs(const Media::Audio::Tag& tag) {
 	if (tag.codec == Media::Audio::CODEC_AAC)
 		codecs = 1; // always 1 for AAC, readen in inband PCE
 	else if (tag.codec >= Media::Audio::CODEC_NELLYMOSER_16K && tag.codec <= Media::Audio::CODEC_NELLYMOSER)
-		codecs = 0; // always 1 for NELLYMOSER
+		codecs = 0; // always 0 for NELLYMOSER
 	else if (!tag.channels) {
 		WARN("Number of Channels on Flash Audio track not indicated, set to stereo");
 		codecs = 1; // stereo

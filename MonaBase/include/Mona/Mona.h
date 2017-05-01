@@ -41,6 +41,23 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
 
+#define BIT_SET(x, pos)   ( (x) |=   ( 1 << (pos)) )
+#define BIT_UNSET(x, pos) ( (x) &=  ~( 1 << (pos)) )
+#define BIT_CHECK(x, pos) ( (x) &    ( 1 << (pos)) )
+
+
+#if defined(_WIN32)
+#define NOMINMAX
+#define _WINSOCKAPI_    // stops windows.h including winsock.h
+#define sprintf sprintf_s
+#define snprintf sprintf_s
+#define PATH_MAX 4096 // to match Linux!
+#define assert _ASSERT
+#elif defined(__FreeBSD__) || defined(__APPLE__) || defined(__TOS_MACOS__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#define _BSD 1 // Detect BSD system
+#endif
+
+
 //
 // Automatically link Base library.
 //
@@ -63,159 +80,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #if defined(_DEBUG) && defined(_WIN32)
 	//#include <map> // A cause d'un pb avec le nouveau new debug! TODO enlever?
 	#define new new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#endif
-
-
-
-//
-// Platform Identification
-//
-#define _OS_FREE_BSD      0x0001
-#define _OS_AIX           0x0002
-#define _OS_TRU64         0x0003
-#define _OS_LINUX         0x0004
-#define _OS_MAC_OS_X      0x0005
-#define _OS_NET_BSD       0x0006
-#define _OS_OPEN_BSD      0x0007
-#define _OS_IRIX          0x0008
-#define _OS_SOLARIS       0x0009
-#define _OS_QNX           0x000a
-#define _OS_CYGWIN        0x000b
-#define _OS_UNKNOWN_UNIX  0x00ff
-#define _OS_WINDOWS_NT    0x1001
-#define _OS_WINDOWS_CE    0x1011
-
-
-#if defined(__FreeBSD__)
-#define _OS_UNIX 1
-#define _OS_BSD 1
-#define _OS _OS_FREE_BSD
-#elif defined(_AIX) || defined(__TOS_AIX__)
-#define _OS_UNIX 1
-#define _OS _OS_AIX
-#elif defined(__digital__) || defined(__osf__)
-#define _OS_UNIX 1
-#define _OS _OS_TRU64
-#elif defined(linux) || defined(__linux) || defined(__linux__) || defined(__TOS_LINUX__)
-#define _OS_UNIX 1
-#define _OS _OS_LINUX
-#elif defined(__APPLE__) || defined(__TOS_MACOS__)
-#define _OS_UNIX 1
-#define _OS_BSD 1
-#define _OS _OS_MAC_OS_X
-#elif defined(__NetBSD__)
-#define _OS_UNIX 1
-#define _OS_BSD 1
-#define _OS _OS_NET_BSD
-#elif defined(__OpenBSD__)
-#define _OS_UNIX 1
-#define _OS_BSD 1
-#define _OS _OS_OPEN_BSD
-#elif defined(sgi) || defined(__sgi)
-#define _OS_UNIX 1
-#define _OS _OS_IRIX
-#elif defined(sun) || defined(__sun)
-#define _OS_UNIX 1
-#define _OS _OS_SOLARIS
-#elif defined(__QNX__)
-#define _OS_UNIX 1
-#define _OS _OS_QNX
-#elif defined(unix) || defined(__unix) || defined(__unix__)
-#define _OS_UNIX 1
-#define _OS _OS_UNKNOWN_UNIX
-#elif defined(_WIN32_WCE)
-#define _OS_WINDOWS 1
-#define _OS _OS_WINDOWS_CE
-#elif defined(_WIN32) || defined(_WIN64)
-#define _OS_WINDOWS 1
-#define _OS _OS_WINDOWS_NT
-#elif defined(__CYGWIN__)
-#define _OS_UNIX 1
-#define _OS _OS_CYGWIN
-#endif
-
-
-#if !defined(_OS)
-#error "Unknown Platform."
-#endif
-
-
-//
-// Hardware Architecture and Byte Order
-//
-
-#define _ARCH_IA32    0x01
-#define _ARCH_IA64    0x02
-#define _ARCH_MIPS    0x03
-#define _ARCH_POWERPC 0x04
-#define _ARCH_POWER   0x05
-#define _ARCH_SPARC   0x06
-#define _ARCH_AMD64   0x07
-#define _ARCH_ARM     0x08
-#define _ARCH_SH      0x09
-#define _ARCH_NIOS2   0x0a
-
-
-#if defined(i386) || defined(__i386) || defined(__i386__) || defined(_M_IX86)
-#define _ARCH _ARCH_IA32
-#define _ARCH_LITTLE_ENDIAN 1
-#elif defined(_IA64) || defined(__IA64__) || defined(__ia64__) || defined(__ia64) || defined(_M_IA64)
-#define _ARCH _ARCH_IA64
-#define _ARCH_LITTLE_ENDIAN 1
-#elif defined(__x86_64__) || defined(_M_X64)
-#define _ARCH _ARCH_AMD64
-#define _ARCH_LITTLE_ENDIAN 1
-#elif defined(__mips__) || defined(__mips) || defined(__MIPS__) || defined(_M_MRX000)
-#define _ARCH _ARCH_MIPS
-#define _ARCH_BIG_ENDIAN 1
-#elif defined(__hppa) || defined(__hppa__)
-#define _ARCH _ARCH_HPPA
-#define _ARCH_BIG_ENDIAN 1
-#elif defined(__PPC) || defined(__POWERPC__) || defined(__powerpc) || defined(__PPC__) || defined(__powerpc__) || defined(__ppc__) || defined(__ppc) || defined(_ARCH_PPC) || defined(_M_PPC)
-#define _ARCH _ARCH_POWERPC
-#define _ARCH_BIG_ENDIAN 1
-#elif defined(_POWER) || defined(_ARCH_PWR) || defined(_ARCH_PWR2) || defined(_ARCH_PWR3) || defined(_ARCH_PWR4) || defined(__THW_RS6000)
-#define _ARCH _ARCH_POWER
-#define _ARCH_BIG_ENDIAN 1
-#elif defined(__sparc__) || defined(__sparc) || defined(sparc)
-#define _ARCH _ARCH_SPARC
-#define _ARCH_BIG_ENDIAN 1
-#elif defined(__arm__) || defined(__arm) || defined(ARM) || defined(_ARM_) || defined(__ARM__) || defined(_M_ARM) || defined(__ANDROID__)
-#define _ARCH _ARCH_ARM
-#if defined(__ARMEB__)
-#define _ARCH_BIG_ENDIAN 1
-#else
-#define _ARCH_LITTLE_ENDIAN 1
-#endif
-#elif defined(__sh__) || defined(__sh) || defined(SHx) || defined(_SHX_)
-#define _ARCH _ARCH_SH
-#if defined(__LITTLE_ENDIAN__) || (_OS == _OS_WINDOWS_CE)
-#define _ARCH_LITTLE_ENDIAN 1
-#else
-#define _ARCH_BIG_ENDIAN 1
-#endif
-#elif defined (nios2) || defined(__nios2) || defined(__nios2__)
-#define _ARCH _ARCH_NIOS2
-#if defined(__nios2_little_endian) || defined(nios2_little_endian) || defined(__nios2_little_endian__)
-#define _ARCH_LITTLE_ENDIAN 1
-#else
-#define _ARCH_BIG_ENDIAN 1
-#endif
-
-#endif
-
-
-#if !defined(_ARCH)
-#error "Unknown Hardware Architecture."
-#endif
-
-#if defined(_WIN32)
-#define NOMINMAX
-#define _WINSOCKAPI_    // stops windows.h including winsock.h
-#define sprintf sprintf_s
-#define snprintf sprintf_s
-#define PATH_MAX 4096 // to match Linux!
-#define assert _ASSERT
 #endif
 
 namespace Mona {

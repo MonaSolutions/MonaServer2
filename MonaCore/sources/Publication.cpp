@@ -250,8 +250,6 @@ void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const P
 		return;
 	}
 
-	TRACE("Audio time ", tag.time);
-
 	/*if (!_fout)
 	fopen_s(&_fout, "test.aac", "wb");
 	fwrite(packet.data(), sizeof(UInt8), packet.size(), _fout);

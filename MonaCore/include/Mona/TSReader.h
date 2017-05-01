@@ -23,7 +23,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-class TSReader : public virtual Object, public MediaReader {
+struct TSReader : virtual Object, MediaReader {
 	// http://www.iptvdictionary.com/iptv_dictionary_MPEG_Transport_Stream_TS_definition.html
 	// http://apple-http-osmf.googlecode.com/svn/trunk/src/at/matthew/httpstreaming/HTTPStreamingMP2PESVideo.as
 	// TS complete description => http://www.gwg.nga.mil/misb/docs/standards/ST1402.pdf
@@ -32,7 +32,6 @@ class TSReader : public virtual Object, public MediaReader {
 	// http://dvbsnoop.sourceforge.net/examples/example-pat.html
 	// http://dvd.sourceforge.net/dvdinfo/pes-hdr.html
 
-public:
 	TSReader() : _syncFound(false), _syncError(false), _streamId(0) {}
 	
 private:

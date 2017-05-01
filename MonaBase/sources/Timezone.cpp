@@ -24,10 +24,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #if defined(_WIN32)
 #include "windows.h"
 #else
-   #if !defined(_OS_BSD)
-      extern long timezone;
-   #endif
-   extern char *tzname[2];
+#if !defined(_BSD)
+extern long timezone;
+#endif
+extern char *tzname[2];
 #endif
 
 using namespace std;
@@ -503,7 +503,7 @@ Timezone::Timezone() : _offset(0),_dstOffset(3600000) {
 		_name.clear();
 #else
    tzset();
-   #if defined(_OS_BSD) // timezone not available on BSD
+   #if defined(_BSD) // timezone not available on BSD
       std::time_t now = std::time(NULL);
       struct std::tm t;
       gmtime_r(&now, &t);

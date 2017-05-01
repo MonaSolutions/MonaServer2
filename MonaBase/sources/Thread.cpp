@@ -22,7 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <pthread.h>
-#elif defined(_OS_BSD)
+#elif defined(_BSD)
 #include <pthread_np.h>
 #else
 #include <sys/prctl.h> // for thread name
@@ -73,7 +73,7 @@ void Thread::SetSystemName(const string& name) {
 		threadName = name.c_str();
 #if defined(__APPLE__)
     pthread_setname_np(threadName);
-#elif defined(_OS_BSD)
+#elif defined(_BSD)
 	pthread_set_name_np(pthread_self(), threadName);
 #else
 	prctl(PR_SET_NAME, threadName, 0, 0, 0);
@@ -86,7 +86,7 @@ void Thread::SetSystemName(const string& name) {
 UInt32 Thread::CurrentId() {
 #ifdef _WIN32
 	return (UInt32)GetCurrentThreadId();
-#elif _OS_BSD
+#elif _BSD
 	return (UInt32)syscall(SYS_thread_selfid);
 #else
 	return (UInt32)syscall(SYS_gettid);

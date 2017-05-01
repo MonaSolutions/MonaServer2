@@ -41,7 +41,7 @@ int HelpFormatter::CalcIndent(const Options& options) {
 		int shortLen = option.shortName().length();
 		int fullLen = option.fullName().length();
 		int n = 0;
-#ifdef _OS_UNIX
+#if !defined(_WIN32)
         n += shortLen + sizeof(SHORT_PREFIX) + 2;
 		if (option.takesArgument())
 			n += option.argumentName().length() + (option.argumentRequired() ? 0 : 2);
@@ -88,7 +88,7 @@ void HelpFormatter::FormatOption(ostream& ostr, const Option& option, int indent
 
 	int n = 0;
 
-#ifdef _OS_UNIX
+#if !defined(_WIN32)
     ostr << SHORT_PREFIX << option.shortName();
     n += sizeof(SHORT_PREFIX) + option.shortName().length()+2;
 	if (option.takesArgument()) {

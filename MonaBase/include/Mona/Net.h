@@ -76,9 +76,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#if _OS != _OS_HPUX
 #include <sys/select.h>
-#endif
 #include <sys/ioctl.h>
 #if defined(_OS_VMS)
 #include <inet.h>
@@ -88,9 +86,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
-#if defined(_OS_UNIX)
 #include <net/if.h>
-#endif
 #if defined(sun) || defined(__APPLE__)
 #include <sys/sockio.h>
 #include <sys/filio.h>
@@ -99,7 +95,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define NET_SOCKET           int
 #define NET_SOCKLEN          socklen_t
 #define NET_SYSTEM			 int
-#if defined(_OS_BSD)
+#if defined(_BSD)
 #define NET_IOCTLREQUEST     unsigned long
 #else
 #define NET_IOCTLREQUEST     int
@@ -169,27 +165,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #endif
 #endif
 
-#if defined(_OS_BSD) || ( _OS == _OS_TRU64) || (_OS ==  _OS_AIX) || ( _OS ==  _OS_IRIX) || (_OS == _OS_QNX) || (_OS == _OS_VXWORKS)
-#define NET_HAVE_SALEN      1
-#endif
-
 
 #if !defined(AI_ADDRCONFIG)
 #define AI_ADDRCONFIG 0
 #endif
-
-
-
-#if defined(NET_HAVE_SALEN)
-#define	set_sa_len(pSA, len) (pSA)->sa_len   = (len)
-#define set_sin_len(pSA)     (pSA)->sin_len  = sizeof(struct sockaddr_in)
-#define set_sin6_len(pSA)    (pSA)->sin6_len = sizeof(struct sockaddr_in6)
-#else
-#define set_sa_len(pSA, len) (void) 0
-#define set_sin_len(pSA)     (void) 0
-#define set_sin6_len(pSA)    (void) 0
-#endif
-
 
 #ifndef INADDR_NONE
 #define INADDR_NONE 0xFFFFFFFF

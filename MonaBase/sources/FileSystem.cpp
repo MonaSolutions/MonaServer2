@@ -23,7 +23,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #else
 #if defined(__APPLE__)
 	#include <mach-o/dyld.h>
-#elif defined(_OS_BSD)
+#elif defined(_BSD)
 	#include <sys/types.h>
 	#include <sys/sysctl.h>
 #endif
@@ -81,7 +81,7 @@ FileSystem::CurrentApp::CurrentApp() {
 	uint32_t n(PATH_MAX);
 	if (_NSGetExecutablePath(&(*this)[0], &n) < 0)
 		n = 0;
-#elif defined(_OS_BSD)
+#elif defined(_BSD)
 	ssize_t n = readlink("/proc/curproc/file", &(*this)[0], PATH_MAX); 
 	if (n<=0) {
 		n = readlink("/proc/curproc/exe", &(*this)[0], PATH_MAX); 
