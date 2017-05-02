@@ -86,10 +86,14 @@ void Thread::SetSystemName(const string& name) {
 UInt32 Thread::CurrentId() {
 #ifdef _WIN32
 	return (UInt32)GetCurrentThreadId();
-#elif _BSD
+#elif defined(SYS_thread_selfid)
 	return (UInt32)syscall(SYS_thread_selfid);
-#else
+#elif defined(SYS_gettid)
 	return (UInt32)syscall(SYS_gettid);
+#elif defined(__NR_gettid)
+	return (UInt32)syscall(__NR_gettid);
+#else
+	return (UInt32)pthread_self(); // in despite of finding the real thread id as displaid in thread list view, use pthread_self...
 #endif
 }
 

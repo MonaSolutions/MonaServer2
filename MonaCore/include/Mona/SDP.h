@@ -53,7 +53,7 @@ public:
 	int						version;
 	std::string				user;
 	UInt32					sessionId;
-	std::string				sessionVersion;
+	int						sessionVersion;
 	std::string				sessionName;
 	std::string				sessionInfos;
 	IPAddress				unicastAddress;

@@ -476,7 +476,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 	}
 
 // max possible socket, must be limited to the maximum threads possible on the system (and not too high because can exceeds stack limitation of 1Mo like on Android)
-#define MAXEVENTS  1024;
+#define MAXEVENTS  1024
 
 #if defined(_BSD)
 	struct kevent events[MAXEVENTS];

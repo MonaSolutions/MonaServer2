@@ -24,14 +24,17 @@ namespace Mona {
 
 
 mutex					Logs::_Mutex;
-shared<string> 			Logs::_PDump;
+
+volatile bool			Logs::_Dumping(false);
+string					Logs::_Dump;
+
 Int32					Logs::_DumpLimit(-1);
-atomic<bool>			Logs::_DumpRequest(true);
-atomic<bool>			Logs::_DumpResponse(true);
+volatile bool			Logs::_DumpRequest(true);
+volatile bool			Logs::_DumpResponse(true);
 #if defined(_DEBUG)
-LOG_LEVEL				Logs::_Level(LOG_DEBUG); // default log level
+atomic<LOG_LEVEL>		Logs::_Level(LOG_DEBUG); // default log level
 #else
-LOG_LEVEL				Logs::_Level(LOG_INFO); // default log level
+atomic<LOG_LEVEL>		Logs::_Level(LOG_INFO); // default log level
 #endif
 Logger					Logs::_DefaultLogger;
 Logger*					Logs::_PLogger(&_DefaultLogger);
@@ -40,23 +43,27 @@ Logger*					Logs::_PLogger(&_DefaultLogger);
 void Logs::SetDump(const char* name) {
 	lock_guard<mutex> lock(_Mutex);
 	_DumpResponse = _DumpRequest = true;
-	if (!name)
-		return _PDump.reset();
-	_PDump.reset(new string(name));
-	if (_PDump->empty())
+	if (!name) {
+		_Dumping = false;
+		_Dump.clear();
+		_Dump.shrink_to_fit();
 		return;
-	if (_PDump->back() == '>') {
+	}
+	_Dumping = true;
+	_Dump = name;
+	if (_Dump.empty())
+		return;
+	if (_Dump.back() == '>') {
 		_DumpRequest = false;
-		_PDump->resize(_PDump->size() - 1);
-	} else if (_PDump->back() == '<') {
+		_Dump.pop_back();
+	} else if (_Dump.back() == '<') {
 		_DumpResponse = false;
-		_PDump->resize(_PDump->size() - 1);
+		_Dump.pop_back();
 	}
 }
 
 void Logs::Dump(const string& header, const UInt8* data, UInt32 size) {
 	Buffer out;
-	lock_guard<mutex> lock(_Mutex);
 	Util::Dump(data, (_DumpLimit<0 || size<UInt32(_DumpLimit)) ? size : _DumpLimit, out);
 	_PLogger->dump(header, out.data(), out.size());
 }

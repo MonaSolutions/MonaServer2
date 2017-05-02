@@ -26,18 +26,18 @@ namespace Mona {
 struct Logs : virtual Static {
 	static void			SetLogger(Logger& logger) { std::lock_guard<std::mutex> lock(_Mutex); _PLogger = &logger; }
 
-	static void			SetLevel(LOG_LEVEL level) { std::lock_guard<std::mutex> lock(_Mutex); _Level = level; }
+	static void			SetLevel(LOG_LEVEL level) { _Level = level; }
 	static LOG_LEVEL	GetLevel() { return _Level; }
 
 	static void			SetDumpLimit(Int32 limit) { std::lock_guard<std::mutex> lock(_Mutex); _DumpLimit = limit; }
 	static void			SetDump(const char* name); // if null, no dump, otherwise dump name, and if name is empty everything is dumped
-	static bool			IsDumping() { return _PDump ? true : false; }
+	static bool			IsDumping() { return _Dumping; }
 
 	template <typename ...Args>
     static void	Log(LOG_LEVEL level, const char* file, long line, Args&&... args) {
-		std::lock_guard<std::mutex> lock(_Mutex);
 		if (_Level < level)
 			return;
+		std::lock_guard<std::mutex> lock(_Mutex);
 		static Path File;
 		static String Message;
 		File.set(file);
@@ -52,8 +52,10 @@ struct Logs : virtual Static {
 
 	template <typename ...Args>
 	static void Dump(const char* name, const UInt8* data, UInt32 size, Args&&... args) {
-		shared<std::string> pDump(_PDump);
-		if (pDump && (pDump->empty() || String::ICompare(*pDump, name) == 0))
+		if (!_Dumping)
+			return;
+		std::lock_guard<std::mutex> lock(_Mutex);
+		if (_Dump.empty() || String::ICompare(_Dump, name) == 0)
 			Dump(String(std::forward<Args>(args)...), data, size);
 	}
 
@@ -71,7 +73,10 @@ struct Logs : virtual Static {
 
 #if defined(_DEBUG)
 	// To dump easly during debugging => no name filter = always displaid even if no dump argument
-	static void Dump(const UInt8* data, UInt32 size) { Dump(String::Empty(), data, size); }
+	static void Dump(const UInt8* data, UInt32 size) {
+		std::lock_guard<std::mutex> lock(_Mutex);
+		Dump(String::Empty(), data, size);
+	}
 #endif
 
 private:
@@ -79,23 +84,25 @@ private:
 	static void Dump(const std::string& header, const UInt8* data, UInt32 size);
 
 
-	static std::mutex	_Mutex;
+	static std::mutex				_Mutex;
 
-	static LOG_LEVEL	_Level;
-	static Logger		_DefaultLogger;
-	static Logger*		_PLogger;
+	static std::atomic<LOG_LEVEL>	_Level;
+	static Logger					_DefaultLogger;
+	static Logger*					_PLogger;
 
-	static shared<std::string>	 _PDump; // NULL means no dump, empty() means all dump, otherwise is a dump filter
-	static std::atomic<bool>			 _DumpRequest;
-	static std::atomic<bool>			 _DumpResponse;
-	static Int32						 _DumpLimit; // -1 means no limit
+	static volatile bool	_Dumping;
+	static std::string		_Dump; // empty() means all dump, otherwise is a dump filter
+
+	static volatile bool	_DumpRequest;
+	static volatile bool	_DumpResponse;
+	static Int32			_DumpLimit; // -1 means no limit
 };
 
 #undef ERROR
 #undef DEBUG
 #undef TRACE
 
-#define LOG(LEVEL, ...)  { Mona::LOG_LEVEL __level(LEVEL); if(Mona::Logs::GetLevel()>=__level) { Mona::Logs::Log(__level, __FILE__,__LINE__, __VA_ARGS__); } }
+#define LOG(LEVEL, ...)  { if(Mona::Logs::GetLevel()>=LEVEL) { Mona::Logs::Log(LEVEL, __FILE__,__LINE__, __VA_ARGS__); } }
 
 #define FATAL(...)	LOG(Mona::LOG_FATAL, __VA_ARGS__)
 #define CRITIC(...) LOG(Mona::LOG_CRITIC, __VA_ARGS__)

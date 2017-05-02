@@ -24,6 +24,7 @@ namespace Mona {
 
 /*!
 Powerfull feature to manipulate a path to File or Folder
+/!\ Path is a folder if ends with '/'
 /!\ No move or copy constructor because a shared<Path> usage is a lot more faster */
 struct Path : virtual NullableObject {
 	CONST_STRING(_pImpl ? _pImpl->path() : String::Empty());

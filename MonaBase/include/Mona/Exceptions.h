@@ -121,13 +121,13 @@ private:
 };
 
 #if defined(_DEBUG)
-#define		FATAL_CHECK(CONDITION)			{assert(CONDITION);}
+#define		FATAL_CHECK(CONDITION)			{ assert(CONDITION); }
 #if defined(_WIN32)
 #define		FATAL_ERROR(...)				{ if (_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, NULL, Mona::String(__VA_ARGS__).c_str()) == 1) _CrtDbgBreak(); }
-#elif defined(_BSD) // BSD has no asser_fail function
-#define		FATAL_ERROR(...)				{ throw std::runtime_error(Mona::String(__VA_ARGS__,", " __FILE__ "[" LINE_STRING "]"));}
+#elif defined(_BSD) || defined(__ANDROID__) // BSD and Android uses __assert_rtn
+#define		FATAL_ERROR(...)				{  __assert_rtn(NULL, __FILE__,__LINE__, Mona::String(__VA_ARGS__).c_str()); }
 #else
-#define		FATAL_ERROR(...)				{  __assert_fail(Mona::String(__VA_ARGS__).c_str(),__FILE__,__LINE__,NULL);}
+#define		FATAL_ERROR(...)				{  __assert_fail(Mona::String(__VA_ARGS__).c_str(),__FILE__,__LINE__,NULL); }
 #endif
 
 #else

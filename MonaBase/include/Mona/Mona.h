@@ -45,6 +45,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define BIT_UNSET(x, pos) ( (x) &=  ~( 1 << (pos)) )
 #define BIT_CHECK(x, pos) ( (x) &    ( 1 << (pos)) )
 
+#define NUMNAME(NAME) typename = typename std::enable_if<std::is_arithmetic<NAME>::value, NAME>::type
 
 #if defined(_WIN32)
 #define NOMINMAX

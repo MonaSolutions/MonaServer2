@@ -123,13 +123,13 @@ char* String::TrimRight(char* value) {
 	return value;
 }
 
-template<typename Type>
+template<typename Type, typename>
 bool String::ToNumber(const char* value, size_t size, Type& result)  {
 	Exception ex;
 	return ToNumber<Type>(ex, value, size, result);
 }
 
-template<typename Type>
+template<typename Type, typename>
 bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& result) {
 	int comma = 0;	
 	bool beginning = true, negative = false;
