@@ -148,7 +148,6 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		lock_guard<mutex> lock(_mutex); // must protect "start" + _system (to avoid a write operation on restarting) + _subscribers increment
 		if (!running()) {
 			_initSignal.reset();
-			if (!start(ex)) // alone way to start IOSocket::run
 			if (!start(ex)) // only way to start IOSocket::run
 				goto FAIL;
 			_initSignal.wait(); // wait _system assignment

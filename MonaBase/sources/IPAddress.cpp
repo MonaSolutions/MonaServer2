@@ -2,16 +2,13 @@
 This file is a part of MonaSolutions Copyright 2017
 mathieu.poux[a]gmail.com
 jammetthomas[a]gmail.com
-
 This program is free software: you can redistribute it and/or
 modify it under the terms of the the Mozilla Public License v2.0.
-
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 Mozilla Public License v. 2.0 received along this program for more
 details (or else see http://mozilla.org/MPL/2.0/).
-
 */
 
 
@@ -24,7 +21,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #if defined(_WIN32)
 #include <Iphlpapi.h>
 #elif !defined(__ANDROID__)
-	#include <ifaddrs.h>
+#include <ifaddrs.h>
 #endif
 
 using namespace std;
@@ -42,7 +39,7 @@ UInt8 MaskBits(UInt32 val, UInt8 size) {
 		val = (val ^ (val - 1)) >> 1;
 		for (count = 0; val; ++count)
 			val >>= 1;
-} else
+	} else
 		count = size;
 	return size - count;
 }
@@ -121,7 +118,7 @@ protected:
 			memcpy(&_addr, &addr, sizeof(sockaddr_in6));
 			const UInt8* bytes(reinterpret_cast<UInt8*>(&_addr.sin6_addr));
 			memcpy(&_addr.sin6_flowinfo, bytes + 12, 4);
-	} else {
+		} else {
 			memcpy(&_addr, &addr, sizeof(sockaddr_in));
 			_addr.sin6_family = IPAddress::IPv6;
 			_addr.sin6_scope_id = 0;
@@ -402,13 +399,13 @@ struct IPAddress::IPv6Impl : IPAddress::IPImpl, virtual Object {
 				++address;
 			if (inet_pton(AF_INET6, string(address, scoped - address).c_str(), &ia) != 1)
 				return false;
-	} else {
+		} else {
 			if (String::ICompare(address, "localhost") == 0)
 				address = "::1";
 			if (*address == '[') {
 				if (inet_pton(AF_INET6, string(address + 1, strlen(address) - 2).c_str(), &ia) != 1)
 					return false;
-		} else if (inet_pton(AF_INET6,address, &ia) != 1)
+			} else if (inet_pton(AF_INET6, address, &ia) != 1)
 				return false;
 		}
 		pAddress.reset(new IPv6Impl(ia, scope));
@@ -423,7 +420,7 @@ private:
 		if ((isIPv4Compatible() && !isWildcard() && !isLoopback()) || isIPv4Mapped()) {
 			const UInt8* bytes = reinterpret_cast<const UInt8*>(words);
 			String::Assign(host, words[5] == 0 ? "::" : "::FFFF:", bytes[12], '.', bytes[13], '.', bytes[14], '.', bytes[15]);
-	} else {
+		} else {
 			bool zeroSequence = false;
 			int i = 0;
 			while (i < 8) {
@@ -512,43 +509,43 @@ IPAddress::LocalAddresses::LocalAddresses() {
 	}
 	freeifaddrs(ifAddrStruct);
 #else // getifaddrs is not supported on Android so we use ioctl
-// Create UDP socket
-int fd = socket(AF_INET6, SOCK_STREAM, 0);
-if (fd < 0) {
-	ex.set<Ex::Net::System>("Error in GetAdaptersAddresses call : ", fd);
-	return;
-}
+	// Create UDP socket
+	int fd = socket(AF_INET6, SOCK_STREAM, 0);
+	if (fd < 0) {
+		ex.set<Ex::Net::System>("Error in GetAdaptersAddresses call : ", fd);
+		return;
+	}
 
-// Get ip config
-struct ifconf ifc;
-memset(&ifc, 0, sizeof(ifconf));
+	// Get ip config
+	struct ifconf ifc;
+	memset(&ifc, 0, sizeof(ifconf));
 
-int res;
-if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0)
-	ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF) call : ", res);
-else {
-	Buffer buffer(ifc.ifc_len);
-	ifc.ifc_buf = (caddr_t)buffer.data();
-	if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0) 
-		ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF)  call : ", res);
+	int res;
+	if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0)
+		ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF) call : ", res);
 	else {
+		Buffer buffer(ifc.ifc_len);
+		ifc.ifc_buf = (caddr_t)buffer.data();
+		if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0)
+			ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF)  call : ", res);
+		else {
 
-		// Read all addresses
-		struct ifreq * ifr;
-		for (int i = 0; i < ifc.ifc_len; i += sizeof(struct ifreq)) {
-			ifr = (struct ifreq *)(ifc.ifc_buf + i);
+			// Read all addresses
+			struct ifreq * ifr;
+			for (int i = 0; i < ifc.ifc_len; i += sizeof(struct ifreq)) {
+				ifr = (struct ifreq *)(ifc.ifc_buf + i);
 
-			if (ifr->ifr_addr.sa_family == AF_INET6)
-				emplace_back(reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_scope_id);
-			else if (ifr->ifr_addr.sa_family == AF_INET)
-				emplace_back(reinterpret_cast<struct sockaddr_in*>(&ifr->ifr_addr)->sin_addr);
+				if (ifr->ifr_addr.sa_family == AF_INET6)
+					emplace_back(reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_scope_id);
+				else if (ifr->ifr_addr.sa_family == AF_INET)
+					emplace_back(reinterpret_cast<struct sockaddr_in*>(&ifr->ifr_addr)->sin_addr);
+			}
 		}
 	}
-}
 
-// close socket
-if ((res = close(fd)) != 0)
-	ex.set<Ex::Net::System>("Error in Socket close call : ", res);
+	// close socket
+	if ((res = close(fd)) != 0)
+		ex.set<Ex::Net::System>("Error in Socket close call : ", res);
 #endif
 }
 
@@ -569,7 +566,7 @@ public:
 			memset(&addr, 0, sizeof(addr));
 			reinterpret_cast<UInt16*>(&addr)[7] = Byte::To16Network(1);
 			set(addr);
-	} else {
+		} else {
 			struct in_addr	addr;
 			addr.s_addr = Byte::To32Network(INADDR_LOOPBACK);
 			set(addr);
@@ -587,8 +584,7 @@ IPAddress::IPAddress(const IPAddress& other, UInt16 port) : _pIPAddress(other._p
 IPAddress::IPAddress(const in_addr& addr) : _pIPAddress(new IPv4Impl(addr)) {}
 IPAddress::IPAddress(const in6_addr& addr, UInt32 scope) : _pIPAddress(new IPv6Impl(addr, scope)) {}
 
-IPAddress::IPAddress(const sockaddr& addr) : _pIPAddress(IsIPv4Sock(addr) ? (IPImpl*)new IPv4Impl(addr) : (IPImpl*)new IPv6Impl(addr)) {
-}
+IPAddress::IPAddress(const sockaddr& addr) : _pIPAddress(IsIPv4Sock(addr) ? (IPImpl*)new IPv4Impl(addr) : (IPImpl*)new IPv6Impl(addr)) {}
 
 void IPAddress::setPort(UInt16 port) {
 	if (_pIPAddress->setPort(port))
@@ -601,7 +597,7 @@ void IPAddress::setPort(UInt16 port) {
 
 IPAddress& IPAddress::reset() {
 	_pIPAddress = Wildcard(_pIPAddress->family())._pIPAddress;
-return *this;
+	return *this;
 }
 
 IPAddress& IPAddress::set(const sockaddr& addr) {
@@ -667,7 +663,7 @@ bool IPAddress::set(Exception& ex, const char* address, Family family) {
 	if (family == IPv6) {
 		if (IPv6Impl::Parse(address, _pIPAddress))
 			return true;
-} else if(IPv4Impl::Parse(address, _pIPAddress))
+	} else if (IPv4Impl::Parse(address, _pIPAddress))
 		return true;
 	ex.set<Ex::Net::Address::Ip>("Invalid", family == IPv6 ? " IPv6 " : " IPv4 ", address);
 	return false;
@@ -678,7 +674,7 @@ bool IPAddress::set(Exception& ex, const char* address, Family family, UInt16 po
 			ex.set<Ex::Net::Address::Ip>("Invalid IPv6 ", address);
 			return false;
 		}
-} else if (!IPv4Impl::Parse(address, _pIPAddress)) {
+	} else if (!IPv4Impl::Parse(address, _pIPAddress)) {
 		ex.set<Ex::Net::Address::Ip>("Invalid IPv4 ", address);
 		return false;
 	}
@@ -831,6 +827,5 @@ const IPAddress& IPAddress::Loopback(Family family) {
 	static IPLoopback IPv4Loopback(IPAddress::IPv4);
 	return IPv4Loopback;
 }
-
 
 } // namespace Mona
