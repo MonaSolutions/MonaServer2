@@ -21,16 +21,18 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct Byte : virtual Static {
+
 	 enum Order {
         ORDER_BIG_ENDIAN=1, // network order!
 		ORDER_LITTLE_ENDIAN,
 		ORDER_NETWORK=ORDER_BIG_ENDIAN,
-#if (__BIG_ENDIAN__ || __BIG_ENDIAN || _BIG_ENDIAN || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__))
+#if ('\x00\x01'>1)
 		ORDER_NATIVE=ORDER_BIG_ENDIAN
 #else
 		ORDER_NATIVE=ORDER_LITTLE_ENDIAN
 #endif
 	 };
+
 	
 	static UInt16 Flip16(UInt16 value) { return ((value >> 8) & 0x00FF) | ((value << 8) & 0xFF00); }
 	static UInt32 Flip24(UInt32 value) { return ((value >> 16) & 0x000000FF) | (value & 0x0000FF00) | ((value << 16) & 0x00FF0000); }

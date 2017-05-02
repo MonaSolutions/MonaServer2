@@ -4,7 +4,7 @@ OS := $(shell uname -s)
 CXX?=g++
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wno-unknown-pragmas -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-multichar -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I./../MonaBase/include/ -I./include/
 LIBDIRS+=-L./../MonaBase/lib/
 LIBS+=-lMonaBase -lcrypto -lssl

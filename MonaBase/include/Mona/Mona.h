@@ -26,10 +26,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <memory>
 #include <functional>
 
-
-// disable the "throw noexception" warning because Mona has its own exception and can use everywhere std throw on FATAL problem (unexpected behavior)
-#pragma warning(disable: 4297)
-
 /////  Usefull macros and patchs   //////
 
 #define BIN		(Mona::UInt8*)
@@ -63,15 +59,17 @@ details (or else see http://mozilla.org/MPL/2.0/).
 // Automatically link Base library.
 //
 #if defined(_MSC_VER)
-	#if defined(_DEBUG)
-		#pragma comment(lib, "libeayd.lib")
-		#pragma comment(lib, "ssleayd.lib")
-		#pragma comment(lib, "MonaBased.lib")
-	#else
-		#pragma comment(lib, "libeay.lib")
-		#pragma comment(lib, "ssleay.lib")
-		#pragma comment(lib, "MonaBase.lib")
-	#endif
+// disable the "throw noexception" warning because Mona has its own exception and can use everywhere std throw on FATAL problem (unexpected behavior)
+#pragma warning(disable: 4297)
+#if defined(_DEBUG)
+	#pragma comment(lib, "libeayd.lib")
+	#pragma comment(lib, "ssleayd.lib")
+	#pragma comment(lib, "MonaBased.lib")
+#else
+	#pragma comment(lib, "libeay.lib")
+	#pragma comment(lib, "ssleay.lib")
+	#pragma comment(lib, "MonaBase.lib")
+#endif
 #endif
 
 //
