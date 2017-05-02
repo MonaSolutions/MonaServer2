@@ -41,9 +41,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
 
-#define BIT_SET(x, pos)   ( (x) |=   ( 1 << (pos)) )
-#define BIT_UNSET(x, pos) ( (x) &=  ~( 1 << (pos)) )
-#define BIT_CHECK(x, pos) ( (x) &    ( 1 << (pos)) )
+#define FLAG_SET(FLAGS, FLAG)   ( (FLAGS) |=   (FLAG) )
+#define FLAG_UNSET(FLAGS, FLAG) ( (FLAGS) &=  ~(FLAG) )
+#define FLAG_CHECK(FLAGS, FLAG) ( (FLAGS) &    (FLAG) )
 
 #define NUMNAME(NAME) typename = typename std::enable_if<std::is_arithmetic<NAME>::value, NAME>::type
 

@@ -61,15 +61,15 @@ static const char*  LevelColors[] = { FATAL_COLOR, CRITIC_COLOR, ERROR_COLOR, WA
 
 void Logger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
 	BEGIN_CONSOLE_TEXT_COLOR(LevelColors[level - 1]);
-	cout << file.name() << '[' << line << "] " << message;
+	printf("%s[%ld] %s\n", file.name().c_str(), line, message.c_str());
 	END_CONSOLE_TEXT_COLOR;
-	cout << std::endl; // flush after color change, required especially over unix/linux
+	// TODO: flush after color change, required especially over unix/linux
 }
 
 void Logger::dump(const string& header, const UInt8* data, UInt32 size) {
 	if(!header.empty())
-		cout.write(header.data(), header.size()).put('\n');
-	cout.write(STR data, size).flush();
+		printf("%.*s\n", (int)header.size(), header.c_str());
+	fwrite(data, sizeof(char), size, stdout);
 }
 
 } // namespace Mona

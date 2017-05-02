@@ -59,7 +59,7 @@ struct RTMP : virtual Static {
 
 	struct Request : virtual Object, Packet {
 		Request(AMF::Type type, UInt32 time, UInt32 channelId, UInt32 streamId, UInt32 ackBytes, const Packet& packet, bool flush) :
-			Packet(std::move(packet)), type(type), time(time), ackBytes(ackBytes), channelId(channelId), streamId(streamId) {}
+			Packet(std::move(packet)), type(type), time(time), ackBytes(ackBytes), channelId(channelId), streamId(streamId), flush(flush) {}
 		const AMF::Type	type;
 		const UInt32	time;
 		const UInt32	channelId;

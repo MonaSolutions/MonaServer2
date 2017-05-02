@@ -26,8 +26,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
     #include "sys/epoll.h"
     #include <vector>
 	#include <fcntl.h>
+#if !defined(EPOLLRDHUP)  // ANDROID
+#define EPOLLRDHUP 0x2000 // looks be just a SDL include forget for Android, but the event is implemented in epoll of Android
+#endif  // !defined(EPOLLRDHUP) 
 #endif
-
 
 
 using namespace std;
@@ -126,6 +128,13 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 											const Socket::OnAccept& onAccept,
 											const Socket::OnError& onError) {
 
+	bool block = false;
+	if (!pSocket->getNonBlockingMode()) {
+		block = true;
+		if( !pSocket->setNonBlockingMode(ex, true))
+			return false;
+	}
+
 	// check duplication
 	pSocket->onError = onError;
 	pSocket->onAccept = onAccept;
@@ -140,6 +149,7 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		if (!running()) {
 			_initSignal.reset();
 			if (!start(ex)) // alone way to start IOSocket::run
+			if (!start(ex)) // only way to start IOSocket::run
 				goto FAIL;
 			_initSignal.wait(); // wait _system assignment
 		}
@@ -151,7 +161,6 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 
 #if defined(_WIN32)
 		lock_guard<mutex> lockSockets(_mutexSockets); // must protected _sockets
-
 		if (WSAAsyncSelect(*pSocket, _system, 104, FD_CONNECT | FD_ACCEPT | FD_CLOSE | FD_READ | FD_WRITE) != 0) { // FD_CONNECT useless (FD_WRITE is sent on connection!)
 			ex.set<Ex::Net::System>(Net::LastErrorMessage(), ", ", name(), " can't manage socket ", *pSocket);
 			goto FAIL;
@@ -159,7 +168,6 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		_sockets.emplace(*pSocket, pSocket);
 #else
 		pSocket->_pWeakThis = new weak<Socket>(pSocket);
-		pSocket->ioctl(FIONBIO, true);
 		int res;
 #if defined(_BSD)
 		struct kevent events[2];
@@ -177,7 +185,6 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		if(res<0) {
 			delete pSocket->_pWeakThis;
 			pSocket->_pWeakThis = NULL;
-			pSocket->ioctl(FIONBIO, false);
 			ex.set<Ex::Net::System>(Net::LastErrorMessage(),", ",name()," can't manage sockets");
 			goto FAIL;
 		}
@@ -187,6 +194,8 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 	return true;
 
 FAIL:
+	if (block)
+		pSocket->setNonBlockingMode(ex, false);
 	pSocket->pDecoder = nullptr;
 	pSocket->onFlush = nullptr;
 	pSocket->onReceived = nullptr;

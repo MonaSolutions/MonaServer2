@@ -20,9 +20,21 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <fcntl.h>
 #if defined(_WIN32)
 #include "windows.h"
+#elif defined(__ANDROID__)
+#include <sys/syscall.h>
+#include <linux/fadvise.h>
+#if defined(__NR_arm_fadvise64_64)
+	#define posix_fadvise(fd, offset, len, advise) syscall(__NR_arm_fadvise64_64, fd, offset, len, advise)
+#elif defined(__NR_fadvise64_64)
+	#define posix_fadvise(fd, offset, len, advise) syscall(__NR_fadvise64_64, fd, offset, len, advise)
+#endif
 #else
 #include <unistd.h>
 #endif
+#include "Mona/ThreadQueue.h"
+
+
+
 
 using namespace std;
 

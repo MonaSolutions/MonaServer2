@@ -16,7 +16,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 
 #include "Mona/Socket.h"
-#include "Mona/Time.h"
+#if !defined(_WIN32)
+#include <fcntl.h>
+#endif
 
 
 using namespace std;
@@ -27,7 +29,7 @@ Socket::Socket(Type type) :
 #if !defined(_WIN32)
 	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _sockfd(NET_INVALID_SOCKET), _threadReceive(0) {
+	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _sockfd(NET_INVALID_SOCKET), _threadReceive(0) {
 
 	init();
 }
@@ -37,7 +39,7 @@ Socket::Socket(NET_SOCKET sockfd, const sockaddr& addr) : _peerAddress(addr), _a
 #if !defined(_WIN32)
 	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _sockfd(sockfd), _threadReceive(0) {
+	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _sockfd(sockfd), _threadReceive(0) {
 
 	init();
 }
@@ -94,12 +96,33 @@ UInt32 Socket::available() const {
 	if (getOption(ex, SOL_SOCKET, SO_NREAD, value))
 		return value;
 #endif
-	value = ioctl(FIONREAD);
 #if defined(_WIN32)
+	if (::ioctlsocket(_sockfd, FIONREAD, (u_long*)&value))
+		return 0;
 	// size UDP packet on windows is impossible to determinate so take a multiple of 2 grater than max possible MTU (~1500 bytes)
 	return type == TYPE_DATAGRAM && value>2048 ? 2048 : value;
+#else
+	return ::ioctl(_sockfd, FIONREAD, &value) ? 0 : value;
 #endif
-	return value;
+}
+
+bool Socket::setNonBlockingMode(Exception& ex, bool value) {
+#if defined(_WIN32)
+	if (!ioctlsocket(_sockfd, FIONBIO, (u_long*)&value))
+		return _nonBlockingMode = value;
+#else
+	int flags = fcntl(_sockfd, F_GETFL, 0);
+	if (flags != -1) {
+		if (value)
+			FLAG_SET(flags, O_NONBLOCK);
+		else
+			FLAG_UNSET(flags, O_NONBLOCK);
+		if (fcntl(_sockfd, F_SETFL, flags) != -1)
+			return _nonBlockingMode = value;
+	}
+#endif
+	SetException(ex, Net::LastError(), " (value=", value, ")");
+	return false;
 }
 
 bool Socket::setRecvBufferSize(Exception& ex, int size) { 
@@ -204,8 +227,12 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 		return false;
 	}
 
-	if (timeout)
-		ioctl(FIONBIO, true); // non blocking mode
+	bool block = false;
+	if (timeout && !_nonBlockingMode) {
+		block = true;
+		if (!setNonBlockingMode(ex, true))
+			return false;
+	}
 
 	// Allow to call multiple time this method, it can help on windows target to etablish a connection instead of waiting the connection!
 	int rc;
@@ -214,8 +241,8 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 	else
 		rc = ::connect(_sockfd, address.data(), address.size());
 
-	if (timeout)
-		ioctl(FIONBIO, false); // reset blocking mode (as no effect if was subscribed to SocketEngine which forces nnon-blocking mode)
+	if (block)
+		setNonBlockingMode(ex, false); // reset blocking mode (as no effect if was subscribed to SocketEngine which forces non-blocking mode)
 	
 	int error(0);
 	if (rc) {
@@ -447,16 +474,6 @@ bool Socket::flush(Exception& ex) {
 	return true;
 }
 
-UInt32 Socket::ioctl(NET_IOCTLREQUEST request, UInt32 value) const {
-#if defined(_WIN32)
-	if (!ioctlsocket(_sockfd, request, (u_long*)&value))
-		return value;
-#else
-	if(!::ioctl(_sockfd, request, &value))
-		return value;
-#endif
-	return 0;
-}
 
 
 } // namespace Mona

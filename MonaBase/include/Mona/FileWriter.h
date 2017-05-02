@@ -45,7 +45,7 @@ struct FileWriter : virtual NullableObject {
 
 	/*!
 	Write data, if queueing wait onFlush event for large data transfer*/
-	void		write(const Packet& packet) { io.write(_pFile, packet); }
+	void		write(const Packet& packet) { FATAL_CHECK(_pFile);  io.write(_pFile, packet); }
 	void		close() { if (_pFile) io.close(_pFile); }
 
 private:

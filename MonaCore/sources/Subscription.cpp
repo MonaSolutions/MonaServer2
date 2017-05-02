@@ -312,9 +312,9 @@ void Subscription::writeVideo(UInt16 track, const Media::Video::Tag& tag, const 
 	Media::Video::Tag video;
 	video.compositionOffset = tag.compositionOffset;
 	video.frame = tag.frame;
-	TRACE("Video time => ", video.time, "\t", String::Hex(packet.data(), 5));
 	if (!target.writeVideo(track, fixTag(isConfig, tag, video), packet, isConfig || _videos.reliable))
 		_ejected = EJECTED_ERROR;
+	TRACE("Video time => ", video.time, "\t", String::Hex(packet.data(), 5));
 }
 
 bool Subscription::congested() {

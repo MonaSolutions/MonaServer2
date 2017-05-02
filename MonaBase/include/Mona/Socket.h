@@ -106,6 +106,9 @@ struct Socket : virtual Object, Net::Stats {
 	void setReusePort(bool value);
 	bool getReusePort() const;
 
+	bool setNonBlockingMode(Exception& ex, bool value);
+	bool getNonBlockingMode() const { return _nonBlockingMode; }
+
 	bool		 accept(Exception& ex, shared<Socket>& pSocket);
 
 	virtual bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout=0);
@@ -147,9 +150,7 @@ protected:
 	void receive(UInt32 count) { _recvTime = Time::Now(); _recvByteRate += count; }
 
 private:
-	void			init();
-
-	UInt32			ioctl(NET_IOCTLREQUEST request, UInt32 value=0) const;
+	void init();
 
 	template<typename Type>
 	bool getOption(Exception& ex, int level, int option, Type& value) const {
@@ -186,6 +187,8 @@ private:
 
 	Exception					_sockex;
 	NET_SOCKET					_sockfd;
+
+	volatile bool				_nonBlockingMode;
 
 	mutable std::mutex			_mutexSending;
 	std::deque<Sending>			_sendings;
