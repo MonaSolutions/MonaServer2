@@ -5,7 +5,7 @@ CXX?=g++
 EXEC?=MonaServer
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-multichar -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I../
 LIBDIRS+=-L../MonaBase/lib/ -L../MonaCore/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,../MonaCore/lib/,-rpath,/usr/local/lib/"
@@ -19,6 +19,11 @@ ifeq ($(OS),Darwin)
 	   # just require for OSX 64 buts
 		LIBS +=  -pagezero_size 10000 -image_base 100000000
 	endif
+endif
+
+# Detect Endianness
+ifneq ($(shell printf '\1' | od -dAn | xargs),1)
+	CFLAGS += -D__BIG_ENDIAN__=1
 endif
 
 # Variables fixed

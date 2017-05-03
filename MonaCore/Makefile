@@ -4,7 +4,7 @@ OS := $(shell uname -s)
 CXX?=g++
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-multichar -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I./../MonaBase/include/ -I./include/
 LIBDIRS+=-L./../MonaBase/lib/
 LIBS+=-lMonaBase -lcrypto -lssl
@@ -17,6 +17,12 @@ else
 	LIB=lib/libMonaCore.so
 	SHARED=-shared
 endif
+
+# Detect Endianness
+ifneq ($(shell printf '\1' | od -dAn | xargs),1)
+	CFLAGS += -D__BIG_ENDIAN__=1
+endif
+
 SOURCES = $(wildcard sources/*.cpp sources/*/*.cpp)
 OBJECT = $(addprefix tmp/release/,$(notdir $(SOURCES:%.cpp=%.o)))
 OBJECTD = $(addprefix tmp/debug/,$(notdir $(SOURCES:%.cpp=%.o)))

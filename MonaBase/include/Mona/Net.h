@@ -78,11 +78,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
-#if defined(_OS_VMS)
-#include <inet.h>
-#else
 #include <arpa/inet.h>
-#endif
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
