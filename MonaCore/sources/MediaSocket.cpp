@@ -26,7 +26,8 @@ namespace Mona {
 UInt32 MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	// Check that it exceeds not socket buffer
 	if (!addStreamData(move(pBuffer), 0x2000, address)) { // HTTP header max = 0x2000
-		_handler.queue(onError, "HTTP header too large (>8KB)");
+		string errorMsg("HTTP header too large (>8KB)");
+		_handler.queue(onError, errorMsg);
 		pSocket->shutdown(); // no more reception (and send, uniplex stream)
 	}
 	return 0;
@@ -76,7 +77,7 @@ void MediaSocket::Reader::start() {
 	// Bound decoder + engine
 	if(!_subscribed) {
 		shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, _pSource->name(), type));
-		pDecoder->onError = _onError = [this](const char* error) {  Stream::stop<Ex::Protocol>(LOG_ERROR, error); };
+		pDecoder->onError = _onError = [this](string& error) {  Stream::stop<Ex::Protocol>(LOG_ERROR, error); };
 		pDecoder->onFlush = _onFlush = [this]() { _pSource->flush(); };
 		pDecoder->onReset = _onReset = [this]() { _pSource->reset(); };
 		pDecoder->onLost = _onLost = [this](Lost& lost) { lost.report(*_pSource); };

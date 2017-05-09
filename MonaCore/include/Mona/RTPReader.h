@@ -52,7 +52,6 @@ private:
 		UInt8 csrcCount = byte & 0x0F; // TODO onLost!!
 
 		byte = reader.read8();
-		bool marker(byte & 0x80);
 		UInt8 playloadType(byte & 0x7F);
 		if (playloadType != _profile.playloadType()) {
 			ERROR(typeof<RTP_ProfileType>()," configured to receive ",_profile.playloadType()," playload type and not ",playloadType)

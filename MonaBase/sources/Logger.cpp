@@ -49,8 +49,8 @@ namespace Mona {
 #define INFO_COLOR "\033[01;37m"
 #define DEBUG_COLOR "\033[0m"
 #define TRACE_COLOR "\033[01;30m"
-#define BEGIN_CONSOLE_TEXT_COLOR(color) printf(color)
-#define END_CONSOLE_TEXT_COLOR			printf(LevelColors[6])
+#define BEGIN_CONSOLE_TEXT_COLOR(color) printf("%s", color)
+#define END_CONSOLE_TEXT_COLOR			printf("%s", LevelColors[6])
 #endif
 
 #if defined(_WIN32)

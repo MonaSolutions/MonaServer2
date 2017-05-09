@@ -26,6 +26,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #elif defined(_BSD)
 	#include <sys/types.h>
 	#include <sys/sysctl.h>
+#else
+	#include <sys/sysmacros.h>
 #endif
     #include "dirent.h"
 	#include <unistd.h>

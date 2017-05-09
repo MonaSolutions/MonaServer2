@@ -30,6 +30,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #endif
 #else
 #include <unistd.h>
+#if defined(_BSD)
+	#define lseek64 lseek
+#endif
 #endif
 #include "Mona/ThreadQueue.h"
 

@@ -190,10 +190,4 @@ bool HTTPWriter::beginMedia(const string& name, const Parameters& parameters) {
 	return false;
 }
 
-void HTTPWriter::endMedia() {
-	if (_pMediaWriter)
-		newSender<HTTPMediaSender>(_pMediaWriter); // End media => Close socket
-}
-
-
 } // namespace Mona

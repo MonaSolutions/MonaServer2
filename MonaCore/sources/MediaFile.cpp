@@ -37,7 +37,7 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 }
 
 MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io) :
-	Media::Stream(type), io(io), path(path), _pReader(pReader), timer(timer),
+	Media::Stream(TYPE_FILE), io(io), path(path), _pReader(pReader), timer(timer),
 		_onTimer([this](UInt32 delay) {
 			this->io.read(_pFile, 0x2000); // continue to read
 			return 0;

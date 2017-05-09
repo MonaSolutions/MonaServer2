@@ -60,7 +60,7 @@ struct MediaSocket : virtual Static {
 			typedef Event<void(Lost& lost)>			ON(Lost);
 			typedef Event<void()>					ON(Flush);
 			typedef Event<void()>					ON(Reset);
-			typedef Event<void(const char*& error)>	ON(Error);
+			typedef Event<void(std::string& error)>	ON(Error);
 
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
 				_name(name), _type(type), _rest(0), _handler(handler), _pReader(pReader) {}
