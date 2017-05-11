@@ -114,7 +114,9 @@ bool File::load(Exception& ex) {
 		flags = O_RDONLY;
 	_handle = ::open(_path.c_str(), flags, S_IRWXU);
 	if (_handle != -1) {
+#if !defined(__APPLE__)
 		posix_fadvise(_handle, 0, 0, 1);  // ADVICE_SEQUENTIAL
+#endif
 		struct stat status;
 		::fstat(_handle, &status);
 		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_mtime * 1000ll, UInt8(major(status.st_dev)));

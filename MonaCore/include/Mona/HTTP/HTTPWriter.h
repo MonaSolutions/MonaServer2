@@ -53,6 +53,7 @@ struct HTTPWriter : Writer, virtual Object {
 	bool			writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Video>>(_pMediaWriter, track, tag, packet) ? true : false; }
 	bool			writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Data>>(_pMediaWriter, track, type, packet) ? true : false; }
 	// No writeProperties here because HTTP has no way to control a multiple channel global stream
+	void			endMedia(const std::string& name);
 
 	void			writeError(const Exception& ex) { newSender<HTTPDataSender>(true, HTTP::ErrorToCode(Session::ToError(ex)), ex); }
 	template <typename ...Args>
