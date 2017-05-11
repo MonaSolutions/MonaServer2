@@ -22,6 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <pthread.h>
+#include <AvailabilityMacros.h>
 #ifndef MAC_OS_X_VERSION_10_12
 	#define MAC_OS_X_VERSION_10_12 101200
 #endif

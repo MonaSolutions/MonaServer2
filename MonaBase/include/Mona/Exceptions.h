@@ -124,10 +124,10 @@ private:
 #define		FATAL_CHECK(CONDITION)			{ assert(CONDITION); }
 #if defined(_WIN32)
 #define		FATAL_ERROR(...)				{ if (_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, NULL, Mona::String(__VA_ARGS__).c_str()) == 1) _CrtDbgBreak(); }
+#elif defined(__ANDROID__) || defined(__APPLE__)
+#define		FATAL_ERROR(...)				{  __assert_rtn(NULL, __FILE__,__LINE__, Mona::String(__VA_ARGS__).c_str()); }
 #elif defined(_BSD)
 #define		FATAL_ERROR(...)				{  __assert(NULL, __FILE__,__LINE__, Mona::String(__VA_ARGS__).c_str()); }
-#elif defined(__ANDROID__)
-#define		FATAL_ERROR(...)				{  __assert_rtn(NULL, __FILE__,__LINE__, Mona::String(__VA_ARGS__).c_str()); }
 #else
 #define		FATAL_ERROR(...)				{  __assert_fail(Mona::String(__VA_ARGS__).c_str(),__FILE__,__LINE__,NULL); }
 #endif
