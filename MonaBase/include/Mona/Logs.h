@@ -79,6 +79,8 @@ struct Logs : virtual Static {
 	}
 #endif
 
+	static Logger& DefaultLogger() { static Logger logger; return logger; }
+
 private:
 
 	static void Dump(const std::string& header, const UInt8* data, UInt32 size);
@@ -87,7 +89,6 @@ private:
 	static std::mutex				_Mutex;
 
 	static std::atomic<LOG_LEVEL>	_Level;
-	static Logger					_DefaultLogger;
 	static Logger*					_PLogger;
 
 	static volatile bool	_Dumping;
