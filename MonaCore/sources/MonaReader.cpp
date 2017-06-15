@@ -42,28 +42,30 @@ UInt32 MonaReader::parse(const Packet& packet, Media::Source& source) {
 		if (reader.available() < _size)
 			return reader.available();
 
+		BinaryReader content(reader.current(), _size);
+		reader.next(_size);
+		_size = 0;
+
 		UInt8 track;
 		Media::Audio::Tag audio;
 		Media::Video::Tag video;
 		Media::Data::Type  data;
-		const UInt8* tag(reader.current());
-		Media::Type type = Media::Unpack(BinaryReader(tag, reader.next(_size)), audio, video, data, track);
+		Media::Type type = Media::Unpack(content, audio, video, data, track);
+		Packet media(packet, content.current(), content.available());
 		switch (type) {
 			case Media::TYPE_AUDIO:
-				source.writeAudio(track, audio, Packet(packet, reader.current(), _size));
+				source.writeAudio(track, audio, media);
 				break;
 			case Media::TYPE_VIDEO:
-				source.writeVideo(track, video, Packet(packet, reader.current(), _size));
+				source.writeVideo(track, video, media);
 				break;
 			case Media::TYPE_DATA:
-				source.writeData(track, data, Packet(packet, reader.current(), _size));
+				source.writeData(track, data, media);
 				break;
 			default:
 				ERROR("Malformed header size");
 		}
-		_size = 0;
 	}
-
 	return 0;
 }
 

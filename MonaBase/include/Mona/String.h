@@ -106,7 +106,7 @@ struct String : std::string, virtual NullableObject {
 	static const char*	TrimLeft(const char* value, Type& size) { if (size == std::string::npos) size = (Type)strlen(value);  while (size && isspace(*value)) { ++value; --size; } return value; }
 	static const char*	TrimLeft(const char* value, std::size_t size = std::string::npos);
 	template<typename Type, NUMNAME(Type)>
-	static char*		TrimRight(char* value, Type& size) { char* begin(value); if (size == string::npos) size = (Type)strlen(begin); value += size; while (value != begin && isspace(*--value)) --size; return begin; }
+	static char*		TrimRight(char* value, Type& size) { char* begin(value); if (size == std::string::npos) size = (Type)strlen(begin); value += size; while (value != begin && isspace(*--value)) --size; return begin; }
 	static char*		TrimRight(char* value) { std::size_t size(strlen(value)); return TrimRight<std::size_t>(value, size); }
 	static std::size_t	TrimRight(const char* value, std::size_t size = std::string::npos);
 	template<typename Type, NUMNAME(Type)>

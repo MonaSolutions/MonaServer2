@@ -114,9 +114,9 @@ bool Socket::setNonBlockingMode(Exception& ex, bool value) {
 	int flags = fcntl(_sockfd, F_GETFL, 0);
 	if (flags != -1) {
 		if (value)
-			FLAG_SET(flags, O_NONBLOCK);
+			flags |= O_NONBLOCK;
 		else
-			FLAG_UNSET(flags, O_NONBLOCK);
+			flags &= ~O_NONBLOCK;
 		if (fcntl(_sockfd, F_SETFL, flags) != -1)
 			return _nonBlockingMode = value;
 	}

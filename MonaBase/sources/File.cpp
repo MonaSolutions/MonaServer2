@@ -15,7 +15,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/File.h"
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #if defined(_WIN32)
@@ -30,6 +29,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #endif
 #else
 #include <unistd.h>
+#if defined(_BSD)
+#define lseek64 lseek
+#endif
 #endif
 #include "Mona/ThreadQueue.h"
 

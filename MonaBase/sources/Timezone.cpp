@@ -34,7 +34,7 @@ using namespace std;
 
 namespace Mona {
 
-static const std::map<const char*, pair<Int32, bool>, String::IComparator> Timezones({
+static const std::map<const char*, pair<Int32, bool>, String::IComparator> _Timezones({
 	{ "ACDT", { 10*3600000 + 1800000, true } },
 	{ "ACST", { 9*3600000 + 1800000, false } },
 	{ "ADT", { -3*3600000, true } },
@@ -619,8 +619,8 @@ Int32 Timezone::Offset(const char* code ,bool& isDST) {
 		isDST = false;
 		return Timezone::GMT;
 	}
-	auto it = Timezones.find(code);
-	if (it == Timezones.end())
+	auto it = _Timezones.find(code);
+	if (it == _Timezones.end())
 		return Timezone::GMT;
 	isDST = it->second.second;
 	return it->second.first;

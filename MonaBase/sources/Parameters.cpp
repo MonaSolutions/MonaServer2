@@ -87,7 +87,7 @@ Parameters& Parameters::clear(const string& prefix) {
 		auto it = _pMap->lower_bound(prefix);
 		auto itEnd = _pMap->lower_bound(end);
 		if (it != _pMap->begin() || itEnd != _pMap->end()) {
-			for (it; it != itEnd; ++it)
+			for (; it != itEnd; ++it)
 				erase(it->first);
 			return *this;
 		}

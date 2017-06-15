@@ -232,6 +232,7 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 		// Commit RTMFPFlow (pFlow means 0x11 or 0x10 message)
 		if (stage && type != 0x11) {
 			if (pFlow) {
+				// Write ack with a buffer information of 0xFF7Fu (max possible) => to simplify protocol and guarantee max exchange (max buffer always available)
 				vector<UInt64> losts;
 				stage = pFlow->buildAck(losts, size = 0);
 				size += Binary::Get7BitValueSize(pFlow->id) + Binary::Get7BitValueSize(0xFF7Fu) + Binary::Get7BitValueSize(stage);
@@ -243,7 +244,7 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 					_flows.erase(pFlow->id);
 				pFlow = NULL;
 			} else {
-				// commit everything (flow unknown)
+				// commit everything (flow unknown, can be a flow which has failed)
 				BinaryWriter(write(socket, address, 0x51, 1 + Binary::Get7BitValueSize(flowId) + Binary::Get7BitValueSize(stage)))
 					.write7BitLongValue(flowId).write7BitValue(0).write7BitLongValue(stage);
 					

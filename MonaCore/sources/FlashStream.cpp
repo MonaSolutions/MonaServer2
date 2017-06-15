@@ -297,7 +297,8 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 			Media::Video::Tag  video;
 			Media::Data::Type  data;
 			UInt8			   track;
-			Media::Type type = Media::Unpack(BinaryReader(bytes.data(), bytes.size()), audio, video, data, track);
+			BinaryReader tag(bytes.data(), bytes.size());
+			Media::Type type = Media::Unpack(tag, audio, video, data, track);
 			Packet content(packet);
 			switch (type) {
 				case Media::TYPE_AUDIO:

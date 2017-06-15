@@ -51,7 +51,7 @@ struct Decoded : virtual Object, Packet {
 struct Decoder : virtual Object, Socket::Decoder {
 	typedef Event<void(Decoded&)> ON(Decoded);
 
-	Decoder() : count(0), _end(false) {}
+	Decoder() : count(0) {}
 	UInt8	count;
 
 	UInt32 decode(Packet& packet, const SocketAddress& address) {
@@ -70,7 +70,6 @@ private:
 		Packet packet(pBuffer);
 		return decode(packet, address);
 	}
-	volatile bool _end;
 };
 
 

@@ -223,7 +223,7 @@ void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packe
 		}
 		
 		// add the new track
-		it = _audios.emplace_hint(it, track, tag.codec == Media::Audio::CODEC_AAC ? new ADTSWriter() : NULL);
+		it = _audios.emplace_hint(it, piecewise_construct, forward_as_tuple(track), forward_as_tuple(tag.codec == Media::Audio::CODEC_AAC ? new ADTSWriter() : NULL));
 		_changed = true;
 	} else if (tag.codec == Media::Audio::CODEC_AAC) {
 		if (!it->second) {

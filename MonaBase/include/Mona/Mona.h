@@ -37,10 +37,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
 
-#define BIT_SET(BITS, POS)   FLAG_SET(BITS, 1 << (POS))
-#define BIT_UNSET(BITS, POS) FLAG_UNSET(BITS, 1 << (POS))
-#define BIT_CHECK(BITS, POS) FLAG_CHECK(BITS, 1 << (POS))
-
 #define NUMNAME(NAME) typename = typename std::enable_if<std::is_arithmetic<NAME>::value, NAME>::type
 
 #if defined(_WIN32)
@@ -198,15 +194,15 @@ inline char toupper(char value) { return ASCII::ToUpper(value); }
 const char* strrpbrk(const char* value, const char* markers);
 const char *strrstr(const char* where, const char* what);
 
-template<typename NumberType, typename ...Args>
-inline NumberType max(NumberType value1, NumberType value2, Args&&... args) { return value2 > value1 ? max(value2, args ...) : max(value1, args ...); }
 template<typename NumberType>
 inline NumberType max(NumberType value) { return value; }
-
 template<typename NumberType, typename ...Args>
-inline NumberType min(NumberType value1, NumberType value2, Args&&... args) { return value2 < value1 ? min(value2, args ...) : min(value1, args ...); }
+inline NumberType max(NumberType value1, NumberType value2, Args&&... args) { return value2 > value1 ? max<NumberType>(value2, args ...) : max<NumberType>(value1, args ...); }
+
 template<typename NumberType>
 inline NumberType min(NumberType value) { return value; }
+template<typename NumberType, typename ...Args>
+inline NumberType min(NumberType value1, NumberType value2, Args&&... args) { return value2 < value1 ? min<NumberType>(value2, args ...) : min<NumberType>(value1, args ...); }
 
 template<typename NumberType>
 inline NumberType between(NumberType value, NumberType min, NumberType max) { return value < min ? min : ((value>max) ? max : value); }

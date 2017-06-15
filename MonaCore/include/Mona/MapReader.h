@@ -54,7 +54,7 @@ private:
 				break; // stop sub
 	
 			if (const char* sub = strchr(key+prefix.size(), '.')) {
-				string newPrefix(key, sub - key);
+				std::string newPrefix(key, sub - key);
 				writer.writePropertyName(newPrefix.data()+prefix.size());
 				readOne(type, writer, newPrefix+='.');
 				continue;
