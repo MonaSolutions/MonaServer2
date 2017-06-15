@@ -44,7 +44,7 @@ struct Publication : Media::Source, Media::Properties, virtual NullableObject {
 		ByteRate byteRate;
 		LostRate lostRate;
 		void clear() { std::deque<TrackType>::clear(); byteRate = 0; lostRate = 0; }
-		TrackType& operator[](UInt8 track) { if (track > std::deque<TrackType>::size()) std::deque<TrackType>::resize(track); return operator[](track); }
+		TrackType& operator[](UInt8 track) { if (track > std::deque<TrackType>::size()) std::deque<TrackType>::resize(track); return std::deque<TrackType>::operator[](track - 1); }
 		const TrackType& operator[](UInt8 track) const { return std::deque<TrackType>::operator[](track - 1); }
 	};
 
