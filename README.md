@@ -42,7 +42,7 @@ Feature                                      | State
 Windows                                      | OK
 Linux                                        | OK
 Android                                      | In progress
-OS X                                         | NOK
+BSD/OS X                                     | In progress
 
 ## Protocols
 
@@ -60,7 +60,7 @@ Feature                                      | State
 ---------------------------------------------|---------------------
 Recording                                    | OK
 Congestion control                           | OK
-Multi-servers		                             | NOK
+Multi-servers		                              | NOK
 LUA (MonaServer)                             | NOK
 cache system                                 | NOK
 VOD                                          | In progress

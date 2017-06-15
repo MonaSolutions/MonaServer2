@@ -29,7 +29,7 @@ using namespace std;
 namespace Mona {
 
 ServerAPI::ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores) :
-	threadPool(cores * 2), application(application), www(www), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool), publications(_publications) {
+	threadPool(cores * 2), application(application), www(www), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool), publications(_publications), clients() {
 }
 
 void ServerAPI::manage() {

@@ -20,6 +20,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #if defined(_WIN32)
 #include "windows.h"
 #elif defined(__ANDROID__)
+#include <sys/sysmacros.h>
 #include <sys/syscall.h>
 #include <linux/fadvise.h>
 #if defined(__NR_arm_fadvise64_64)
@@ -28,6 +29,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 	#define posix_fadvise(fd, offset, len, advise) syscall(__NR_fadvise64_64, fd, offset, len, advise)
 #endif
 #else
+#include <sys/sysmacros.h>
 #include <unistd.h>
 #if defined(_BSD)
 #define lseek64 lseek
@@ -113,7 +115,9 @@ bool File::load(Exception& ex) {
 		flags = O_RDONLY;
 	_handle = ::open(_path.c_str(), flags, S_IRWXU);
 	if (_handle != -1) {
+#if !defined(__APPLE__)
 		posix_fadvise(_handle, 0, 0, 1);  // ADVICE_SEQUENTIAL
+#endif
 		struct stat status;
 		::fstat(_handle, &status);
 		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_mtime * 1000ll, UInt8(major(status.st_dev)));

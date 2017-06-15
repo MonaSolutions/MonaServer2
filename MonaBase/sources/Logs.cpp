@@ -36,8 +36,7 @@ atomic<LOG_LEVEL>		Logs::_Level(LOG_DEBUG); // default log level
 #else
 atomic<LOG_LEVEL>		Logs::_Level(LOG_INFO); // default log level
 #endif
-Logger					Logs::_DefaultLogger;
-Logger*					Logs::_PLogger(&_DefaultLogger);
+Logger*					Logs::_PLogger(&DefaultLogger());
 
 
 void Logs::SetDump(const char* name) {

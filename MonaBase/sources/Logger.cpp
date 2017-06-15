@@ -1,20 +1,17 @@
 /*
-Copyright 2014 Mona
+This file is a part of MonaSolutions Copyright 2017
 mathieu.poux[a]gmail.com
 jammetthomas[a]gmail.com
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+This program is free software: you can redistribute it and/or
+modify it under the terms of the the Mozilla Public License v2.0.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License received along this program for more
-details (or else see http://www.gnu.org/licenses/).
+Mozilla Public License v. 2.0 received along this program for more
+details (or else see http://mozilla.org/MPL/2.0/).
 
-This file is a part of Mona.
 */
 
 #include "Mona/Logger.h"
@@ -49,8 +46,8 @@ namespace Mona {
 #define INFO_COLOR "\033[01;37m"
 #define DEBUG_COLOR "\033[0m"
 #define TRACE_COLOR "\033[01;30m"
-#define BEGIN_CONSOLE_TEXT_COLOR(color) printf("%s", color);
-#define END_CONSOLE_TEXT_COLOR			printf("%s", LevelColors[6]);
+#define BEGIN_CONSOLE_TEXT_COLOR(color) printf("%s", color)
+#define END_CONSOLE_TEXT_COLOR			printf("%s", LevelColors[6])
 #endif
 
 #if defined(_WIN32)
@@ -63,8 +60,7 @@ void Logger::log(LOG_LEVEL level, const Path& file, long line, const string& mes
 	BEGIN_CONSOLE_TEXT_COLOR(LevelColors[level - 1]);
 	printf("%s[%ld] %s", file.name().c_str(), line, message.c_str());
 	END_CONSOLE_TEXT_COLOR;
-	// flush after color change, required especially over unix/linux
-	printf("\n");
+	printf("\n"); // flush after color change, required especially over unix/linux
 }
 
 void Logger::dump(const string& header, const UInt8* data, UInt32 size) {

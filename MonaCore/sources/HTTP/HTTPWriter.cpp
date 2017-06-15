@@ -195,5 +195,4 @@ void HTTPWriter::endMedia(const string& name) {
 		newSender<HTTPMediaSender>(_pMediaWriter); // End media => Close socket
 }
 
-
 } // namespace Mona

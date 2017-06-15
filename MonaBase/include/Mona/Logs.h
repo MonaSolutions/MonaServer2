@@ -24,8 +24,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct Logs : virtual Static {
+	static Logger&		DefaultLogger() { static Logger Logger; return Logger; }
 	static void			SetLogger(Logger& logger) { std::lock_guard<std::mutex> lock(_Mutex); _PLogger = &logger; }
-	static void			ResetLogger() { std::lock_guard<std::mutex> lock(_Mutex); _PLogger = &_DefaultLogger; }
 
 	static void			SetLevel(LOG_LEVEL level) { _Level = level; }
 	static LOG_LEVEL	GetLevel() { return _Level; }
@@ -80,15 +80,14 @@ struct Logs : virtual Static {
 	}
 #endif
 
-private:
 
-	static void Dump(const std::string& header, const UInt8* data, UInt32 size);
+private:
+	static void		Dump(const std::string& header, const UInt8* data, UInt32 size);
 
 
 	static std::mutex				_Mutex;
 
 	static std::atomic<LOG_LEVEL>	_Level;
-	static Logger					_DefaultLogger;
 	static Logger*					_PLogger;
 
 	static volatile bool	_Dumping;

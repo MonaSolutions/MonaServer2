@@ -170,8 +170,8 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		int res;
 #if defined(_BSD)
 		struct kevent events[2];
-		EV_SET(&events[0], sockfd, EVFILT_READ, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
-		EV_SET(&events[1], sockfd, EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
+		EV_SET(&events[0], *pSocket, EVFILT_READ, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
+		EV_SET(&events[1], *pSocket, EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
 		res = kevent(_system, events, 2, NULL, 0, NULL);
 #else
 		epoll_event event;
@@ -243,8 +243,8 @@ void IOSocket::unsubscribe(shared<Socket>& pSocket) {
 	if (running() && _system) {
 #if defined(_BSD)
 		struct kevent events[2];
-		EV_SET(&events[0], sockfd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
-		EV_SET(&events[1], sockfd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+		EV_SET(&events[0], *pSocket, EVFILT_READ, EV_DELETE, 0, 0, NULL);
+		EV_SET(&events[1], *pSocket, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
 		kevent(_system, events, 2, NULL, 0, NULL);
 #else
 		epoll_event event;
@@ -606,7 +606,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 
 #if defined(_BSD)
 
-			kevent& event(events[i]);
+			struct kevent& event(events[i]);
 			if(event.ident==readFD) {
 				if(event.flags & EV_EOF) {
 					i=-1; // termination signal on IOSocket deletion
@@ -632,11 +632,9 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 			}
 			if (event.flags&EV_EOF) // if close or shutdown RD = read (recv) => disconnection
 				close(pSocket, error);
-			else if (event.filter&EVFILT_READ) {
-				if (event.filter&EVFILT_WRITE && !error && pSocket->_firstWritable) // for first Flush requirement!
-					write(pSocket, 0); // before read! Connection!
+			else if (event.filter==EVFILT_READ)
 				read(pSocket, error);
-			} else if (event.filter&EVFILT_WRITE)
+			else if (event.filter==EVFILT_WRITE)
 				write(pSocket, error);
 			else if (event.flags&EV_ERROR) // on few unix system we can get an error without anything else
 				Action::Run(threadPool, make_shared<Action>("SocketError", error, pSocket), pSocket->_threadReceive);
