@@ -30,16 +30,12 @@ struct Publish : virtual NullableObject {
 
 	operator bool() const { return _pPublishing.unique() ? _pPublishing->operator bool() : true; }
 
-	bool audio(const Media::Audio::Tag& tag, const Packet& packet)					{ return queue<Write<Media::Audio>>(0, tag, packet); }
-	bool audio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet)	{ return queue<Write<Media::Audio>>(track, tag, packet); }
-	bool video(const Media::Video::Tag& tag, const Packet& packet)					{ return queue<Write<Media::Video>>(0, tag, packet); }
-	bool video(UInt16 track, const Media::Video::Tag& tag, const Packet& packet)	{ return queue<Write<Media::Video>>(track, tag, packet); }
-	bool data(Media::Data::Type type, const Packet& packet)							{ return queue<Write<Media::Data>>(0, type, packet); }
-	bool data(UInt16 track, Media::Data::Type type, const Packet& packet)			{ return queue<Write<Media::Data>>(track, type, packet); }
-	bool properties(UInt16 track, DataReader& reader)								{ return queue<Write<Media::Data>>(track, reader); }
-	bool lost(UInt32 lost)															{ return queue<Lost>(Media::TYPE_NONE, lost); }
-	bool lost(Media::Type type, UInt32 lost)										{ return queue<Lost>(type, lost); }
-	bool lost(Media::Type type, UInt16 track, UInt32 lost)							{ return queue<Lost>(type, track, lost); }
+	bool audio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { return queue<Write<Media::Audio>>(tag, packet, track); }
+	bool video(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { return queue<Write<Media::Video>>(tag, packet, track); }
+	bool data(Media::Data::Type type, const Packet& packet, UInt8 track = 0)		 { return queue<Write<Media::Data>>(type, packet, track); }
+	bool properties(DataReader& reader, UInt8 track = 1)							 { return queue<Write<Media::Data>>(reader, track); }
+	bool lost(UInt32 lost)															 { return queue<Lost>(Media::TYPE_NONE, lost); }
+	bool lost(Media::Type type, UInt32 lost, UInt8 track = 0)						 { return queue<Lost>(type, lost, track); }
 
 	bool reset();
 	bool flush(UInt16 ping=0);
@@ -77,18 +73,12 @@ private:
 	};
 
 	struct Lost : Action, virtual Object {
-		Lost(const shared<Publishing>& pPublishing, Media::Type type, UInt32 lost) : Action("Publish::Lost", pPublishing), _type(type), _lost(-Int32(lost)) {}
-		Lost(const shared<Publishing>& pPublishing, Media::Type type, UInt16 track, UInt32 lost) : Action("Publish::Lost", pPublishing), _type(type), _lost(lost), _track(track) {}
+		Lost(const shared<Publishing>& pPublishing, Media::Type type, UInt32 lost, UInt8 track = 0) : Action("Publish::Lost", pPublishing), _type(type), _lost(lost), _track(track) {}
 	private:
-		void run(Publication& publication) {
-			if (_lost < 0)
-				publication.reportLost(_type, _lost);
-			else
-				publication.reportLost(_type, _track, _lost);
-		}
+		void run(Publication& publication) { publication.reportLost(_type, _lost, _track); }
 		Media::Type		_type;
-		UInt16			_track;
-		Int32			_lost;
+		UInt8			_track;
+		UInt32			_lost;
 	};
 
 

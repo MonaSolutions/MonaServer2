@@ -32,61 +32,73 @@ struct TSReader : virtual Object, MediaReader {
 	// http://dvbsnoop.sourceforge.net/examples/example-pat.html
 	// http://dvd.sourceforge.net/dvdinfo/pes-hdr.html
 
-	TSReader() : _syncFound(false), _syncError(false), _streamId(0) {}
+	TSReader() : _syncFound(false), _syncError(false), _crcPAT(0), _audioTrack(0), _videoTrack(0), _startTime(-1) {}
 	
 private:
 
+	struct Properties : Parameters, virtual NullableObject {
+		Properties() : _changed(false) {}
+		operator bool() const { return _changed; }
+	private:
+		void onParamChange(const std::string& key, const std::string* pValue) {
+			_changed = true; Parameters::onParamChange(key, pValue);
+		}
+		void onParamClear() {
+			_changed = true; Parameters::onParamClear();
+		}
+		bool _changed;
+	};
+	
+
 	struct Program : virtual NullableObject {
-		Program(TrackReader* pReader) : type(Media::TYPE_NONE), _pReader(pReader), pcrPID(0), firstTime(true),startTime(0), waitHeader(true), sequence(0xFF) {}
+		Program() : type(Media::TYPE_NONE), _pReader(NULL), waitHeader(true), sequence(0xFF) {}
 		~Program() { if (_pReader) delete _pReader; }
 
 		operator bool() const { return _pReader ? true : false; }
 
-		Program&			operator=(TrackReader* pReader) { if (_pReader) delete _pReader; _pReader = pReader; return *this; }
-		TrackReader* operator->() { return _pReader; }
-		TrackReader& operator*() { return *_pReader; }
+		template<typename TrackReaderType>
+		Program& set(Media::Type type, Media::Source& source) {
+			// don't clear parameters to flush just on change!
+			if (_pReader && typeid(*_pReader) == typeid(TrackReaderType))
+				return *this;
+			this->type = type;
+			if (_pReader)
+				_pReader->flush(source);
+			_pReader = new TrackReaderType();
+			return *this;
+		}
+		Program& reset(Media::Source& source);
+		MediaTrackReader* operator->() { return _pReader; }
+		MediaTrackReader& operator*() { return *_pReader; }
 
 		Media::Type	 type;
 		bool		 waitHeader;
 		UInt8		 sequence;
 
-		bool		 firstTime;
-		UInt32		 startTime;
-		UInt16		 pcrPID;
 	private:
-		TrackReader* _pReader;
+		MediaTrackReader* _pReader;
 	};
 
-	UInt32 parse(const Packet& packet, Media::Source& source);
+	UInt32  parse(const Packet& packet, Media::Source& source);
 
-	void	parsePAT(BinaryReader& reader, Media::Source& source);
-	void	parsePSI(BinaryReader& reader, Media::Source& source);
-	void	parsePMT(BinaryReader& reader, Media::Source& source);
-	
-	void	parsePESHeader(BinaryReader& reader, Program& pProgram);
+	void	parsePAT(const UInt8* data, UInt32 size, Media::Source& source);
+	void	parsePSI(const UInt8* data, UInt32 size, UInt8& version, Media::Source& source);
+	void	parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::Source& source);
+
+	void	readESI(BinaryReader& reader, Program& program);
+	void	readPESHeader(BinaryReader& reader, Program& pProgram);
 
 	void    onFlush(const Packet& packet, Media::Source& source);
 
-	template<typename TrackReaderType, Media::Type type>
-	void createProgram(UInt16 pid, UInt16 pcrPID, Media::Source& source) {
-		auto it(_programs.lower_bound(pid));
-		if (it != _programs.end() && it->first == pid) {
-			if (!it->second || typeid(*it->second) != typeid(TrackReaderType)) {
-				if (it->second)
-					it->second->flush(source);
-				it->second = new TrackReaderType(); // new codec
-			}
-		} else
-			it = _programs.emplace_hint(it, std::piecewise_construct, std::forward_as_tuple(pid), std::forward_as_tuple(new TrackReaderType()));
-		it->second.type = type;
-		it->second.pcrPID = pcrPID;
-	}
-
-
 	std::map<UInt16, Program>   _programs;
+	std::map<UInt8, Properties> _properties;
+	UInt8						_audioTrack;
+	UInt8						_videoTrack;
+	std::map<UInt16, UInt8>		_pmts;
+	UInt32						_crcPAT;
 	bool						_syncFound;
 	bool						_syncError;
-	UInt16						_streamId;
+	double						_startTime;
 };
 
 

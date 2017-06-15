@@ -27,11 +27,11 @@ namespace Mona {
 struct RTP_MPEG : virtual Object {
 	// RTP MPA/MPV profile => https://tools.ietf.org/html/rfc2250
 	// Playload types https://tools.ietf.org/html/rfc1890
-	RTP_MPEG(UInt8 playloadType) : playloadType(playloadType), track(0), supportTracks(false) {}
+	RTP_MPEG(UInt8 playloadType) : playloadType(playloadType), track(1), supportTracks(false) {}
 	
 	const UInt8	playloadType;
 	const bool  supportTracks;
-	UInt32		track;
+	UInt8		track;
 
 	// Write
 	bool writeAudio(Media::Audio::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite);

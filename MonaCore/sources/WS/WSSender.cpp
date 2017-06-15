@@ -72,11 +72,12 @@ bool WSSender::send(const Packet& packet) {
 
 bool WSDataSender::run(Exception& ex) {
 	if (_packetType != Media::Data::TYPE_JSON) {
-		DataReader* pReader = Media::Data::NewReader(_packetType, _packet);
+		unique_ptr<DataReader> pReader(Media::Data::NewReader(_packetType, _packet));
 		if (pReader)
 			pReader->read(writer); // Convert to JSON
 		else
 			writer.writeBytes(_packet.data(), _packet.size()); // Write Raw
+		_packet = nullptr;
 	}
 	return WSSender::run(ex);
 }

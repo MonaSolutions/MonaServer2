@@ -28,8 +28,8 @@ struct MapReader : DataReader, virtual Object {
 	MapReader(const MapType& map) : _done(false), _begin(map.begin()),_it(map.begin()),_end(map.end()) {}
 	MapReader(const MapType& map, const typename MapType::const_iterator itBegin) :_done(false), _begin(itBegin), _it(itBegin), _end(map.end()) {}
 	MapReader(const MapType& map, const typename MapType::const_iterator itBegin, const typename MapType::const_iterator itEnd) : _done(false), _begin(itBegin), _it(itBegin), _end(itEnd) {}
-	template<typename BandType>
-	MapReader(const BandType& band) : _done(false), _begin(band.begin()), _it(band.begin()), _end(band.end()) {}
+	template<typename RangeType>
+	MapReader(const RangeType& range) : _done(false), _begin(range.begin()), _it(range.begin()), _end(range.end()) {}
 
 	void			reset() { _it = _begin; _done = false; }
 
@@ -41,9 +41,9 @@ private:
 		return OTHER;
 	}
 
-	bool readOne(UInt8 type, DataWriter& writer) { std::string prefix;  return readOne(type, writer, prefix); }
+	bool readOne(UInt8 type, DataWriter& writer) { return readOne(type, writer, String::Empty()); }
 
-	bool readOne(UInt8 type, DataWriter& writer, std::string& prefix) {
+	bool readOne(UInt8 type, DataWriter& writer, const std::string& prefix) {
 		
 		// read all
 		_done = true;
@@ -51,17 +51,16 @@ private:
 		while (_it != _end) {
 			const char* key = _it->first.c_str();
 			if (_it->first.compare(0, prefix.size(), prefix) != 0)
-				return true; // stop sub
-			key += prefix.size();
+				break; // stop sub
 	
-			if (const char* sub = strchr(key, '.')) {
-				prefix.append(key, sub-key);
-				writer.writePropertyName(prefix.c_str());
-				readOne(type, writer, prefix += '.');
+			if (const char* sub = strchr(key+prefix.size(), '.')) {
+				string newPrefix(key, sub - key);
+				writer.writePropertyName(newPrefix.data()+prefix.size());
+				readOne(type, writer, newPrefix+='.');
 				continue;
 			}
 	
-			writer.writePropertyName(key);
+			writer.writePropertyName(key + prefix.size());
 
 			if (String::ICompare(_it->second, "true") == 0)
 				writer.writeBoolean(true);

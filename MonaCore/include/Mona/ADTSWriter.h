@@ -24,12 +24,12 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class ADTSWriter : public TrackWriter, public virtual Object {
+struct ADTSWriter : MediaTrackWriter, virtual Object {
 	// Compatible AAC and MP3
 	// http://wiki.multimedia.cx/index.php?title=ADTS
 	// http://blog.olivierlanglois.net/index.php/2008/09/12/aac_adts_header_buffer_fullness_field
 	// http://thompsonng.blogspot.fr/2010/03/aac-configuration.html
-public:
+
 	ADTSWriter() : _codecType(0),_channels(0) {}
 
 	void beginMedia();
@@ -38,9 +38,9 @@ public:
 	
 	static UInt8*	WriteConfig(UInt8 type, UInt32 rate, UInt8 channels, UInt8 config[2]) { return WriteConfig(type, RateToIndex(rate), channels, config); }
 	static UInt8*	WriteConfig(UInt8 type, UInt8 rateIndex, UInt8 channels, UInt8 config[2]);
-	
-	static UInt8	RateToIndex(UInt32 rate);
+
 private:
+	static UInt8	RateToIndex(UInt32 rate);
 
 	UInt8	_codecType;
 	UInt8	_rateIndex;

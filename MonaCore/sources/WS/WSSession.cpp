@@ -109,8 +109,8 @@ void WSSession::kill(Int32 error, const char* reason) {
 	_onRequest = nullptr;
 
 	// unpublish and unsubscribe
-	closePublication();
-	closeSusbcription();
+	unpublish();
+	unsubscribe();
 
 	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.clear() because call onDisconnection and writers can be used here
 	peer.onDisconnection();
@@ -122,15 +122,15 @@ void WSSession::kill(Int32 error, const char* reason) {
 	Session::kill(error, reason);
 }
 
-void WSSession::openSubscribtion(Exception& ex, string& stream, Writer& writer) {
-	closeSusbcription();
-	_pSubscription = new Subscription(writer);
+void WSSession::subscribe(Exception& ex, string& stream, WSWriter& writer) {
+	if(!_pSubscription)
+		_pSubscription = new Subscription(writer);
 	if (api.subscribe(ex, stream, peer, *_pSubscription))
 		return;
 	delete _pSubscription;
 	_pSubscription = NULL;
 }
-void WSSession::closeSusbcription(){
+void WSSession::unsubscribe(){
 	if (!_pSubscription)
 		return;
 	api.unsubscribe(peer,*_pSubscription);
@@ -138,12 +138,13 @@ void WSSession::closeSusbcription(){
 	_pSubscription = NULL;
 }
 
-void WSSession::openPublication(Exception& ex, string& stream) {
-	closePublication();
+void WSSession::publish(Exception& ex, string& stream) {
+	unpublish();
+	_media = Media::TYPE_NONE;
+	_track = 0; // default for data!
 	_pPublication=api.publish(ex, peer, stream);
-	_media = 1;
 }
-void WSSession::closePublication(){
+void WSSession::unpublish() {
 	if (!_pPublication)
 		return;
 	api.unpublish(*_pPublication, peer);
@@ -161,61 +162,55 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 				ERROR(ex.set<Ex::Protocol>("@publish method takes a stream name in first parameter"));
 				return;
 			}
-			return openPublication(ex, name);
+			return publish(ex, name);
 		}
 
 		if (name == "@subscribe") {
 			if (pReader->readString(name))
-				return openSubscribtion(ex, name, writer);
+				return subscribe(ex, name, writer);
 			ERROR(ex.set<Ex::Protocol>("@subscribe method takes a stream name in first parameter"));
 			return;
 		}
 
 		if (name == "@unpublish")
-			return closePublication();
+			return unpublish();
 
 
 		if (name == "@unsubscribe")
-			return closeSusbcription();
+			return unsubscribe();
 	
 	} else if (_pPublication) {
-		if (isBinary) {
-			// Binary => audio or video or data with type in first byte
+		if (!isBinary)
+			return _pPublication->writeData(isJSON ? Media::Data::TYPE_JSON : Media::Data::TYPE_UNKNOWN, message, _track);
 
-			Packet content(message);
+		// Binary => audio or video or data
 
-			if (_media & 1) {
-				// Read header
-				BinaryReader header(message.data(), message.size());
-				UInt8 size = header.read8();
-				if (size) {
-					if (size < 4) { // DATA (without timestamp!)
-						_media = header.read8()<<24; // data type
-						_media |= (header.read16() << 8) | (Media::TYPE_DATA << 1);
-					} else if (size & 1) // impair => VIDEO
-						_media = (_video.unpack(header).read16() << 8) | (Media::TYPE_VIDEO << 1);
-					else // pair => AUDIO
-						_media = (_audio.unpack(header).read16() << 8) | (Media::TYPE_AUDIO << 1);
-				}
-				if (!header.available())
-					return; // read playload data in next binary packet
-				content += header.position();
+		Packet content(message);
+
+		if(!_media) {
+			BinaryReader header(message.data(), message.size());
+
+			_media = Media::Unpack(header, _audio, _video, _data, _track);
+			if (!_media) {
+				ERROR("Malformed media header size");
+				return;
 			}
-			
-			_media |= 1; // reset last byte (read header)
-
-			// audio/video/data playload
-			switch ((_media >> 1) & 0x7F) {
-				case Media::TYPE_VIDEO:
-					return _pPublication->writeVideo(_media >> 8, _video, content);
-				case Media::TYPE_AUDIO:
-					return _pPublication->writeAudio(_media >> 8, _audio, content);
-				default: break;
-			}
-			return _pPublication->writeData(_media >> 8, Media::Data::Type(_media >> 24), content);
+			if (!(content+=header.position()))
+				return; // wait next binary!
 		}
-
-		_pPublication->writeData(_media >> 8, isJSON ? Media::Data::TYPE_JSON : Media::Data::TYPE_UNKNOWN, message);
+		switch (_media) {
+			case Media::TYPE_AUDIO:
+				_pPublication->writeAudio(_audio, content, _track);
+				break;
+			case Media::TYPE_VIDEO:
+				_pPublication->writeVideo(_video, content, _track);
+				break;
+			default:
+				_pPublication->writeData(_data, content, _track);
+		}
+		// reset header info because we have get the related content
+		_track = 0;
+		_media = Media::TYPE_NONE;
 		return;
 	}
 
@@ -246,7 +241,7 @@ bool WSSession::manage() {
 			break;
 		default: return true;// no ejected!
 	}
-	closeSusbcription();
+	unsubscribe();
 	return true;
 }
 

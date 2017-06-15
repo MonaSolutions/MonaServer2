@@ -24,15 +24,14 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class RTP_H264 : public virtual Object {
+struct RTP_H264 : virtual Object {
 	// RTP H264 profile => https://tools.ietf.org/html/rfc3984
 
-public:
-	RTP_H264(UInt8 playloadType) : playloadType(playloadType), _size(0), track(0), supportTracks(false) {}
+	RTP_H264(UInt8 playloadType) : playloadType(playloadType), _size(0), track(1), supportTracks(false) {}
 	
 	const UInt8	playloadType;
 	const bool  supportTracks;
-	UInt32		track;
+	UInt8	track;
 
 	// Write
 	bool writeAudio(Media::Audio::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite);

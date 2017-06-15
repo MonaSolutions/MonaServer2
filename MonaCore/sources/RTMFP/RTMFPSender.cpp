@@ -123,8 +123,105 @@ UInt32 RTMFPMessenger::headerSize() { // max size header = 50
 
 
 void RTMFPMessenger::run() {
-	for (Message& message : _messages)
-		write(message);
+	for (Message& message : _messages) {
+		message.convertToAMF();
+
+		UInt32 size = message.packet.size();
+		UInt32 available = size;
+		const UInt8* current;
+		if (message.writer) {
+			current = message.writer->data();
+			available = message.writer->size();
+			size += available;
+		} else
+			current = message.packet.data();
+
+		bool header(!_pBuffer);
+		do {
+			++pQueue->stage;
+
+			UInt32 contentSize(size);
+
+			UInt32 headerSize(RTMFP::SIZE_HEADER + 4); // 4 bytes = type + UInt16(size) + flag
+			if (header)
+				headerSize += this->headerSize();
+
+			UInt32 availableToWrite(RTMFP::SIZE_PACKET);
+			if (_pBuffer)
+				availableToWrite -= _pBuffer->size();
+			// headerSize+16 to avoid a useless fragment (without payload data)
+			if (!_pBuffer || (headerSize + 16) > availableToWrite || message.reliable != (_flags&RTMFP::MESSAGE_RELIABLE ? true : false)) {
+				flush();
+				// New packet
+				if (!header) {
+					headerSize += this->headerSize();
+					header = true;
+				}
+				RTMFP::InitBuffer(_pBuffer, pSession->initiatorTime());
+				_fragments = 1;
+
+				if ((headerSize + contentSize) > RTMFP::SIZE_PACKET)
+					contentSize = RTMFP::SIZE_PACKET - headerSize;
+
+			} else {
+				if ((headerSize + contentSize)>availableToWrite)
+					contentSize = availableToWrite - headerSize;
+				++_fragments;
+			}
+
+			size -= contentSize;
+
+			// Compute flags
+			if (contentSize == 0) // just possible for MESSAGE_END
+				_flags = RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END; // MESSAGE_END is always with MESSAGE_ABANDON otherwise flash client can crash
+			else {
+				_flags = (_flags&RTMFP::MESSAGE_WITH_AFTERPART) ? RTMFP::MESSAGE_WITH_BEFOREPART : 0;
+				if (!pQueue->stageAck && header)
+					_flags |= RTMFP::MESSAGE_OPTIONS;
+				if (size > 0)
+					_flags |= RTMFP::MESSAGE_WITH_AFTERPART;
+			}
+
+			BinaryWriter writer(*_pBuffer);
+			writer.write8(header ? 0x10 : 0x11);
+			writer.write16(headerSize - RTMFP::SIZE_HEADER - 3 + contentSize);
+			writer.write8(_flags);
+			if (message.reliable)
+				_flags |= RTMFP::MESSAGE_RELIABLE;
+
+			if (header) {
+				writer.write7BitLongValue(pQueue->id);
+				writer.write7BitLongValue(pQueue->stage);
+				writer.write7BitLongValue(pQueue->stage - pQueue->stageAck);
+				header = false;
+				// signature
+				if (!pQueue->stageAck) {
+					writer.write8(UInt8(pQueue->signature.size())).write(pQueue->signature);
+					// No write this in the case where it's a new flow (create on server side)
+					if (pQueue->flowId) {
+						writer.write8(1 + Binary::Get7BitValueSize(pQueue->flowId)); // following size
+						writer.write8(0x0a); // Unknown!
+						writer.write7BitLongValue(pQueue->flowId);
+					}
+					writer.write8(0); // marker of end for this part
+				}
+			}
+
+			if (contentSize>available) {
+				writer.write(current, available);
+				available = contentSize - available;
+				current = message.packet.data();
+				writer.write(current, available);
+				current += available;
+				available = size;
+			} else {
+				writer.write(current, contentSize);
+				current += contentSize;
+				available -= contentSize;
+			}
+
+		} while (size);
+	}
 	flush();
 }
 
@@ -134,105 +231,6 @@ void RTMFPMessenger::flush() {
 	// encode and add to pQueue
 	pQueue->emplace_back(new Packet(pSession->pEncoder->encode(_pBuffer, pSession->farId(), address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false));
 	pSession->queueing += pQueue->back()->size();
-}
-
-void RTMFPMessenger::write(const Message& message) {
-
-	UInt32 size = message.packet.size();
-	UInt32 available = size;
-	const UInt8* current;
-	if (message.writer) {
-		current = message.writer->data();
-		available = message.writer->size();
-		size += available;
-	} else
-		current = message.packet.data();
-
-	bool header(!_pBuffer);
-	do {
-		++pQueue->stage;
-
-		UInt32 contentSize(size);
-
-		UInt32 headerSize(RTMFP::SIZE_HEADER+4); // 4 bytes = type + UInt16(size) + flag
-		if (header)
-			headerSize += this->headerSize();
-
-		UInt32 availableToWrite(RTMFP::SIZE_PACKET);
-		if(_pBuffer)
-			availableToWrite -= _pBuffer->size();
-		// headerSize+16 to avoid a useless fragment (without payload data)
-		if (!_pBuffer || (headerSize + 16) > availableToWrite || message.reliable != (_flags&RTMFP::MESSAGE_RELIABLE ? true : false)) {
-			flush();
-			// New packet
-			if (!header) {
-				headerSize += this->headerSize();
-				header = true;
-			}
-			RTMFP::InitBuffer(_pBuffer, pSession->initiatorTime());
-			_fragments = 1;
-
-			if ((headerSize + contentSize) > RTMFP::SIZE_PACKET)
-				contentSize = RTMFP::SIZE_PACKET - headerSize;
-
-		} else {
-			if ((headerSize + contentSize)>availableToWrite)
-				contentSize = availableToWrite - headerSize;
-			++_fragments;
-		}
-
-		size -= contentSize;
-
-		// Compute flags
-		if (contentSize == 0) // just possible for MESSAGE_END
-			_flags = RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END; // MESSAGE_END is always with MESSAGE_ABANDON otherwise flash client can crash
-		else {
-			_flags = (_flags&RTMFP::MESSAGE_WITH_AFTERPART) ? RTMFP::MESSAGE_WITH_BEFOREPART : 0;
-			if (!pQueue->stageAck && header)
-				_flags |= RTMFP::MESSAGE_OPTIONS;
-			if (size > 0)
-				_flags |= RTMFP::MESSAGE_WITH_AFTERPART;
-		}
-		
-		BinaryWriter writer(*_pBuffer);
-		writer.write8(header ? 0x10 : 0x11);
-		writer.write16(headerSize - RTMFP::SIZE_HEADER - 3 + contentSize);
-		writer.write8(_flags);
-		if (message.reliable)
-			_flags |= RTMFP::MESSAGE_RELIABLE;
-
-		if (header) {
-			writer.write7BitLongValue(pQueue->id);
-			writer.write7BitLongValue(pQueue->stage);
-			writer.write7BitLongValue(pQueue->stage - pQueue->stageAck);
-			header = false;
-			// signature
-			if (!pQueue->stageAck) {
-				writer.write8(UInt8(pQueue->signature.size())).write(pQueue->signature);
-				// No write this in the case where it's a new flow (create on server side)
-				if (pQueue->flowId) {
-					writer.write8(1 + Binary::Get7BitValueSize(pQueue->flowId)); // following size
-					writer.write8(0x0a); // Unknown!
-					writer.write7BitLongValue(pQueue->flowId);
-				}
-				writer.write8(0); // marker of end for this part
-			}
-		}
-
-		if (contentSize>available) {
-			writer.write(current, available);
-			available = contentSize - available;
-			current = message.packet.data();
-			writer.write(current, available);
-			current += available;
-			available = size;
-		} else {
-			writer.write(current, contentSize);
-			current += contentSize;
-			available -= contentSize;
-		}
-
-	} while (size);
 }
 
 

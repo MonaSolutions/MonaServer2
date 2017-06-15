@@ -49,11 +49,10 @@ struct MediaSocket : virtual Static {
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', _pReader->format()); }
 
 		struct Lost : Media::Base, virtual Object {
-			Lost(Media::Type type, UInt32 lost) : Media::Base(type, 0, Packet::Null()), _lost(-Int32(lost)) {} // lost
-			Lost(Media::Type type, UInt16 track, UInt32 lost) : Media::Base(type, track, Packet::Null()), _lost(lost) {} // lost
-			void report(Media::Source& source) { _lost < 0 ? source.reportLost(type, -_lost) : source.reportLost(type, track, _lost); }
+			Lost(Media::Type type, UInt32 lost, UInt8 track) : Media::Base(type, Packet::Null(), track), _lost(lost) {} // lost
+			operator const UInt32&() { return _lost; }
 		private:
-			Int32 _lost;
+			UInt32 _lost;
 		};
 		struct Decoder : Socket::Decoder, private Media::Source, private StreamData<const SocketAddress&>, virtual Object {
 			typedef Event<void(Media::Base&)>		ON(Media);
@@ -70,12 +69,11 @@ struct MediaSocket : virtual Static {
 			UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
 			UInt32 onStreamData(Packet& buffer, const SocketAddress& address);
 	
-			void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) { _handler.queue<Media::Audio>(onMedia, track, tag, packet); }
-			void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) { _handler.queue<Media::Video>(onMedia, track, tag, packet); }
-			void writeData(UInt16 track, Media::Data::Type type, const Packet& packet) { _handler.queue<Media::Data>(onMedia, track, type, packet); }
-			void writeProperties(UInt16 track, DataReader& reader) { _handler.queue<Media::Data>(onMedia, track, reader); }
-			void reportLost(Media::Type type, UInt32 lost) { _handler.queue(onLost, type, lost); }
-			void reportLost(Media::Type type, UInt16 track, UInt32 lost) { _handler.queue(onLost, type, track, lost); }
+			void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { _handler.queue<Media::Audio>(onMedia, tag, packet, track); }
+			void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { _handler.queue<Media::Video>(onMedia, tag, packet, track); }
+			void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { _handler.queue<Media::Data>(onMedia, type, packet, track); }
+			void setProperties(UInt8 track, DataReader& reader) { _handler.queue<Media::Data>(onMedia, reader, track); }
+			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { _handler.queue(onLost, type, lost, track); }
 			void flush() { _handler.queue(onFlush); }
 			void reset() { _handler.queue(onReset); }
 	
@@ -121,10 +119,11 @@ struct MediaSocket : virtual Static {
 		Socket*					operator->() { return socket().get(); }
 
 
-		bool beginMedia(const std::string& name, const Parameters& parameters);
-		bool writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Audio>>(track, tag, packet); }
-		bool writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Video>>(track, tag, packet); }
-		bool writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable) { return send<MediaSend<Media::Data>>(track, type, packet); }
+		bool beginMedia(const std::string& name);
+		bool writeProperties(const Media::Properties& properties) { Media::Data::Type type; const Packet& packet(properties(type)); return send<MediaSend<Media::Data>>(0, type, packet); }
+		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Audio>>(track, tag, packet); }
+		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Video>>(track, tag, packet); }
+		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return send<MediaSend<Media::Data>>(track, type, packet); }
 		void endMedia(const std::string& name);
 		
 	private:
@@ -159,8 +158,8 @@ struct MediaSocket : virtual Static {
 		template<typename MediaType>
 		struct MediaSend : Send, MediaType, virtual Object {
 			MediaSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming,
-				   UInt16 track, const typename MediaType::Tag& tag, const Packet& packet) : Send(type, pName, pSocket,pWriter, pStreaming), MediaType(track, tag, packet) {}
-			bool run(Exception& ex) { pWriter->writeMedia(MediaType::track, MediaType::tag, *this, onWrite); return true; }
+				UInt8 track, const typename MediaType::Tag& tag, const Packet& packet) : Send(type, pName, pSocket,pWriter, pStreaming), MediaType(tag, packet, track) {}
+			bool run(Exception& ex) { pWriter->writeMedia(*this, onWrite); return true; }
 		};
 		struct EndSend : Send, virtual Object {
 			EndSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming) : Send(type, pName, pSocket, pWriter, pStreaming) {}

@@ -122,19 +122,20 @@ private:
 struct RTMFPMessenger : RTMFPSender, virtual Object {
 	RTMFPMessenger(const shared<RTMFPSender::Queue>& pQueue) : RTMFPSender("RTMFPMessenger", pQueue), _flags(0) {} // _flags must be initialized to 0!
 
-	AMFWriter&	newMessage(bool reliable, const Mona::Packet& packet) { _messages.emplace_back(reliable, packet); return _messages.back().writer; }
+	AMFWriter&	newMessage(bool reliable, Media::Data::Type type, const Mona::Packet& packet) { _messages.emplace_back(reliable, type, packet); return _messages.back().writer; }
 
 private:
 	struct Message : private shared<Buffer>, virtual NullableObject {
-		Message(bool reliable, const Mona::Packet& packet) : reliable(reliable), packet(std::move(packet)), writer(*new Buffer()) { reset(&writer->buffer()); }
+		Message(bool reliable, Media::Data::Type type, const Mona::Packet& packet) : type(type), reliable(reliable), packet(std::move(packet)), writer(*new Buffer()) { reset(&writer->buffer()); }
 		bool				reliable;
 		AMFWriter			writer; // data
-		const Mona::Packet	packet; // footer
+		Media::Data::Type	type;
+		Mona::Packet		packet; // footer
+		void				convertToAMF() { type = writer.convert(type, packet); }
 		explicit operator bool() const { return packet || writer ? true : false; }
 	};
 	UInt32	headerSize();
 	void	run();
-	void	write(const Message& message);
 	void	flush();
 
 	std::deque<Message>	_messages;

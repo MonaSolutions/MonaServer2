@@ -46,11 +46,11 @@ public:
 
 	const_iterator	begin() const { return _pMap ? _pMap->begin() : Null().begin(); }
 	const_iterator	end() const { return _pMap ? _pMap->end() : Null().end(); }
-	ForEach			from(const std::string& prefix) { return _pMap ? ForEach(_pMap->lower_bound(prefix), _pMap->end()) : ForEach(); }
-	ForEach			band(const std::string& prefix);
+	ForEach			from(const std::string& prefix) const { return _pMap ? ForEach(_pMap->lower_bound(prefix), _pMap->end()) : ForEach(); }
+	ForEach			range(const std::string& prefix) const;
 	UInt32			count() const { return _pMap ? _pMap->size() : 0; }
 	
-	Parameters&		clear();
+	Parameters&		clear(const std::string& prefix=String::Empty());
 
 	/*!
 	Return false if key doesn't exist (and don't change 'value'), otherwise return true and assign string 'value' */
@@ -110,10 +110,13 @@ private:
 	const std::string& setParameter(const std::string& key, Args&& ...args) {
 		if (!_pMap)
 			_pMap.reset(new std::map<std::string, std::string, String::IComparator>());
-		const auto& it = _pMap->emplace(key, std::string()).first;
-		it->second.assign(std::forward<Args>(args)...);
-		onParamChange(it->first, &it->second);
-		return it->second;
+		std::string value(std::forward<Args>(args)...);
+		const auto& it = _pMap->emplace(key, std::string());
+		if (it.second || it.first->second.compare(value) != 0) {
+			it.first->second = std::move(value);
+			onParamChange(key, &it.first->second);
+		}
+		return it.first->second;
 	}
 
 	// shared because a lot more faster than using st::map move constructor!

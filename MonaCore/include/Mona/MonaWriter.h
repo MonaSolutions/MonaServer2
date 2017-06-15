@@ -25,33 +25,22 @@ namespace Mona {
 
 
 /*!
-AUDIO 	  [UInt8=>size header PAIR>4][tag header + track(UInt16=>optional)][UInt32=>size][...data...]
-VIDEO	  [UInt8=>size header IMPAIR>4][tag header + track(UInt16=>optional)][UInt32=>size][...data...]
-DATA 	  [UInt8=>size header<4][UInt8=>type + track(UInt16=>optional)][UInt32=>size][...data...] */
-class MonaWriter : public MediaWriter, public virtual Object {
-public:
-	MonaWriter() {}
+[UInt32=>size][Media::Pack][...data...] */
 
-	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if(onWrite) write(track, tag, packet, onWrite); }
-	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, tag, packet, onWrite); }
-	void writeData(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, type, packet, onWrite); }
+struct MonaWriter : MediaWriter, virtual Object {
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if(onWrite) write(track, tag, packet, onWrite); }
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, tag, packet, onWrite); }
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, type, packet, onWrite); }
 
 private:
 	
 	template<typename TagType>
-	void write(UInt16 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
-		onWrite(write(track, packet, tag.pack(BinaryWriter(_buffer, sizeof(_buffer)).write8(tag.packSize() + (track ? 2 : 0)))));
+	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
+		onWrite(Media::Pack(BinaryWriter(_buffer, sizeof(_buffer)).write32(Media::PackedSize(tag, track) + packet.size()), tag, track));
 		onWrite(packet);
 	}
-	void write(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
-		onWrite(write(track, packet, BinaryWriter(_buffer, sizeof(_buffer)).write8(track ? 3 : 1).write8(type)));
-		onWrite(packet);
-	}
-	BinaryWriter& write(UInt16 track, const Packet& packet, BinaryWriter& writer) {
-		return track ? writer.write16(track).write32(packet.size()) : writer.write32(packet.size());
-	}
-	
-	UInt8		_buffer[16];
+
+	UInt8 _buffer[9];
 };
 
 

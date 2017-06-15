@@ -35,15 +35,8 @@ RTMPSender::RTMPSender(AMF::Type type, UInt32 time, UInt32	streamId,
 }
 
 bool RTMPSender::run(Exception&) {
-	if (_packet && _packetType!=(writer.amf0 ? Media::Data::TYPE_AMF0 : Media::Data::TYPE_AMF)) {
-		DataReader* pReader = Media::Data::NewReader(_packetType, _packet);
-		if (pReader)
-			pReader->read(writer); // Convert to AMF
-		else
-			writer.writeBytes(_packet.data(), _packet.size()); // Write Raw
-		_packet = nullptr;
-	}
-
+	_packetType = writer.convert(_packetType, _packet);
+	
 	UInt32 absoluteTime(_time);
 	UInt8 headerFlag(0);
 	RTMP::Channel& channel(*_pChannel);

@@ -45,12 +45,11 @@ private:
 		PROGRESSIVE
 	};
 
-	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) { receive(_pHeader, track, tag, packet); }
-	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) { receive(_pHeader, track, tag, packet); }
-	void writeData(UInt16 track, Media::Data::Type type, const Packet& packet) { receive(_pHeader, track, type, packet); }
-	void writeProperties(UInt16 track, DataReader& reader) { receive(_pHeader, track, reader); }
-	void reportLost(Media::Type type, UInt32 lost) { if (lost) receive(_pHeader, type, lost); }
-	void reportLost(Media::Type type, UInt16 track, UInt32 lost) { if (lost) receive(_pHeader, type, track, lost); }
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { receive(_pHeader, track, tag, packet); }
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { receive(_pHeader, track, tag, packet); }
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { receive(_pHeader, track, type, packet); }
+	void setProperties(UInt8 track, DataReader& reader) { receive(_pHeader, track, reader); }
+	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { if (lost) receive(_pHeader, type, lost, track); }
 	void reset() { receive(_pHeader); }
 	void flush() { receive(_pHeader, !_length); /* flush + end infos*/ }
 

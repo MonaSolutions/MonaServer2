@@ -24,11 +24,10 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class H264NALWriter : public TrackWriter, public virtual Object {
+struct H264NALWriter : MediaTrackWriter, virtual Object {
 	// https://tools.ietf.org/html/rfc6184
 	// http://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/
-public:
-	
+
 	H264NALWriter();
 
 	void beginMedia() { _start = false; }

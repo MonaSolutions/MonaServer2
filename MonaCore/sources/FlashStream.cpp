@@ -196,7 +196,9 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 		_pPublication = api.publish(ex, peer, stream);
 		if (_pPublication) {
 			writer.writeAMFStatus("NetStream.Publish.Start", stream + " is now published");
-			_track = _media = 0;
+			_audioTrack = _videoTrack = 1;
+			_audioConfig.reset();
+			_dataTrack = 0;
 			if (_pPublication->recording()) {
 				_pPublication->recorder()->onError = [this, &writer](const Exception& ex) {
 					writer.writeAMFStatusError("NetStream.Record.Failed", ex);
@@ -220,23 +222,19 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 
 		if(name == "receiveAudio") {
 			bool enable;
-			if (message.readBoolean(enable)) {
-				if (enable)
-					_pSubscription->audios.enable();
-				else
-					_pSubscription->audios.disable();
-			}
+			if (message.readBoolean(enable) && !enable)
+				_pSubscription->target.audioTrack = 0;
+			else if (!_pSubscription->target.audioTrack)  // change just if no audioTrack has been explictly selected
+				_pSubscription->target.audioTrack = 1;
 			return;
 		}
 		
 		if (name == "receiveVideo") {
 			bool enable;
-			if (message.readBoolean(enable)) {
-				if (enable)
-					_pSubscription->videos.enable();
-				else
-					_pSubscription->videos.disable();
-			}
+			if (message.readBoolean(enable) && !enable)
+				_pSubscription->target.videoTrack = 0;
+			else if (!_pSubscription->target.videoTrack) // change just if no videoTrack has been explictly selected
+				_pSubscription->target.videoTrack = 1;
 			return;
 		}
 		
@@ -291,49 +289,58 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 
 		AMFReader reader(packet.data(), packet.size());
 		reader.readNull();
-		PacketWriter content(packet, reader->current(), reader->available());
-		bool isString(false);
-		if (reader.read(DataReader::BYTES, content) || (isString=reader.read(DataReader::STRING, content))) {
-			// If netStream.send(null, [tag as ByteArray/String] , data as ByteArray/String) => audio/video/data
-
-			if (reader.nextType() == DataReader::BYTES && content) {
-				// Has header!
-				BinaryReader header(content.data(), content.size());
-				if (isString) {
-					// DATA
-					_media = header.read8() << 24 | Media::Type::TYPE_DATA;
-					_media |= header.read16()<<8;
-				} else if (header.available() & 1) {
-					// impair => VIDEO
-					_video.unpack(header, false);
-					_media = header.read16() << 8 | Media::Type::TYPE_VIDEO; // track + video
-				} else {
-					// pair => AUDIO
-					_audio.unpack(header, false);
-					_media = header.read16() << 8 | Media::Type::TYPE_AUDIO; // track + audio
-				}
-				content.set(packet, reader->current(), reader->available());
-				reader.read(DataReader::BYTES, content);
-			} // else use the old tag
-			switch (_media & 0xFF) {
-				case Media::Type::TYPE_AUDIO:
-					_audio.time = timestamp;
-					_pPublication->writeAudio(_media >> 8, _audio, content);
+		PacketWriter bytes(packet, reader->current(), reader->available());
+		if (reader.read(DataReader::BYTES, bytes)) {
+			// netStream.send(null, tag as ByteArray , data as ByteArray, ...)
+			// => audio / video / data
+			Media::Audio::Tag  audio;
+			Media::Video::Tag  video;
+			Media::Data::Type  data;
+			UInt8			   track;
+			Media::Type type = Media::Unpack(BinaryReader(bytes.data(), bytes.size()), audio, video, data, track);
+			Packet content(packet);
+			switch (type) {
+				case Media::TYPE_AUDIO:
+					audio.time = timestamp;
+					_audioTrack = track; // trick to set _audioTrack of NetStream audio
+					while (content += reader->position()) {
+						bytes.set(content);
+						if (!reader.read(DataReader::BYTES, bytes))
+							return dataHandler(timestamp, content);
+						_pPublication->writeAudio(audio, bytes, track);
+						_audioTrack = 1;
+					}
 					break;
-				case Media::Type::TYPE_VIDEO:
-					_video.time = timestamp;
-					_pPublication->writeVideo(_media >> 8, _video, content);
+				case Media::TYPE_VIDEO:
+					video.time = timestamp;
+					_videoTrack = track; // trick to set _videoTrack of NetStream video
+					while (content += reader->position()) {
+						bytes.set(content);
+						if (!reader.read(DataReader::BYTES, bytes))
+							return dataHandler(timestamp, content);
+						_pPublication->writeVideo(video, bytes, track);
+						_videoTrack = 1;
+					}
+					break;
+				case Media::TYPE_DATA:
+					_dataTrack = track; // trick to set _dataTrack of NetStream data
+					while (content += reader->position()) {
+						bytes.set(content);
+						if (!reader.read(DataReader::BYTES, bytes))
+							return dataHandler(timestamp, content);
+						_pPublication->writeData(data, bytes, track);
+						_dataTrack = 0;
+					}
 					break;
 				default:
-					_pPublication->writeData(_media >> 8, Media::Data::Type(_media >> 24), content);
+					ERROR("Malformed media header size");
 			}
-			return dataHandler(timestamp, packet + reader->position());
-		} 
-
+			return;
+		}
 
 		if (reader.nextType() == DataReader::NIL) {
 			// To allow a handler null with a bytearray or string following
-			_pPublication->writeData(_track, Media::Data::TYPE_AMF, packet + reader->position());
+			_pPublication->writeData(Media::Data::TYPE_AMF, packet + reader->position(), _dataTrack);
 			return;
 		}
 		
@@ -357,19 +364,10 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 				reader.read(writer);
 				return;
 			}
-			case 6: {
-				if (memcmp(packet.data() + 3, EXPAND("@track")) != 0)
-					break;
-				// @track => allow to publish the standard netstream output for a selected track, and custom netstream output for one other 
-				AMFReader reader(packet.data(), packet.size());
-				reader.next(); // "@track"
-				reader.readNumber(_track);
-				return;
-			}
 		}
 	}
 
-	_pPublication->writeData(_track, Media::Data::TYPE_AMF, packet);
+	_pPublication->writeData(Media::Data::TYPE_AMF, packet, _dataTrack);
 }
 
 void FlashStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer) {
@@ -387,7 +385,7 @@ void FlashStream::audioHandler(UInt32 timestamp, const Packet& packet) {
 	}
 
 	_audio.time = timestamp;
-	_pPublication->writeAudio(_track, _audio, packet + FLVReader::ReadMediaHeader(packet.data(), packet.size(), _audio));
+	_pPublication->writeAudio(_audio, packet + FLVReader::ReadMediaHeader(packet.data(), packet.size(), _audio, _audioConfig), _audioTrack);
 }
 
 void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
@@ -401,11 +399,11 @@ void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
 	if (_video.codec == Media::Video::CODEC_H264 && _video.frame == Media::Video::FRAME_CONFIG) {
 		shared<Buffer> pBuffer(new Buffer());
 		readen += FLVReader::ReadAVCConfig(packet.data()+readen, packet.size()-readen, *pBuffer);
-		_pPublication->writeVideo(_track, _video, Packet(pBuffer));
+		_pPublication->writeVideo(_video, Packet(pBuffer), _videoTrack);
 		if (packet.size() <= readen)
 			return; //rest nothing
 	}
-	_pPublication->writeVideo(_track, _video, packet+readen);
+	_pPublication->writeVideo(_video, packet+readen, _videoTrack);
 }
 
 

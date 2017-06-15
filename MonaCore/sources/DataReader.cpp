@@ -27,13 +27,8 @@ namespace Mona {
 DataWriter& DataWriter::Null() {
 	static struct DataWriterNull : DataWriter, virtual Object {
 		DataWriterNull() {}
-
-		UInt64 beginObject(const char* type = NULL) { return 0; }
-		void writePropertyName(const char* value) {}
-		void endObject() {}
 		
-		UInt64 beginArray(UInt32 size) { return 0; }
-		void endArray() {}
+		void writePropertyName(const char* value) {}
 
 		void   writeNumber(double value) {}
 		void   writeString(const char* value, UInt32 size) {}

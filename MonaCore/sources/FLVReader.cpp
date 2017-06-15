@@ -26,25 +26,24 @@ using namespace std;
 namespace Mona {
 
 
-UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::Tag& tag) {
+UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::Tag& tag, Media::Audio::Config& config) {
 	BinaryReader reader(data, size);
 	if (!reader) {
+		config.set(tag);
 		tag.isConfig = true; // audio end
 		return 0; // keep other tag properties unchanged
 	}
 	 // empty packet => initialize isConfig = false (change everytime)
 	UInt8 codecs(reader.read8());
 	tag.codec = Media::Audio::Codec(codecs >> 4);
-	if (reader.available() && tag.codec == Media::Audio::CODEC_AAC) {
-		tag.isConfig = reader.read8() ? false : true;
-		if (tag.isConfig) // Use rate here of AAC config rather previous!
-			ADTSReader::ReadConfig(reader.current(), reader.available(), tag.rate, tag.channels);
+	if (reader.available() && tag.codec == Media::Audio::CODEC_AAC && !reader.read8() && ADTSReader::ReadConfig(reader.current(), reader.available(), tag.rate, tag.channels)) {
+		// Use rate here of AAC config rather previous!
+		tag.isConfig = true;
+		config.set(tag);
 	} else
 		tag.isConfig = false;
-	if (!tag.rate)
-		tag.rate = UInt32(5512.5*pow(2, ((codecs & 0x0C) >> 2)));
-	if(!tag.channels)
-		tag.channels = (codecs & 0x01) + 1;
+	tag.rate = config ? config.rate : UInt32(5512.5*pow(2, ((codecs & 0x0C) >> 2)));
+	tag.channels = config ? config.channels : ((codecs & 0x01) + 1);
 	return reader.position();
 }
 
@@ -55,12 +54,14 @@ UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Video::T
 	UInt8 codecs(reader.read8());
 	tag.codec = Media::Video::Codec(codecs & 0x0F);
 	tag.frame = Media::Video::Frame((codecs & 0xF0) >> 4);
-	if (tag.codec != Media::Video::CODEC_H264)
-		return 1;
-	if (!reader.read8())
-		tag.frame = Media::Video::FRAME_CONFIG;
-	tag.compositionOffset = reader.read24();
-	return 5;
+	if (tag.codec == Media::Video::CODEC_H264) {
+		if (!reader.read8())
+			tag.frame = Media::Video::FRAME_CONFIG;
+		tag.compositionOffset = reader.read24();
+		return 5;
+	}
+	tag.compositionOffset = 0;
+	return 1;
 }
 
 UInt32 FLVReader::ReadAVCConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
@@ -138,44 +139,36 @@ UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
 		// Here reader.available()>=_size
 		switch (_type) {
 			case AMF::TYPE_VIDEO: {
-				Media::Video::Tag tag;
-				tag.time = reader.read24() | (reader.read8() << 24);
-				UInt16 track((UInt16)reader.read24());
+				_video.time = reader.read24() | (reader.read8() << 24);
+				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
-				Packet video(packet, reader.current(), _size);
-				video += ReadMediaHeader(video.data(), video.size(), tag);
-				if (tag.codec == Media::Video::CODEC_H264 && tag.frame==Media::Video::FRAME_CONFIG) {
+				Packet content(packet, reader.current(), _size);
+				content += ReadMediaHeader(content.data(), content.size(), _video);
+				if (_video.codec == Media::Video::CODEC_H264 && _video.frame==Media::Video::FRAME_CONFIG) {
 					shared<Buffer> pBuffer(new Buffer());
-					video  += ReadAVCConfig(video.data(), video.size(), *pBuffer);
-					source.writeVideo(track, tag, Packet(pBuffer));
+					content += ReadAVCConfig(content.data(), content.size(), *pBuffer);
+					source.writeVideo(track ? track : 1, _video, Packet(pBuffer));
 				}
-				if(video) // because if was just a config packet, there is no more data!
-					source.writeVideo(track, tag, video);
+				if(content) // because if was just a config packet, there is no more data!
+					source.writeVideo(track ? track : 1, _video, content);
 				break;
 			}
 			case AMF::TYPE_AUDIO: {
-				Media::Audio::Tag tag;
-				tag.time = reader.read24() | (reader.read8() << 24);
-				UInt16 track((UInt16)reader.read24());
+				_audio.time = reader.read24() | (reader.read8() << 24);
+				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
-				tag.channels = _channels;
-				tag.rate = _rate;
-				Packet audio(packet, reader.current(), _size);
-				source.writeAudio(track, tag, audio += ReadMediaHeader(audio.data(), audio.size(), tag));
-				if(tag.isConfig) {
-					_channels = tag.channels;
-					_rate = tag.rate;
-				}
+				Packet content(packet, reader.current(), _size);
+				source.writeAudio(track ? track : 1, _audio, content += ReadMediaHeader(content.data(), content.size(), _audio, _audioConfig));
 				break;
 			}
 			case AMF::TYPE_DATA: {
 				reader.next(4); // Time!
-				UInt16 track((UInt16)reader.read24());
+				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
 				if (memcmp(reader.current(), EXPAND("\x02\x00\x0AonMetaData")) == 0) {
 					AMFReader amf(reader.current() + 13, _size - 13);
 					if(amf.available())
-						source.writeProperties(track, amf);
+						source.setProperties(track ? track : 1, amf);
 				} else
 					source.writeData(track, Media::Data::TYPE_AMF, Packet(packet, reader.current(), _size));
 				break;
@@ -196,7 +189,7 @@ void FLVReader::onFlush(const Packet& packet, Media::Source& source) {
 	_begin = true;
 	_size = 0;
 	_type = AMF::TYPE_EMPTY;
-	_rate = _channels = 0;
+	_audioConfig.reset();
 	_syncError = false;
 	MediaReader::onFlush(packet, source);
 }

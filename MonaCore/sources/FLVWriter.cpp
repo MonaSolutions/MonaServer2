@@ -121,7 +121,7 @@ void FLVWriter::endMedia(const OnWrite& onWrite) {
 }
 
 
-void FLVWriter::write(UInt16 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt32 compositionOffset, const Packet& packet, const OnWrite& onWrite) {
+void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt16 compositionOffset, const Packet& packet, const OnWrite& onWrite) {
 	if (!onWrite)
 		return;
 	TRACE(type, " ", codecs, " ", isConfig, " ", time," ", compositionOffset);
@@ -132,25 +132,31 @@ void FLVWriter::write(UInt16 track, AMF::Type type, UInt8 codecs, bool isConfig,
 
 	UInt32 size(packet.size());
 
-	if (type == AMF::TYPE_VIDEO) {
-		++size; // for codec byte
-		if ((isAVC = ((codecs & 0x0F) == Media::Video::CODEC_H264))) {
-			size += 4; // for config byte + composition offset 3 bytes
-			if (isConfig) {
-				// find just sps and pps data, ignore the rest
-				size -= packet.size();
-				if (!ParseAVCConfig(packet, _sps, _pps))
-					return;
-				size += _sps.size() + _pps.size() + 11;
-			}
-		}
-	} else if (type == AMF::TYPE_AUDIO) {
-		if(packet || !isConfig)
+	switch (type) {
+		case AMF::TYPE_VIDEO:
 			++size; // for codec byte
-		else
-			codecs = 0; // audio end
-		if ((isAVC = ((codecs >> 4) == Media::Audio::CODEC_AAC)))
-			++size; // for config byte
+			if ((isAVC = ((codecs & 0x0F) == Media::Video::CODEC_H264))) {
+				size += 4; // for config byte + composition offset 3 bytes
+				if (isConfig) {
+					// find just sps and pps data, ignore the rest
+					size -= packet.size();
+					if (!ParseAVCConfig(packet, _sps, _pps))
+						return;
+					size += _sps.size() + _pps.size() + 11;
+				}
+			}
+			break;
+		case AMF::TYPE_AUDIO:
+			if (packet || !isConfig)
+				++size; // for codec byte
+			else
+				codecs = 0; // audio end
+			if ((isAVC = ((codecs >> 4) == Media::Audio::CODEC_AAC)))
+				++size; // for config byte
+			break;
+		case AMF::TYPE_EMPTY: // Metadata!
+			break;
+		default:;
 	}
 
 	writer.write8(type);

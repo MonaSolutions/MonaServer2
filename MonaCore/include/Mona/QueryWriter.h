@@ -30,12 +30,7 @@ struct QueryWriter : DataWriter, virtual Object {
 
 	const char* query() const;
 
-	UInt64 beginObject(const char* type = NULL) { return 0; }
 	void   writePropertyName(const char* value);
-	void   endObject() {}
-
-	UInt64 beginArray(UInt32 size) { return 0; }
-	void   endArray() {}
 
 	void   writeNumber(double value) { String::Append(writer(), value); }
 	void   writeString(const char* value, UInt32 size) { Util::EncodeURI(value,size, writer()); }

@@ -47,32 +47,28 @@ struct MediaFile : virtual Static {
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pReader->format()); }
 
 		struct Lost : Media::Base, virtual Object {
-			Lost(Media::Type type, UInt32 lost) : Media::Base(type, 0, Packet::Null()), _lost(-Int32(lost)) {} // lost
-			Lost(Media::Type type, UInt16 track, UInt32 lost) : Media::Base(type, track, Packet::Null()), _lost(lost) {} // lost
-			void report(Media::Source& source) { _lost < 0 ? source.reportLost(type, -_lost) : source.reportLost(type, track, _lost); }
+			Lost(Media::Type type, UInt32 lost, UInt8 track) : Media::Base(type, Packet::Null(), track), _lost(lost) {} // lost
+			operator const UInt32&() { return _lost; }
 		private:
-			Int32 _lost;
+			UInt32 _lost;
 		};
 		struct Decoder : File::Decoder, private Media::Source, virtual Object {
-			typedef Event<void(Media::Base&)>		ON(Media);
-			typedef Event<void(Lost& lost)>			ON(Lost);
-			typedef Event<void()>					ON(Flush);
-			typedef Event<void()>					ON(Reset);
-			typedef Event<void()>					ON(End);
+			typedef Event<void(shared<Media::Base>&)>	ON(Media);
+			typedef Event<void(shared<Lost>&)>			ON(Lost);
+			typedef Event<void()>						ON(Flush);
+			typedef Event<void()>						ON(Reset);
 
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const Path& path, const std::string& name) :
 				_name(name), _handler(handler), _pReader(pReader), _path(path) {}
-			~Decoder() { _pReader->flush(*this); }
 
 		private:
 			UInt32 decode(shared<Buffer>& pBuffer, bool end);
 
-			void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) { _handler.queue<Media::Audio>(onMedia, track, tag, packet); }
-			void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) { _handler.queue<Media::Video>(onMedia, track, tag, packet); }
-			void writeData(UInt16 track, Media::Data::Type type, const Packet& packet) { _handler.queue<Media::Data>(onMedia, track, type, packet); }
-			void writeProperties(UInt16 track, DataReader& reader) { _handler.queue<Media::Data>(onMedia, track, reader); }
-			void reportLost(Media::Type type, UInt32 lost) { _handler.queue(onLost, type, lost); }
-			void reportLost(Media::Type type, UInt16 track, UInt32 lost) { _handler.queue(onLost, type, track, lost); }
+			void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { _handler.queue(onMedia, new Media::Audio(tag, packet, track)); }
+			void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { _handler.queue(onMedia, new Media::Video(tag, packet, track)); }
+			void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { _handler.queue(onMedia, new Media::Data(type, packet, track)); }
+			void setProperties(UInt8 track, DataReader& reader) { _handler.queue(onMedia, new Media::Data(reader, track)); }
+			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { _handler.queue(onLost, new Lost(type, lost, track)); }
 			void flush() { _flushed = true; _handler.queue(onFlush); }
 			void reset() { _handler.queue(onReset); }
 
@@ -85,7 +81,6 @@ struct MediaFile : virtual Static {
 			
 		};
 
-		Decoder::OnEnd			_onEnd;
 		Decoder::OnLost			_onLost;
 		Decoder::OnFlush		_onFlush;
 		Decoder::OnReset		_onReset;
@@ -100,7 +95,7 @@ struct MediaFile : virtual Static {
 
 		Timer::OnTimer			_onTimer;
 		Time					_realTime;
-		UInt32					_mediaTime;
+		std::deque<shared<Media::Base>> _medias;
 	};
 
 
@@ -117,10 +112,12 @@ struct MediaFile : virtual Static {
 		const Path	path;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 	
-		bool beginMedia(const std::string& name, const Parameters& parameters);
-		bool writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(track, tag, packet); }
-		bool writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Video>>(track, tag, packet); }
-		bool writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Data>>(track, type, packet); }
+		void setMediaParams(const Parameters& parameters);
+		bool beginMedia(const std::string& name);
+		bool writeProperties(const Media::Properties& properties) { Media::Data::Type type; const Packet& packet(properties(type)); return write<MediaWrite<Media::Data>>(0, type, packet); }
+		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(track, tag, packet); }
+		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Video>>(track, tag, packet); }
+		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Data>>(track, type, packet); }
 		void endMedia(const std::string& name);
 
 	private:
@@ -155,8 +152,8 @@ struct MediaFile : virtual Static {
 		template<typename MediaType>
 		struct MediaWrite : Write, MediaType, virtual Object {
 			MediaWrite(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter,
-				   UInt16 track, const typename MediaType::Tag& tag, const Packet& packet) : Write(pName, io, pFile, pWriter), MediaType(track, tag, packet) {}
-			bool run(Exception& ex) { pWriter->writeMedia(MediaType::track, MediaType::tag, *this, onWrite); return true; }
+				UInt8 track, const typename MediaType::Tag& tag, const Packet& packet) : Write(pName, io, pFile, pWriter), MediaType(tag, packet, track) {}
+			bool run(Exception& ex) { pWriter->writeMedia(*this, onWrite); return true; }
 		};
 		struct EndWrite : Write, virtual Object {
 			EndWrite(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter) : Write(pName, io, pFile, pWriter) {}
@@ -169,6 +166,7 @@ struct MediaFile : virtual Static {
 		UInt16					_writeTrack;
 		bool					_running;
 		shared<std::string>		_pName;
+		bool					_append;
 	};
 };
 

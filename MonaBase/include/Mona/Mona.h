@@ -37,9 +37,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
 
-#define FLAG_SET(FLAGS, FLAG)   ( (FLAGS) |=   (FLAG) )
-#define FLAG_UNSET(FLAGS, FLAG) ( (FLAGS) &=  ~(FLAG) )
-#define FLAG_CHECK(FLAGS, FLAG) ( (FLAGS) &    (FLAG) )
+#define BIT_SET(BITS, POS)   FLAG_SET(BITS, 1 << (POS))
+#define BIT_UNSET(BITS, POS) FLAG_UNSET(BITS, 1 << (POS))
+#define BIT_CHECK(BITS, POS) FLAG_CHECK(BITS, 1 << (POS))
 
 #define NUMNAME(NAME) typename = typename std::enable_if<std::is_arithmetic<NAME>::value, NAME>::type
 
@@ -207,6 +207,9 @@ template<typename NumberType, typename ...Args>
 inline NumberType min(NumberType value1, NumberType value2, Args&&... args) { return value2 < value1 ? min(value2, args ...) : min(value1, args ...); }
 template<typename NumberType>
 inline NumberType min(NumberType value) { return value; }
+
+template<typename NumberType>
+inline NumberType between(NumberType value, NumberType min, NumberType max) { return value < min ? min : ((value>max) ? max : value); }
 
 const std::string& typeof(const std::type_info& info);
 template<typename ObjectType>

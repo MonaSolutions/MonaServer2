@@ -24,11 +24,10 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class MP3Reader : public virtual Object, public TrackReader {
+struct MP3Reader : virtual Object, MediaTrackReader {
 	// http://cutebugs.net/files/mpeg-drafts/11172-3.pdf
 	// http://mpgedit.org/mpgedit/mpeg_format/mpeghdr.htm
-public:
-	MP3Reader(UInt16 track=0) : _syncError(false), _size(0), TrackReader(track), _tag(Media::Audio::CODEC_MP3) {}
+	MP3Reader(UInt8 track=1) : _syncError(false), _size(0), MediaTrackReader(track), _tag(Media::Audio::CODEC_MP3) {}
 
 private:
 	UInt32 parse(const Packet& packet, Media::Source& source);

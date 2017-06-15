@@ -20,11 +20,24 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/H264NALReader.h"
 #include "Mona/ADTSReader.h"
 #include "Mona/MP3Reader.h"
+#include "Mona/MapReader.h"
 #include "Mona/Logs.h"
 
 using namespace std;
 
 namespace Mona {
+
+TSReader::Program& TSReader::Program::reset(Media::Source& source) {
+	// don't reset "type" to know the preivous type in the goal of not increase audio/video track if next type is unchanged
+	// don't clear parameters to flush just on change!
+	if (_pReader) {
+		_pReader->flush(source);
+		delete _pReader;
+		_pReader = NULL;
+	}
+	return *this;
+}
+
 
 UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 
@@ -74,12 +87,13 @@ UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 			
 		// technically hasPD without hasAF is an error, see spec
 			
-		UInt64 pcr(0);
 		if (byte & 0x20) { // has adaptation field
 			 // process adaptation field and PCR
 			UInt8 length(reader.read8());
 			if (length >= 7) {
-				if (reader.read8() & 0x10) {
+				if (reader.read8() & 0x10)
+					length -= reader.next(6);
+				/*if (reader.read8() & 0x10) {
 					length -= 6;
 					pcr = reader.read32();
 					pcr <<= 1;	
@@ -87,7 +101,7 @@ UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 					pcr |= (extension>>15)&1;
 					pcr *= 300;
 					pcr += (extension&0x1FF);
-				}
+				}*/
 				--length;
 			}
 			reader.next(length);
@@ -96,168 +110,211 @@ UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 		if(!pid) {
 			// PAT
 			if (hasHeader && hasContent) // assume that PAT table can't be split (pusi==true) + useless if no playload
-				parsePAT(reader, source);
+				parsePAT(reader.current(), reader.available(), source);
 			continue;
 		}
-
+		if (pid == 0x1FFF)
+			continue; // null packet, used for fixed bandwidth padding
 		const auto& it(_programs.find(pid));
-		if (it == _programs.end())
-			continue; // ignore unsupported track!
-
-		if (!it->second) {
-			// pid pointes a PSI table
-			if (hasHeader && hasContent) // assume that PMT table can't be split (pusi==true) + useless if no playload
-				parsePSI(reader, source);
+		if (it == _programs.end()) {
+			const auto& itPMT(_pmts.find(pid));
+			if (itPMT != _pmts.end() && hasHeader && hasContent) // assume that PMT table can't be split (pusi==true) + useless if no playload
+				parsePSI(reader.current(), reader.available(), itPMT->second, source);
 			continue;
 		}
+
+		if (!it->second)
+			continue;  // ignore unsupported track!
 
 		// Program known!
-
-		if (it->second.firstTime) {
-			// To decrease time value to support more easy long session use the first pts-pcr delta as reference time
-			const auto& itPCR(_programs.find(it->second.pcrPID));
-			if (itPCR != _programs.end() && !itPCR->second.firstTime) {
-				// if has PCR program bound
-				it->second.startTime = itPCR->second.startTime;
-				it->second->time = itPCR->second->time; // in the case where pusi is not indicated, take the PCR time
-			} else
-				it->second.startTime = UInt32(round(pcr / 27000.0));
-			it->second.firstTime = false;
-		}
 
 		UInt8 sequence(byte & 0x0f);
 		UInt32 lost = ((sequence - it->second.sequence - 1) & 0x0F) * 184; // 184 is an approximation (impossible to know if missing packet had playload header or adaptation field)
 		// On lost data, wait next header!
-		if (lost && !it->second.waitHeader) {
-			it->second.waitHeader = true;
-			it->second->flush(source); // flush to reset the state!
+		if (lost) {
+			if (!it->second.waitHeader) {
+				it->second.waitHeader = true;
+				it->second->flush(source); // flush to reset the state!
+			}
+			if(it->second.sequence != 0xFF) // if sequence==0xFF it's the first time, no real lost, juste wait header!
+				source.reportLost(it->second.type, lost, it->second->track);
 		}
+		it->second.sequence = sequence;
 
 		if (hasHeader)
-			parsePESHeader(reader, it->second);
+			readPESHeader(reader, it->second);
 
 		if (hasContent) {
-			if (it->second.waitHeader) {
+			if (it->second.waitHeader)
 				lost += reader.available();
-			} else
+			else
 				it->second->read(Packet(packet, reader.current(), reader.available()), source);
 		}
 		
-		if (lost && it->second.sequence != 0xFF) // if sequence==0xFF it's the first time, no real lost, juste wait header!
-			source.reportLost(it->second.type, it->second->track, lost);
-		it->second.sequence = sequence;
-			
 	} while (input.available());
 
 	return 0;
 }
 
-void TSReader::parsePAT(BinaryReader& reader, Media::Source& source) {
+void TSReader::parsePAT(const UInt8* data, UInt32 size, Media::Source& source) {
+	BinaryReader reader(data, size);
 	reader.next(reader.read8()); // ignore pointer field
 	if (reader.read8()) { // table ID
 		WARN("PID = 0 pointes a non PAT table");
 		return; // don't try to parse it
 	}
 
-	UInt16 available(reader.read16() & 0x03ff); // ignoring unused and reserved bits
-	UInt16 streamId = reader.read16(); // stream identifier number
-	if (streamId != _streamId) {
-		if(_streamId) {
-			// Stream has changed => reset programs!
-			for (auto& it : _programs) {
-				if (it.second)
-					it.second->flush(source);
-			}
-			_programs.clear();
-			source.reset();
-		}
-		_streamId = streamId;
-	}
-	reader.next(3); // skip reserved bits + version/cni + sec# + last sec#
-	available -= 5;
-
-	if (available > reader.available()) {
+	map<UInt16, UInt8> pmts;
+	size = reader.read16() & 0x03ff;
+	if (reader.shrink(size) < size)
 		WARN("PAT splitted table not supported, maximum supported PMT is 42");
-		available = reader.available()+1; // +1 to read until >= 4
-	}
+	reader.next(5); // skip stream identifier + reserved bits + version/cni + sec# + last sec#
 
-	while (available > 4) {
+	while (reader.available() > 4) {
 		reader.next(2); // skip program number
-		_programs.emplace(piecewise_construct, forward_as_tuple(reader.read16() & 0x1fff), forward_as_tuple(nullptr)); // 13 bits => PMT pids
-		available -= 4;
+		pmts.emplace(reader.read16() & 0x1fff, 0xFF);  // 13 bits => PMT pids
 	}
-	// ignore 4 CRC bytes
+	// Use CRC bytes as stream identifier (if PAT change, stream has changed!)
+	UInt32 crc = reader.read32();
+	if (_crcPAT == crc)
+		return;
+	if (_crcPAT) {
+		// Stream has changed => reset programs!
+		for (auto& it : _programs) {
+			if (it.second)
+				it.second->flush(source);
+		}
+		_programs.clear();
+		_properties.clear();
+		_startTime = -1;
+		_audioTrack = 0; _videoTrack = 0;
+		source.reset();
+	}
+	_pmts = move(pmts);
+	_crcPAT = crc;
 }
 
-void TSReader::parsePSI(BinaryReader& reader, Media::Source& source) {
-	reader.next(reader.read8()); // ignore pointer field
+void TSReader::parsePSI(const UInt8* data, UInt32 size, UInt8& version, Media::Source& source) {
+	if (!size--)
+		return;
+	// ignore pointer field
+	UInt8 skip = *data++;
+	if (skip >= size)
+		return;
+	data += skip;
+	size -= skip;
 	// https://en.wikipedia.org/wiki/Program-specific_information#Table_Identifiers
-	switch (reader.read8()) {
+	switch (*data) {
 		case 0x02:
-			return parsePMT(reader, source);
-		default: break;
+			return parsePMT(++data, --size, version, source);
+		default:;
 	}
 }
 		
-void TSReader::parsePMT(BinaryReader& reader, Media::Source& source) {
-	UInt16 available(reader.read16() & 0x03ff); // ignoring unused and reserved bits
-	reader.next(5); // skip tableid extension + reserved bits + version/cni + sec# + last sec#
-	available -= 5;
-
-	UInt16 pcrPID(reader.read16() & 0x1FFF);
-	available -= 2;
-			
-	UInt16 piLen(reader.read16() & 0x0fff);
-	available -= 2;
-			
-	reader.next(piLen); // skip program info
-	available -= piLen;
-
-	if (available > reader.available()) {
+void TSReader::parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::Source& source) {
+	BinaryReader reader(data, size);
+	size = reader.read16() & 0x03ff;
+	if (reader.shrink(size) < size)
 		WARN("PMT splitted table not supported, maximum supported programs is 33");
-		available = reader.available()+1; // +1 to read until >= 4
+	if (reader.available() < 9) {
+		WARN("Invalid too shorter PMT table");
+		return;
 	}
-			
-	while(available > 4) {
-		UInt8 type(reader.read8());
+	reader.next(2); // skip program number
+	UInt8 value = (reader.read8()>>1)&0x1F;
+	reader.next(2); // skip table sequences
+
+	if (value == version)
+		return; // no change!
+
+	// Change doesn't reset a source.reset, because it's just an update (new program, or change codec, etc..),
+	// but timestamp and state stays unchanged!
+	version = value;
+
+	reader.next(2); // pcrPID
+	reader.next(reader.read16() & 0x0fff); // skip program info
+
+	while(reader.available() > 4) {
+		UInt8 value(reader.read8());
 		UInt16 pid(reader.read16() & 0x1fff);
-		UInt16 esiLen(reader.read16() & 0x0fff);
-		available -= 5;
-				
-		reader.next(esiLen);
-		available -= esiLen;
+
+		Program& program = _programs[pid];
+		Media::Type oldType = program.type;
 	
-		switch(type) {
+		switch(value) {
 			case 0x1b: { // H.264 video
-				createProgram<H264NALReader, Media::TYPE_VIDEO>(pid, pcrPID, source);
+				program.set<H264NALReader>(Media::TYPE_VIDEO, source);
 				break;
 			}
 			case 0x0f: { // AAC Audio / ADTS
-				createProgram<ADTSReader, Media::TYPE_AUDIO>(pid, pcrPID, source);
+				program.set<ADTSReader>(Media::TYPE_AUDIO, source);
 				break;
 			}
 			case 0x03: // ISO/IEC 11172-3 (MPEG-1 audio)
 			case 0x04: { // ISO/IEC 13818-3 (MPEG-2 halved sample rate audio)
-				createProgram<MP3Reader, Media::TYPE_AUDIO>(pid, pcrPID, source);
+				program.set<MP3Reader>(Media::TYPE_AUDIO, source);
 				break;
 			}
 			default:
-				WARN("unsupported type ",String::Format<UInt8>("%.2x",type)," in PMT");
-
-				const auto& it(_programs.lower_bound(pid));
-				if (it == _programs.end() || it->first != pid)
-					break;
-				if (it->second)
-					it->second->flush(source);
-				_programs.erase(it);
-				break;
+				WARN("unsupported type ",String::Format<UInt8>("%.2x", value)," in PMT");
+				program.reset(source);
+				reader.next(reader.read16() & 0x0fff); // ignore ESI
+				continue;
 		}
+
+		if (oldType != program.type) {
+			// added or type changed!
+			if (program.type == Media::TYPE_AUDIO) {
+				program->track = ++_audioTrack;
+			} else if (program.type == Media::TYPE_VIDEO)
+				program->track = ++_videoTrack;
+		}
+		readESI(reader, program);
 	}
-			
 	// ignore 4 CRC bytes
+
+	// Flush PROPERTIES if changed!
+	for (const auto& it : _properties) {
+		if (!it.second)
+			continue; // no change
+		MapReader<Parameters> reader(it.second);
+		source.setProperties(it.first, reader);
+	}
 }
 
-void TSReader::parsePESHeader(BinaryReader& reader, Program& pProgram) {
+void TSReader::readESI(BinaryReader& reader, Program& program) {
+	// Elmentary Stream Info
+	// https://en.wikipedia.org/wiki/Program-specific_information#Table_Identifiers
+	UInt16 available(reader.read16() & 0x0fff);
+	while (available-- && reader.available()) {
+		UInt8 type = reader.read8();
+		if (type == 0xFF || !available--)
+			continue; // null padding
+		UInt8 size = reader.read8();
+		const UInt8* data = reader.current();
+		BinaryReader desc(data, available -= reader.next(size));
+		switch (type) {
+			case 0x0A: // ISO 639 language + Audio option
+				data = desc.current();
+				_properties[program->track].setString("audioLang", STR data, desc.next(3));
+				break;
+			case 0x86: // Caption service descriptor http://atsc.org/wp-content/uploads/2015/03/Program-System-Information-Protocol-for-Terrestrial-Broadcast-and-Cable.pdf
+				UInt8 count = desc.read8() & 0x1F;
+				while (count--) {
+					data = desc.current();
+					size = desc.next(3);
+					UInt8 channel = desc.read8();
+					if (channel & 0x80)
+						_properties[program->track*4 + (channel & 0x3F)].setString("textLang", STR data, size);
+					desc.next(2);
+				}
+				break;
+		}
+		
+	}
+}
+
+void TSReader::readPESHeader(BinaryReader& reader, Program& pProgram) {
 	// prefix 00 00 01 + stream id byte (http://dvd.sourceforge.net/dvdinfo/pes-hdr.html)
 	UInt32 value(reader.read32());
 	bool isVideo(value&0x20 ? true : false);
@@ -266,10 +323,6 @@ void TSReader::parsePESHeader(BinaryReader& reader, Program& pProgram) {
 		return;
 	}
 	pProgram.waitHeader = false;
-	if (isVideo)
-		pProgram->track = value&0x0F;
-	else
-		pProgram->track = value&0x1F;
 	reader.next(3); // Ignore packet length and marker bits.
 
 	// Need PTS
@@ -283,26 +336,34 @@ void TSReader::parsePESHeader(BinaryReader& reader, Program& pProgram) {
 		// PTS
 		double pts = double(((UInt64(reader.read8()) & 0x0e) << 29) | ((reader.read16() & 0xfffe) << 14) | ((reader.read16() & 0xfffe) >> 1));
 		length -= 5;
+		pts /= 90;
+
+		double dts;
 
 		if(flags == 0x03) {
 			// DTS
-			double dts = double(((UInt64(reader.read8()) & 0x0e) << 29) | ((reader.read16() & 0xfffe) << 14) | ((reader.read16() & 0xfffe) >> 1));
+			dts = double(((UInt64(reader.read8()) & 0x0e) << 29) | ((reader.read16() & 0xfffe) << 14) | ((reader.read16() & 0xfffe) >> 1));
 			length -= 5;
-
 			dts /= 90;
 
-			pProgram->time = UInt32(round(dts)-pProgram.startTime);
-			pProgram->compositionOffset =  UInt32(round(pts/90 - dts));
+			if (pts < dts) {
+				WARN("Decoding time ", dts, " superior to presentation time ", pts);
+				dts = pts;
+			}
 
-			//trace("pts "+pts+" dts "+dts+" comp "+_compositionTime +" stamp "+_timestamp +" total "+(_compositionTime+_timestamp));
-			
-		} else {
-			pts /= 90;
+		} else
+			dts = pts;
 
-			pProgram->time = UInt32(round(pts)-pProgram.startTime);
-			pProgram->compositionOffset = 0;
-		}
+		// To decrease time value on long session (TS can starts with very huge timestamp)
+		if (_startTime > dts) {
+			WARN("Time ",dts," inferior to start time ", _startTime);
+			_startTime = dts;
+		} else if(_startTime<0)
+			_startTime = dts - min(200.0, dts); // + 200ms which is a minimum required offset with PCR (see TSWriter.cpp)
+		pProgram->time = UInt32(round(dts) - _startTime);
+		pProgram->compositionOffset = UInt16(min<double>(round(pts - dts), 0xFFFF));
 
+		//DEBUG(isVideo ? "video " : "audio ", pProgram->track, " => ", pProgram->time, " ", pProgram->compositionOffset);
 	}
 	
 	// skip other header data.
@@ -318,9 +379,12 @@ void TSReader::onFlush(const Packet& packet, Media::Source& source) {
 			it.second->flush(source);
 	}
 	_programs.clear();
+	_audioTrack = 0; _videoTrack = 0;
+	_pmts.clear();
 	_syncFound = false;
 	_syncError = false;
-	_streamId = 0;
+	_crcPAT = 0;
+	_startTime = -1;
 	MediaReader::onFlush(packet, source);
 }
 

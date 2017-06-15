@@ -209,7 +209,7 @@ void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
 		if (it.first.find('.') != string::npos || String::ICompare(it.second, EXPAND("publication")) != 0)
 			continue;
 
-		for (auto& it2 : band(temp.assign(it.first) += '.')) {
+		for (auto& it2 : range(temp.assign(it.first) += '.')) {
 			const char* name(it2.first.c_str() + temp.size());
 			if (!it2.second.empty())
 				continue;

@@ -1,11 +1,4 @@
-﻿=> c'est fou la différence entre les logs windows sous mona et sous testclient
-
-Tom 19 =>
-- Comprendre comment utiliser libRTMFP pour le présenter à Marc
-- Rendezvous service, proche de peerId et pas de SHA256(peerId)? pb performance => ton client lui cherche des voisins à SHA256(peerId) => sollicite le rendezvous service!!
-- Burn avoist
-- multicasting implications
-
+﻿
 Multi-Server=>
 - RTMFP onRendezVousUnknow => useless in external API, happens just on group member connection between => returns les adresses de tous les serveur RTMFP actifs
 - RTMFP Group new member => if group < 2log2(N)+13 then broadcast to servers this memberId (server.broadcast = TCP), et sans l'enregistrer dans les groupes correspond distribuer le memberId à 2log2(N)+13 membres (pour bien mixer les groupes entre serveurs) 

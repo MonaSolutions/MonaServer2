@@ -54,8 +54,8 @@ struct RTPWriter : MediaWriter, virtual Object {
 		_bytes = _count = 0;
 		_ssrc = Util::Random<UInt32>();
 	}
-	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
-	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
 	void endMedia(const OnWrite& onWrite) {
 		if (!onWrite)
 			return;
@@ -70,7 +70,7 @@ struct RTPWriter : MediaWriter, virtual Object {
 private:
 
 	template<typename TagType>
-	void write(UInt16 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
+	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
 		if (!onWrite)
 			return;
 		bool isAudio(typeid(TagType) == typeid(Media::Audio::Tag));

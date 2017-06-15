@@ -1,10 +1,16 @@
-OS := $(shell uname -s)
+# Constants
+OS = $(shell uname -s)
+ifeq ($(shell printf '\1' | od -dAn | xargs),1)
+	BIG_ENDIAN = 0
+else
+	BIG_ENDIAN = 1
+endif
 
 # Variables with default values
 CXX?=g++
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I./include/
 LIBS+=-lcrypto -lssl
 
@@ -16,11 +22,6 @@ else
 	LIB=lib/libMonaBase.so
 	AR=lib/libMonaBase.ar
 	SHARED=-shared
-endif
-
-# Detect Endianness
-ifneq ($(shell printf '\1' | od -dAn | xargs),1)
-	CFLAGS += -D__BIG_ENDIAN__=1
 endif
 
 SOURCES = $(filter-out sources/Win%.cpp, $(wildcard $(SRCDIR)sources/*.cpp))

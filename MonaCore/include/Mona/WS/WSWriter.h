@@ -26,7 +26,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct WSWriter : Writer, virtual Object {
+struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	WSWriter(TCPSession& session) : _session(session) {}
 	
 	UInt64			queueing() const { return _session.socket()->queueing(); }
@@ -41,15 +41,16 @@ struct WSWriter : Writer, virtual Object {
 	void			writePing() { write(WS::TYPE_PING)->write32(UInt32(_session.peer.connectionTime.elapsed())); }
 	void			writePong(const Packet& packet) { write(WS::TYPE_PONG, packet); }
 
-	bool			beginMedia(const std::string& name, const Parameters& parameters);
-	bool			writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
-	bool			writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
-	bool			writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable);
+	bool			beginMedia(const std::string& name);
+	bool			writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
+	bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable);
+	bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable);
 	bool			writeProperties(const Media::Properties& properties);
 	void			endMedia(const std::string& name);
 
+	void			flush() { Writer::flush(); }
 private:
-
+	
 	void			flushing();
 	void			closing(Int32 error, const char* reason = NULL);
 

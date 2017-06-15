@@ -29,13 +29,7 @@ struct StringWriter : DataWriter, virtual Object {
 	StringWriter(Buffer& buffer) : _pString(NULL),DataWriter(buffer) {}
 	StringWriter(std::string& buffer) : _pString(&buffer) {}
 
-	UInt64 beginObject(const char* type = NULL) { return 0; }
-	void   endObject() {}
-
 	void   writePropertyName(const char* name) { append(name);  }
-
-	UInt64 beginArray(UInt32 size) { return 0; }
-	void   endArray(){}
 
 	void   writeNumber(double value) { append(value); }
 	void   writeString(const char* value, UInt32 size) { append(value,size); }

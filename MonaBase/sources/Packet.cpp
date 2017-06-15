@@ -22,6 +22,14 @@ using namespace std;
 
 namespace Mona {
 
+#if defined(_DEBUG)
+UInt8 Packet::operator[](UInt32 i) const {
+	if (i>=_size || !_data)
+		FATAL_ERROR("Access requested outside data");
+	return _data[i];
+}
+#endif
+
 Packet& Packet::operator+=(UInt32 offset) {
 	if (offset>_size)
 		offset = _size;

@@ -23,23 +23,65 @@ using namespace std;
 
 namespace Mona {
 
-
 UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	DUMP_RESPONSE(_name.c_str(), pBuffer->data(), pBuffer->size(), _path);
 	Packet packet(pBuffer); // to capture pBuffer!
-	if (_pReader.unique())
+	if (!_pReader || _pReader.unique())
 		return 0;
 	_flushed = false;
 	_pReader->read(packet, *this);
-	if (end)
-		_handler.queue(onEnd);
-	return _flushed ? 0 : 0x2000;
+	if (!end)
+		return _flushed ? 0 : packet.size(); // continue to read if no flush
+	_pReader->flush(*this);
+	_pReader.reset();
+	_handler.queue(onFlush);
+	return 0;
 }
 
 MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io) :
 	Media::Stream(type), io(io), path(path), _pReader(pReader), timer(timer),
 		_onTimer([this](UInt32 delay) {
-			this->io.read(_pFile, 0x2000); // continue to read
+			shared_ptr<Media::Base> pMedia;
+			while (!_medias.empty()) {
+				pMedia = move(_medias.front());
+				_medias.pop_front();
+				if (pMedia) {
+					if (*pMedia || typeid(pMedia) != typeid(Lost)) {
+						_pSource->writeMedia(*pMedia);
+						UInt32 time;
+						switch (pMedia->type) {
+							default: continue;
+							case Media::TYPE_AUDIO:
+								time = ((const Media::Audio&)*pMedia).tag.time;
+								break;
+							case Media::TYPE_VIDEO:
+								time = ((const Media::Video&)*pMedia).tag.time;
+								break;
+						}
+						if (!_realTime) {
+							_realTime.update(Time::Now() - time);
+							continue;
+						}
+						Int32 delta = Int32(time - _realTime.elapsed());
+						if (delta < 20) // 20 ms to get at less one frame in advance (20ms = 50fps), not more otherwise not progressive (and player loading wave)
+							continue;
+						if (delta > 1000) {
+							// more than 1 fps means certainly a timestamp progression error..
+							WARN(description(), " resets horloge");
+							_realTime.update(Time::Now() - time);
+							continue;
+						}
+						_pSource->flush();
+						this->timer.set(_onTimer, delta);
+						return 0; // pause!
+					}
+					_pSource->reportLost(pMedia->type, (Lost&)(*pMedia), pMedia->track);
+				} else 
+					_pSource->reset();
+			}
+			if(pMedia)
+				_pSource->flush(); // flush before because reading can take time (and to avoid too large amout of data transfer)
+			this->io.read(_pFile); // continue to read immediatly
 			return 0;
 		}) {
 	_onFileError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
@@ -54,41 +96,16 @@ void MediaFile::Reader::start() {
 		return;
 	_realTime =	0; // reset realTime
 	shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, path, _pSource->name()));
-	pDecoder->onEnd = _onEnd = [this]() {  stop(); };
 	pDecoder->onFlush = _onFlush = [this]() {
-		_pSource->flush();
-		Int64 delta = _realTime ? _mediaTime - _realTime.elapsed() : 0;
-		TRACE(_mediaTime, " ", _realTime.elapsed(), " ", delta);
-		if (delta > 0) {
-			if (delta < 0x7FFF)
-				return timer.set(_onTimer, UInt32(delta));
-			// can't have readen 33 seconds in 0x2000 bytes!
-			WARN(description(), " resets horloge (impossible forward)");
-			_realTime = 0;
-		} else if (delta < -0x7FFF) {
-			WARN(description(), " delayed, resets horloge (impossible rewind)");
-			_realTime = 0;
-		}
-		io.read(_pFile, 0x2000); // continue to read immediatly
+		if (_pReader.unique())
+			return stop(); // end of file!
+		_onTimer();
 	};
-	pDecoder->onReset = _onReset = [this]() { _pSource->reset(); };
-	pDecoder->onLost = _onLost = [this](Lost& lost) { lost.report(*_pSource); };
-	pDecoder->onMedia = _onMedia = [this](Media::Base& media) {
-		_pSource->writeMedia(media);
-		switch (media.type) {
-			default: return;	
-			case Media::TYPE_AUDIO:
-				_mediaTime = ((const Media::Audio&)media).tag.time;
-				break;
-			case Media::TYPE_VIDEO:
-				_mediaTime = ((const Media::Video&)media).tag.time;
-				break;
-		}
-		if (!_realTime)
-			_realTime.update(Time::Now() - _mediaTime);
-	};
+	pDecoder->onReset = _onReset = [this]() { _medias.emplace_back(); };
+	pDecoder->onLost = _onLost = [this](shared<Lost>& pLost) { _medias.emplace_back(pLost); };
+	pDecoder->onMedia = _onMedia = [this](shared<Media::Base>& pMedia) { _medias.emplace_back(pMedia); };
 	io.open(_pFile, path, pDecoder, nullptr, _onFileError);
-	io.read(_pFile, 0x2000);
+	io.read(_pFile);
 	INFO(description(), " starts");
 }
 
@@ -99,11 +116,12 @@ void MediaFile::Reader::stop() {
 	io.close(_pFile);
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	_pReader.reset(MediaReader::New(_pReader->format()));
-	_onEnd = nullptr;
 	_onFlush = nullptr;
 	_onReset = nullptr;
 	_onLost = nullptr;
 	_onMedia = nullptr;
+	_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
+	_medias.clear();
 	INFO(description(), " stops");
 }
 
@@ -124,11 +142,15 @@ void MediaFile::Writer::start() {
 	_running = true;
 }
 
-bool MediaFile::Writer::beginMedia(const string& name, const Parameters& parameters) {
+void MediaFile::Writer::setMediaParams(const Parameters& parameters) {
+	_append = parameters.getBoolean<false>("append");
+}
+
+bool MediaFile::Writer::beginMedia(const string& name) {
 	if (!_running)
 		return false; // Not started => no Log, just ejects
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
-	io.open(_pFile, path, _onError, parameters.getBoolean<false>("append"));
+	io.open(_pFile, path, _onError, _append);
 	INFO(description(), " starts");
 	_pName.reset(new string(name));
 	return write<Write>();

@@ -61,9 +61,10 @@ static const char*  LevelColors[] = { FATAL_COLOR, CRITIC_COLOR, ERROR_COLOR, WA
 
 void Logger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
 	BEGIN_CONSOLE_TEXT_COLOR(LevelColors[level - 1]);
-	printf("%s[%ld] %s\n", file.name().c_str(), line, message.c_str());
+	printf("%s[%ld] %s, file.name().c_str(), line, message.c_str());
 	END_CONSOLE_TEXT_COLOR;
-	// TODO: flush after color change, required especially over unix/linux
+	// flush after color change, required especially over unix/linux
+	printf("\n");
 }
 
 void Logger::dump(const string& header, const UInt8* data, UInt32 size) {

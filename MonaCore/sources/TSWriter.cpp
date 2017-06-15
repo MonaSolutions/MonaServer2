@@ -26,8 +26,7 @@ using namespace std;
 namespace Mona {
 
 #define FIRST_VIDEO_PID 33
-#define TRACK_MAX		4076
-#define FIRST_AUDIO_PID 4110
+#define FIRST_AUDIO_PID 256
 
 // Spec requires PAT/PMT every 140ms, but for a network live way it consumes really too much bytes
 // 1sec has been choosen to work correctly with WindowsMediaPlayer (especially its search feature which looks sensible for that)
@@ -53,11 +52,14 @@ static UInt8 _FF[182] = {
 
 static const Packet _Fill(_FF,sizeof(_FF));
 
-TSWriter::~TSWriter() {
-	for (const auto& it : _audios) {
-		if (it.second)
-			delete it.second;
+TSWriter::Track& TSWriter::Track::operator=(MediaTrackWriter* pWriter) {
+	if (_pWriter) {
+		_pWriter->endMedia();
+		delete _pWriter;
 	}
+	if ((_pWriter = pWriter))
+		_pWriter->beginMedia();
+	return *this;
 }
 
 void TSWriter::beginMedia(const OnWrite& onWrite) {
@@ -66,7 +68,8 @@ void TSWriter::beginMedia(const OnWrite& onWrite) {
 	_canWrite = 0;
 	_firstPCR = true;
 	_timePMT = 0;
-	// Don't reset _version to make compatible with long session/instance of TSWriter
+	_changed = true;
+	// Don't reset _version to allow to player to detect change
 }
 
 void TSWriter::endMedia(const OnWrite& onWrite) {
@@ -74,22 +77,41 @@ void TSWriter::endMedia(const OnWrite& onWrite) {
 		ERROR("TS writer has miscalculated PES split and fill size");
 	if (_toWrite)
 		ERROR("A TS writer track has miscalculated its finalSize");
-	for (const auto& it : _audios) {
-		if (it.second) {
+	for (auto& it : _audios) {
+		if (it.second)
 			it.second->endMedia();
-			delete it.second;
-		}
 	}
 	for (auto& it : _videos)
-		it.second.endMedia();
+		it.second->endMedia();
 	_videos.clear();
 	_audios.clear();
 	_pids.clear();
 }
 
-void TSWriter::updatePMT(UInt32 time, const OnWrite& onWrite) {
-	++_version;
-	writePMT(time, onWrite);
+void TSWriter::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
+	string prefix;
+	for (auto& it : _audios) {
+		it.second.langs.clear();
+		for (auto& itProp : properties.range(String::Assign(prefix,it.first))) {
+			if (String::ICompare(itProp.first.data() + prefix.size(), "audioLang") == 0)
+				it.second.langs.emplace_back(itProp.second);
+		}
+	}
+	for (auto& it : _videos) {
+		it.second.langs.clear();
+		for (auto& itProp : properties.range(String::Assign(prefix, it.first))) {
+			if (String::ICompare(itProp.first.data() + prefix.size(), "textLang") == 0) {
+				it.second.langs.emplace_back(itProp.second);
+				string temp;
+				for(UInt8 i=1;i<5;++i) {
+					if(properties.getString(String::Assign(temp, it.first + i,".textLang"), temp))
+						it.second.langs.emplace_back(temp);
+				}
+			}
+		}
+	}
+	if(!prefix.empty())
+		_changed = true; // update PMT!
 }
 
 void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
@@ -97,6 +119,10 @@ void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
 	// Now write inside the both first 188 bytes packet (PAT + PMT) to allow recomposition stream on client side in a easy way (save the packet, and reuse it at stream beginning)
 	// No splitable format for now, so maximum programs (tracks) for PMT is 33!
 
+	if (_changed) {
+		++_version;
+		_changed = false;
+	}
 
 	// PAT => 47 60 00 10   Pointer: 00   TableID: 00   Length: B0 0D   Fix: 00 01 C1 00 00   Program: 00 01 F0 00   CRC: 9D B0 81 9C 
 	BinaryWriter writer(_buffer, 188);
@@ -110,7 +136,7 @@ void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
 	onWrite(Packet(_Fill, _Fill.data(), 188 - writer.size()));
 
 
-	// PMT (PID = 8188) => 47 60 20 10   Pointer: 00   TableID: 02
+	// PMT (PID = 32) => 47 60 20 10   Pointer: 00   TableID: 02
 	writer.clear();
 	writer.write(EXPAND("\x47\x60\x20"));
 
@@ -133,7 +159,16 @@ void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
 		}
 		writer.write8(0x1b); // H264 codec
 		writer.write16(0xE000 | (FIRST_VIDEO_PID+it.first));
-		writer.write16(0xF000);
+		
+		UInt16 esiSize = UInt16(it.second.langs.size())*6;
+		if (esiSize)
+			esiSize += 3;
+		writer.write16(0xF000 | esiSize);
+		if (!esiSize)
+			continue;
+		writer.write(0xe0 | (esiSize - 2));
+		for(UInt8 i = 0; i<4; ++i)
+			writer.write(it.second.langs[i].data(), 3).write8(0xc0 | ((it.first*4)+i)).write16(0x3FFF);
 	}
 	for (const auto& it : _audios) {
 		if (!_pidPCR) {
@@ -146,7 +181,13 @@ void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
 		else
 			writer.write8(0x03); // MP3 codec
 		writer.write16(0xE000 | (FIRST_AUDIO_PID+it.first));
-		writer.write16(0xF000);
+
+		UInt16 esiSize = 0;
+		if (!it.second.langs.empty())
+			esiSize += 6;
+		writer.write16(0xF000 | esiSize);
+		if (esiSize)
+			writer.write8(0x0a).write8(4).write(it.second.langs[0].data(), 3).write8(0);
 	}
 
 	// Write len
@@ -162,109 +203,88 @@ void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
 	_timePMT = time;
 }
 
-void TSWriter::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
+void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!onWrite)
 		return;
 
+	// decrements track to be zero based (and pass track 0 to default track 1)
+	if (track)
+		--track;
+
 	auto it(_audios.lower_bound(track));
-	bool newTrack(false);
 	if (it == _audios.end() || it->first != track) {
 		if (tag.codec != Media::Audio::CODEC_AAC && tag.codec != Media::Audio::CODEC_MP3 && tag.codec != Media::Audio::CODEC_MP3_8K) {
 			ERROR("Audio track ",track," ignored, TS format doesn't support ", Media::Audio::CodecToString(tag.codec), " codec");
 			return;
 		}
-		if (track>TRACK_MAX) {
-			ERROR("Audio track ",track," ignored, current TSWriter implementation doesn't support a track superior to ",TRACK_MAX);
-			return;
-		}
-		if (_audios.size()==32) {
-			ERROR("Audio track ",track," ignored, current TSWriter implementation doesn't support more than 32 audio tracks");
-			return;
-		}
-		if (_videos.size() + _audios.size() == 33) {
+		if (_videos.size() + _audios.size() == 33) { // else require splitted PMT table!
 			ERROR("Audio track ",track," ignored, current TSWriter implementation doesn't support more than 33 tracks");
 			return;
 		}
 		
 		// add the new track
 		it = _audios.emplace_hint(it, track, tag.codec == Media::Audio::CODEC_AAC ? new ADTSWriter() : NULL);
-		updatePMT(tag.time, onWrite);
-		newTrack = true;
+		_changed = true;
 	} else if (tag.codec == Media::Audio::CODEC_AAC) {
 		if (!it->second) {
 			it->second = new ADTSWriter();
-			updatePMT(tag.time, onWrite); // change from MP3 to AAC
-			newTrack = true;
+			_changed = true;
 		}
 	} else if (it->second) {
-		it->second->endMedia();
-		delete it->second;
 		it->second = NULL;
-		updatePMT(tag.time, onWrite); // change from AAC to MP3
+		_changed = true;
 	}
 
-	UInt8 streamId(distance(_audios.begin(),it));
 	const auto& itPID(_pids.emplace(FIRST_AUDIO_PID + it->first, 0).first);
 
 	if (!it->second) // MP3
-		return writeES(itPID->first, itPID->second, streamId, tag.time, 0, packet, packet.size(), onWrite);
+		return writeES(itPID->first, itPID->second, tag.time, 0, packet, packet.size(), onWrite);
 
 	// AAC
-	if (newTrack)
-		it->second->beginMedia();
 	UInt32 finalSize;
-	TrackWriter::OnWrite onAudioWrite([this, &itPID, streamId, &tag, &onWrite, &finalSize](const Packet& packet){
-		writeES(itPID->first, itPID->second, streamId, tag.time, 0, packet, finalSize, onWrite);
+	MediaTrackWriter::OnWrite onAudioWrite([this, &itPID, &tag, &onWrite, &finalSize](const Packet& packet){
+		writeES(itPID->first, itPID->second, tag.time, 0, packet, finalSize, onWrite);
 	});
 	it->second->writeAudio(tag, packet, onAudioWrite, finalSize);
 //	if (_canWrite || _toWrite)
 //		int breakPoint = 0;
 }
 
-void TSWriter::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
+void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!onWrite)
 		return;
 
+	// decrements track to be zero based (and pass track 0 to default track 1)
+	if (track)
+		--track;
+
 	auto it(_videos.lower_bound(track));
-	bool newTrack(false);
 	if (it == _videos.end() || it->first != track) {
 		if (tag.codec != Media::Video::CODEC_H264) {
 			ERROR("Video track ",track," ignored, TS format doesn't support video ", Media::Video::CodecToString(tag.codec), " codec");
 			return;
 		}
-		if (track>TRACK_MAX) {
-			ERROR("Video track ",track," ignored, current TSWriter implementation doesn't support a track superior to ",TRACK_MAX);
-			return;
-		}
-		if (_videos.size()==16) {
-			ERROR("Video track ",track," ignored, current TSWriter implementation doesn't support more than 16 video tracks");
-			return;
-		}
-		if (_videos.size() + _audios.size() == 33) {
+		if (_videos.size() + _audios.size() == 33) { // else require splitted PMT table!
 			ERROR("Video track ",track," ignored, current TSWriter implementation doesn't support more than 33 tracks");
 			return;
 		}
 		
 		// add the new track
-		it = _videos.emplace_hint(it, piecewise_construct, forward_as_tuple(track),forward_as_tuple());
-		updatePMT(tag.time, onWrite);
-		newTrack = true;
+		it = _videos.emplace_hint(it, piecewise_construct, forward_as_tuple(track),forward_as_tuple(new H264NALWriter()));
+		_changed = true;
 	}
 
-	UInt8 streamId(distance(_videos.begin(),it));
 	const auto& itPID(_pids.emplace(FIRST_VIDEO_PID + it->first, 0).first);
-	if (newTrack)
-		it->second.beginMedia();
 	UInt32 finalSize;
-	TrackWriter::OnWrite onVideoWrite([this, &itPID, streamId, &tag, &onWrite, &finalSize](const Packet& packet){
-		writeES(itPID->first, itPID->second, streamId, tag.time, tag.compositionOffset, packet, finalSize, onWrite, tag.frame==Media::Video::FRAME_KEY);
+	MediaTrackWriter::OnWrite onVideoWrite([this, &itPID, &tag, &onWrite, &finalSize](const Packet& packet){
+		writeES(itPID->first, itPID->second, tag.time, tag.compositionOffset, packet, finalSize, onWrite, tag.frame==Media::Video::FRAME_KEY);
 	});
-	it->second.writeVideo(tag, packet, onVideoWrite, finalSize);
+	it->second->writeVideo(tag, packet, onVideoWrite, finalSize);
 //	if (_canWrite || _toWrite)
 //		int breakPoint = 0;
 }
 
-void TSWriter::writeES(UInt16 pid, UInt8& counter, UInt8 streamId, UInt32 time, UInt32 compositionOffset, const Packet& packet, UInt32 esSize, const OnWrite& onWrite, bool randomAccess) {
+void TSWriter::writeES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, const Packet& packet, UInt32 esSize, const OnWrite& onWrite, bool randomAccess) {
 	
 	Packet data(packet);
 
@@ -274,7 +294,7 @@ void TSWriter::writeES(UInt16 pid, UInt8& counter, UInt8 streamId, UInt32 time, 
 				ERROR("TS writer program ", pid, " has miscalculated PES split and fill size");
 				onWrite(Packet(_Fill, _Fill.data(), _canWrite));
 			}
-			_canWrite = writePES(pid, counter, streamId, time, compositionOffset, randomAccess, _toWrite = esSize, onWrite);
+			_canWrite = writePES(pid, counter, time, compositionOffset, randomAccess, _toWrite = esSize, onWrite);
 		} else if (!_canWrite)
 			_canWrite = writePES(pid, counter, time, randomAccess, _toWrite, onWrite);
 		Packet fragment(data, data.data(), data.size() > _canWrite ? _canWrite : data.size());
@@ -309,9 +329,9 @@ UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt32 time, bool randomAcc
 	return size;
 }
 
-UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt8 streamId, UInt32 time, UInt32 compositionOffset, bool randomAccess, UInt32 size, const OnWrite& onWrite) {
+UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, bool randomAccess, UInt32 size, const OnWrite& onWrite) {
 
-	if (Int32(time-_timePMT) >= PMT_PERIOD)
+	if (_changed || abs(Int32(time-_timePMT)) >= PMT_PERIOD)
 		writePMT(time, onWrite); // send periodic PMT infos
 	
 	UInt64 pts(0), dts(0);
@@ -348,7 +368,7 @@ UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt8 streamId, UInt32 time
 			else if (deltaTime >= 500) { // 500ms without PCR track, pulse it now (urgent)
 				// just PCR program (_pidPCR) can deliver the PCR timecode
 				const auto& it(_pids.emplace(_pidPCR, 0).first);
-				onWrite(Packet(_Fill, _Fill.data(), writePES(it->first, it->second, streamId, time, compositionOffset, false, 0, onWrite)));
+				onWrite(Packet(_Fill, _Fill.data(), writePES(it->first, it->second, time, compositionOffset, false, 0, onWrite)));
 			}
 		}
 	}
@@ -368,13 +388,12 @@ UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt8 streamId, UInt32 time
 
 	/// PES HEADER ////
 
-	if (size)
-		writer.write32(((pid<FIRST_AUDIO_PID) ? 0x1E0 : 0x1C0) | streamId);
-	else {
+	if(!size) {
 		// 0xFF => type private! To make more easy counter management! (playload always present => counter always incremented)
 		// It's the case where just PCR is sent!
 		writer.write32(0x1FF);
-	}
+	} else
+		writer.write32((pid<FIRST_AUDIO_PID) ? 0x1E0 : 0x1C0);
 
 	size += (3 + length);
 	writer.write16(size>0xFFFF ? 0 : size);  // size>0xFFFF just for video (optional for video)

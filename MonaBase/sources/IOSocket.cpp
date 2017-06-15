@@ -630,7 +630,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 				if (getsockopt(pSocket->_sockfd, SOL_SOCKET, SO_ERROR, (void *)&error, &len) == -1)
 					error = Net::LastError();
 			}
-			if (event.filter&EV_EOF) // if close or shutdown RD = read (recv) => disconnection
+			if (event.flags&EV_EOF) // if close or shutdown RD = read (recv) => disconnection
 				close(pSocket, error);
 			else if (event.filter&EVFILT_READ) {
 				if (event.filter&EVFILT_WRITE && !error && pSocket->_firstWritable) // for first Flush requirement!

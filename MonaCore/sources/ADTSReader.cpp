@@ -151,7 +151,7 @@ void ADTSReader::onFlush(const Packet& packet, Media::Source& source) {
 	_tag.isConfig = true; // to send AAC header on next parse!
 	_size = 0;
 	_syncError = false;
-	TrackReader::onFlush(packet, source);
+	MediaTrackReader::onFlush(packet, source);
 }
 
 } // namespace Mona

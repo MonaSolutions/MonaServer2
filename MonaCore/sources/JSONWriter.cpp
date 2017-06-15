@@ -31,6 +31,11 @@ JSONWriter::JSONWriter(Buffer& buffer) : DataWriter(buffer),_first(true),_layers
 	writer.write("[]");
 }
 
+JSONWriter::~JSONWriter() {
+	if (_layers)
+		WARN(_layers, " JSON container not closed");
+}
+
 void JSONWriter::clear() {
 	_first=true;
 	_layers=0;
@@ -85,21 +90,38 @@ void JSONWriter::writeString(const char* value, UInt32 size) {
 	char  buffer[2];
 	const char* begin(value);
 	while (size--) {
-		if (*value == '\n') {
-			if(value>begin)
-				writer.write(begin, value-begin);
-			writer.write(EXPAND("\\n"));
-			begin = ++value;
-			continue;
+		switch (*value) {
+			case '"':
+			case '/':
+			case '\\':
+				buffer[0] = '\\';
+				buffer[1] = *value;
+				break;
+			case '\n':
+				memcpy(buffer, EXPAND("\\n"));
+				break;
+			case '\b':
+				memcpy(buffer, EXPAND("\\b"));
+				break;
+			case '\f':
+				memcpy(buffer, EXPAND("\\f"));
+				break;
+			case '\r':
+				memcpy(buffer, EXPAND("\\r"));
+				break;
+			case '\t':
+				memcpy(buffer, EXPAND("\\t"));
+				break;
+			default:
+				if (!String::ToUTF8(*value, buffer))
+					break;
+				++value;
+				continue;
 		}
-		if (!String::ToUTF8(*value, buffer)) {
-			if(value>begin)
-				writer.write(begin, value-begin);
-			writer.write(buffer, sizeof(buffer));
-			begin = ++value;
-			continue;
-		}
-		++value;
+		if (value>begin)
+			writer.write(begin, value - begin);
+		writer.write(buffer, sizeof(buffer));
+		begin = ++value;
 	}
 	if (value>begin)
 		writer.write(begin, value - begin);

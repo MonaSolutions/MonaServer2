@@ -120,19 +120,19 @@ void RTMFPWriter::flushing() {
 	_pSender.reset();
 }
 
-AMFWriter& RTMFPWriter::newMessage(bool reliable, const Packet& packet) {
+AMFWriter& RTMFPWriter::newMessage(bool reliable, Media::Data::Type type, const Packet& packet) {
 	if (closed())
 		return AMFWriter::Null();
 	if (!_pSender)
 		_pSender.reset(new RTMFPMessenger(_pQueue));
-	return ((RTMFPMessenger&)*_pSender).newMessage(reliable, packet);
+	return ((RTMFPMessenger&)*_pSender).newMessage(reliable, type, packet);
 }
 
 AMFWriter& RTMFPWriter::write(AMF::Type type, UInt32 time, Media::Data::Type packetType, const Packet& packet, bool reliable) {
 	if (type < AMF::TYPE_AUDIO || type > AMF::TYPE_VIDEO)
 		time = 0; // Because it can "dropped" the packet otherwise (like if the Writer was not reliable!)
 
-	AMFWriter& writer = newMessage(reliable, packet);
+	AMFWriter& writer = newMessage(reliable, packetType, packet);
 	writer->write8(type).write32(time);
 	if (type == AMF::TYPE_DATA_AMF3)
 		writer->write8(0);

@@ -19,12 +19,10 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Media.h"
-#include "Mona/Logs.h"
 #include "Mona/Congestion.h"
+#include "Mona/MediaWriter.h"
 
 namespace Mona {
-
 
 /*!
 Subscription to Publication */
@@ -37,19 +35,12 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	};
 
 	template<typename TrackType>
-	struct Tracks : std::map<UInt16, TrackType> {
-		Tracks() : reliable(true), dropped(0), _enabled(1) {}
-		bool	reliable;
+	struct Tracks : std::deque<TrackType> {
+		Tracks() : dropped(0) {}
 		UInt32 	dropped;
-
-		bool enabled(UInt16 track) const { return !_enabled ? false : (_enabled>0 || _track == track); }
-		void enable() const { _enabled = 1; } // enable all tracks!
-		void enable(UInt16 track) const { _enabled = -1; _track = track; }
-		void disable() const { _enabled = 0; }
-		void clear() { std::map<UInt16, TrackType>::clear(); dropped = 0; }
-	private:
-		mutable UInt16 _track;
-		mutable Int8   _enabled;
+		void clear() { std::deque<TrackType>::clear(); dropped = 0; }
+		TrackType& operator[](UInt8 track) { if (track > size()) resize(track); return std::deque<TrackType>::operator[](track - 1); }
+		const TrackType& operator[](UInt8 track) const { return std::deque<TrackType>::operator[](track - 1); }
 	};
 
 	struct Track : virtual Object {};
@@ -80,24 +71,24 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	void seek(UInt32 time);
 
 	bool streaming() const { return _streaming ? true : false; }
-	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet);
-	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet);
-	void writeData(UInt16 track, Media::Data::Type type, const Packet& packet);
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet);
 	void writeProperties(const Media::Properties& properties);
-	void reportLost(Media::Type type, UInt32 lost);
-	void reportLost(Media::Type type, UInt16 track, UInt32 lost);
+	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 	void flush();
 	void reset() { endMedia(); }
-	
+
 private:
 	void beginMedia();
 	void endMedia();
 
-	/*!
-	For Subscription usage as Source! */
-	void writeProperties(UInt16 track, DataReader& reader);
+	void setAudioTrack(Int16 track);
+	void setVideoTrack(Int16 track);
 
 	bool congested();
+
+	void setFormat(const char* format);
 
 	template<typename TagType>
 	TagType& fixTag(bool isConfig, const TagType& tagIn, TagType& tagOut) {
@@ -120,7 +111,8 @@ private:
 		return tagOut;
 	}
 
-	// Parameters overrides
+	// Properties overrides
+	void setProperties(UInt8 track, DataReader& reader) { Properties::setProperties(track, reader); }
 	void onParamChange(const std::string& key, const std::string* pValue);
 	void onParamClear();
 
@@ -140,6 +132,10 @@ private:
 
 	UInt32					_timeout;
 	mutable EJECTED			_ejected;
+
+	// For "format" parameter
+	MediaWriter::OnWrite	_onMediaWrite;
+	MediaWriter*			_pMediaWriter;
 };
 
 

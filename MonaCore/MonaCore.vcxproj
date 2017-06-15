@@ -92,7 +92,7 @@
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../ffmpeg/include;../../ffmpeg/include/libavcodec;../External/include;../MonaBase/include;include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>false</StringPooling>
       <MinimalRebuild>false</MinimalRebuild>
@@ -204,6 +204,7 @@
   <ItemGroup>
     <ClInclude Include="include\Mona\ADTSReader.h" />
     <ClInclude Include="include\Mona\ADTSWriter.h" />
+    <ClInclude Include="include\Mona\CCaption.h" />
     <ClInclude Include="include\Mona\Client.h" />
     <ClInclude Include="include\Mona\Entity.h" />
     <ClInclude Include="include\Mona\FlashMainStream.h" />
@@ -295,6 +296,7 @@
   <ItemGroup>
     <ClCompile Include="sources\ADTSReader.cpp" />
     <ClCompile Include="sources\ADTSWriter.cpp" />
+    <ClCompile Include="sources\CCaption.cpp" />
     <ClCompile Include="sources\FlashMainStream.cpp" />
     <ClCompile Include="sources\FLVReader.cpp" />
     <ClCompile Include="sources\H264NALReader.cpp" />

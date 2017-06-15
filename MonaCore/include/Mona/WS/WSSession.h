@@ -35,26 +35,27 @@ struct WSSession : Session, virtual Object {
 	void		flush();
 	void		kill(Int32 error=0, const char* reason = NULL);
 
-protected:
-	
-	void		openSubscribtion(Exception& ex, std::string& stream, Writer& writer);
-	void		closeSusbcription();
-	
-	void		openPublication(Exception& ex, std::string& stream);
-	void		closePublication();
+private:
+
+	void		subscribe(Exception& ex, std::string& stream, WSWriter& writer);
+	void		unsubscribe();
+
+	void		publish(Exception& ex, std::string& stream);
+	void		unpublish();
 
 	/// \brief Read message and call method if needed
 	/// \param packet Content message to read
-	void		processMessage(Exception& ex, const Packet& message, bool isBinary=false);
+	void		processMessage(Exception& ex, const Packet& message, bool isBinary = false);
 
-private:
 
 	WSDecoder::OnRequest	_onRequest;
 
 	Publication*			_pPublication;
+	UInt8					_track;
+	Media::Type				_media;
 	Media::Video::Tag		_video;
 	Media::Audio::Tag		_audio;
-	UInt32					_media; // 1 byte for data type, 2 bytes for track, 7 bits for media type, 1 bit for "header"
+	Media::Data::Type		_data;
 	Subscription*			_pSubscription;
 	TCPSession&				_tcpSession;
 };

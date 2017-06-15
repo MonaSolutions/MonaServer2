@@ -75,6 +75,7 @@ struct AMF : virtual Static {
 
 		AMF0_LONG_STRING		= 0x0C
 	};
+
 };
 
 }

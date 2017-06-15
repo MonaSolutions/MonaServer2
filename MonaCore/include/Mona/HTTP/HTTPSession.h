@@ -41,11 +41,11 @@ private:
 
 	bool			handshake(HTTP::Request& request);
 
-	void			openSubscribtion(Exception& ex, const std::string& stream, Writer& writer);
-	void			closeSusbcription();
+	void			subscribe(Exception& ex, const std::string& stream, HTTPWriter& writer);
+	void			unsubscribe();
 
-	void			openPublication(Exception& ex, const Path& stream);
-	void			closePublication();
+	void			publish(Exception& ex, const Path& stream);
+	void			unpublish();
 
 	/// \brief Send the Option response
 	/// Note: It is called when processMove is used before a SOAP request

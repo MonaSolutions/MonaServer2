@@ -54,11 +54,12 @@ enum {
 
 
 /// Utility class for generation parse of strings
-struct String : std::string {
+struct String : std::string, virtual NullableObject {
 	template <typename ...Args>
 	String(Args&&... args) {
 		Assign<std::string>(*this, std::forward<Args>(args)...);
 	}
+	explicit operator bool() const { return !empty(); }
 	std::string& clear() { std::string::clear(); return *this; }
 
 	static const std::string& Empty() { static std::string Empty; return Empty; }
@@ -101,11 +102,17 @@ struct String : std::string {
 	static std::vector<std::string>& Split(const char* value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0);
 	static std::vector<std::string>& Split(const std::string& value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0) { return Split(value.c_str(),separators,values,options); }
 
+	template<typename Type, NUMNAME(Type)>
+	static const char*	TrimLeft(const char* value, Type& size) { if (size == std::string::npos) size = (Type)strlen(value);  while (size && isspace(*value)) { ++value; --size; } return value; }
 	static const char*	TrimLeft(const char* value, std::size_t size = std::string::npos);
-	static char*		TrimRight(char* value);
-	static std::size_t	TrimRight(const char* value, std::size_t size);
+	template<typename Type, NUMNAME(Type)>
+	static char*		TrimRight(char* value, Type& size) { char* begin(value); if (size == string::npos) size = (Type)strlen(begin); value += size; while (value != begin && isspace(*--value)) --size; return begin; }
+	static char*		TrimRight(char* value) { std::size_t size(strlen(value)); return TrimRight<std::size_t>(value, size); }
+	static std::size_t	TrimRight(const char* value, std::size_t size = std::string::npos);
+	template<typename Type, NUMNAME(Type)>
+	static char*		Trim(char* value, Type& size) { TrimLeft<Type>(value, size); return TrimRight<Type>(value, size); }
 	static char*		Trim(char* value) { TrimLeft(value); return TrimRight(value); }
-	static std::size_t	Trim(const char* value, std::size_t size) { TrimLeft(value, size); return TrimRight(value, size); }
+	static std::size_t	Trim(const char* value, std::size_t size = std::string::npos) { TrimLeft(value, size); return TrimRight(value, size); }
 
 	static std::string&	TrimLeft(std::string& value) { return value.erase(0, TrimLeft(value.data(), value.size()) - value.data()); }
 	static std::string&	TrimRight(std::string& value) { while (!value.empty() && isspace(value.back())) value.pop_back(); return value; }

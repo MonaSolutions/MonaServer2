@@ -176,7 +176,7 @@ BinaryWriter& HTTPWriter::writeRaw(const char* code) {
 	return pSender ? *pSender->writer() : BinaryWriter::Null();
 }
 
-bool HTTPWriter::beginMedia(const string& name, const Parameters& parameters) {
+bool HTTPWriter::beginMedia(const string& name) {
 	// _pMediaWriter->begin(...)
 	if (!newSender<HTTPMediaSender>(_pMediaWriter))
 		return false; // writer closed!
@@ -190,7 +190,7 @@ bool HTTPWriter::beginMedia(const string& name, const Parameters& parameters) {
 	return false;
 }
 
-void HTTPWriter::endMedia() {
+void HTTPWriter::endMedia(const string& name) {
 	if (_pMediaWriter)
 		newSender<HTTPMediaSender>(_pMediaWriter); // End media => Close socket
 }

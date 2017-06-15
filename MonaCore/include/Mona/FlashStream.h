@@ -26,8 +26,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-class FlashStream : public virtual Object {
-public:
+struct FlashStream : virtual Object {
 	typedef Event<void(UInt16 id, FlashWriter& writer)> ON(Start);
 	typedef Event<void(UInt16 id, FlashWriter& writer)> ON(Stop);
 
@@ -42,7 +41,7 @@ public:
 	// return flase if writer is closed!
 	bool	process(AMF::Type type, UInt32 time, const Packet& packet, FlashWriter& writer, Net::Stats& netStats);
 
-	void	reportLost(Media::Type type, UInt16 track, UInt32 lost) { if (_pPublication) _pPublication->reportLost(type, track, lost); }
+	void	reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { if (_pPublication) _pPublication->reportLost(type, lost, track); }
 
 	virtual void flush();
 
@@ -62,15 +61,18 @@ private:
 	virtual void	audioHandler(UInt32 timestamp, const Packet& packet);
 	virtual void	videoHandler(UInt32 timestamp, const Packet& packet);
 
-	Publication*	_pPublication;
-	Subscription*	_pSubscription;
-	UInt32			_bufferTime;
+	Publication*		 _pPublication;
+	Subscription*		 _pSubscription;
+	UInt32				 _bufferTime;
+	UInt8				 _videoTrack;
+	UInt8				 _audioTrack;
+	UInt8				 _dataTrack;
+	Media::Audio::Tag	 _audio;
+	Media::Audio::Config _audioConfig;
+	Media::Video::Tag	 _video;
 
 	// Use class variable for media tag to use the previous value of its properties if packet is empty (can happen for audio for example)
-	Media::Audio::Tag _audio;
-	Media::Video::Tag _video;
-	UInt32			  _media; // 1 byte for data type, track on 2 bytes, Media::Type on 1 byte
-	UInt16			  _track;
+	
 };
 
 

@@ -266,4 +266,19 @@ void AMFWriter::endComplex(bool isObject) {
 }
 
 
+Media::Data::Type AMFWriter::convert(Media::Data::Type type, Packet& packet) {
+	Media::Data::Type amfType = amf0 ? Media::Data::TYPE_AMF0 : Media::Data::TYPE_AMF;
+	if (!packet || type == amfType)
+		return amfType;
+	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
+	if (pReader)
+		pReader->read(*this); // Convert to AMF
+	else
+		writeBytes(packet.data(), packet.size()); // Write Raw
+	packet = nullptr;
+	return amfType;
+}
+
+
+
 } // namespace Mona

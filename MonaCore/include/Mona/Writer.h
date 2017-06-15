@@ -25,7 +25,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct Client;
-struct Writer : Media::Target, virtual NullableObject {
+struct Writer : virtual NullableObject {
 	typedef Event<void(Int32 error, const char* reason)> ON(Close);
 
 	virtual ~Writer();

@@ -102,6 +102,13 @@ struct Packet: Binary, virtual Object {
 	/*!
 	Return size */
 	UInt32						size() const { return _size; }
+
+#if defined(_DEBUG)
+	UInt8						operator[](UInt32 i) const;
+#else
+	UInt8						operator[](UInt32 i) const { return _data[i]; }
+#endif
+
 	/*!
 	Move the area of data referenced */
 	Packet& operator+=(UInt32 offset);

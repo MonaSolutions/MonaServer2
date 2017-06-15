@@ -79,7 +79,7 @@ void MediaSocket::Reader::start() {
 		pDecoder->onError = _onError = [this](const char* error) {  Stream::stop<Ex::Protocol>(LOG_ERROR, error); };
 		pDecoder->onFlush = _onFlush = [this]() { _pSource->flush(); };
 		pDecoder->onReset = _onReset = [this]() { _pSource->reset(); };
-		pDecoder->onLost = _onLost = [this](Lost& lost) { lost.report(*_pSource); };
+		pDecoder->onLost = _onLost = [this](Lost& lost) { _pSource->reportLost(lost.type, lost, lost.track); };
 		pDecoder->onMedia = _onMedia = [this](Media::Base& media) {
 			if (!_streaming) {
 				_streaming = true;
@@ -136,6 +136,7 @@ void MediaSocket::Reader::stop() {
 	_onLost = nullptr;
 	_onMedia = nullptr;
 	if (_streaming) {
+		_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
 		INFO(description(), " stops");
 		_streaming = false;
 	}
@@ -237,7 +238,7 @@ void MediaSocket::Writer::start() {
 	}
 }
 
-bool MediaSocket::Writer::beginMedia(const string& name, const Parameters& parameters) {
+bool MediaSocket::Writer::beginMedia(const string& name) {
 	if (!_subscribed)
 		return false; // Not started => no Log, just ejects
 	_pName.reset(new string(name));

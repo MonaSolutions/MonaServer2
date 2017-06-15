@@ -26,9 +26,11 @@ namespace Mona {
 
 
 struct FLVReader : virtual Object, MediaReader {
-	FLVReader() : _begin(true),_size(0),_type(AMF::TYPE_EMPTY),_rate(0),_channels(0), _syncError(false) {}
+	FLVReader() : _begin(true),_size(0),_type(AMF::TYPE_EMPTY), _syncError(false) {}
 
-	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::Tag& tag);
+	/*!
+	Read fmash media header, beware you have to use previous Media::Audio/Video::Tag on every call */
+	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::Tag& tag, Media::Audio::Config& config);
 	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Video::Tag& tag);
 	static UInt32 ReadAVCConfig(const UInt8* data, UInt32 size, Buffer& buffer);
 private:
@@ -42,9 +44,10 @@ private:
 	AMF::Type			_type;
 	bool				_syncError;
 
-	// Save audio configto get a correct and exact rate and channels informations
-	UInt32				_rate;
-	UInt8				_channels;
+	// Save audio config to get a correct and exact rate and channels informations
+	Media::Video::Tag	 _video;
+	Media::Audio::Tag	 _audio;
+	Media::Audio::Config _audioConfig;
 };
 
 

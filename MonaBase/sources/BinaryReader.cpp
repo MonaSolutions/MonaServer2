@@ -45,9 +45,7 @@ UInt32 BinaryReader::shrink(UInt32 available) {
 UInt8* BinaryReader::read(UInt32 size, UInt8* value) {
 	UInt32 available(this->available());
 	if (size > available)
-		size = available;
-	if (size == 0)
-		return value;
+		return value; // don't read if no size requested available (allow to know that if a read32 has worked for example, for sure 4 bytes has been readen!)
 	memcpy(value, _current,size);
 	_current += size;
 	return value;

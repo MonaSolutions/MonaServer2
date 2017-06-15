@@ -24,7 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class TSWriter : public MediaWriter, public virtual Object {
+struct TSWriter : MediaWriter, virtual Object {
 	// https://en.wikipedia.org/wiki/MPEG_transport_stream
 	// https://en.wikipedia.org/wiki/Packetized_elementary_stream
 	// http://cmm.khu.ac.kr/korean/files/03.mpeg2ts2_timemodel_update_.pdf
@@ -38,38 +38,47 @@ class TSWriter : public MediaWriter, public virtual Object {
 		core error: ES_OUT_RESET_PCR called */
 public:
 	
-	TSWriter() : _version(0)  {}
-	~TSWriter();
+	TSWriter() : _version(0) {}
 
 	void beginMedia(const OnWrite& onWrite);
-	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite);
-	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite);
+	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite);
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite);
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite);
 	void endMedia(const OnWrite& onWrite);
 
 private:
-	void	updatePMT(UInt32 time, const OnWrite& onWrite);
 	void    writePMT(UInt32 time, const OnWrite& onWrite);
 
-	
-	void   writeES(UInt16 pid, UInt8& counter, UInt8 streamId, UInt32 time, UInt32 compositionOffset, const Packet& packet, UInt32 esSize, const OnWrite& onWrite, bool randomAccess=true);
+	void   writeES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, const Packet& packet, UInt32 esSize, const OnWrite& onWrite, bool randomAccess=true);
 	
 	UInt8  writePES(UInt16 pid, UInt8& counter, UInt32 time, bool randomAccess, UInt32 size, const OnWrite& onWrite);
-	UInt8  writePES(UInt16 pid, UInt8& counter, UInt8 streamId, UInt32 time, UInt32 compositionOffset, bool randomAccess, UInt32 size, const OnWrite& onWrite);
+	UInt8  writePES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, bool randomAccess, UInt32 size, const OnWrite& onWrite);
 
 	UInt8  writeAdaptiveHeader(UInt16 pid, UInt32 time, bool randomAccess, UInt8 fillSize, BinaryWriter& writer);
 
-	std::map<UInt16, H264NALWriter>	_videos;
-	std::map<UInt16, TrackWriter*>  _audios;
+	struct Track : virtual NullableObject {
+		Track(MediaTrackWriter* pWriter) : _pWriter(pWriter) { _pWriter->beginMedia();  }
+		~Track() { if (_pWriter) delete _pWriter; }
 
-	
-	std::map<UInt16,UInt8>		_pids;
-	UInt16						_pidPCR;
+		operator bool() const { return _pWriter ? true : false; }
+		Track& operator=(MediaTrackWriter* pWriter);
+		MediaTrackWriter* operator->() { return _pWriter; }
+		std::vector<std::string> langs;
+	private:
+		MediaTrackWriter* _pWriter;
+	};
+
+	std::map<UInt8, Track>		_videos;
+	std::map<UInt8, Track>		_audios;
+
 	UInt8						_version;
+	bool						_changed;
+	UInt32						_timePMT;
 
+	std::map<UInt16, UInt8>		_pids;
+	UInt16						_pidPCR;
 	bool						_firstPCR;
 	UInt32						_timePCR;
-
-	UInt32						_timePMT;
 
 	UInt8						_buffer[188];
 	UInt8						_canWrite;

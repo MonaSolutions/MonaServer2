@@ -26,6 +26,7 @@ namespace Mona {
 
 struct JSONWriter : DataWriter, virtual Object {
 	JSONWriter(Buffer& buffer);
+	~JSONWriter();
 
 	UInt64 beginObject(const char* type=NULL);
 	void   writePropertyName(const char* value);

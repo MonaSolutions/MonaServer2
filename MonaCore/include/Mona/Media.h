@@ -37,17 +37,17 @@ namespace Mona {
 struct Media : virtual Static {
 	enum Type {
 		TYPE_NONE=0,
-		TYPE_AUDIO=1,
-		TYPE_VIDEO=2,
-		TYPE_DATA =4 // to be compatible with UInt8 _reliability of Subcription
+		TYPE_DATA = 1,
+		TYPE_AUDIO = 2, // => 10, to have the first bit to 1 and be compatible with Media::Pack
+		TYPE_VIDEO = 3, // => 11, to have the first bit to 1 and be compatible with Media::Pack
+		// these values allow to write media type on 2 bits!
 	};
 
 	struct Base : Packet, virtual Object {
 		Base() : type(TYPE_NONE), track(0) {}
-		Base(Media::Type type, UInt16 track) : type(type), track(track) {}
-		Base(Media::Type type, UInt16 track, const Packet& packet) : type(type), track(track), Packet(std::move(packet)) {}
+		Base(Media::Type type, const Packet& packet, UInt8 track) : type(type), track(track), Packet(std::move(packet)) {}
 		const Media::Type type;
-		const UInt16	  track;
+		const UInt8		  track;
 	};
 
 	struct Data : Base, virtual Object {
@@ -57,15 +57,17 @@ struct Media : virtual Static {
 			TYPE_AMF0,
 			TYPE_JSON,
 			TYPE_XMLRPC,
-			TYPE_QUERY
+			TYPE_QUERY,
+			TYPE_TEXT,
+			TYPE_MEDIA
 		};
 		typedef Type Tag;
 		static const char* TypeToString(Type type) {
-			static const char* Strings[] = { "Unknown", "AMF", "AMF0", "JSON", "XMLRPC", "QUERY" };
+			static const char* Strings[] = { "Unknown", "AMF", "AMF0", "JSON", "XMLRPC", "QUERY", "Text", "Media" };
 			return Strings[UInt8(type)];
 		}
 		static const char* TypeToSubMime(Type type) {
-			static const char* SubMimes[] = { "octet-stream", "x-amf", "x-amf", "json", "xml", "x-www-form-urlencoded" };
+			static const char* SubMimes[] = { "octet-stream", "x-amf", "x-amf", "json", "xml", "x-www-form-urlencoded","text", "octet-stream" };
 			return SubMimes[UInt8(type)];
 		}
 
@@ -79,10 +81,10 @@ struct Media : virtual Static {
 		static DataReader* NewReader(Type type, const Packet& packet);
 		static DataWriter* NewWriter(Type type, Buffer& buffer);
 
-		Data(UInt16 track, Media::Data::Type type, const Packet& packet) : Base(TYPE_DATA, track, packet), tag(type) {}
+		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0) : Base(TYPE_DATA, packet, track), tag(type) {}
 		/*!
 		Properties usage! */
-		Data(UInt16 track, DataReader& properties);
+		Data(DataReader& properties, UInt8 track = 1);
 
 		const Media::Data::Type	tag;
 
@@ -107,33 +109,24 @@ struct Media : virtual Static {
 			static const char* Strings[] = { "RAW", "JPEG", "SORENSON", "SCREEN1", "VP6", "VP6_ALPHA", "SCREEN2", "H264", "H263", "MPEG4_2" };
 			return Strings[UInt8(codec)];
 		}
-	
+		
 		enum Frame { // Aligned values with FLV frame type value, and ignore FRAME_GENERATED_KEYFRAME which is redundant with FRAME_KEY for a "key frame" test condition
 			FRAME_KEY = 1,
 			FRAME_INTER = 2, // Used too by H264 for Config sequence
 			FRAME_DISPOSABLE_INTER = 3, // just for H263
 			FRAME_INFO = 5,
+			FRAME_CC = 6,
 			FRAME_CONFIG = 7
 		};
 		struct Tag : virtual Object {
 			explicit Tag() : frame(FRAME_KEY), compositionOffset(0) {}
-			explicit Tag(Codec codec) : codec(codec), frame(FRAME_KEY), compositionOffset(0) {}
+			explicit Tag(Media::Video::Codec codec) : codec(codec), frame(FRAME_KEY), compositionOffset(0) {}
 			explicit Tag(const Tag& other) : codec(other.codec), frame(other.frame), time(other.time), compositionOffset(other.compositionOffset) {}
-			explicit Tag(BinaryReader& reader, bool withTime = true) { unpack(reader, withTime); }
-
-			UInt32 time;
-			Codec  codec;
-			Frame  frame;
-			UInt32 compositionOffset;
-
-			// time 32 bits
-			// codec 5 bits (0-31)
-			// frame 3 bits (0-7)
-			// compositionOffset 32 bits (optional)
-			// SIZE IS IMPAIR
-			UInt8			packSize(bool withTime = true) const { return compositionOffset ? (withTime ? 9 : 5) : (withTime ? 5 : 1); }
-			BinaryWriter&	pack(BinaryWriter& writer, bool withTime = true) const;
-			BinaryReader&	unpack(BinaryReader& reader, bool withTime = true);
+	
+			UInt32				 time;
+			Media::Video::Codec  codec;
+			Frame				 frame;
+			UInt16				 compositionOffset;
 		};
 		struct Config : Tag, Packet, virtual NullableObject {
 			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
@@ -153,10 +146,10 @@ struct Media : virtual Static {
 			}
 		};
 
-		Video(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) : Base(TYPE_VIDEO, track, packet), tag(tag) {}
+		Video(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) : Base(TYPE_VIDEO, packet, track), tag(tag) {}
 		const Media::Video::Tag	tag;
 	};
-	static const char* CodecToString(Video::Codec codec) { return Video::CodecToString(codec); }
+	static const char* CodecToString(Media::Video::Codec codec) { return Video::CodecToString(codec); }
 
 	struct Audio : Base, virtual Object {
 		enum Codec { // Aligned values with FLV codec value
@@ -179,26 +172,14 @@ struct Media : virtual Static {
 		}
 		struct Tag : virtual Object {
 			explicit Tag() : rate(0), channels(0), isConfig(false) {}
-			explicit Tag(Codec codec) : codec(codec), rate(0), channels(0), isConfig(false) {}
+			explicit Tag(Media::Audio::Codec codec) : codec(codec), rate(0), channels(0), isConfig(false) {}
 			explicit Tag(const Tag& other) : codec(other.codec), rate(other.rate), time(other.time), channels(other.channels), isConfig(other.isConfig) {}
-			explicit Tag(BinaryReader& reader, bool withTime = true) { unpack(reader, withTime); }
-
-
-			UInt32	time;
-			Codec	codec;
-			bool	isConfig;
-			UInt8	channels;
-			UInt32	rate;
-
-			// time 32 bits
-			// isConfig 1 bit
-			// codec 5 bits (0-31)
-			// channels 6 bits (0-62)
-			// rate 4 bits (0-15)
-			// SIZE IS PAIR
-			UInt8			packSize(bool withTime = true) const { return withTime ? 6 : 2; }
-			BinaryWriter&	pack(BinaryWriter& writer, bool withTime=true) const;
-			BinaryReader&	unpack(BinaryReader& reader, bool withTime = true);
+	
+			UInt32				time;
+			Media::Audio::Codec codec;
+			bool				isConfig;
+			UInt8				channels;
+			UInt32				rate;
 		};
 		struct Config : Tag, Packet, virtual NullableObject {
 			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
@@ -209,7 +190,7 @@ struct Media : virtual Static {
 				isConfig = false;
 				Packet::reset();
 			}
-			Config& set(const Tag& tag, const Packet& packet) {
+			Config& set(const Tag& tag, const Packet& packet=Packet::Null()) {
 				isConfig = true;
 				codec = tag.codec;
 				channels = tag.channels;
@@ -219,23 +200,54 @@ struct Media : virtual Static {
 			}
 		};
 
-		Audio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) : Base(TYPE_AUDIO, track, packet), tag(tag) {}
+		Audio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) : Base(TYPE_AUDIO, packet, track), tag(tag) {}
 		const Media::Audio::Tag	tag;
 	};
-	static const char* CodecToString(Audio::Codec codec) { return Audio::CodecToString(codec); }
+	static const char* CodecToString(Media::Audio::Codec codec) { return Audio::CodecToString(codec); }
+
+
+	// AUDIO => 10CCCCCC SSSSSSSS RRRRR0IN [NNNNNNNN] TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+	/// C = codec
+	/// S = channels
+	/// R = rate "index" => 0, 5512, 7350, 8000, 11025, 12000, 16000, 18900, 22050, 24000, 32000, 37800, 44056, 44100, 47250, 48000, 50000, 50400, 64000, 88200, 96000, 176400, 192000, 352800, 2822400, 5644800
+	/// I = is config
+	/// N = track
+	/// T = time
+	// VIDEO => 11CCCCCC FFFFF0ON [OOOOOOOO OOOOOOOO] [NNNNNNNN] TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+	/// C = codec
+	/// F = frame (0-15)
+	/// O = composition offset
+	/// N = track
+	/// T = time
+	// DATA => 0NTTTTTT [NNNNNNNN]
+	/// N = track
+	/// T = type
+	static UInt8		 PackedSize(const Media::Audio::Tag& tag, UInt8 track = 1) { return track==1 ? 6 : 7; }
+	static UInt8		 PackedSize(const Media::Video::Tag& tag, UInt8 track = 1) { return tag.compositionOffset ? (track == 1 ? 8 : 9) : (track == 1 ? 6 : 7); }
+	static UInt8		 PackedSize(Media::Data::Type type, UInt8 track = 0) { return track ? 2 : 1; }
+	static BinaryWriter& Pack(BinaryWriter& writer, const Media::Audio::Tag& tag, UInt8 track = 1);
+	static BinaryWriter& Pack(BinaryWriter& writer, const Media::Video::Tag& tag, UInt8 track = 1);
+	static BinaryWriter& Pack(BinaryWriter& writer, Media::Data::Type type, UInt8 track = 0);
+	static Media::Type	 Unpack(BinaryReader& reader, Media::Audio::Tag& audio, Media::Video::Tag& video, Media::Data::Type& data, UInt8& track);
+
 
 	static Media::Type TagType(Data::Type) { return TYPE_DATA; }
 	static Media::Type TagType(const Audio::Tag& tag) { return TYPE_AUDIO; }
 	static Media::Type TagType(const Video::Tag& tag) { return TYPE_VIDEO; }
 
 	struct Properties : Parameters, virtual Object {
-		const Packet& operator[](Media::Data::Type type) const;
+		const Packet& operator[](Media::Data::Type type) const { return operator()(type); }
+		const Packet& operator()(Media::Data::Type& type) const;
+
+		Properties(const Media::Data& data);
 
 	protected:
 		Properties() {}
 
 		virtual void onParamChange(const std::string& key, const std::string* pValue) { _packets.clear(); Parameters::onParamChange(key, pValue); }
 		virtual void onParamClear() { _packets.clear(); Parameters::onParamClear(); }
+
+		void setProperties(UInt8 track, DataReader& reader);
 	private:
 		mutable std::vector<Packet>	_packets;
 	};
@@ -245,21 +257,15 @@ struct Media : virtual Static {
 	To write a media part from source (just a part of one media, so no beginMedia/endMedia and writeProperties) */
 	struct Source : virtual Object {
 		virtual const std::string&	name() const { static std::string Name("?");  return Name; }
-		virtual void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) = 0;
-		virtual void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) = 0;
-		virtual void writeData(UInt16 track, Media::Data::Type type, const Packet& packet) = 0;
-		virtual void writeProperties(UInt16 track, DataReader& reader) = 0;
-		virtual void reportLost(Media::Type type, UInt32 lost) = 0;
-		virtual void reportLost(Media::Type type, UInt16 track, UInt32 lost) = 0;
+
+		virtual void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) = 0;
+		virtual void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) = 0;
+		virtual void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) = 0;
+		virtual void setProperties(UInt8 track, DataReader& reader) = 0;
+		virtual void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) = 0;
 		virtual void flush() = 0;
 		virtual void reset() = 0;
 
-		/*!
-		Write media on default track = 0 */
-		void writeAudio(const Media::Audio::Tag& tag, const Packet& packet) { writeAudio(0, tag, packet); }
-		void writeVideo(const Media::Video::Tag& tag, const Packet& packet) { writeVideo(0, tag, packet); }
-		void writeData(Media::Data::Type type, const Packet& packet) { writeData(0, type, packet); }
-	
 		void writeMedia(const Media::Base& media);
 
 		static Source& Null();
@@ -269,20 +275,58 @@ struct Media : virtual Static {
 	Complete media target, has begin/end and Properties */
 	struct Target : virtual Object {
 		/*!
+		Set to -1 to get all tracks! */
+		Int16 audioTrack;
+		Int16 videoTrack;
+		Int16 dataTrack;
+
+		virtual bool audioSelected(UInt8 track) { return audioTrack < 0 || audioTrack == track; }
+		virtual bool videoSelected(UInt8 track) { return videoTrack < 0 || videoTrack == track; }
+		virtual bool dataSelected(UInt8 track) { return dataTrack < 0 || dataTrack == track; }
+
+		bool audioReliable;
+		bool videoReliable;
+		bool dataReliable;
+		/*!
 		If Target is sending queueable (bufferize), returns queueing size to allow to detect congestion */
 		virtual UInt64 queueing() const { return 0; }
 
-		virtual bool beginMedia(const std::string& name, const Parameters& parameters);
-		virtual bool writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
-		virtual bool writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
-		virtual bool writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable);
+		virtual void setMediaParams(const Parameters& parameters) {}
+		virtual bool beginMedia(const std::string& name);
 		virtual bool writeProperties(const Media::Properties& properties) { return true; }
+				bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
+				bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
+				bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet);
 		virtual void endMedia(const std::string& name) {}
+	
 		/*!
 		Overload just if target bufferizes data before to send it*/
 		virtual void flush() {}
 
 		static Target& Null() { static Target Null; return Null; }
+	protected:
+		Target() : audioTrack(-1), videoTrack(-1), dataTrack(-1), audioReliable(true), videoReliable(true), dataReliable(true) {}
+	private:
+		virtual bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
+		virtual bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
+		virtual bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
+	};
+	struct TrackTarget : Target, virtual Object {
+		bool audioSelected(UInt8 track) { return (audioTrack < 0 && track == 1) || audioTrack == track; }
+		bool videoSelected(UInt8 track) { return (videoTrack < 0 && track == 1) || videoTrack == track; }
+		bool dataSelected(UInt8 track) { return (dataTrack < 0 && !track) || dataTrack == track; }
+
+		bool writeAudio(const Media::Audio::Tag& tag, const Packet& packet) { return Target::writeAudio(audioTrack<0 ? 1 : audioTrack, tag, packet); }
+		bool writeVideo(const Media::Video::Tag& tag, const Packet& packet) { return Target::writeVideo(videoTrack<0 ? 1 : videoTrack, tag, packet); }
+		bool writeData(Media::Data::Type type, const Packet& packet) { return Target::writeData(dataTrack<0 ? 0 : dataTrack, type, packet); }
+	private:
+		virtual bool writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
+		virtual bool writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable);
+		virtual bool writeData(Media::Data::Type type, const Packet& packet, bool reliable);
+
+		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return writeAudio(tag, packet, reliable); }
+		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return writeVideo(tag, packet, reliable); }
+		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return writeData(type, packet, reliable); }
 	};
 
 	/*!

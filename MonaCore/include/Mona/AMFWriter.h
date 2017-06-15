@@ -20,7 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/AMF.h"
-#include "Mona/DataWriter.h"
+#include "Mona/Media.h"
 
 namespace Mona {
 
@@ -50,7 +50,9 @@ struct AMFWriter : DataWriter, virtual Object {
 	UInt64 writeDate(const Date& date);
 	UInt64 writeBytes(const UInt8* data, UInt32 size);
 	
-	bool				amf0;
+	bool   amf0;
+
+	Media::Data::Type  convert(Media::Data::Type type, Packet& packet);
 
 	static AMFWriter&    Null() { static AMFWriter Null; return Null; }
 

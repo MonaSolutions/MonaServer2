@@ -25,10 +25,10 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/AMFWriter.h"
 #include "Mona/QueryReader.h"
 #include "Mona/QueryWriter.h"
+#include "Mona/StringReader.h"
+#include "Mona/StringWriter.h"
 #include "Mona/MapReader.h"
-
-#include "Mona/ADTSReader.h"
-#include "Mona/ADTSWriter.h"
+#include "Mona/MapWriter.h"
 
 #include "Mona/MediaSocket.h"
 #include "Mona/MediaFile.h"
@@ -39,75 +39,172 @@ using namespace std;
 
 namespace Mona {
 
-Media::Data::Data(UInt16 track, DataReader& properties) : Base(TYPE_NONE, track), tag(ToType(properties)) {
-	if (!tag) {
-		(Media::Data::Type&)tag = TYPE_AMF;
-		shared<Buffer> pBuffer(new Buffer());
-		AMFWriter writer(*pBuffer);
-		properties.read(writer);
-		set(pBuffer);
+
+
+BinaryWriter& Media::Pack(BinaryWriter& writer, const Audio::Tag& tag, UInt8 track) {
+	static map<UInt32, UInt8> Rates({
+		{ 0, 0 },
+		{ 5512, 1 },
+		{ 7350, 2 },
+		{ 8000, 3 },
+		{ 11025, 4 },
+		{ 12000, 5 },
+		{ 16000, 6 },
+		{ 18900, 7 },
+		{ 22050, 8 },
+		{ 24000, 9 },
+		{ 32000, 10 },
+		{ 37800, 11 },
+		{ 44056, 12 },
+		{ 44100, 13 },
+		{ 47250, 14 },
+		{ 48000, 15 },
+		{ 50000, 16},
+		{ 50400, 17 },
+		{ 64000, 18 },
+		{ 88200, 19 },
+		{ 96000, 20 },
+		{ 176400, 21 },
+		{ 192000, 22 },
+		{ 352800, 23 },
+		{ 2822400, 24 },
+		{ 5644800, 25 }
+	});
+
+	// 10CCCCCC SSSSSSSS RRRRR0IN [NNNNNNNN] TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+	/// C = codec
+	/// R = rate "index"
+	/// S = channels
+	/// I = is config
+	/// N = track
+	/// T = time
+	writer.write8((Media::TYPE_AUDIO << 6) | (tag.codec & 0x3F));
+	writer.write8(tag.channels);
+
+	UInt8 value;
+	auto it = Rates.find(tag.rate);
+	if (it == Rates.end()) {
+		// if unsupported, set to 0 (to try to use config packet on player side)
+		value = 0;
+		WARN(tag.rate, " non supported by Media::Pack");
 	} else
-		set(Packet(*properties));
+		value = it->second << 3;
+	
+	if (tag.isConfig)
+		value |= 2;
+	if (track==1)
+		writer.write8(value);
+	else
+		writer.write8(value & 1).write8(track);
+	return writer.write32(tag.time); // in last to be removed easly if protocol has already time info in its protocol header
 }
 
-BinaryWriter& Media::Video::Tag::pack(BinaryWriter& writer, bool withTime) const {
-	if(withTime)
-		writer.write32(time);
-	// codec 5 bits (0-31)
-	// frame 3 bits (0-7)
-	// compositionOffset 32 bits (optional)
-	writer.write8((codec << 3) | (frame & 7));
-	if(compositionOffset)
-		writer.write32(compositionOffset);
-	return writer;
+BinaryWriter& Media::Pack(BinaryWriter& writer, const Video::Tag& tag, UInt8 track) {
+	// 11CCCCCC FFFFF0ON [OOOOOOOO OOOOOOOO] [NNNNNNNN] TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+	/// C = codec
+	/// F = frame (0-15)
+	/// O = composition offset
+	/// N = track
+	/// T = time
+	writer.write8((Media::TYPE_VIDEO << 6) | (tag.codec & 0x3F));
+	writer.write8((tag.frame << 3) | (tag.compositionOffset ? 2 : 0) | (track != 1 ? 1 : 0));
+	if (tag.compositionOffset)
+		writer.write16(tag.compositionOffset);
+	if (track!=1)
+		writer.write8(track);
+	return writer.write32(tag.time); // in last to be removed easly if protocol has already time info in its protocol header
 }
 
-BinaryReader& Media::Video::Tag::unpack(BinaryReader& reader, bool withTime) {
-	if(withTime)
-		time = reader.read32();
-	// isConfig 1 bit
-	// codec 4 bits (0-15)
-	// frame 3 bits (0-7)
-	// compositionOffset 32 bits (optional)
+BinaryWriter& Media::Pack(BinaryWriter& writer, Media::Data::Type type, UInt8 track) {
+	// DATA => 0NTTTTTT [NNNNNNNN]
+	/// N = track
+	/// T = type
+	return writer.write8((track ? 0x40 : 0) | (type & 0x3F));
+}
+
+Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& video, Data::Type& data, UInt8& track) {
+	static UInt32 Rates[32] = { 0, 5512, 7350, 8000, 11025, 12000, 16000, 18900, 22050, 24000, 32000, 37800, 44056, 44100, 47250, 48000, 50000, 50400, 64000, 88200, 96000, 176400, 192000, 352800, 2822400, 5644800, 0, 0, 0, 0, 0, 0 };
+
+	if (!reader.available())
+		return Media::TYPE_NONE;
+
 	UInt8 value = reader.read8();
-	codec = Codec(value >> 3);
-	frame = Frame(value & 7);
-	compositionOffset = reader.read32(); // if absent return 0!
-	return reader;
+	switch (value>>6) {
+		case Media::TYPE_AUDIO:
+			// 10CCCCCC SSSSSSSS RRRRR0IN [NNNNNNNN] TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+			/// C = codec
+			/// R = rate "index"
+			/// S = channels
+			/// I = is config
+			/// N = track
+			/// T = time
+			if (!reader.available())
+				return Media::TYPE_NONE;
+			audio.codec = Audio::Codec(value & 0x3F);
+			audio.channels = reader.read8();
+
+			value = reader.read8();
+			audio.rate = Rates[value>>3];
+			if (value & 2)
+				audio.isConfig = true;
+
+			track = ((value & 1) && reader.available()) ? reader.read8() : 1;
+			audio.time = reader.read32();
+			return Media::TYPE_AUDIO;
+
+		case Media::TYPE_VIDEO:
+			// 11CCCCCC FFFFF1ON [OOOOOOOO OOOOOOOO] [NNNNNNNN] TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+			/// C = codec
+			/// F = frame (0-15)
+			/// O = composition offset
+			/// N = track
+			/// T = time
+			if (!reader.available())
+				return Media::TYPE_NONE;
+			video.codec = Video::Codec(value & 0x3F);
+			value = reader.read8();
+			video.frame = Video::Frame(value >> 3);
+			if (value & 2)
+				video.compositionOffset = reader.read16();
+			track = ((value & 1) && reader.available()) ? reader.read8() : 1;
+			video.time = reader.read32();
+			return Media::TYPE_VIDEO;
+
+		case Media::TYPE_DATA:
+			track = reader.read8();
+			break;
+		default:
+			track = 0;
+	}
+	// DATA => 0NTTTTTT [NNNNNNNN]
+	/// N = track
+	/// T = type
+	data = Data::Type(value & 0x3F);
+	return Media::TYPE_DATA;
 }
 
-BinaryWriter& Media::Audio::Tag::pack(BinaryWriter& writer, bool withTime) const {
-	if(withTime)
-		writer.write32(time);
-	// isConfig 1 bit
-	// codec 5 bits (0-31)
-	// channels 6 bits (0-62)
-	// rate 4 bits (0-15)
-	writer.write8((isConfig ? 0x80 : 0) | ((codec&0x1F)<<2) | ((channels&0x30)>>4));
-	return writer.write8((channels&0x0F)<<4 | (ADTSWriter::RateToIndex(rate)&0x0F));
+Media::Data::Data(DataReader& properties, UInt8 track) : Base(TYPE_NONE, *properties, track), tag(ToType(properties)) {
+	if (tag)
+		return;
+	(Media::Data::Type&)tag = TYPE_AMF;
+	shared<Buffer> pBuffer(new Buffer());
+	AMFWriter writer(*pBuffer);
+	properties.read(writer);
+	set(pBuffer);
 }
 
-BinaryReader& Media::Audio::Tag::unpack(BinaryReader& reader, bool withTime) {
-	if(withTime)
-		time = reader.read32();
-	// isConfig 1 bit
-	// codec 5 bits (0-31)
-	// channels 6 bits (0-62)
-	// rate 4 bits (0-15)
-	UInt8 value = reader.read8();
-	isConfig = value & 0x80 ? true : false;
-	codec = Codec((value & 0x7C)>>2);
-	channels = (value & 3) << 4;
-	value = reader.read8();
-	channels |= (value & 0xF0)>>4;
-	rate = ADTSReader::RateFromIndex(value & 0x0F);
-	return reader;
+Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)) {
+	unique_ptr<DataReader> pReader(Data::NewReader(data.tag, data));
+	MapWriter<Parameters> writer(*this);
+	pReader->read(writer);
 }
 
-const Packet& Media::Properties::operator[](Media::Data::Type type) const {
+const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
 	if (!type) {
-		ERROR("Media properties requested with an unknown data type");
-		return Packet::Null();
+		// give the first available serialization
+		if (!_packets.empty())
+			return _packets[0];
+		type = Media::Data::TYPE_AMF;
 	}
 	// not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
 	_packets.resize(type);
@@ -120,6 +217,29 @@ const Packet& Media::Properties::operator[](Media::Data::Type type) const {
 	MapReader<Parameters> reader(*this);
 	reader.read(*pWriter);
 	return packet.set(pBuffer);
+}
+
+void Media::Properties::setProperties(UInt8 track, DataReader& reader) {
+	
+	if (!track) {
+		// overrides the all properties
+		clear();
+		MapWriter<Parameters> writer(*this);
+		reader.read(writer);
+		return;
+	}
+
+	// clear in first this track properties!
+	String prefix(track, '.');
+	clear(prefix);
+	prefix.pop_back();
+
+	// write new properties
+	MapWriter<Parameters> writer(*this);
+	writer.beginObject();
+	writer.writePropertyName(prefix.c_str());
+	reader.read(writer);
+	writer.endObject();
 }
 
 Media::Data::Type Media::Data::ToType(const type_info& info) {
@@ -169,6 +289,9 @@ DataReader* Media::Data::NewReader(Type type, const Packet& packet) {
 			return new AMFReader(packet.data(), packet.size());
 		case TYPE_QUERY:
 			return new QueryReader(packet.data(), packet.size());
+		case TYPE_TEXT:
+		case TYPE_MEDIA:
+			return new StringReader(packet.data(), packet.size());
 		default: break;
 	}
 	return NULL;
@@ -186,6 +309,9 @@ DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer) {
 			return new AMFWriter(buffer, true);
 		case TYPE_QUERY:
 			return new QueryWriter(buffer);
+		case TYPE_MEDIA:
+		case TYPE_TEXT:
+			return new StringWriter(buffer);
 		case TYPE_UNKNOWN:
 			break;
 	}
@@ -203,41 +329,65 @@ void Media::Source::writeMedia(const Media::Base& media) {
 		default: {
 			const Media::Data& data = (const Media::Data&)media;
 			unique_ptr<DataReader> pReader(Media::Data::NewReader(data.tag, data));
-			return writeProperties(media.track, *pReader);
+			setProperties(media.track, *pReader);
 		}
 	}
 }
 
 Media::Source& Media::Source::Null() {
 	static struct Null : Media::Source {
-		void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) {}
-		void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) {}
-		void writeData(UInt16 track, Media::Data::Type type, const Packet& packet) {}
-		void writeProperties(UInt16 track, DataReader& reader) {}
-		void reportLost(Media::Type type, UInt32 lost) {}
-		void reportLost(Media::Type type, UInt16 track, UInt32 lost) {}
+		void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {}
+		void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {}
+		void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {}
+		void setProperties(UInt8 track, DataReader& reader) {}
+		void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) {}
 		void flush() {}
 		void reset() {}
 	} Null;
 	return Null;
 }
 
-bool Media::Target::beginMedia(const std::string& name, const Parameters& parameters) {
+bool Media::Target::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
+	return audioSelected(track) ? writeAudio(track, tag, packet, audioReliable || tag.isConfig) : true;
+}
+bool Media::Target::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
+	if (tag.frame == Media::Video::FRAME_CC && dataTrack > 0 && track == dataTrack)
+		return true; // Remove CaptionClosed frame if data track explicitly selected is equals to video CC track!
+	return videoSelected(track) ? writeVideo(track, tag, packet, videoReliable || tag.frame == Media::Video::FRAME_CONFIG) : true;
+}
+bool Media::Target::writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {
+	return dataSelected(track) ? writeData(track, type, packet, dataReliable) : true;
+}
+
+bool Media::Target::beginMedia(const string& name) {
 	ERROR(typeof(*this), " doesn't support media streaming");
 	return false;
 }
-bool Media::Target::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
+bool Media::Target::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
 	WARN(typeof(*this), " doesn't support audio streaming");
 	return true;
 }
-bool Media::Target::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
+bool Media::Target::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
 	WARN(typeof(*this), " doesn't support video streaming");
 	return true;
 }
-bool Media::Target::writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable) {
+bool Media::Target::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) {
 	WARN(typeof(*this), " doesn't support data streaming");
 	return true;
 }
+bool Media::TrackTarget::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
+	WARN(typeof(*this), " doesn't support audio streaming");
+	return true;
+}
+bool Media::TrackTarget::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
+	WARN(typeof(*this), " doesn't support video streaming");
+	return true;
+}
+bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet, bool reliable) {
+	WARN(typeof(*this), " doesn't support data streaming");
+	return true;
+}
+
 
 void Media::Stream::start(Source& source) {
 	WARN(typeof(*this), " is a target stream, call start(Exception& ex) rather");

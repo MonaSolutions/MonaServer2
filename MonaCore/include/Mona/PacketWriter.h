@@ -29,12 +29,7 @@ Allow to get a binary content without any copy, so make senses or "bytes" and "s
 struct PacketWriter : DataWriter, Packet, virtual Object {
 	using Packet::Packet;
 
-	UInt64 beginObject(const char* type = NULL)	{ return 0; }
 	void   writePropertyName(const char* value) {}
-	void   endObject() {}
-
-	UInt64 beginArray(UInt32 size) { return 0; }
-	void   endArray() {}
 
 	void   writeNumber(double value) { reset(); }
 	void   writeString(const char* value, UInt32 size) { set(*this, BIN value, size); }

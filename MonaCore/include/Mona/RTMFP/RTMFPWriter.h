@@ -53,7 +53,7 @@ private:
 	void				fail();
 
 	void				repeatMessages(UInt32 lostCount =0); // fragments=0 means all possible!
-	AMFWriter&			newMessage(bool reliable, const Packet& packet = Packet::Null());
+	AMFWriter&			newMessage(bool reliable, Media::Data::Type type = Media::Data::TYPE_AMF, const Packet& packet = Packet::Null());
 	AMFWriter&			write(AMF::Type type, UInt32 time, Media::Data::Type packetType, const Packet& packet, bool reliable);
 	
 

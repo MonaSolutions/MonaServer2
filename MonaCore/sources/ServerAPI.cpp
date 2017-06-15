@@ -95,7 +95,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	if (String::ICompare(getString(stream), EXPAND("publication"))==0) {
 		// Write static metadata configured
 		String name(stream,'.');
-		for (auto& it : band(name))
+		for (auto& it : range(name))
 			publication.setString(it.first.c_str()+name.size(), it.second);
 	}
 
@@ -150,46 +150,64 @@ void ServerAPI::unpublish(Publication& publication, Client* pClient) {
 		_publications.erase(it);
 }
 
-
 bool ServerAPI::subscribe(Exception& ex, string& stream, Subscription& subscription, Client* pClient) {
 	size_t found(stream.find('?'));
-	const char* queryParameters(NULL);
+	const char* query(NULL);
 	if (found != string::npos) {
-		queryParameters = stream.c_str() + found + 1;
+		query = stream.c_str() + found + 1;
 		stream.resize(found);
 	}
-	return subscribe(ex, stream, subscription, queryParameters, pClient);
+	found = stream.find_last_of('.');
+	const char* ext(NULL);
+	if (found != string::npos) {
+		ext = stream.c_str() + found + 1;
+		stream.resize(found);
+	}
+	return subscribe(ex, stream, ext, subscription, query, pClient);
 }
 
-bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& subscription, const char* queryParameters, Client* pClient) {
+bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, Subscription& subscription, const char* queryParameters, Client* pClient) {
 	if (pClient && !pClient->connected) {
 		ERROR(ex.set<Ex::Intern>("Client must be connected before ",stream," publication subscription"))
 		return false;
 	}
 
-	// update new properties with new queryParameters!
-	subscription.clear();
+	Parameters parameters;
 	if (queryParameters)
-		Util::UnpackQuery(queryParameters, subscription);
+		Util::UnpackQuery(queryParameters, parameters);
+	if (ext)
+		parameters.setString("format", ext);
 
 	auto it = _publications.lower_bound(stream);
 	if (it == _publications.end() || it->first != stream) {
+		// is a new unfound publication => request failed, but keep possibly already subscription (MBR fails! stays on current subscription!)
 		UInt32 timeout;
-		if (subscription.getNumber("timeout", timeout) && !timeout) {
+		if (parameters.getNumber("timeout", timeout) && !timeout) {
 			WARN(ex.set<Ex::Unfound>("Publication ", stream, " unfound"));
 			return false;
 		}
 		it = _publications.emplace_hint(it, piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
-	}
+	} 
 
 	Publication& publication(it->second);
-	if (subscription.pPublication == &publication || subscription.pNextPublication == &publication) {
-		WARN("Already subscribed to ", publication.name());
-		return true;
-	}
+	
+	// Change parameters just now to limit change event propagation to Target
+	(Parameters&)subscription = move(parameters);
+
+	if(subscription.pPublication) {
+		// subscribed?
+		if (subscription.pNextPublication) {
+			if (subscription.pNextPublication == &publication)
+				return true; // already subscribed => just a parameters change!
+			unsubscribe(subscription, *subscription.pNextPublication, pClient); // unsubscribe previous MBR switching
+		} else if (subscription.pPublication == &publication)
+			return true; // already subscribed => just a parameters change!
+		// MBR switch
+	} // else no subscription yet
 
 	if (!onSubscribe(ex, subscription, publication, pClient)) {
-		 // if ex, it has already been displayed as log	
+		// if ex, error has already been displayed as logby onSubscribe
+		// no unsubscribption to keep a possible previous subscription (MBR switch fails)
 		if (!publication)
 			_publications.erase(it);
 		if (!ex)
@@ -201,10 +219,8 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 
 	if (subscription.pPublication) {
 		// publication switch (MBR)
-		if (subscription.pNextPublication)
-			unsubscribe(subscription, *subscription.pNextPublication, pClient); // unsubscribe previous publication switching
-		for (const auto& it : publication.videos) {
-			if (subscription.videos.enabled(it.first)) {
+		for (UInt8 i = 1; i <= publication.videos.size();++i) {
+			if (subscription.target.videoSelected(i)) {
 				subscription.pNextPublication = &publication;
 				_waitingKeys.emplace(piecewise_construct, forward_as_tuple(&publication), forward_as_tuple(*this, publication)).first->second
 					.subscriptions.emplace(piecewise_construct, forward_as_tuple(&subscription), forward_as_tuple(pClient));
@@ -216,8 +232,8 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 		unsubscribe(subscription, *subscription.pPublication, pClient);
 		subscription.pPublication = &publication;
 		subscription.reset(); // to get properties(metadata) and new state of new publication...
-	}
-	subscription.pPublication = &publication;
+	} else
+		subscription.pPublication = &publication;
 	return true;
 }
 

@@ -78,27 +78,40 @@ MediaWriter* MediaWriter::New(const char* subMime) {
 	return NULL;
 }
 
-void MediaWriter::writeData(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
+void MediaWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
 	WARN(typeof(*this), " doesn't support data writing operation");
 }
-void TrackWriter::writeData(Media::Data::Type type, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
+void MediaWriter::writeMedia(const Media::Base& media, const OnWrite& onWrite) {
+	switch (media.type) {
+		case Media::TYPE_AUDIO:
+			return writeAudio(media.track, ((const Media::Audio&)media).tag, media, onWrite);
+		case Media::TYPE_VIDEO:
+			return writeVideo(media.track, ((const Media::Video&)media).tag, media, onWrite);
+		case Media::TYPE_DATA:
+			return writeData(media.track, ((const Media::Data&)media).tag, media, onWrite);
+		default:
+			writeProperties(Media::Properties((const Media::Data&)media), onWrite);
+	}
+}
+
+void MediaTrackWriter::writeData(Media::Data::Type type, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
 	WARN(typeof(*this), " doesn't support data writing operation");
 }
-void TrackWriter::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
+void MediaTrackWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!track) {
 		UInt32 finalSize;
 		writeAudio(tag, packet, onWrite, finalSize);
 	} else
 		WARN(typeof(*this), " doesn't support multitrack")
 }
-void TrackWriter::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
+void MediaTrackWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!track) {
 		UInt32 finalSize;
 		writeVideo(tag, packet, onWrite, finalSize);
 	} else
 		WARN(typeof(*this), " doesn't support multitrack")
 }
-void TrackWriter::writeData(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
+void MediaTrackWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
 	if (!track) {
 		UInt32 finalSize;
 		writeData(type, packet, onWrite, finalSize);

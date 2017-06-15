@@ -26,13 +26,8 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct DataWriter : virtual NullableObject {
-////  TO DEFINE ////
-	virtual UInt64 beginObject(const char* type=NULL)=0;
+////  TO DEFINE ////	
 	virtual void   writePropertyName(const char* value)=0;
-	virtual void   endObject()=0;
-
-	virtual UInt64 beginArray(UInt32 size)=0;
-	virtual void   endArray()=0;
 
 	virtual void   writeNumber(double value)=0;
 	virtual void   writeString(const char* value, UInt32 size)=0;
@@ -44,6 +39,12 @@ struct DataWriter : virtual NullableObject {
 
 
 ////  OPTIONAL DEFINE ////
+	virtual UInt64 beginObject(const char* type = NULL) { return 0; }
+	virtual void   endObject() {}
+
+	virtual UInt64 beginArray(UInt32 size) { return 0; }
+	virtual void   endArray() {}
+
 	// if serializer don't support a mixed object, set the object as the first element of the array
 	virtual UInt64 beginObjectArray(UInt32 size) { UInt64 ref(beginArray(size+1)); beginObject(); return ref; }
 

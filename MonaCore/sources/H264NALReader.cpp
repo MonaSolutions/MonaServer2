@@ -26,9 +26,9 @@ namespace Mona {
 
 UInt32 H264NALReader::parse(const Packet& packet, Media::Source& source) {
 
-	const UInt8* nal(packet.data());	// assume that the copy will be from start-of-data
 	const UInt8* cur(packet.data());
-	const UInt8* end(packet.data()+packet.size());
+	const UInt8* end(packet.data() + packet.size());
+	const UInt8* nal(cur);	// assume that the copy will be from start-of-data
 
 
 	while(cur<end) {
@@ -54,18 +54,13 @@ UInt32 H264NALReader::parse(const Packet& packet, Media::Source& source) {
 				if(value == 0x00)  // more than 2 or 3 zeros... no problem  
 					break; // state stays at 3 (or 2)
 				if (value == 0x01) {
-					// write to _pData
-					if (writeNal(nal, cur - nal, source)) { // else means ignored frame
-						// here 0<_type<9
-						// trim off the [0] 0 0 1
+					writeNal(nal, cur - nal, source);
+					// trim off the [0] 0 0 1
+					if(_pNal)
 						_pNal->resize(_pNal->size() - _state - 1);
-						flushNals(source);
-					}
-
-					// start Nal reception!
-					if (!_pNal)
-						_pNal.reset(new Buffer());
-
+					// try to flush Nal!
+					flushNal(source);
+				
 					nal = cur;
 				}
 			default:
@@ -80,83 +75,73 @@ UInt32 H264NALReader::parse(const Packet& packet, Media::Source& source) {
 	return 0;
 }
 
-void H264NALReader::onFlush(const Packet& packet, Media::Source& source) {
-	// flush _pData
-	if (_pNal) {
-		_type = 0; // to force flush
-		flushNals(source);
+void H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& source) {
+	// here size>0
+	if (!_type) {
+		// Nal begin!
+		_type = *data & 0x1f;
+		if (!_type || _type >= 9) {
+			_type = 0xFF;
+			return; // ignore current NAL!
+		}
+		if(_pNal && (_type==7 || _type==8)) {
+			if ((_pNal->data()[4] & 0x1F) != _type) {
+				_pNal->append(data, size);
+				return; // wait the other
+			}
+			// erase previous SPS or PPS
+			_pNal->resize(4,false);
+		} else
+			_pNal.reset(new Buffer(4)); // reserve size for AVC header
+		_position = 0;
+		static Media::Video::Frame Frames[] = { Media::Video::FRAME_INTER, Media::Video::FRAME_INTER, Media::Video::FRAME_INTER, Media::Video::FRAME_INTER, Media::Video::FRAME_INTER, Media::Video::FRAME_KEY, Media::Video::FRAME_INFO, Media::Video::FRAME_CONFIG, Media::Video::FRAME_CONFIG };
+		_tag.frame = Frames[_type];
+		if(_tag.frame!=Media::Video::FRAME_CONFIG) {
+			_tag.time = time;
+			_tag.compositionOffset = compositionOffset;
+		}
+	} else {
+		if (!_pNal)
+			return; // ignore current NAL!
+		if ((_pNal->size() + size) > 0xA00000) {
+			// Max H264 slice size (0x900000 + 4 + some SEI)
+			WARN("H264NALReader buffer exceeds maximum slice size");
+			_pNal.reset(); // release huge buffer! (and allow to wait next 0000001)
+			return;
+		}
 	}
+	_pNal->append(data, size);
+}
 
+void H264NALReader::flushNal(Media::Source& source) {
+	if (_pNal) {
+		// write AVC header
+		BinaryWriter(_pNal->data() + _position, 4).write32(_pNal->size() - _position - 4);
+
+		if (_tag.frame == Media::Video::FRAME_CONFIG) {
+			if (!_position) {
+				// concat SPS with PPS, so wait the both!
+				_position = _pNal->size();
+				_pNal->resize(_position + 4); // reserve size for AVC header
+				_type = 0;
+				return;
+			}
+			// take the more updated time for config frame!
+			_tag.time = time;
+			_tag.compositionOffset = compositionOffset;
+		}
+		source.writeVideo(track, _tag, Packet(_pNal));
+	}
+	_type = 0;
+}
+
+void H264NALReader::onFlush(const Packet& packet, Media::Source& source) {
+	flushNal(source);
 	_pNal.reset();
 	_state = 0;
-	_position = 0;
-	_tag.frame = Media::Video::FRAME_KEY; // to avoid the flush of config packet on _type<5
-	TrackReader::onFlush(packet, source);
+	MediaTrackReader::onFlush(packet, source);
 }
 
-bool H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& source) {
-	// here size>0
-	if (!_pNal)
-		return false;
-	
-	if (_position==_pNal->size()) {
-		// Nal begnning!
-		_type = *data&0x1f;
-		if (_type && _type < 9) { // else ignore OR first 00 00 00 01 which give _type=0!
-
-			if (_type <= 5) {
-				// VCL NAL
-				_tag.time = time;
-				_tag.compositionOffset = compositionOffset;
-				if (_tag.frame==Media::Video::FRAME_CONFIG) {
-					// flush if it was a config packet, with the more udpated time
-					source.writeVideo(track, _tag, Packet(_pNal));
-					_pNal.reset(new Buffer());
-					_position = 0;
-				}
-				_tag.frame = _type==5 ? Media::Video::FRAME_KEY : Media::Video::FRAME_INTER;
-			} else if (_type == 7)
-				_tag.frame = Media::Video::FRAME_CONFIG;
-
-			_pNal->resize(_pNal->size() + 4);
-		}
-	}
-	if (_pNal->size() > _position) {
-		if ((_pNal->size() + size) < 0xA00000) {
-			_pNal->append(data, size);
-			return true;
-		}
-		// Max H264 slice size (0x900000 + 4 + some SEI)
-		WARN("H264NALReader buffer exceeds maximum slice size");
-		_pNal.reset(); // reset huge buffer! (and allow to wait next 0000001)
-		_tag.frame = Media::Video::FRAME_KEY; // to avoid the flush of config packet on _type<5
-		_position = 0;
-	}
-	return false;
-}
-
-
-void H264NALReader::flushNals(Media::Source& source) {
-
-	if (_pNal->size() > _position) // Write size
-		BinaryWriter(_pNal->data() + _position, 4).write32(_pNal->size() - _position - 4);
-	else if (!_pNal->size())
-		return; // nothing to flush
-
-	/// End NAL
-
-	// NAL Unit sequence => 
-	// (Access Unit Delimiter	 9)
-	// (SEI						 >5)
-	// Picture					 <=5
-	if (_type <= 5) {
-		// flush
-		source.writeVideo(track, _tag, Packet(_pNal));
-		_tag.frame = Media::Video::FRAME_KEY; // to avoid the flush of config packet on _type<5
-		_position = 0;
-	} else
-		_position = _pNal->size();
-}
 
 
 } // namespace Mona

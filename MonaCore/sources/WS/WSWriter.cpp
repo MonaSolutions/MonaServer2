@@ -58,36 +58,36 @@ DataWriter& WSWriter::writeInvocation(const char* name) {
 }
 
 
-bool WSWriter::beginMedia(const string& name, const Parameters& parameters) {
+bool WSWriter::beginMedia(const string& name) {
 	writeJSON().writeString(EXPAND("@publishing"));
 	return true;
 }
 
-bool WSWriter::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
-	if(track)
-		tag.pack(write(WS::TYPE_BINARY, packet)->write8(tag.packSize() + 2)).write16(track);
-	else
-		tag.pack(write(WS::TYPE_BINARY, packet)->write8(tag.packSize()));
+bool WSWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
+	Media::Pack(*write(WS::TYPE_BINARY, packet), tag);
 	return true;
 }
 
-bool WSWriter::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-	if (track)
-		tag.pack(write(WS::TYPE_BINARY, packet)->write8(tag.packSize() + 2)).write16(track);
-	else
-		tag.pack(write(WS::TYPE_BINARY, packet)->write8(tag.packSize()));
+bool WSWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
+	Media::Pack(*write(WS::TYPE_BINARY, packet), tag);
 	return true;
 }
 
-bool WSWriter::writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable) {
-	// Always JSON
+bool WSWriter::writeData(Media::Data::Type type, const Packet& packet, bool reliable) {
+	// Always JSON (exception for Data::TYPE_MEDIA)
 	// binary => Audio or Video
 	// JSON => Data from server/publication
+	if (type == Media::Data::TYPE_MEDIA) {
+		// binary => means "format" option choosen by the client (client doesn't get more of writeAudio or writeVideo)
+		write(WS::TYPE_BINARY, packet);
+		return true;
+	}
 	DataWriter& writer(writeJSON(type, packet));
 	// @ => Come from publication (to avoid confusion with message from server write by user)
-	writer.writeString(EXPAND("@"));
-	// Always write track for Data to avoid to confuse it with a real number argument if packet is already JSON
-	writer.writeNumber(track);
+	if (type == Media::Data::TYPE_TEXT)
+		writer.writeString(EXPAND("@text"));
+	else
+		writer.writeString(EXPAND("@"));
 	return true;
 }
 

@@ -28,7 +28,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct HTTPWriter : Writer, virtual Object {
+struct HTTPWriter : Writer, Media::TrackTarget, virtual Object {
 	HTTPWriter(TCPSession& session);
 	~HTTPWriter();
 
@@ -48,12 +48,12 @@ struct HTTPWriter : Writer, virtual Object {
 	void			writeFile(const Path& file, Parameters& properties) { newSender<HTTPFileSender>(true, _session.api.ioFile, file, properties); }
 	BinaryWriter&   writeRaw(const char* code);
 
-	bool			beginMedia(const std::string& name, const Parameters& parameters);
-	bool			writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Audio>>(_pMediaWriter, track, tag, packet) ? true : false; }
-	bool			writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Video>>(_pMediaWriter, track, tag, packet) ? true : false; }
-	bool			writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Data>>(_pMediaWriter, track, type, packet) ? true : false; }
+	bool			beginMedia(const std::string& name);
+	bool			writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Audio>>(_pMediaWriter, tag, packet) ? true : false; }
+	bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Video>>(_pMediaWriter, tag, packet) ? true : false; }
+	bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Data>>(_pMediaWriter, type, packet) ? true : false; }
 	// No writeProperties here because HTTP has no way to control a multiple channel global stream
-	void			endMedia();
+	void			endMedia(const std::string& name);
 
 	void			writeError(const Exception& ex) { newSender<HTTPDataSender>(true, HTTP::ErrorToCode(Session::ToError(ex)), ex); }
 	template <typename ...Args>

@@ -23,37 +23,45 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/ByteRate.h"
 #include "Mona/LostRate.h"
 #include "Mona/MediaFile.h"
+#include "Mona/CCaption.h"
 #include <set>
 
 namespace Mona {
 
-
 struct Publication : Media::Source, Media::Properties, virtual NullableObject {
-	typedef Event<void(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet)>	ON(Audio);
-	typedef Event<void(UInt16 track, const Media::Video::Tag& tag, const Packet& packet)>	ON(Video);
-	typedef Event<void(UInt16 track, Media::Data::Type type, const Packet& packet)>			ON(Data);
+	typedef Event<void(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet)>	ON(Audio);
+	typedef Event<void(UInt8 track, const Media::Video::Tag& tag, const Packet& packet)>	ON(Video);
+	typedef Event<void(UInt8 track, Media::Data::Type type, const Packet& packet)>			ON(Data);
 	typedef Event<void()>																	ON(Flush);
 	typedef Event<void(const Media::Properties&)>											ON(Properties);
-	typedef Event<void(UInt16 track)>														ON(KeyFrame);
+	typedef Event<void(UInt8 track)>														ON(KeyFrame);
 	typedef Event<void()>																	ON(End);
 
 
 	template<typename TrackType>
-	struct Tracks : std::map<UInt16,TrackType>, virtual Object {
+	struct Tracks : std::deque<TrackType>, virtual Object {
 		Tracks() : lostRate(byteRate) {}
 		ByteRate byteRate;
 		LostRate lostRate;
-		void clear() { std::map<UInt16, TrackType>::clear(); byteRate = 0; lostRate = 0; }
+		void clear() { std::deque<TrackType>::clear(); byteRate = 0; lostRate = 0; }
+		TrackType& operator[](UInt8 track) { if (track > size()) resize(track); return std::deque<TrackType>::operator[](track-1); }
+		const TrackType& operator[](UInt8 track) const { return std::deque<TrackType>::operator[](track - 1); }
 	};
 
-	struct Track : virtual Object { Track() {} };
+	struct Track : virtual Object {};
+	struct DataTrack : Track, virtual Object {
+		DataTrack() : textLang(NULL) {}
+		const char* textLang;
+	};
 	struct AudioTrack : Track, virtual Object {
-		AudioTrack() {}
+		AudioTrack() : lang(NULL) {}
 		Media::Audio::Config	config;
+		const char*				lang;
 	};
 	struct VideoTrack : Track, virtual Object {
 		VideoTrack() : keyFrameTime(0), keyFrameInterval(0), waitKeyFrame(true) {}
 		Media::Video::Config	config;
+		CCaption				cc;
 		bool					waitKeyFrame;
 		UInt32					keyFrameTime;
 		UInt32					keyFrameInterval;
@@ -69,7 +77,7 @@ struct Publication : Media::Source, Media::Properties, virtual NullableObject {
 
 	const Tracks<AudioTrack>&		audios;
 	const Tracks<VideoTrack>&		videos;
-	const Tracks<Track>&			datas;
+	const Tracks<DataTrack>&		datas;
 
 	UInt16							latency() const { return _latency; }
 	UInt64							byteRate() const { return _byteRate; }
@@ -85,40 +93,45 @@ struct Publication : Media::Source, Media::Properties, virtual NullableObject {
 	MediaFile::Writer*				recorder();
 	bool							recording() const { return _pRecording && ((MediaFile::Writer&)_pRecording->target).running(); }
 
-	void							reportLost(UInt32 lost);
-	void							reportLost(Media::Type type, UInt32 lost);
-	void							reportLost(Media::Type type, UInt16 track, UInt32 lost);
+	void							reportLost(UInt32 lost) { reportLost(Media::TYPE_NONE, lost); }
+	void							reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 
-	void							writeProperties(UInt16 track, DataReader& reader);
 /*! 
 	Push audio packet, an empty audio "isConfig" packet is required by some protocol to signal "audio end".
 	Good practice would be to send an audio empty "isConfig" packet for publishers which can stop "dynamically" just audio track.
 	/!\ Audio timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
-	void							writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet);
+	void							writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { writeAudio(track, tag, packet); }
 /*!
 	Push video packet
 	Video timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
-	void							writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet);
+	void							writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { writeVideo(track, tag, packet); }
 /*!
 	Push data packet */
-	void							writeData(UInt16 track, Media::Data::Type type, const Packet& packet);
+	void							writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { writeData(track, type, packet); }
+	
 
 	void							flush();
 	void							flush(UInt16 ping);
 
 private:
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet);
+	void flushProperties();
+
 	void startRecording(MediaFile::Writer& recorder, bool append);
 	void stopRecording();
 
-	void onParamChange(const std::string& key, const std::string* pValue) { _newProperties = true; Media::Properties::onParamChange(key, pValue); }
-	void onParamClear() { _newProperties = true; Media::Properties::onParamClear(); }
+	void setProperties(UInt8 track, DataReader& reader) { Properties::setProperties(track, reader); }
+	void onParamChange(const std::string& key, const std::string* pValue);
+	void onParamClear();
 
 	ByteRate						_byteRate;
 	LostRate						_lostRate;
 
 	Tracks<AudioTrack>				_audios;
 	Tracks<VideoTrack>				_videos;
-	Tracks<Track>					_datas;
+	Tracks<DataTrack>				_datas;
 
 	UInt16							_latency;
 
@@ -129,7 +142,7 @@ private:
 	bool							_newLost;
 	bool							_newProperties;
 
-	std::unique_ptr<Subscription>    _pRecording;
+	std::unique_ptr<Subscription>   _pRecording;
 };
 
 

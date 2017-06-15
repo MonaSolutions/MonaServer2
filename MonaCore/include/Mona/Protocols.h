@@ -91,7 +91,7 @@ private:
 		std::string buffer;
 		// Copy parameters from API to PROTOCOL (duplicated to get easy access with protocol object)
 		// => override default protocol parameters
-		for(auto& it : _params.band(String::Assign(buffer, name, ".")))
+		for(auto& it : _params.range(String::Assign(buffer, name, ".")))
 			pProtocol->setString(it.first.c_str() + buffer.size(), it.second);
 
 		Exception ex;

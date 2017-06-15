@@ -40,7 +40,7 @@ Parameters& Parameters::operator=(Parameters&& other) {
 	return *this;
 }
 
-Parameters::ForEach Parameters::band(const std::string& prefix) {
+Parameters::ForEach Parameters::range(const std::string& prefix) const {
 	if (!_pMap)
 		return ForEach();
 	string end(prefix);
@@ -78,9 +78,20 @@ const char* Parameters::getParameter(const string& key) const {
 	return onParamUnfound(key);
 }
 
-Parameters& Parameters::clear() {
+Parameters& Parameters::clear(const string& prefix) {
 	if (!_pMap || _pMap->empty())
 		return *this;
+	if (!prefix.empty()) {
+		string end(prefix);
+		end.back() = prefix.back() + 1;
+		auto it = _pMap->lower_bound(prefix);
+		auto itEnd = _pMap->lower_bound(end);
+		if (it != _pMap->begin() || itEnd != _pMap->end()) {
+			for (it; it != itEnd; ++it)
+				erase(it->first);
+			return *this;
+		}
+	}
 	_pMap->clear();
 	onParamClear();
 	return *this;

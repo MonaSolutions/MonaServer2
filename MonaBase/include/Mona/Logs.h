@@ -25,6 +25,7 @@ namespace Mona {
 
 struct Logs : virtual Static {
 	static void			SetLogger(Logger& logger) { std::lock_guard<std::mutex> lock(_Mutex); _PLogger = &logger; }
+	static void			ResetLogger() { std::lock_guard<std::mutex> lock(_Mutex); _PLogger = &_DefaultLogger; }
 
 	static void			SetLevel(LOG_LEVEL level) { _Level = level; }
 	static LOG_LEVEL	GetLevel() { return _Level; }

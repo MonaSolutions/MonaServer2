@@ -47,8 +47,7 @@ private:
 	shared<Socket>	_pSocket;
 };
 
-class WSDataSender : public WSSender, public virtual Object {
-public:
+struct WSDataSender : WSSender, virtual Object {
 	WSDataSender(const shared<Socket>& pSocket, Media::Data::Type packetType, const Packet& packet) : _packetType(packetType), WSSender(pSocket, WS::TYPE_NIL, packet) {}
 private:
 	bool run(Exception&);

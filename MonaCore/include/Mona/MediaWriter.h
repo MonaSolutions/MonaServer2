@@ -36,21 +36,16 @@ struct MediaWriter : virtual Object {
 	typedef std::function<void(const Packet& packet)> OnWrite;
 
 	virtual void beginMedia(const OnWrite& onWrite) {}
-	virtual void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) = 0;
-	virtual void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) = 0;
-	virtual void writeData(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
+	virtual void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {}
+	virtual void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) = 0;
+	virtual void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) = 0;
+	virtual void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
 	virtual void endMedia(const OnWrite& onWrite) {}
-
-	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { writeAudio(0, tag, packet, onWrite); }
-	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { writeVideo(0, tag, packet, onWrite); }
-	void writeData(Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { writeData(0, type, packet, onWrite); }
-
-	void writeMedia(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { writeAudio(track, tag, packet, onWrite); }
-	void writeMedia(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { writeVideo(track, tag, packet, onWrite); }
-	void writeMedia(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { writeData(track, type, packet, onWrite); }
+	
+	void writeMedia(const Media::Base& media, const OnWrite& onWrite);
 };
 
-struct TrackWriter : MediaWriter, virtual Object {
+struct MediaTrackWriter : MediaWriter, virtual Object {
 	/// Media container writer must be able to support a dynamic change of audio/video codec!
 	virtual void beginMedia() {} // no container for track writer!
 	virtual void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) = 0;
@@ -58,11 +53,11 @@ struct TrackWriter : MediaWriter, virtual Object {
 	virtual void writeData(Media::Data::Type type, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
 	virtual void endMedia() {}  // no container for track writer!
 private:
-	// Define MediaWriter implementation to redirect on TrackWriter implementation
+	// Define MediaWriter implementation to redirect on MediaTrackWriter implementation
 	void beginMedia(const OnWrite& onWrite) { beginMedia(); }
-	void writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite);
-	void writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite);
-	void writeData(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite);
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite);
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
 	void endMedia(const OnWrite& onWrite) { endMedia(); }
 };
 

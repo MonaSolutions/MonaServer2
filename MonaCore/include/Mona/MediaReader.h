@@ -50,11 +50,11 @@ private:
 	shared<Buffer> _pBuffer;
 };
 
-struct TrackReader : virtual Object, MediaReader {
+struct MediaTrackReader : virtual Object, MediaReader {
 
-	UInt16 track;
+	UInt8  track;
 	UInt32 time; // new container time
-	UInt32 compositionOffset; // new container compositionOffset
+	UInt16 compositionOffset; // new container compositionOffset
 
 	void flush(Media::Source& source) {
 		MediaReader::flush(source);
@@ -62,7 +62,7 @@ struct TrackReader : virtual Object, MediaReader {
 	}
 
 protected:
-	TrackReader(UInt16 track=0) : track(track), time(0),compositionOffset(0) {}
+	MediaTrackReader(UInt8 track=1) : track(track), time(0),compositionOffset(0) {}
 
 	bool	parsePacket(const Packet& packet, Media::Source& source) { MediaReader::parsePacket(packet, source); return false; } // no flush for track, container will do it rather
 	void	onFlush(const Packet& packet, Media::Source& source) {} // no reset and flush for track, container will do it rather

@@ -179,20 +179,19 @@ struct HTTP : virtual Static {
 		void			set(const char* key, const char* value);
 	};
 
-
+	
 	struct Request : Packet, Parameters, virtual Object {
 		Request(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true), _pHeader(std::move(pHeader)) {}
 		Request(shared<Header>& pHeader, const Path& file, const Packet& packet, bool flush) : file(std::move(file)), lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
 		/*!
 		Post media packet */
-		Request(shared<Header>& pHeader, UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Audio(track, tag, packet)), _pHeader(std::move(pHeader)), flush(false) {}
-		Request(shared<Header>& pHeader, UInt16 track, const Media::Video::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Video(track, tag, packet)), _pHeader(std::move(pHeader)), flush(false) {}
-		Request(shared<Header>& pHeader, UInt16 track, Media::Data::Type type, const Packet& packet) : lost(0), pMedia(new Media::Data(track, type, packet)), _pHeader(std::move(pHeader)), flush(false) {}
-		Request(shared<Header>& pHeader, UInt16 track, DataReader& reader) : lost(0), pMedia(new Media::Data(track, reader)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Audio(tag, packet, track)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, UInt8 track, const Media::Video::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Video(tag, packet, track)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, UInt8 track, Media::Data::Type type, const Packet& packet) : lost(0), pMedia(new Media::Data(type, packet, track)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, UInt8 track, DataReader& reader) : lost(0), pMedia(new Media::Data(reader, track)), _pHeader(std::move(pHeader)), flush(false) {}
 		/*!
 		Post media lost infos */
-		Request(shared<Header>& pHeader, Media::Type type, UInt32 lost) : lost(-Int32(lost)), pMedia(new Media::Base(type, 0)), _pHeader(std::move(pHeader)), flush(false) {}
-		Request(shared<Header>& pHeader, Media::Type type, UInt16 track, UInt32 lost) : lost(lost), pMedia(new Media::Base(type, track)), _pHeader(std::move(pHeader)), flush(false) {}
+		Request(shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : lost(lost), pMedia(new Media::Base(type, Packet::Null(), track)), _pHeader(std::move(pHeader)), flush(false) {}
 		/*!
 		Post reset */
 		Request(shared<Header>& pHeader) : lost(1), pMedia(NULL), _pHeader(std::move(pHeader)), flush(false) {}
@@ -207,7 +206,7 @@ struct HTTP : virtual Static {
 
 		const Exception			ex;
 		Media::Base*			pMedia;
-		Int32					lost;
+		UInt32					lost;
 		const bool				flush;
 		Path					file;
 

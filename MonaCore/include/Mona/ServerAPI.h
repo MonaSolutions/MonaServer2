@@ -61,6 +61,10 @@ struct ServerAPI : virtual Object, Parameters {
 	shared<TLS>	pTLSClient;
 	shared<TLS>	pTLSServer;
 
+	/*!
+	Publish a publication
+	Query parameters will be passed to publication properties (metadata)
+	To change properties dynamically, send a @properties command, with a track it writes properties related one track, without track it overloads all */
 	Publication*			publish(Exception& ex, std::string& stream) { return publish(ex, stream, NULL); }
 	Publication*			publish(Exception& ex, const Path& stream, const char* query = NULL) { return publish(ex, stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), query, NULL); }
 	Publication*			publish(Exception& ex, Client& client, std::string& stream) { return publish(ex, stream, &client); }
@@ -71,14 +75,12 @@ struct ServerAPI : virtual Object, Parameters {
 
 	/*!
 	Subscribe to a publication
-	query parameters:
-		mode
-			"play", like a file, want play immediatly the media
-			"call", like a phone, wait publication without timeout on stop */
+	If the subscription is already done, change just the subscriptions parameters, usefull to allow automatically the support by protocol of subscription dynamic parameters 
+	If one other subscription exists already, switch publication in a smooth way (MBR)  */
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription) { return subscribe(ex, stream, subscription, NULL); }
-	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* queryParameters = NULL) { return subscribe(ex, stream, subscription, queryParameters, NULL); }
+	bool					subscribe(Exception& ex, const Path& stream, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), subscription, query, NULL); }
 	bool					subscribe(Exception& ex, std::string& stream, Client& client, Subscription& subscription) { return subscribe(ex, stream, subscription, &client); }
-	bool					subscribe(Exception& ex, const std::string& stream, Client& client, Subscription& subscription, const char* queryParameters = NULL) { return subscribe(ex, stream, subscription, queryParameters, &client); }
+	bool					subscribe(Exception& ex, const Path& stream, Client& client, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), subscription, query, &client); }
 
 	void					unsubscribe(Subscription& subscription) { unsubscribe(subscription, NULL); }
 	void					unsubscribe(Client& client, Subscription& subscription) { unsubscribe(subscription, &client); }
@@ -93,7 +95,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION
-	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient){return true;}  // Exception::SOFTWARE
+	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) {return true;}  // Exception::SOFTWARE
 
 	virtual bool			onPublish(Exception& ex, Publication& publication, Client* pClient){return true;}
 	virtual void			onUnpublish(const Publication& publication, Client* pClient){}
@@ -108,7 +110,7 @@ protected:
 private:
 
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription, Client* pClient);
-	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* queryParameters, Client* pClient);
+	bool					subscribe(Exception& ex, const std::string& stream, const char* ext, Subscription& subscription, const char* query, Client* pClient);
 	void					unsubscribe(Subscription& subscription, Client* pClient);
 	void					unsubscribe(Subscription& subscription, Publication& publication, Client* pClient);
 
@@ -121,10 +123,10 @@ private:
 
 	struct WaitingKey : virtual Object {
 		WaitingKey(ServerAPI& api, Publication& publication) : _api(api), publication(publication) {
-			publication.onKeyFrame = [this](UInt16 track) {
+			publication.onKeyFrame = [this](UInt8 track) {
 				auto it = subscriptions.begin();
 				while (it != subscriptions.end()) {
-					if (it->first->videos.enabled(track)) {
+					if (it->first->target.videoSelected(track)) {
 						raise(*it->first, it->second);
 						it = subscriptions.erase(it);
 					} else

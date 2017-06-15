@@ -36,13 +36,12 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 			_writer.beginRequest(request);
 
 			if (!request.ex) {
-				// HTTP is a simplex communication, so if request, remove possible old subscription or pubication (but should never happen because a request/response without content-length should be stopped just by a disconnection)
-				closePublication();
-				closeSusbcription();
-
 				//// Disconnection if requested or query changed (path changed is done in setPath)
-				if (request->connection&HTTP::CONNECTION_UPGRADE || request->connection&HTTP::CONNECTION_UPDATE || String::ICompare(peer.query, request->query) != 0)
+				if (request->connection&HTTP::CONNECTION_UPGRADE || request->connection&HTTP::CONNECTION_UPDATE || String::ICompare(peer.query, request->query) != 0) {
+					unpublish();
+					unsubscribe();
 					peer.onDisconnection();
+				}
 
 				////  Fill peers infos
 				peer.setPath(request->path);
@@ -131,16 +130,13 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 			// Something to post!
 			// POST partial data => push to publication
 			if (request.pMedia) {
-				if (request.lost) {
-					if (request.lost>0)
-						_pPublication->reportLost(request.pMedia->type, request.pMedia->track, request.lost);
-					else
-						_pPublication->reportLost(request.pMedia->type, -request.lost);
-				} else
+				if (request.lost)
+					_pPublication->reportLost(request.pMedia->type, request.lost, request.pMedia->track);
+				else
 					_pPublication->writeMedia(*request.pMedia);
 			} else if (request.lost) {
 				if (request.flush)
-					closePublication();
+					unpublish();
 				else
 					_pPublication->reset();
 			}
@@ -211,7 +207,7 @@ bool HTTPSession::manage() {
 		if (_pSubscription->ejected() == Subscription::EJECTED_BANDWITDH)
 			_writer.writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
 		// else HTTPWriter error, error already written!
-		closeSusbcription();
+		unsubscribe();
 	}
 
 	return true;
@@ -228,8 +224,8 @@ void HTTPSession::flush() {
 void HTTPSession::close() {
 	peer.onCallProperties = nullptr;
 	// unpublish and unsubscribe
-	closePublication();
-	closeSusbcription();
+	unpublish();
+	unsubscribe();
 }
 
 void HTTPSession::kill(Int32 error, const char* reason){
@@ -253,16 +249,16 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	TCPSession::kill(error, reason);
 }
 
-void HTTPSession::openSubscribtion(Exception& ex, const string& stream, Writer& writer) {
-	closeSusbcription();
-	_pSubscription = new Subscription(writer);
+void HTTPSession::subscribe(Exception& ex, const string& stream, HTTPWriter& writer) {
+	if(!_pSubscription)
+		_pSubscription = new Subscription(writer);
 	if (api.subscribe(ex, stream, peer, *_pSubscription, peer.query.c_str()))
 		return;
 	delete _pSubscription;
 	_pSubscription = NULL;
 }
 
-void HTTPSession::closeSusbcription() {
+void HTTPSession::unsubscribe() {
 	if (!_pSubscription)
 		return;
 	api.unsubscribe(peer, *_pSubscription);
@@ -270,12 +266,12 @@ void HTTPSession::closeSusbcription() {
 	_pSubscription = NULL;
 }
 
-void HTTPSession::openPublication(Exception& ex, const Path& stream) {
-	closePublication();
+void HTTPSession::publish(Exception& ex, const Path& stream) {
+	unpublish();
 	_pPublication = api.publish(ex, peer, stream, peer.query.c_str());
 }
 
-void HTTPSession::closePublication() {
+void HTTPSession::unpublish() {
 	if (!_pPublication)
 		return;
 	api.unpublish(*_pPublication, peer);
@@ -323,7 +319,7 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD, filePath.lastModified()==0 means "doesn't exists")
 		// Subscribe for a live stream with the basename file as stream name
 		if (!file.exists() && request->type == HTTP::TYPE_GET && (request->mime == MIME::TYPE_VIDEO || request->mime == MIME::TYPE_AUDIO))
-			return openSubscribtion(ex, file.baseName(), _writer);
+			return subscribe(ex, file.baseName(), _writer);
 		if (!file.isFolder())
 			return _writer.writeFile(file, fileProperties);
 	}
@@ -360,7 +356,7 @@ void HTTPSession::processPut(Exception& ex, HTTP::Request& request) {
 void HTTPSession::processPost(Exception& ex, HTTP::Request& request) {
 	
 	if (request->mime == MIME::TYPE_VIDEO || request->mime == MIME::TYPE_AUDIO)
-		return openPublication(ex, request.file); // Publish
+		return publish(ex, request.file); // Publish
 	
 	// Else data
 	unique_ptr<DataReader> pReader(Media::Data::NewReader(Media::Data::ToType(request->subMime), request));

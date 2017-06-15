@@ -32,8 +32,8 @@ struct HTTPMediaSender : HTTPSender, virtual Object {
 
 	bool hasHeader() const { return _first; }
 protected:
-	shared<MediaWriter>	pWriter;
-	MediaWriter::OnWrite			onWrite;
+	shared<MediaWriter>		pWriter;
+	MediaWriter::OnWrite	onWrite;
 private:
 	void shutdown() {}
 	void run(const HTTP::Header& request);
@@ -43,9 +43,9 @@ private:
 template<typename MediaType>
 struct HTTPMediaSend : HTTPMediaSender, MediaType, virtual Object {
 	HTTPMediaSend(const shared<Socket>& pSocket, const shared<const HTTP::Header>& pRequest, shared<Buffer>& pSetCookie, shared<MediaWriter>& pWriter,
-					UInt16 track, const typename MediaType::Tag& tag, const Packet& packet) : HTTPMediaSender(pSocket, pRequest, pSetCookie, pWriter), MediaType(track, tag, packet) {}
+					const typename MediaType::Tag& tag, const Packet& packet) : HTTPMediaSender(pSocket, pRequest, pSetCookie, pWriter), MediaType(tag, packet) {}
 private:
-	void run(const HTTP::Header& request) { pWriter->writeMedia(MediaType::track, MediaType::tag, *this, onWrite); }
+	void run(const HTTP::Header& request) { pWriter->writeMedia(*this, onWrite); }
 };
 
 

@@ -107,20 +107,15 @@ const char*	String::TrimLeft(const char* value, size_t size) {
 	return value;
 }
 
+
 size_t String::TrimRight(const char* value, size_t size) {
 	const char* begin(value);
+	if (size == string::npos)
+		size = strlen(begin);
 	value += size;
 	while (value != begin && isspace(*--value))
 		--size;
 	return size;
-}
-
-char* String::TrimRight(char* value) {
-	const char* begin(value);
-	value += strlen(value);
-	while (value != begin && isspace(*--value));
-	*value = 0;
-	return value;
 }
 
 template<typename Type, typename>

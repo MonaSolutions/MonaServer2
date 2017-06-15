@@ -25,7 +25,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct FlashWriter : Writer, virtual Object {
+struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 	// For AMF response!
 	bool					amf0;
 
@@ -45,12 +45,14 @@ struct FlashWriter : Writer, virtual Object {
 
 	void					writePong(UInt32 pingTime) { writeRaw().write16(0x0007).write32(pingTime); }
 
-	virtual bool			beginMedia(const std::string& name, const Parameters& parameters);
-	virtual bool			writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
-	virtual bool			writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
-	virtual bool			writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable);
+	virtual bool			beginMedia(const std::string& name);
+	virtual bool			writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
+	virtual bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable);
+	virtual bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable);
 	virtual bool			writeProperties(const Media::Properties& properties);
 	virtual void			endMedia(const std::string& name);
+
+	void					flush() { Writer::flush(); }
 
 	void					setCallbackHandle(double value) { _callbackHandle = value; _callbackHandleOnAbort = 0; }
 	virtual void			clear() { _callbackHandle = _callbackHandleOnAbort; } // must erase the queueing messages (don't change the writer state)
@@ -68,36 +70,6 @@ protected:
 	AMFWriter&				writeAMFState(const char* name,const char* code,bool isError, const std::string& description,bool withoutClosing=false);
 
 private:
-	template<typename TagType>
-	void writeTrackedMedia(UInt16 track, const TagType& tag, const Packet& packet, bool reliable) {
-		if (amf0) {
-			WARN("Impossible to write a byte array in AMF0, switch to AMF3");
-			return;
-		}
-		// flash doesn't support multitrack, so send it by an alternative way
-		AMFWriter& writer(write(AMF::TYPE_INVOCATION, 0, packet, reliable));
-		writer.amf0 = true;
-		writer.writeString(EXPAND("onTrack"));
-		writer.writeNumber(0);
-		writer->write8(AMF::AMF0_NULL); // for RTMP compatibility! (requiere it)
-		writer.amf0 = amf0;
-		// write header
-		UInt8 buffer[7];
-		BinaryWriter header(buffer, sizeof(buffer));
-		if (typeid(tag) == typeid(Media::Data::Type))
-			writer.writeString(STR buffer, writeTrackedMediaHeader(track, tag, header));
-		else
-			writer.writeBytes(buffer, writeTrackedMediaHeader(track, tag, header));
-		// write header ByteArray (will be concat with packet on send)
-		writer->write8(AMF::AMF0_AMF3_OBJECT); // switch in AMF3 format
-		writer->write8(AMF::AMF3_BYTEARRAY); // bytearray in AMF3 format!
-		writer->write7BitValue((packet.size() << 1) | 1);
-	}
-	template<typename TagType>
-	UInt8 writeTrackedMediaHeader(UInt16 track, const TagType& tag, BinaryWriter& writer) { return tag.pack(writer, false).write16(track).size(); }
-	UInt8 writeTrackedMediaHeader(UInt16 track, Media::Data::Type type, BinaryWriter& writer) { return writer.write8(type).write16(track).size(); }
-	
-
 	double					_callbackHandleOnAbort;
 	double					_callbackHandle;
 

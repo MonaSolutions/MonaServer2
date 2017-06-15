@@ -25,9 +25,9 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class StringReader : public DataReader, public virtual Object {
-public:
+struct StringReader : DataReader, virtual Object {
 	StringReader(const UInt8* data, UInt32 size) : DataReader(data, size) {}
+
 private:
 	UInt8 followingType() { return reader.available() ? STRING : END; }
 

@@ -27,8 +27,7 @@ namespace Mona {
 
 /*!
 Real Time Media writer => Flash media format */
-class FLVWriter : public MediaWriter, public virtual Object {
-public:
+struct FLVWriter : MediaWriter, virtual Object {
 	// Composition time
 	// compositionTime = (PTS - DTS) / 90.0 
 	// http://stackoverflow.com/questions/7054954/the-composition-timects-when-wrapping-h-264-nalus
@@ -36,9 +35,10 @@ public:
 	FLVWriter() {}
 
 	void		beginMedia(const OnWrite& onWrite);
-	void		writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_AUDIO, ToCodecs(tag), tag.isConfig, tag.time, 0, packet, onWrite); }
-	void		writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_VIDEO, ToCodecs(tag), tag.frame == Media::Video::FRAME_CONFIG, tag.time, tag.compositionOffset, packet, onWrite); }
-	void		writeData(UInt16 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_DATA, 0, false, 0, 0, packet, onWrite); }
+	void		writeProperties(const Media::Properties& properties, const OnWrite& onWrite) { write(0, AMF::TYPE_EMPTY, 0, false, 0, 0, properties[Media::Data::TYPE_AMF], onWrite); }
+	void		writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_AUDIO, ToCodecs(tag), tag.isConfig, tag.time, 0, packet, onWrite); }
+	void		writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_VIDEO, ToCodecs(tag), tag.frame == Media::Video::FRAME_CONFIG, tag.time, tag.compositionOffset, packet, onWrite); }
+	void		writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_DATA, 0, false, 0, 0, packet, onWrite); }
 	void		endMedia(const OnWrite& onWrite);
 
 	static UInt8 ToCodecs(const Media::Audio::Tag& tag);
@@ -47,7 +47,7 @@ public:
 	static bool  ParseAVCConfig(const Packet& packet, Packet& sps, Packet& pps);
 	static void  WriteAVCConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer, const OnWrite& onWrite = nullptr);
 private:
-	void write(UInt16 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt32 compositionOffset, const Packet& packet, const OnWrite& onWrite);
+	void write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt16 compositionOffset, const Packet& packet, const OnWrite& onWrite);
 	
 	UInt8		_buffer[20];
 	Packet		_sps;

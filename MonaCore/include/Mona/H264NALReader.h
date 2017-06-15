@@ -23,25 +23,30 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct H264NALReader : virtual Object, TrackReader {
+/*!
+Transform a 00 00 01 NAL format to a AVC NAL format (more speed to read).
+In addition it:
+- Separate every NAL packet, exepting for PPS(7) and SPS(8) which have to be aggregated to become a config packet
+- Remove useless informations (0<type<9) */
+struct H264NALReader : virtual Object, MediaTrackReader {
 	// http://apple-http-osmf.googlecode.com/svn/trunk/src/at/matthew/httpstreaming/HTTPStreamingMP2PESVideo.as
 	// NAL types => http://gentlelogic.blogspot.fr/2011/11/exploring-h264-part-2-h264-bitstream.html
 
-	H264NALReader(UInt16 track=0) : TrackReader(track), _tag(Media::Video::CODEC_H264), _state(0),_position(0) {}
+	H264NALReader(UInt8 track=1) : MediaTrackReader(track), _tag(Media::Video::CODEC_H264), _state(0), _type(0) {}
 
 private:
 
 	UInt32	parse(const Packet& packet, Media::Source& source);
 	void	onFlush(const Packet& packet, Media::Source& source);
 
-	bool    writeNal(const UInt8* data, UInt32 size, Media::Source& source);
-	void	flushNals(Media::Source& source);
+	void    writeNal(const UInt8* data, UInt32 size, Media::Source& source);
+	void	flushNal(Media::Source& source);
 
 	UInt8					_type;
 	Media::Video::Tag		_tag;
 	UInt8					_state;
 	UInt32					_position;
-	shared<Buffer>	_pNal;
+	shared<Buffer>			_pNal;
 };
 
 } // namespace Mona

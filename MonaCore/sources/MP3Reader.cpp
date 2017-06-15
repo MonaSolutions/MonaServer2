@@ -112,7 +112,7 @@ void MP3Reader::onFlush(const Packet& packet, Media::Source& source) {
 		source.writeAudio(track, _tag, packet);
 	_size = 0;
 	_syncError = false;
-	TrackReader::onFlush(packet, source);
+	MediaTrackReader::onFlush(packet, source);
 }
 
 } // namespace Mona

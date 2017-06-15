@@ -17,21 +17,12 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/Publication.h"
-#include "Mona/MapWriter.h"
 #include "Mona/Logs.h"
-
-// #include "faad.h"
-// #include "neaacdec.h"
-
 
 using namespace std;
 
 
-
 namespace Mona {
-
-// NeAACDecHandle _aac = NULL;
-// FILE *_fout=NULL;
 
 Publication::Publication(const string& name): _latency(0),
 	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate),
@@ -49,57 +40,31 @@ Publication::~Publication() {
 	DEBUG("Publication ",_name," deleted");
 }
 
-void Publication::reportLost(UInt32 lost) {
-	if (!lost) return;
-	_newLost = true;
-	_lostRate += lost;
-	_audios.lostRate += UInt32(lost*_audios.byteRate / _byteRate);
-	_videos.lostRate += UInt32(lost*_videos.byteRate / _byteRate);
-	_datas.lostRate += UInt32(lost*_datas.byteRate / _byteRate);
-}
-
-void Publication::reportLost(Media::Type type, UInt32 lost) {
-	if (!lost) return;
-	switch (type) {
-		case Media::TYPE_AUDIO: _audios.lostRate += lost; break;
-		case Media::TYPE_VIDEO:
-			_videos.lostRate += lost;
-			for (auto& it : _videos)
-				it.second.waitKeyFrame = true;
-			break;
-		case Media::TYPE_DATA: _datas.lostRate += lost; break;
-		default: return reportLost(lost);
-	}
-	_newLost = true;
-	_lostRate += lost;
-}
-
-void Publication::reportLost(Media::Type type, UInt16 track, UInt32 lost) {
-	if (!lost) return;
+void Publication::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
+	if (!lost)
+		return;
 	switch (type) {
 		case Media::TYPE_AUDIO: {
-			const auto& it = _audios.find(track);
-			if (it == _audios.end())
-				return;
-			_audios.lostRate += lost;
+			if(track<=audios.size())
+				_audios.lostRate += lost;
 			break;
 		}
 		case Media::TYPE_VIDEO: {
-			const auto& it = _videos.find(track);
-			if (it == _videos.end())
-				return;
+			if (track > _videos.size())
+				break;
+			if(track)
+				_videos[track].waitKeyFrame = true;
 			_videos.lostRate += lost;
-			it->second.waitKeyFrame = true;
 			break;
 		}
 		case Media::TYPE_DATA:
-			if (track >= _datas.size())
-				return;
-			_datas.lostRate += lost;
+			if (track <= _datas.size())
+				_datas.lostRate += lost;
 			break;
 		default:
-			reportLost(lost);
-			return;
+			_audios.lostRate += UInt32(lost*_audios.byteRate / _byteRate);
+			_videos.lostRate += UInt32(lost*_videos.byteRate / _byteRate);
+			_datas.lostRate += UInt32(lost*_datas.byteRate / _byteRate);
 	}
 	_newLost = true;
 	_lostRate += lost;
@@ -148,6 +113,7 @@ void Publication::reset() {
 	if (!_publishing)
 		return;
 	INFO("Publication ", _name, " reseted");
+
 	_audios.clear();
 	_videos.clear();
 	_datas.clear();
@@ -179,6 +145,7 @@ void Publication::stop() {
 
 	_publishing =false;
 
+	// release resources!
 	_audios.clear();
 	_videos.clear();
 	_datas.clear();
@@ -209,19 +176,7 @@ void Publication::flush() {
 		ERROR("Publication flush called on publication ", _name, " stopped");
 		return;
 	}
-	if (_newProperties) {
-		_newProperties = false;
-		// Logs before subscription logs!
-		if (*this)
-			INFO("Write ", _name, " publication properties")
-		else
-			INFO("Clear ", _name, " publication properties");
-		for (auto& it : subscriptions) {
-			if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-				it->writeProperties(*this);
-		}
-		onProperties(*this);
-	} else if (!_new)
+	if (!_new)
 		return;
 	_new = false;
 
@@ -244,46 +199,17 @@ void Publication::flush() {
 }
 
 
-void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet) {
+void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
 	if (!_publishing) {
 		ERROR("Audio packet on publication ", _name, " stopped");
 		return;
 	}
 
-	/*if (!_fout)
-	fopen_s(&_fout, "test.aac", "wb");
-	fwrite(packet.data(), sizeof(UInt8), packet.size(), _fout);
-	INFO(packet.size());
+	// flush properties before to deliver media packet (to be sync with media content)
+	flushProperties();
 
-	//	INFO(tag.time, " ", packet.size())
-	//	TRACE("Time Audio ",time)
-
-	if(!_aac)
-	_aac = NeAACDecOpen();
-
-	unsigned long rate;
-	UInt8 channels;
-
-	if(packet) {
-	if (tag.isConfig) {
-
-	if (NeAACDecInit2(_aac, BIN packet.data(), packet.size(), &rate, &channels) != 0)
-	bool error = true;
-	} else {
-	//	if (NeAACDecInit2(_aac, BIN _audioConfig.data(), _audioConfig.size(), &rate, &channels) != 0)
-	//		bool error = true;
-
-	NeAACDecFrameInfo info;
-	void* decoded = NeAACDecDecode(_aac, &info, BIN packet.data(), packet.size());
-	NOTE(info.samples);
-	if(info.error || (info.bytesconsumed < packet.size()))
-	bool error = true;
-	}
-	}*/
-	
-	
 	// create track
-	AudioTrack& audio = _audios[track];
+	AudioTrack* pAudio = track ? &_audios[track] : NULL;
 	// save audio codec packet for future listeners
 	if (tag.isConfig)
 		DEBUG("Audio configuration received on publication ", _name);
@@ -298,66 +224,104 @@ void Publication::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const P
 	onAudio(track, tag, packet);
 	
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
-	if (tag.isConfig)
-		audio.config.set(tag, packet);
+	if (pAudio && tag.isConfig)
+		pAudio->config.set(tag, packet);
 }
 
-
-
-void Publication::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet) {
+void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
 	if (!_publishing) {
 		ERROR("Video packet on stopped ", _name, " publication");
 		return;
 	}
 
 	// create track
-	VideoTrack& video = _videos[track];
+	VideoTrack* pVideo = track ? &_videos[track] : NULL;
 	// save video codec packet for future listeners
 	if (tag.frame == Media::Video::FRAME_CONFIG) {
 		DEBUG("Video configuration received on publication ", _name);
-	} else if (tag.frame == Media::Video::FRAME_KEY) {
-		video.waitKeyFrame = false;
-		if (video.keyFrameTime &&  tag.time > video.keyFrameTime)
-			video.keyFrameInterval = tag.time-video.keyFrameTime;
-		video.keyFrameTime = tag.time;
-		onKeyFrame(track); // can add a new subscription for this publication!
-	} else if (video.waitKeyFrame) {
-		// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
-		INFO("Video frame dropped, ", _name, " waits a key frame");
-		return;
+	} else if (pVideo) {
+		if (tag.frame == Media::Video::FRAME_KEY) {
+			pVideo->waitKeyFrame = false;
+			if (pVideo->keyFrameTime &&  tag.time > pVideo->keyFrameTime)
+				pVideo->keyFrameInterval = tag.time - pVideo->keyFrameTime;
+			pVideo->keyFrameTime = tag.time;
+			onKeyFrame(track); // can add a new subscription for this publication!
+		} else if (pVideo->waitKeyFrame) {
+			// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
+			INFO("Video frame dropped, ", _name, " waits a key frame");
+			return;
+		}
 	}
 
-	_byteRate += packet.size() + sizeof(tag);
-	_videos.byteRate += packet.size() + sizeof(tag);
-	_new = true;
-	// TRACE("Video ", tag.time);
-	for (auto& it : subscriptions) {
-		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-			it->writeVideo(track, tag, packet);
-	}
-	onVideo(track, tag, packet);
+	// flush properties before to deliver media packet (to be sync with media content)
+	flushProperties();
 
-	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
-	if (tag.frame == Media::Video::FRAME_CONFIG)
-		video.config.set(tag, packet);
+	CCaption::OnVideo onVideo([this, &track](const Media::Video::Tag& tag, const Packet& packet) {
+		_byteRate += packet.size() + sizeof(tag);
+		_videos.byteRate += packet.size() + sizeof(tag);
+		_new = true;
+		// TRACE("Video ", tag.time);
+		for (auto& it : subscriptions) {
+			if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
+				it->writeVideo(track, tag, packet);
+		}
+		this->onVideo(track, tag, packet);
+	});
+	if (tag.frame == Media::Video::FRAME_CONFIG) {
+		// If config keep the packet as given, without extract CC and video frame (should not contains them!)
+		onVideo(tag, packet);
+		// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
+		if(pVideo)
+			pVideo->config.set(tag, packet);
+	} else if(pVideo) {
+		CCaption::OnText onText([this, &tag, track](UInt8 channel, const Packet& packet) {
+			DEBUG("cc",channel, " => ",string(STR packet.data(), packet.size()));
+			writeData((track - 1) * 4 + channel - 1, Media::Data::TYPE_TEXT, packet);
+		});
+		CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {
+			if(lang) {
+				DEBUG("Subtitle lang ", lang);
+				setString(String((track - 1) * 4 + channel - 1, ".textLang"), lang);
+			} else
+				erase(String((track - 1) * 4 + channel - 1, ".textLang"));
+		});
+		pVideo->cc.extract(tag, packet, onVideo, onText, onLang);
+	} else
+		onVideo(tag, packet);
 }
 
-void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& packet) {
+void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {
 	if (!_publishing) {
-		ERROR("Data packet on '", _name, "' publication stopped");
+		ERROR("Data packet on ", _name, " publication stopped");
 		return;
 	}
 
-	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
-	if (pReader) {
-		string handler;
-		if (pReader->readString(handler) && handler == "@properties")
-			return writeProperties(track, *pReader);
-		pReader->reset();
+	if (type != Media::Data::TYPE_TEXT) { // else has no handler!
+		unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
+		if (pReader) {
+			string handler;
+			// for performance reason read just if type is explicity a STRING (not a convertible string as binary etc...)
+			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
+				return setProperties(track, *pReader);
+			pReader->reset();
+		}
 	}
 
+	// flush properties before to deliver media packet (to be sync with media content)
+	flushProperties();
+
 	// create track
-	_datas[track];
+	if(track) {
+		DataTrack& data = _datas[track];
+		if (!data.textLang && type == Media::Data::TYPE_TEXT) {
+			const char* lang(NULL);
+			if (track <= _audios.size() && (lang = _audios[track].lang))
+				setString(String(track, ".textLang"), lang); // audioLang can be used for metadata?
+			else
+				setString(String(track, ".textLang"), EXPAND("und")); // audioLang can be used for metadata?
+		}
+	}
+
 	_byteRate += packet.size();
 	_datas.byteRate += packet.size();
 	_new = true;
@@ -368,17 +332,48 @@ void Publication::writeData(UInt16 track, Media::Data::Type type, const Packet& 
 	onData(track, type, packet);
 }
 
-void Publication::writeProperties(UInt16 track, DataReader& reader) {
-	if (!_publishing) {
-		ERROR("Properties on '", _name, "' publication stopped");
-		return;
-	}
+void Publication::onParamChange(const string& key, const string* pValue) {
+	_newProperties = true;
 
-	MapWriter<Parameters> writer(*this);
-	writer.beginObject();
-	writer.writePropertyName(to_string(track).c_str());
-	reader.read(writer);
-	writer.endObject();
+	size_t found = key.find('.');
+	if (found == string::npos)
+		return;
+	UInt8 track = String::ToNumber<UInt8, 0>(key.c_str(), found);
+	if (!track)
+		return;
+	const char* prop = key.c_str()+found+1;
+
+	if (String::ICompare(prop, EXPAND("audioLang")) == 0)
+		_audios[track].lang = pValue ? pValue->c_str() : NULL;
+	else if (String::ICompare(prop, EXPAND("textLang")) == 0)
+		_datas[track].textLang = pValue ? pValue->c_str() : NULL;
+	Media::Properties::onParamChange(key, pValue);
+
+}
+void Publication::onParamClear() {
+	_newProperties = true;
+
+	for (AudioTrack& track : _audios)
+		track.lang = NULL;
+	for (DataTrack& track : _datas)
+		track.textLang = NULL;
+	Media::Properties::onParamClear();
+}
+
+void Publication::flushProperties() {
+	if (!_newProperties)
+		return;
+	_newProperties = false;
+	// Logs before subscription logs!
+	if (*this)
+		INFO("Write ", _name, " publication properties")
+	else
+		INFO("Clear ", _name, " publication properties");
+	for (auto& it : subscriptions) {
+		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
+			it->writeProperties(*this);
+	}
+	onProperties(*this);
 }
 
 } // namespace Mona

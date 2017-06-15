@@ -113,17 +113,13 @@ AMFWriter& FlashWriter::writeAMFData(const string& name) {
 	return writer;
 }
 
-bool FlashWriter::beginMedia(const string& name, const Parameters& parameters) {
+bool FlashWriter::beginMedia(const string& name) {
 	writeAMFStatus("NetStream.Play.PublishNotify", name + " is now published");
 	_firstAV = true;
 	return true;
 }
 
-bool FlashWriter::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
-	if (track) {
-		writeTrackedMedia(track, tag, packet, reliable);
-		return true;
-	}
+bool FlashWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
 	_firstAV = false;
 	BinaryWriter& writer(*write(AMF::TYPE_AUDIO, tag.time, packet, reliable));
 	if (!packet)
@@ -134,11 +130,7 @@ bool FlashWriter::writeAudio(UInt16 track, const Media::Audio::Tag& tag, const P
 	return true;
 }
 
-bool FlashWriter::writeVideo(UInt16 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-	if (track) {
-		writeTrackedMedia(track, tag, packet, reliable);
-		return true;
-	}
+bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
 	if (_firstAV) {
 		_firstAV = false;
 		// patch for flash, to avoid to wait audio, an empty audio packet has to be sent ( = "end audio signal")
@@ -156,20 +148,22 @@ bool FlashWriter::writeVideo(UInt16 track, const Media::Video::Tag& tag, const P
 	return true;
 }
 
-bool FlashWriter::writeData(UInt16 track, Media::Data::Type type, const Packet& packet, bool reliable) {
-	if (track) { // even if packet is AMF, keep ByteArray from writeTrackedMedia to get always a onTrack with two arguments (we can use ByteArray::readObject to deserialize AMF)
-		writeTrackedMedia(track, type, packet, reliable); // onTrack(header as ByteArray/String, packet as ByteArray)
-		return true;
-	}
+bool FlashWriter::writeData(Media::Data::Type type, const Packet& packet, bool reliable) {
 	// Always give 0 here for time, otherwise RTMP or RTMFP can't receive the data (tested..)
 	AMFWriter& writer(write(AMF::TYPE_DATA, 0, type, packet, reliable));
 	if (type == Media::Data::TYPE_AMF && packet && (*packet.data() == AMF::AMF0_STRING || *packet.data() == AMF::AMF0_LONG_STRING))
 		return true; // has already correct (AMF0) handler!
 	// Handler required (else can't be received in flash)
 	writer.amf0 = true;
-	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
-	if (!pReader->read(DataReader::STRING, writer))
-		writer.writeString(EXPAND("onData")); // onData(data as ByteArray)
+	if(type==Media::Data::TYPE_TEXT)
+		writer.writeString(EXPAND("onTextData"));
+	else if (type == Media::Data::TYPE_MEDIA)
+		writer.writeString(EXPAND("onMedia"));
+	else {
+		unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
+		if (!pReader->read(DataReader::STRING, writer))
+			writer.writeString(EXPAND("onData")); // onData(data as ByteArray)
+	}
 	writer.amf0 = amf0;
 	return true;
 }
