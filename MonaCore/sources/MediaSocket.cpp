@@ -76,7 +76,7 @@ void MediaSocket::Reader::start() {
 	// Bound decoder + engine
 	if(!_subscribed) {
 		shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, _pSource->name(), type));
-		pDecoder->onError = _onError = [this](const char*& error) {  Stream::stop<Ex::Protocol>(LOG_ERROR, error); };
+		pDecoder->onError = _onError = [this](const string& error) {  Stream::stop<Ex::Protocol>(LOG_ERROR, error); };
 		pDecoder->onFlush = _onFlush = [this]() { _pSource->flush(); };
 		pDecoder->onReset = _onReset = [this]() { _pSource->reset(); };
 		pDecoder->onLost = _onLost = [this](Lost& lost) { _pSource->reportLost(lost.type, lost, lost.track); };
