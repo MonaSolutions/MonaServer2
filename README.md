@@ -67,6 +67,7 @@ VOD                                          | In progress
 
 # Communauty
 
-(MonaServer1 forum) [https://groups.google.com/forum/#!forum/monaserver]
-(Chat to discuss in real-time around Mona)[https://gitter.im/MonaServer]
+[MonaServer1 forum](https://groups.google.com/forum/#!forum/monaserver)
+
+[Chat to discuss in real-time around Mona](https://gitter.im/MonaServer)
 
