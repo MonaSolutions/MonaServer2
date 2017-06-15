@@ -65,9 +65,11 @@ LUA (MonaServer)                             | NOK
 cache system                                 | NOK
 VOD                                          | In progress
 
-# Communauty
+# Community
 
-[MonaServer1 forum](https://groups.google.com/forum/#!forum/monaserver)
+The [MonaServer1 forum](https://groups.google.com/forum/#!forum/monaserver) is always here if you have questions or something to share regarding live streaming with MonaServer.
 
-[Chat to discuss in real-time around Mona](https://gitter.im/MonaServer)
+If you find a problem with MonaServer2 please create an issue in the [Github Issues page](https://github.com/MonaSolutions/MonaServer2/issues).
+
+You can also discuss in real-time with fans of MonaServer [on Gitter](https://gitter.im/MonaServer).
 
