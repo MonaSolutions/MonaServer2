@@ -304,28 +304,23 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 		return;
 	}
 
-
 	// If MESSAGE_ABANDON, abandon all stage inferior to abandon stage + clear current packet bufferized
 	if (flags&RTMFP::MESSAGE_ABANDON) {
-		UInt32 lost = UInt32((stage - nextStage)*RTMFP::SIZE_PACKET);
+		DEBUG("Fragments ", nextStage, " to ", stage, " abandoned on flow ", id);
+		_lost += UInt32((stage - nextStage + 1)*RTMFP::SIZE_PACKET);
 		// Remove obsolete fragments
 		nextStage = stage + 1;
 		auto it = _fragments.begin();
 		while (it != _fragments.end() && it->first < nextStage) {
-			lost += it->second.size();
+			_lost += it->second.size();
 			fragmentation -= it->second.size();
 			++it;
 		}
 		_fragments.erase(_fragments.begin(), it);
 		// Remove buffer
 		if (_pBuffer) {	
-			lost += _pBuffer->size(); // the bufferized fragment abandonned
+			_lost += _pBuffer->size(); // the bufferized fragment abandonned
 			_pBuffer.reset();
-		}
-		// Log lost
-		if (lost) {
-			_lost += lost;
-			DEBUG("Fragments ", _stage, " to ", stage, " lost on flow ", id);
 		}
 		// Assign new stage
 		_stage = stage;
@@ -371,7 +366,7 @@ void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& pa
 		return;	
 	}
 	if (flags&RTMFP::MESSAGE_WITH_BEFOREPART) {
-		WARN("Message partially abandoned on flow ", id);
+		DEBUG("Message partially abandoned on flow ", id);
 		_lost += packet.size();
 		return; // the beginning of this message is lost, ignore it!
 	}

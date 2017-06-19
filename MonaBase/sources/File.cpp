@@ -15,12 +15,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/File.h"
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #if defined(_WIN32)
 #include "windows.h"
 #elif defined(__ANDROID__)
-#include <sys/sysmacros.h>
 #include <sys/syscall.h>
 #include <linux/fadvise.h>
 #if defined(__NR_arm_fadvise64_64)
@@ -29,10 +29,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 	#define posix_fadvise(fd, offset, len, advise) syscall(__NR_fadvise64_64, fd, offset, len, advise)
 #endif
 #else
-#include <sys/sysmacros.h>
 #include <unistd.h>
 #if defined(_BSD)
-#define lseek64 lseek
+	#define lseek64 lseek
 #endif
 #endif
 #include "Mona/ThreadQueue.h"
