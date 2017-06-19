@@ -303,6 +303,28 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 		DEBUG("Stage ", stage, " on flow ", id, " has already been received");
 		return;
 	}
+
+
+	// If MESSAGE_ABANDON, abandon all stage inferior to abandon stage + clear current packet bufferized
+	if (flags&RTMFP::MESSAGE_ABANDON) {
+		// Assign new stage
+		_stage = stage;
+		nextStage = _stage + 1;
+		// Remove obsolete fragments
+		auto it = _fragments.begin();
+		while (it != _fragments.end() && it->first <= stage)
+			++it;
+		_fragments.erase(_fragments.begin(), it);
+		// Remove buffer
+		if (_pBuffer) {
+			_lost += packet.size(); // this fragment abandonned
+			_lost += _pBuffer->size(); // the bufferized fragment abandonned
+			DEBUG("Fragments lost on flow ", id);
+			_pBuffer.reset();
+		}
+		return;
+	}
+
 	if (stage>nextStage) {
 		// not following stage, bufferizes the stage
 		if(_fragments.empty())
@@ -328,17 +350,6 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 	
 void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& packet) {
 	_stage = stage;
-	// If MESSAGE_ABANDON, abandon the current packet (happen on lost data)
-	if (flags&RTMFP::MESSAGE_ABANDON) {
-		if (_pBuffer) {
-			_lost += packet.size(); // this fragment abandonned
-			_lost += _pBuffer->size(); // the bufferized fragment abandonned
-			DEBUG("Fragments lost on flow ", id);
-			_pBuffer.reset();
-		}
-		return;
-	}
-
 	if (_pBuffer) {
 		BinaryReader reader(packet.data(), packet.size());
 		if (flags & RTMFP::MESSAGE_OPTIONS) {
