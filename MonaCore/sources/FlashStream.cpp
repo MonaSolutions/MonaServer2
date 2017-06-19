@@ -103,9 +103,10 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 			reader.readString(name);
 			double number(0);
 			reader.readNumber(number);
-			writer.setCallbackHandle(number);
 			reader.readNull();
+			writer.setCallbackHandle(number);
 			messageHandler(name,reader,writer, netStats);
+			writer.resetCallbackHandle();
 			break;
 		}
 		case AMF::TYPE_RAW:
@@ -119,7 +120,6 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 			ERROR("Unpacking type '",String::Format<UInt8>("%02x",(UInt8)type),"' unknown");
 	}
 
-	writer.setCallbackHandle(0);
 	return writer;
 }
 

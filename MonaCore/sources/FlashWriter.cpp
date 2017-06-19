@@ -51,10 +51,8 @@ void FlashWriter::closing(Int32 error, const char* reason) {
 		case Session::ERROR_UNEXPECTED:
 			writeAMFError("NetConnection.Connect.Failed", reason ? reason : "Unknown error");
 			break;
-		default: { // User code
-			string description;
-			writeAMFError("NetConnection.Connect.Failed", reason ? reason : String::Assign(description, "Error ", error));
-		}
+		default: // User code
+			writeAMFError("NetConnection.Connect.Failed", reason ? reason : String("Error ", error));
 	}
 }
 
@@ -86,13 +84,12 @@ AMFWriter& FlashWriter::writeInvocation(const char* name, double callback) {
 }
 
 AMFWriter& FlashWriter::writeAMFError(const char* code, const std::string& description, bool withoutClosing) {
-	if (!_callbackHandle)
-		_callbackHandle = 1; // Always answers AMF error to main NetConnection FlashStream if is initiatied from server (is not a response)
+	_callbackHandle = 1; // Always answers AMF error to NetConnection
 	return writeAMFState("_error", code, true, description, withoutClosing);
 }
 
-AMFWriter& FlashWriter::writeAMFState(const char* name,const char* code,bool isError, const string& description,bool withoutClosing) {
-	AMFWriter& writer = (AMFWriter&)writeInvocation(name,_callbackHandleOnAbort = _callbackHandle);
+AMFWriter& FlashWriter::writeAMFState(const char* name,const char* code, bool isError, const string& description,bool withoutClosing) {
+	AMFWriter& writer = (AMFWriter&)writeInvocation(name, _callbackHandleOnAbort = _callbackHandle);
 	_callbackHandle = 0;
 	writer.amf0 = true;
 	writer.beginObject();

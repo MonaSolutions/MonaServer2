@@ -32,13 +32,15 @@ struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 	const bool				isMain;
 
 	AMFWriter&				writeMessage();
-	AMFWriter&				writeInvocation(const char* name) { return writeInvocation(name,0); }
+	AMFWriter&				writeInvocation(const char* name) { return writeInvocation(name, 0); }
 	void					writeRaw(DataReader& reader);
 	BinaryWriter&			writeRaw() { return *write(AMF::TYPE_RAW); }
 
 	AMFWriter&				writeAMFSuccess(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_result", code, false, description, withoutClosing); }
 	void					writeAMFStatus(const char* code, const std::string& description) { writeAMFState("onStatus", code, false, description); }
 	void					writeAMFStatusError(const char* code, const std::string& description) { writeAMFState("onStatus", code, true, description); }
+	/*!
+	Write a AMF Error, then the writer should be closed (writeInvocation("close") + close()) */
 	AMFWriter&				writeAMFError(const char* code, const std::string& description, bool withoutClosing = false);
 	
 	AMFWriter&				writeAMFData(const std::string& name);
@@ -55,6 +57,7 @@ struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 	void					flush() { Writer::flush(); }
 
 	void					setCallbackHandle(double value) { _callbackHandle = value; _callbackHandleOnAbort = 0; }
+	void					resetCallbackHandle() { _callbackHandle = _callbackHandleOnAbort = 0; }
 	virtual void			clear() { _callbackHandle = _callbackHandleOnAbort; } // must erase the queueing messages (don't change the writer state)
 
 protected:
@@ -66,7 +69,7 @@ protected:
 	virtual AMFWriter&		write(AMF::Type type, UInt32 time, Media::Data::Type packetType, const Packet& packet, bool reliable) = 0;
 	virtual void			closing(Int32 error, const char* reason = NULL);
 	
-	AMFWriter&				writeInvocation(const char* name,double callback);
+	AMFWriter&				writeInvocation(const char* name, double callback);
 	AMFWriter&				writeAMFState(const char* name,const char* code,bool isError, const std::string& description,bool withoutClosing=false);
 
 private:

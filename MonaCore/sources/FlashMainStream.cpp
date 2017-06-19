@@ -152,7 +152,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 			DEBUG("Method client setPeerInfo not found in application ", peer.path);
 	}
 	if(ex)
-		writer.writeAMFError("NetConnection.Call.Failed", ex);
+		writer.writeAMFStatusError("NetConnection.Call.Failed", ex);
 }
 
 void FlashMainStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer) {
