@@ -172,15 +172,14 @@ void RTMFPMessenger::run() {
 			size -= contentSize;
 
 			// Compute flags
-			if (contentSize == 0) // just possible for MESSAGE_END
-				_flags = RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END; // MESSAGE_END is always with MESSAGE_ABANDON otherwise flash client can crash
-			else {
+			if (contentSize) {
 				_flags = (_flags&RTMFP::MESSAGE_WITH_AFTERPART) ? RTMFP::MESSAGE_WITH_BEFOREPART : 0;
 				if (!pQueue->stageAck && header)
 					_flags |= RTMFP::MESSAGE_OPTIONS;
 				if (size > 0)
 					_flags |= RTMFP::MESSAGE_WITH_AFTERPART;
-			}
+			} else // contentSize=0 => just possible for MESSAGE_END
+				_flags = RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END; // MESSAGE_END is always with MESSAGE_ABANDON otherwise flash client can crash
 
 			BinaryWriter writer(*_pBuffer);
 			writer.write8(header ? 0x10 : 0x11);

@@ -307,25 +307,25 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 
 	// If MESSAGE_ABANDON, abandon all stage inferior to abandon stage + clear current packet bufferized
 	if (flags&RTMFP::MESSAGE_ABANDON) {
+		_lost += (stage - nextStage)*RTMFP::SIZE_PACKET;
 		// Assign new stage
 		_stage = stage;
-		nextStage = _stage + 1;
+		nextStage = stage + 1;
 		// Remove obsolete fragments
 		auto it = _fragments.begin();
-		while (it != _fragments.end() && it->first <= stage)
+		while (it != _fragments.end() && it->first < nextStage) {
+			_lost += it->second.size();
+			fragmentation -= it->second.size();
 			++it;
+		}
 		_fragments.erase(_fragments.begin(), it);
 		// Remove buffer
-		if (_pBuffer) {
-			_lost += packet.size(); // this fragment abandonned
+		if (_pBuffer) {	
 			_lost += _pBuffer->size(); // the bufferized fragment abandonned
 			DEBUG("Fragments lost on flow ", id);
 			_pBuffer.reset();
 		}
-		return;
-	}
-
-	if (stage>nextStage) {
+	} else if (stage>nextStage) {
 		// not following stage, bufferizes the stage
 		if(_fragments.empty())
 			DEBUG("Wait stage ", nextStage, " lost on flow ", id);
@@ -335,17 +335,18 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 				DEBUG("_fragments.size()=", _fragments.size());
 		} else
 			DEBUG("Stage ", stage, " on flow ", id, " has already been received")
-	} else {
+		return;
+	} else
 		onFragment(nextStage++, flags, packet);
-		auto it = _fragments.begin();
-		while (it != _fragments.end() && it->first <= nextStage) {
-			onFragment(nextStage++, it->second.flags, it->second);
-			fragmentation -= it->second.size();
-			it = _fragments.erase(it);
-		}
-		if (_fragments.empty() && _stageEnd)
-			_output(id, _lost, Packet::Null()); // end flow!
+
+	auto it = _fragments.begin();
+	while (it != _fragments.end() && it->first <= nextStage) {
+		onFragment(nextStage++, it->second.flags, it->second);
+		fragmentation -= it->second.size();
+		it = _fragments.erase(it);
 	}
+	if (_fragments.empty() && _stageEnd)
+		_output(id, _lost, Packet::Null()); // end flow!
 }
 	
 void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& packet) {
