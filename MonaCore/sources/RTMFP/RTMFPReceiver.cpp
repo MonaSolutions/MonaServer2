@@ -213,8 +213,9 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 					}
 				}
 				++stage;	
-				if (pFlow)
-					pFlow->input(stage, flags, Packet(packet, message.current(), message.available()));
+				if (!pFlow)
+					break;
+				pFlow->input(stage, flags, Packet(packet, message.current(), message.available()));
 				if (pFlow->fragmentation > socket.recvBufferSize()) {
 					ERROR("Peer continue to send packets until exceeds buffer capacity whereas lost data have been requested");
 					KILL(Mona::Session::ERROR_CONGESTED);
