@@ -371,7 +371,7 @@ void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& pa
 		return;	
 	}
 	if (flags&RTMFP::MESSAGE_WITH_BEFOREPART) {
-		DEBUG("Fragments lost on flow ", id);
+		WARN("Message partially abandoned on flow ", id);
 		_lost += packet.size();
 		return; // the beginning of this message is lost, ignore it!
 	}
