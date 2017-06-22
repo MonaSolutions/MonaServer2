@@ -55,27 +55,42 @@ UInt64 Crypto::Rotate64(UInt64 value) {
 
 UInt8* Crypto::Hash::Compute(const EVP_MD* evp, const void* data, size_t size, UInt8* value) {
 	thread_local struct CTX {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		CTX() { EVP_MD_CTX_init(&_ctx); }
 		~CTX() { EVP_MD_CTX_cleanup(&_ctx); }
-		EVP_MD_CTX*	operator&() { return &_ctx; }
+		EVP_MD_CTX*	get() { return &_ctx; }
 		EVP_MD_CTX _ctx;
+#else
+		CTX() { _ctx = EVP_MD_CTX_new(); }
+		~CTX() { EVP_MD_CTX_free(_ctx); }
+		EVP_MD_CTX*	get() { return _ctx; }
+		EVP_MD_CTX* _ctx;
+#endif
 	} CTX;
-	EVP_DigestInit_ex(&CTX, evp, NULL);
-	EVP_DigestUpdate(&CTX, data, size);
-	EVP_DigestFinal_ex(&CTX, value, NULL);
+	EVP_DigestInit_ex(CTX.get(), evp, NULL);
+	EVP_DigestUpdate(CTX.get(), data, size);
+	EVP_DigestFinal_ex(CTX.get(), value, NULL);
 	return value;
 }
 
 UInt8* Crypto::HMAC::Compute(const EVP_MD* evp, const void* key, int keySize, const void* data, size_t size, UInt8* value) {
 	thread_local struct CTX {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		CTX() { HMAC_CTX_init(&_ctx); }
 		~CTX() { HMAC_CTX_cleanup(&_ctx); }
-		HMAC_CTX* operator&() { return &_ctx; }
+		HMAC_CTX* get() { return &_ctx; }
 		HMAC_CTX _ctx;
+#else
+		CTX() { _ctx = HMAC_CTX_new(); }
+		~CTX() { HMAC_CTX_free(_ctx); }
+		HMAC_CTX* get() { return _ctx; }
+		HMAC_CTX* _ctx;
+
+#endif
 	} CTX;
-	HMAC_Init_ex(&CTX, key, keySize, evp, NULL);
-	HMAC_Update(&CTX, BIN data, size);
-	HMAC_Final(&CTX, value, NULL);
+	HMAC_Init_ex(CTX.get(), key, keySize, evp, NULL);
+	HMAC_Update(CTX.get(), BIN data, size);
+	HMAC_Final(CTX.get(), value, NULL);
 	return value;
 }
 

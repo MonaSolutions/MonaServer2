@@ -73,7 +73,7 @@ UInt32 TLS::Socket::available() const {
 	if (!_ssl)
 		return available;
 	// don't call SSL_pending while handshake, it create a "wrong error 'don't call this function'"
-	if (inHandshake())
+	if (!SSL_is_init_finished(_ssl))
 		return available ? 0x4000 : 0; // max buffer possible size
 	if (available)
 		return 0x4000 + SSL_pending(_ssl);  // max buffer possible size and has to read!
@@ -165,7 +165,7 @@ UInt64 TLS::Socket::queueing() const {
 	if (!pTLS)
 		return Mona::Socket::queueing();
 	lock_guard<mutex> lock(_mutex);
-	if (_ssl && inHandshake())
+	if (_ssl && !SSL_is_init_finished(_ssl))
 		return Mona::Socket::queueing() + 1;
 	return Mona::Socket::queueing();
 }
@@ -185,11 +185,6 @@ bool TLS::Socket::flush(Exception& ex) {
 		return false;
 	ex = nullptr;
 	return true;
-}
-
-bool TLS::Socket::inHandshake() const{
-	_ssl->method->ssl_renegotiate_check(_ssl);
-	return (SSL_state(_ssl)&SSL_ST_INIT) ? true : false;
 }
 
 

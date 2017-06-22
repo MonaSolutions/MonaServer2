@@ -104,9 +104,9 @@ bool RTMFP::Send(Socket& socket, const Packet& packet, const SocketAddress& addr
 
 bool RTMFP::Engine::decode(Exception& ex, Buffer& buffer, const SocketAddress& address) {
 	static UInt8 IV[KEY_SIZE];
-	EVP_CipherInit_ex(&_context, EVP_aes_128_cbc(), NULL, _key, IV, 0);
+	EVP_CipherInit_ex(_context, EVP_aes_128_cbc(), NULL, _key, IV, 0);
 	int temp;
-	EVP_CipherUpdate(&_context, buffer.data(), &temp, buffer.data(), buffer.size());
+	EVP_CipherUpdate(_context, buffer.data(), &temp, buffer.data(), buffer.size());
 	// Check CRC
 	BinaryReader reader(buffer.data(), buffer.size());
 	UInt16 crc(reader.read16());
@@ -142,8 +142,8 @@ shared<Buffer>& RTMFP::Engine::encode(shared<Buffer>& pBuffer, UInt32 farId, con
 	BinaryWriter(data + 4, 2).write16(Crypto::ComputeChecksum(reader));
 	// Encrypt the resulted request
 	static UInt8 IV[KEY_SIZE];
-	EVP_CipherInit_ex(&_context, EVP_aes_128_cbc(), NULL, _key, IV, 1);
-	EVP_CipherUpdate(&_context, data+4, &temp, data + 4, size-4);
+	EVP_CipherInit_ex(_context, EVP_aes_128_cbc(), NULL, _key, IV, 1);
+	EVP_CipherUpdate(_context, data+4, &temp, data + 4, size-4);
 
 	reader.reset(4);
 	BinaryWriter(data, 4).write32(reader.read32() ^ reader.read32() ^ farId);

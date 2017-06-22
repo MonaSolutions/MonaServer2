@@ -38,11 +38,11 @@ struct DiffieHellman : virtual NullableObject {
 	UInt8	publicKeySize() const { return _publicKeySize; }
 	UInt8	privateKeySize() const { return _privateKeySize; }
 
-	UInt8*	readPublicKey(UInt8* key) const { return _pDH ? readKey(_pDH->pub_key, key) : NULL; }
-	UInt8*	readPrivateKey(UInt8* key) const { return _pDH ? readKey(_pDH->priv_key, key) : NULL; }
+	UInt8*	readPublicKey(UInt8* key) const;
+	UInt8*	readPrivateKey(UInt8* key) const;
 
 private:
-	UInt8*	readKey(BIGNUM *pKey, UInt8* key) const { BN_bn2bin(pKey, key); return key; }
+	UInt8*	readKey(const BIGNUM *pKey, UInt8* key) const { BN_bn2bin(pKey, key); return key; }
 
 	UInt8	_publicKeySize;
 	UInt8	_privateKeySize;

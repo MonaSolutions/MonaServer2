@@ -107,7 +107,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			UInt32 size = reader.read7BitValue();
 			Entity::Map<RTMFP::Group>& groups(this->protocol<RTMFProtocol>().groups);
 			Entity::Map<RTMFP::Group>::iterator it;
-			const UInt8* groupId;
+			const UInt8* groupId(NULL);
 			if (reader.read8() == 0x10) {
 				if (--size > reader.available()) {
 					ERROR("Bad header size for RTMFP group id");

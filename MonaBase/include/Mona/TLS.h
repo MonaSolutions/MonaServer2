@@ -57,9 +57,6 @@ struct TLS : virtual Object {
 		int			  receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 		Mona::Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr);
 
-
-		bool inHandshake() const;
-
 		// Create a socket from Socket::accept
 		Socket(NET_SOCKET sockfd, const sockaddr& addr, const shared<TLS>& pTLS);
 
