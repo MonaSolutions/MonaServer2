@@ -80,23 +80,16 @@ struct RTMFP : virtual Static {
 
 	struct Engine : virtual Object {
 		Engine(const UInt8* key) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-			_context = new EVP_CIPHER_CTX();
-#endif
-			memcpy(_key, key, KEY_SIZE); EVP_CIPHER_CTX_init(_context); 
+			_context = EVP_CIPHER_CTX_new();
+			memcpy(_key, key, KEY_SIZE); EVP_CIPHER_CTX_init(_context);
 		}
-		Engine(const Engine& engine) { 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-			_context = new EVP_CIPHER_CTX();
-#endif
-			memcpy(_key, engine._key, KEY_SIZE); EVP_CIPHER_CTX_init(_context); 
+		Engine(const Engine& engine) {
+			_context = EVP_CIPHER_CTX_new();
+			memcpy(_key, engine._key, KEY_SIZE); EVP_CIPHER_CTX_init(_context);
 		}
-		virtual ~Engine() { 
+		virtual ~Engine() {
 			EVP_CIPHER_CTX_cleanup(_context);
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-			delete _context;
-			_context = NULL;
-#endif
+			EVP_CIPHER_CTX_free(_context);
 		}
 
 		bool			decode(Exception& ex, Buffer& buffer, const SocketAddress& address);
