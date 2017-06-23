@@ -154,7 +154,7 @@ struct Packet: Binary, virtual Object {
 	Release packet */
 	Packet& reset() { return set(NULL, 0); }
 	/*!
-	Raccourcir packet */
+	Shrink packet */
 	Packet& shrink(UInt32 available) { return setArea(_data, available); }
 	/*!
 	Reference an immutable area of unbuffered data */

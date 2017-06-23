@@ -222,8 +222,6 @@ const char* strrpbrk(const char* value, const char* markers) {
 
 #if defined(_WIN32) && defined(_DEBUG)
 
-#include <windows.h>
-
 #define FALSE   0
 #define TRUE    1
 

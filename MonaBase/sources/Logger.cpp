@@ -15,9 +15,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Logger.h"
-#if defined(_WIN32)
-#include <windows.h>
-#endif
 #include <iostream>
 #include <mutex>
 

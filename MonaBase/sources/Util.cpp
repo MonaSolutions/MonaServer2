@@ -17,9 +17,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Util.h"
 #include "Mona/Timezone.h"
 #include <fstream>
-#if defined(_WIN32)
-	#include <windows.h>
-#else
+#if !defined(_WIN32)
 	#include <unistd.h>
 	#include <sys/syscall.h>
 	extern "C" char **environ;

@@ -16,9 +16,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 
 #include "Mona/Thread.h"
-#if defined(_WIN32)
-#include <windows.h>
-#else
+#if !defined(_WIN32)
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <pthread.h>

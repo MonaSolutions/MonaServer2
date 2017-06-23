@@ -15,27 +15,27 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Util.h"
+#include "Mona/FileSystem.h"
+#include "Mona/Path.h"
 #include <sys/stat.h>
 #include <cctype>
 #if defined(_WIN32)
-	#include "windows.h"
-	#include "direct.h"
+#include "direct.h"
 #else
 #if defined(__APPLE__)
-	#include <mach-o/dyld.h>
+#include <mach-o/dyld.h>
 #elif defined(_BSD)
-	#include <sys/types.h>
-	#include <sys/sysctl.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #else
-	#include <sys/sysmacros.h>
+#include <sys/sysmacros.h>
 #endif
-    #include "dirent.h"
-	#include <unistd.h>
-    #include "limits.h"
-    #include "pwd.h"
+#include "dirent.h"
+#include <unistd.h>
+#include "limits.h"
+#include "pwd.h"
 #endif
-#include "Mona/FileSystem.h"
-#include "Mona/Path.h"
+
 
 using namespace std;
 

@@ -16,6 +16,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #pragma once
 
+
 #include <stdio.h>
 #include <cstdlib>
 #include <cstdint>
@@ -25,6 +26,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <limits>
 #include <memory>
 #include <functional>
+
 
 /////  Usefull macros and patchs   //////
 
@@ -40,8 +42,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define NUMNAME(NAME) typename = typename std::enable_if<std::is_arithmetic<NAME>::value, NAME>::type
 
 #if defined(_WIN32)
-#define NOMINMAX
 #define _WINSOCKAPI_    // stops windows.h including winsock.h
+#define NOMINMAX
+#include "windows.h"
 #define sprintf sprintf_s
 #define snprintf sprintf_s
 #define PATH_MAX 4096 // to match Linux!
@@ -237,5 +240,7 @@ inline typename MapType::iterator lower_bound(MapType& map, const typename MapTy
 	}
 	return result;
 }
+
+
 
 } // namespace Mona

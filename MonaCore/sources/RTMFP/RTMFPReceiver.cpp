@@ -311,8 +311,6 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 		UInt32 lost = UInt32((stage - nextStage)*RTMFP::SIZE_PACKET);
 		if (!(flags&RTMFP::MESSAGE_END)) // END has always ABANDON too => no data lost!
 			lost += RTMFP::SIZE_PACKET/2; // estimation...
-		// Fix stages
-		_stage = stage;
 		// Remove obsolete fragments
 		nextStage = stage + 1;
 		auto it = _fragments.begin();
@@ -328,9 +326,10 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 			_pBuffer.reset();
 		}
 		if (lost) {
-			DEBUG("Fragments ", nextStage, " to ", stage, " lost on flow ", id);
+			DEBUG("Fragments ", _stage + 1, " to ", stage, " lost on flow ", id);
 			_lost += lost;
 		}
+		_stage = stage; // assign new stage
 	} else if (stage>nextStage) {
 		// not following stage, bufferizes the stage
 		if(_fragments.empty())

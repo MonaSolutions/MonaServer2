@@ -33,20 +33,20 @@ ADD_TEST(All) {
 	
 	Timer timer;
 
-	Timer::OnTimer onTimer10([](UInt32 delay) { return 10; });
-	Timer::OnTimer onTimer20([](UInt32 delay) { return 20; });
-	Timer::OnTimer onTimer40([](UInt32 delay) { return 40; });
-	Timer::OnTimer onTimer50([](UInt32 delay) { return 50; });
+	Timer::OnTimer onTimer100([](UInt32 delay) { return 100; });
+	Timer::OnTimer onTimer200([](UInt32 delay) { return 200; });
+	Timer::OnTimer onTimer400([](UInt32 delay) { return 400; });
+	Timer::OnTimer onTimer500([](UInt32 delay) { return 500; });
 	Timer::OnTimer onInsideRemove; onInsideRemove = [&](UInt32 delay) { timer.set(onInsideRemove, 0);  return 0; };
 	Timer::OnTimer onAutoRemove([](UInt32 delay) { return 0; });
 
-	timer.set(onTimer10, 10);
-	timer.set(onTimer20, 20);
-	timer.set(onTimer40, 40);
-	timer.set(onTimer50, 50);
-	timer.set(onTimer50, 55);
-	timer.set(onInsideRemove, 50);
-	timer.set(onAutoRemove, 55);
+	timer.set(onTimer100, 100);
+	timer.set(onTimer200, 200);
+	timer.set(onTimer400, 400);
+	timer.set(onTimer500, 500);
+	timer.set(onTimer500, 550);
+	timer.set(onInsideRemove, 500);
+	timer.set(onAutoRemove, 550);
 
 	CHECK(timer.count() == 6);
 
@@ -58,15 +58,15 @@ ADD_TEST(All) {
 
 	stopwatch.stop();
 
-	CHECK(stopwatch.elapsed()>50 && stopwatch.elapsed()<=60);
+	CHECK(stopwatch.elapsed()>500 && stopwatch.elapsed()<=600);
 
-	CHECK(onTimer10.count == 5 && onTimer20.count == 2 && onTimer40.count == 1 && onTimer50.count == 1 && onAutoRemove.count==1 && onInsideRemove.count == 1);
+	CHECK(onTimer100.count == 5 && onTimer200.count == 2 && onTimer400.count == 1 && onTimer500.count == 1 && onAutoRemove.count==1 && onInsideRemove.count == 1);
 	CHECK(timer.count() == 4);
 
-	timer.set(onTimer10, 0);
-	timer.set(onTimer20, 0);
-	timer.set(onTimer40, 0);
-	timer.set(onTimer50, 0);
+	timer.set(onTimer100, 0);
+	timer.set(onTimer200, 0);
+	timer.set(onTimer400, 0);
+	timer.set(onTimer500, 0);
 
 	CHECK(!timer.count() && !timer.raise())
 }

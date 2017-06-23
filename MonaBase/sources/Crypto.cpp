@@ -20,6 +20,20 @@ using namespace std;
 
 namespace Mona {
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static HMAC_CTX* HMAC_CTX_new() {
+	HMAC_CTX* ctx = new HMAC_CTX();
+	HMAC_CTX_init(ctx);
+	return ctx;
+}
+static void HMAC_CTX_free(HMAC_CTX* ctx) {
+	HMAC_CTX_cleanup(ctx);
+	delete ctx;
+}
+#define EVP_MD_CTX_new  EVP_MD_CTX_create
+#define EVP_MD_CTX_free EVP_MD_CTX_destroy
+#endif
+
 UInt8  Crypto::Rotate8(UInt8 value) {
 	value = ((value >> 1) & 0x5555) | ((value & 0x5555) << 1);
 	value = ((value >> 2) & 0x3333) | ((value & 0x3333) << 2);
@@ -55,10 +69,11 @@ UInt64 Crypto::Rotate64(UInt64 value) {
 
 UInt8* Crypto::Hash::Compute(const EVP_MD* evp, const void* data, size_t size, UInt8* value) {
 	thread_local struct CTX {
-		CTX() { EVP_MD_CTX_init(&_ctx); }
-		~CTX() { EVP_MD_CTX_cleanup(&_ctx); }
-		EVP_MD_CTX*	operator&() { return &_ctx; }
-		EVP_MD_CTX _ctx;
+		CTX() : _ctx(EVP_MD_CTX_new()) {}
+		~CTX() { EVP_MD_CTX_free(_ctx); }
+		EVP_MD_CTX*	operator&() { return _ctx; }
+	private:
+		EVP_MD_CTX* _ctx;
 	} CTX;
 	EVP_DigestInit_ex(&CTX, evp, NULL);
 	EVP_DigestUpdate(&CTX, data, size);
@@ -68,10 +83,11 @@ UInt8* Crypto::Hash::Compute(const EVP_MD* evp, const void* data, size_t size, U
 
 UInt8* Crypto::HMAC::Compute(const EVP_MD* evp, const void* key, int keySize, const void* data, size_t size, UInt8* value) {
 	thread_local struct CTX {
-		CTX() { HMAC_CTX_init(&_ctx); }
-		~CTX() { HMAC_CTX_cleanup(&_ctx); }
-		HMAC_CTX* operator&() { return &_ctx; }
-		HMAC_CTX _ctx;
+		CTX() : _ctx(HMAC_CTX_new()) {}
+		~CTX() { HMAC_CTX_free(_ctx); }
+		HMAC_CTX* operator&() { return _ctx; }
+	private:
+		HMAC_CTX* _ctx;
 	} CTX;
 	HMAC_Init_ex(&CTX, key, keySize, evp, NULL);
 	HMAC_Update(&CTX, BIN data, size);

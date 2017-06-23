@@ -38,8 +38,10 @@ struct Thread : virtual Object {
 	bool						running() const { return !_stop; }
 	
 	static unsigned				ProcessorCount() { unsigned result(std::thread::hardware_concurrency());  return result > 0 ? result : 1; }
-	template<typename DurationType>
-	static void					Sleep(DurationType duration) { std::this_thread::sleep_for(std::chrono::milliseconds(duration)); }
+	
+	/*!
+	A sleep, usefull for test, with imprecise milliseconds resolution (resolution from 5 to 15ms) */
+	static void					Sleep(UInt32 duration) { std::this_thread::sleep_for(std::chrono::milliseconds(duration)); }
 
 	static const std::string&	CurrentName() { return _Name; }
 	static UInt32				CurrentId();

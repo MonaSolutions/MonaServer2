@@ -56,17 +56,13 @@ struct Time : virtual Object {
 	/// \brief reduce the Mona time instance (in µsec)
 	virtual Time& operator-= (Int64 time) { _time -= time; return *this; }
 
-	/*!
-	Monotonic epoch millisecond timestamp */
-	static Int64 Now() {
-		static Int64 First(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+	static Int64 Time::Now() {
 #if (_WIN32_WINNT >= 0x0600)
-		// GetTickCount64 performance x10 comparing with std::chrono::steady_clock::now()
-		static Int64 Ref(GetTickCount64());
-		return GetTickCount64() - Ref + First;
+		static Int64 Ref = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - GetTickCount64();
+		return Ref + GetTickCount64(); // GetTickCount64 performance x10 comparing with std::chrono::steady_clock::now()
 #else
-		static Int64 Ref(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
-		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - Ref + First;
+		static Int64 Ref = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		return Ref + std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 #endif
 	}
 

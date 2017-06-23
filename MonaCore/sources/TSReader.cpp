@@ -292,7 +292,8 @@ void TSReader::readESI(BinaryReader& reader, Program& program) {
 			continue; // null padding
 		UInt8 size = reader.read8();
 		const UInt8* data = reader.current();
-		BinaryReader desc(data, available -= reader.next(size));
+		BinaryReader desc(data, size = reader.next(size));
+		available -= size;
 		switch (type) {
 			case 0x0A: // ISO 639 language + Audio option
 				data = desc.current();

@@ -16,9 +16,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 
 #include "Mona/TerminateSignal.h"
-#if defined(_WIN32)
-	#include <Windows.h>
-#else
+#if !defined(_WIN32)
 	#include <unistd.h>
 #endif
 

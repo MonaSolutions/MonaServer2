@@ -318,7 +318,7 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 			if (track <= _audios.size() && (lang = _audios[track].lang))
 				setString(String(track, ".textLang"), lang); // audioLang can be used for metadata?
 			else
-				setString(String(track, ".textLang"), EXPAND("und")); // audioLang can be used for metadata?
+				setString(String(track, ".textLang"), EXPAND("xxx")); // audioLang can be used for metadata?
 		}
 	}
 

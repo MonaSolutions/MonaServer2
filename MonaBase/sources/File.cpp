@@ -18,9 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#if defined(_WIN32)
-#include "windows.h"
-#elif defined(__ANDROID__)
+#if defined(__ANDROID__)
 #include <sys/syscall.h>
 #include <linux/fadvise.h>
 #if defined(__NR_arm_fadvise64_64)
@@ -28,7 +26,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #elif defined(__NR_fadvise64_64)
 	#define posix_fadvise(fd, offset, len, advise) syscall(__NR_fadvise64_64, fd, offset, len, advise)
 #endif
-#else
+#elif !defined(_WIN32)
 #include <unistd.h>
 #if defined(_BSD)
 	#define lseek64 lseek

@@ -31,17 +31,17 @@ ADD_TEST(All) {
 	sw.start();
 	Thread::Sleep(200);
 	sw.stop();
-	CHECK(180 < sw.elapsed() && sw.elapsed() < 220);
+	CHECK(185 < sw.elapsed() && sw.elapsed() < 215);
 
 	sw.start();
 	Thread::Sleep(100);
 	sw.stop();
-	CHECK(280 < sw.elapsed() && sw.elapsed() < 320);
+	CHECK(270 < sw.elapsed() && sw.elapsed() < 330);
 	
 	sw.restart();
 	Thread::Sleep(200);
 	sw.stop();
-	CHECK(180 < sw.elapsed() && sw.elapsed() < 220);
+	CHECK(185 < sw.elapsed() && sw.elapsed() < 215);
 }
 
 }

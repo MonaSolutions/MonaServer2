@@ -19,10 +19,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <limits>
 #include <cctype>
 
-#if defined(_WIN32)
-    #include "windows.h"
-#endif
-
 using namespace std;
 
 namespace Mona {

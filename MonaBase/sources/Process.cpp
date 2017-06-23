@@ -15,9 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Process.h"
-#if defined(_WIN32)
-	#include <windows.h>
-#else
+#if !defined(_WIN32)
 	#include <unistd.h>
 #endif
 
