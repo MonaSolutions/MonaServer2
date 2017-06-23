@@ -313,8 +313,8 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 			lost += RTMFP::SIZE_PACKET/2; // estimation...
 		// Fix stages
 		_stage = stage;
-		nextStage = stage + 1;
 		// Remove obsolete fragments
+		nextStage = stage + 1;
 		auto it = _fragments.begin();
 		while (it != _fragments.end() && it->first < nextStage) {
 			lost += it->second.size();

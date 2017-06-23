@@ -117,8 +117,8 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 				thread_local UInt8 ID[Entity::SIZE];
 				Crypto::Hash::SHA256(reader.current(), size, ID);
 				groupId = ID;
-			} else if (--size) {
-				if (size != Entity::SIZE) {
+			} else {
+				if (--size != Entity::SIZE) {
 					ERROR("Bad size for RTMFP group id");
 					return;
 				}
