@@ -276,14 +276,14 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 	} else if(pVideo) {
 		CCaption::OnText onText([this, &tag, track](UInt8 channel, const Packet& packet) {
 			DEBUG("cc",channel, " => ",string(STR packet.data(), packet.size()));
-			writeData((track - 1) * 4 + channel - 1, Media::Data::TYPE_TEXT, packet);
+			writeData((track - 1) * 4 + channel, Media::Data::TYPE_TEXT, packet);
 		});
 		CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {
 			if(lang) {
 				DEBUG("Subtitle lang ", lang);
-				setString(String((track - 1) * 4 + channel - 1, ".textLang"), lang);
+				setString(String((track - 1) * 4 + channel, ".textLang"), lang);
 			} else
-				erase(String((track - 1) * 4 + channel - 1, ".textLang"));
+				erase(String((track - 1) * 4 + channel, ".textLang"));
 		});
 		pVideo->cc.extract(tag, packet, onVideo, onText, onLang);
 	} else

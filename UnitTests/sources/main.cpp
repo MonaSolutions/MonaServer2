@@ -71,15 +71,14 @@ private:
 
 ///// MAIN
 	int main() {
-		string module;
-		argument("loop", _loop);
-		if (!argument("module", module))
+		getNumber("arguments.loop", _loop);
+		const char* module;
+		if (!(module=getString("arguments.module")))
 			runSelectedModule();
-		else if (module=="all")
+		else if (String::ICompare(module,"all")==0)
 			PoolTest::PoolTestInstance().runAll(_loop);
 		else
 			PoolTest::PoolTestInstance().run(module,_loop);
-		
 
         NOTE("END OF TESTS");
         cout << "Press any key to exit";

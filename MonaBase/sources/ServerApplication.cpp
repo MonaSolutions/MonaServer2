@@ -133,14 +133,14 @@ int ServerApplication::run(int argc, const char** argv) {
 		if (!init(argc, argv))
 			return EXIT_OK;
 		Exception ex;
-		if (hasArgument("registerService")) {
+		if (hasKey("arguments.registerService")) {
 			bool success = false;
 			AUTO_ERROR(success = registerService(ex), "RegisterService")
 			if (success)
 				NOTE("The application has been successfully registered as a service");
 			return EXIT_OK;
 		}
-		if (hasArgument("unregisterService")) {
+		if (hasKey("arguments.unregisterService")) {
 			bool success = false;
 			AUTO_ERROR(success = unregisterService(ex), "UnregisterService")
 			if (success)

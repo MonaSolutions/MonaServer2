@@ -83,8 +83,6 @@ UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 
 		//	UInt8 scramblingControl((value >> 6) & 0x03); // scrambling control for DVB-CSA, TODO?
 		bool hasContent(byte & 0x10 ? true : false);	// has payload data
-	//	UInt8 ccount(value & 0x0f);		// continuty count
-			
 		// technically hasPD without hasAF is an error, see spec
 			
 		if (byte & 0x20) { // has adaptation field
@@ -117,8 +115,10 @@ UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 			continue; // null packet, used for fixed bandwidth padding
 		const auto& it(_programs.find(pid));
 		if (it == _programs.end()) {
+			if (!hasHeader || !hasContent)
+				continue;
 			const auto& itPMT(_pmts.find(pid));
-			if (itPMT != _pmts.end() && hasHeader && hasContent) // assume that PMT table can't be split (pusi==true) + useless if no playload
+			if (itPMT != _pmts.end()) // assume that PMT table can't be split (pusi==true) + useless if no playload
 				parsePSI(reader.current(), reader.available(), itPMT->second, source);
 			continue;
 		}
@@ -129,18 +129,21 @@ UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 		// Program known!
 
 		UInt8 sequence(byte & 0x0f);
-		UInt32 lost = ((sequence - it->second.sequence - 1) & 0x0F) * 184; // 184 is an approximation (impossible to know if missing packet had playload header or adaptation field)
+		UInt32 lost = sequence - it->second.sequence;
+		if (hasContent)
+			--lost; // continuity counter is incremented just on playload, else it says same!
+		lost = (lost & 0x0F) * 184; // 184 is an approximation (impossible to know if missing packet had playload header or adaptation field)
 		// On lost data, wait next header!
 		if (lost) {
 			if (!it->second.waitHeader) {
 				it->second.waitHeader = true;
 				it->second->flush(source); // flush to reset the state!
 			}
-			if(it->second.sequence != 0xFF) // if sequence==0xFF it's the first time, no real lost, juste wait header!
+			if (it->second.sequence != 0xFF) // if sequence==0xFF it's the first time, no real lost, juste wait header!
 				source.reportLost(it->second.type, lost, it->second->track);
 		}
 		it->second.sequence = sequence;
-
+	
 		if (hasHeader)
 			readPESHeader(reader, it->second);
 

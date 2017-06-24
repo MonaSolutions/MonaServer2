@@ -379,10 +379,10 @@ UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 composi
 
 	/// ADATPVIE HEADER ////
 	if (fillSize) {
-		writer.write8(0x30 | (counter++ % 0x10)); // adaptation flag
+		writer.write8(0x30 | (counter++ % 0x10)); // adaptation field followed by payload
 		fillSize -= writeAdaptiveHeader(pid, time, randomAccess, fillSize, writer);
 	} else
-		writer.write8(0x10 | (counter++ % 0x10)); // no adaptation flag
+		writer.write8(0x10 | (counter++ % 0x10)); // no adaptation field, payload only
 	
 	UInt32 pusiPos(writer.size());
 

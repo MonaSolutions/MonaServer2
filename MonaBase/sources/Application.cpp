@@ -140,11 +140,11 @@ bool Application::init(int argc, const char* argv[]) {
 		WARN("Arguments, ",ex," use 'help'")
 
 	// 8 - behavior
-	if (hasArgument("help")) {
+	if (hasKey("arguments.help")) {
 		displayHelp();
 		return false;
 	}
-	if (_version && hasArgument("version")) {
+	if (_version && hasKey("arguments.version")) {
 		printf("v%s\n",_version);
 		return false;
 	}
