@@ -56,7 +56,7 @@ struct Time : virtual Object {
 	/// \brief reduce the Mona time instance (in µsec)
 	virtual Time& operator-= (Int64 time) { _time -= time; return *this; }
 
-	static Int64 Time::Now() {
+	static Int64 Now() {
 #if (_WIN32_WINNT >= 0x0600)
 		static Int64 Ref = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - GetTickCount64();
 		return Ref + GetTickCount64(); // GetTickCount64 performance x10 comparing with std::chrono::steady_clock::now()
