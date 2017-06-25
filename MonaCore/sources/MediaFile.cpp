@@ -63,14 +63,14 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 							continue;
 						}
 						Int32 delta = Int32(time - _realTime.elapsed());
-						if (delta < 20) // 20 ms to get at less one frame in advance (20ms = 50fps), not more otherwise not progressive (and player loading wave)
-							continue;
-						if (delta > 1000) {
+						if (abs(delta) > 1000) {
 							// more than 1 fps means certainly a timestamp progression error..
-							WARN(description(), " resets horloge");
+							WARN(description(), " resets horloge (delta time of ", delta, "ms)");
 							_realTime.update(Time::Now() - time);
 							continue;
 						}
+						if (delta < 20) // 20 ms to get at less one frame in advance (20ms = 50fps), not more otherwise not progressive (and player loading wave)
+							continue;
 						_pSource->flush();
 						this->timer.set(_onTimer, delta);
 						return 0; // pause!
@@ -78,6 +78,11 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 					_pSource->reportLost(pMedia->type, (Lost&)(*pMedia), pMedia->track);
 				} else 
 					_pSource->reset();
+			}
+			if (_pReader.unique()) {
+				// end of file!
+				stop();
+				return 0;
 			}
 			if(pMedia)
 				_pSource->flush(); // flush before because reading can take time (and to avoid too large amout of data transfer)
@@ -96,11 +101,7 @@ void MediaFile::Reader::start() {
 		return;
 	_realTime =	0; // reset realTime
 	shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, path, _pSource->name()));
-	pDecoder->onFlush = _onFlush = [this]() {
-		if (_pReader.unique())
-			return stop(); // end of file!
-		_onTimer();
-	};
+	pDecoder->onFlush = _onFlush = [this]() { _onTimer(); };
 	pDecoder->onReset = _onReset = [this]() { _medias.emplace_back(); };
 	pDecoder->onLost = _onLost = [this](shared<Lost>& pLost) { _medias.emplace_back(pLost); };
 	pDecoder->onMedia = _onMedia = [this](shared<Media::Base>& pMedia) { _medias.emplace_back(pMedia); };
@@ -114,14 +115,17 @@ void MediaFile::Reader::stop() {
 		return;
 	timer.set(_onTimer, 0);
 	io.close(_pFile);
-	// reset _pReader because could be used by different thread by new Socket and its decoding thread
-	_pReader.reset(MediaReader::New(_pReader->format()));
 	_onFlush = nullptr;
 	_onReset = nullptr;
 	_onLost = nullptr;
 	_onMedia = nullptr;
-	_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
 	_medias.clear();
+	// reset _pReader because could be used by different thread by new Socket and its decoding thread
+	if (_pReader.unique())
+		_pReader->flush(*_pSource);
+	else
+		_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
+	_pReader.reset(MediaReader::New(_pReader->format()));
 	INFO(description(), " stops");
 }
 
