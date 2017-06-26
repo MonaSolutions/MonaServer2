@@ -6,7 +6,7 @@ The MonaServer project is not compiling for now because we are concentrated on t
 
 # Windows Binary
 
-A [32-bit Windows zipped package](https://sourceforge.net/projects/monaserver/files/MonaTiny/MonaTiny.zip/download) is provided to quickly test *MonaTiny*.
+A [32-bit Windows zipped package](https://sourceforge.net/projects/monaserver/files/MonaTiny/MonaTiny-1.102.zip/download) is provided to quickly test *MonaTiny*.
 We recommend you to clone the github version from the sources for production use.
 
 # Fast compilation
