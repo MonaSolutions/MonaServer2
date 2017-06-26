@@ -51,12 +51,20 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 						UInt32 time;
 						switch (pMedia->type) {
 							default: continue;
-							case Media::TYPE_AUDIO:
-								time = ((const Media::Audio&)*pMedia).tag.time;
+							case Media::TYPE_AUDIO: {
+								const Media::Audio& audio = (const Media::Audio&)*pMedia;
+								if (audio.tag.isConfig)
+									continue; // skip this unrendered packet and where time is sometimes unprecise
+								time = audio.tag.time;
 								break;
-							case Media::TYPE_VIDEO:
+							}
+							case Media::TYPE_VIDEO: {
+								const Media::Video& video = (const Media::Video&)*pMedia;
+								if (video.tag.frame == Media::Video::FRAME_CONFIG)
+									continue; // skip this unrendered packet and where time is sometimes unprecise
 								time = ((const Media::Video&)*pMedia).tag.time;
 								break;
+							}
 						}
 						if (!_realTime) {
 							_realTime.update(Time::Now() - time);

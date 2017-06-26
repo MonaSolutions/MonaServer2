@@ -37,22 +37,22 @@ void FlashWriter::closing(Int32 error, const char* reason) {
 		return;
 	switch(error) {
 		case Session::ERROR_SERVER:
-			writeAMFError("NetConnection.Connect.AppShutdown", reason ? reason : "Server shutdown");
+			writeAMFMainError("NetConnection.Connect.AppShutdown", reason ? reason : "Server shutdown");
 			break;
 		case Session::ERROR_REJECTED:
-			writeAMFError("NetConnection.Connect.Rejected", reason ? reason : "Client rejected");
+			writeAMFMainError("NetConnection.Connect.Rejected", reason ? reason : "Client rejected");
 			break;
 		case Session::ERROR_IDLE:
-			writeAMFError("NetConnection.Connect.IdleTimeout", reason ? reason : "Client idle timeout");
+			writeAMFMainError("NetConnection.Connect.IdleTimeout", reason ? reason : "Client idle timeout");
 			break;
 		case Session::ERROR_PROTOCOL:
-			writeAMFError("NetConnection.Connect.Failed", reason ? reason : "Protocol error");
+			writeAMFMainError("NetConnection.Connect.Failed", reason ? reason : "Protocol error");
 			break;
 		case Session::ERROR_UNEXPECTED:
-			writeAMFError("NetConnection.Connect.Failed", reason ? reason : "Unknown error");
+			writeAMFMainError("NetConnection.Connect.Failed", reason ? reason : "Unknown error");
 			break;
 		default: // User code
-			writeAMFError("NetConnection.Connect.Failed", reason ? reason : String("Error ", error));
+			writeAMFMainError("NetConnection.Connect.Failed", reason ? reason : String("Error ", error));
 	}
 }
 
@@ -81,11 +81,6 @@ AMFWriter& FlashWriter::writeInvocation(const char* name, double callback) {
 	writer->write8(AMF::AMF0_NULL); // for RTMP compatibility! (requiere it)
 	writer.amf0 = amf0;
 	return writer;
-}
-
-AMFWriter& FlashWriter::writeAMFError(const char* code, const std::string& description, bool withoutClosing) {
-	_callbackHandle = 1; // Always answers AMF error to NetConnection
-	return writeAMFState("_error", code, true, description, withoutClosing);
 }
 
 AMFWriter& FlashWriter::writeAMFState(const char* name,const char* code, bool isError, const string& description,bool withoutClosing) {

@@ -56,7 +56,7 @@ RTMPSession::RTMPSession(Protocol& protocol) : _first(true), _controller(2, *thi
 				SocketAddress address;
 				if (peer.onHandshake(address)) {
 					// redirection
-					AMFWriter& amf = writer.writeAMFError("NetConnection.Connect.Rejected", "Redirection (see info.ex.redirect)", true);
+					AMFWriter& amf = writer.writeAMFMainError("NetConnection.Connect.Rejected", "Redirection (see info.ex.redirect)", true);
 					amf.writePropertyName("ex");
 					amf.beginObject();
 					amf.writeNumberProperty("code", 302);

@@ -26,7 +26,6 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
-	// For AMF response!
 	bool					amf0;
 
 	const bool				isMain;
@@ -39,9 +38,11 @@ struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 	AMFWriter&				writeAMFSuccess(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_result", code, false, description, withoutClosing); }
 	void					writeAMFStatus(const char* code, const std::string& description) { writeAMFState("onStatus", code, false, description); }
 	void					writeAMFStatusError(const char* code, const std::string& description) { writeAMFState("onStatus", code, true, description); }
+
+	AMFWriter&				writeAMFError(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_error", code, true, description, withoutClosing); }
 	/*!
-	Write a AMF Error, then the writer should be closed (writeInvocation("close") + close()) */
-	AMFWriter&				writeAMFError(const char* code, const std::string& description, bool withoutClosing = false);
+	Write a AMF Main Error, then the writer should be closed (writeInvocation("close") + close()) */
+	AMFWriter&				writeAMFMainError(const char* code, const std::string& description, bool withoutClosing = false) { _callbackHandle = 1; return writeAMFError(code, description, withoutClosing); }
 	
 	AMFWriter&				writeAMFData(const std::string& name);
 
