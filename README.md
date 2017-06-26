@@ -1,13 +1,15 @@
 # MonaServer2
-Temporary project planned to replace MonaServer
+Temporary project planned to replace [MonaServer](https://github.com/MonaSolutions/MonaServer).
 
-The project MonaTiny is now ready for Linux and Windows, it is a very lightweight software without lua support.
+The project MonaTiny is now ready for Linux and Windows, it is a very lightweight software without LUA support.
 The MonaServer project is not compiling for now because we are concentrated on the protocols.
 
 # Windows Binary
 
 A [32-bit Windows zipped package](https://sourceforge.net/projects/monaserver/files/MonaTiny/MonaTiny-1.102.zip/download) is provided to quickly test *MonaTiny*.
 We recommend you to clone the github version from the sources for production use.
+
+In order to use it you need to install the [C++ vc_redist.x86 Visual Studio 2015 package](https://www.microsoft.com/it-it/download/details.aspx?id=48145).
 
 # Fast compilation
 
