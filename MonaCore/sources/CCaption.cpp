@@ -131,30 +131,28 @@ UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, con
 	// Search SEI frame to parse!
 	UInt32 count(0);
 	BinaryReader reader(packet.data(), packet.size());
+	const UInt8* begin = NULL;
 	switch (tag.codec) {
-		case Media::Video::CODEC_H264: {
-			for (;;) {
-				const UInt8* cur = reader.current();
-				UInt32 size = reader.read32();
-				if(!size)
-					break;
-				Packet nal(packet, cur, reader.next(size)+4);
-				BinaryReader cc(nal.data()+4, nal.size()-4);
-				if ((cc.read8() & 0x1f)!=6 || cc.read8() != 4) {
-					onVideo(tag, nal);
+		case Media::Video::CODEC_H264: {	
+			while (reader.available()) {
+				BinaryReader cc(reader.current(), reader.available());
+				if (!begin)
+					begin = cc.data();
+				cc.shrink(reader.next(cc.read32()));
+				if ((cc.read8() & 0x1f)!=6 || cc.read8() != 4)
 					continue;
-				}
 				// SEI - user data registered
-				size = 0;
+				UInt32 size = 0;
 				while ((size += cc.read8()) == 255);
 				cc.shrink(size);
 				if(cc.read8()==0xFF)
 					cc.read8(); // country code extension
 				cc.next(2); // skip terminate provider code
-				if (cc.available() < 10 || memcmp(cc.current(), EXPAND("GA94")) != 0) {
-					onVideo(tag, nal);
+				if (cc.available() < 10 || memcmp(cc.current(), EXPAND("GA94")) != 0)
 					continue;
-				}
+				if (begin != cc.data()) // give the before video part
+					onVideo(tag, Packet(packet, begin, cc.current() - begin));
+				begin = NULL;
 				Media::Video::Tag ccTag(tag);
 				ccTag.frame = Media::Video::FRAME_CC;
 				// Caption closed!
@@ -170,12 +168,14 @@ UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, con
 						decode(tag, Packet(packet, cc.current(), value), onLang);
 					}
 				}
-				onVideo(ccTag, nal);
+				onVideo(ccTag, Packet(packet, cc.data(), cc.size()));
 			}
 			break;
 		}
 		default:;
 	}
+	if(begin)
+		onVideo(tag, packet + (begin-packet.data()));
 	return count;
 }
 
