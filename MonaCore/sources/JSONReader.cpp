@@ -34,10 +34,12 @@ JSONReader::JSONReader(const UInt8* data, UInt32 size) : _pos(reader.position())
 	if (!cur)
 		return;
 	bool isArray(*cur=='[');
-	if (!isArray && *cur != '{')
-		return;
+	if (!isArray) {
+		if (*cur != '{')
+			return;
+	} else
+		reader.next();
 
-	reader.next();
 	_pos = reader.position();
 
 	if (!(cur = current()))
@@ -52,10 +54,8 @@ JSONReader::JSONReader(const UInt8* data, UInt32 size) : _pos(reader.position())
 					_isValid = true;
 					reader.shrink(end-cur);
 				}
-			} else if (*end == '}') {
+			} else if (*end == '}')
 				_isValid = true;
-				reader.shrink(end-cur);
-			}
 			return;
 		}
 	}
