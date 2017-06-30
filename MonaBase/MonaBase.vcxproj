@@ -105,10 +105,6 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <SDLCheck>true</SDLCheck>
-      <PrecompiledHeaderFile>
-      </PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>
-      </PrecompiledHeaderOutputFile>
     </ClCompile>
     <Lib>
       <OutputFile>$(OutDir)$(ProjectName)d.lib</OutputFile>
@@ -125,14 +121,11 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <SDLCheck>true</SDLCheck>
-      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
       <DisableSpecificWarnings>4267;4244;4800</DisableSpecificWarnings>
     </ClCompile>
     <Lib>
@@ -152,7 +145,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <PrecompiledHeader />
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat />
       <Optimization>Full</Optimization>
@@ -176,8 +169,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>
       </DebugInformationFormat>
@@ -223,13 +215,7 @@
     <ClCompile Include="sources\IOSocket.cpp" />
     <ClCompile Include="sources\IPAddress.cpp" />
     <ClCompile Include="sources\Logger.cpp" />
-    <ClCompile Include="sources\Mona.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
-      </PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
-      </PrecompiledHeaderOutputFile>
-    </ClCompile>
+    <ClCompile Include="sources\Mona.cpp" />
     <ClCompile Include="sources\BinaryReader.cpp" />
     <ClCompile Include="sources\BinaryWriter.cpp" />
     <ClCompile Include="sources\DiffieHellman.cpp" />

@@ -15,23 +15,6 @@ struct ServerApp : ServerApplication  {
 ///// MAIN
 	int main(TerminateSignal& terminateSignal) {
 
-/*
-		ifstream ts("C:/Users/mathieu/Documents/Marc/SIntel.ts", ios::binary | ios::in);
-		UInt8 buffer[188];
-
-		TSReader reader;
-		MediaFileWriter<FLVWriter> writer;
-		
-		int packets = 0;
-		while (ts.read(STR buffer, sizeof(buffer))) {
-			reader.read(Packet(buffer, sizeof(buffer)), writer);
-			++packets;
-		}
-		ts.close();
-		getchar();
-		return 0;
-		*/
-
 		// starts the server
 		MonaTiny server(file().parent()+"www",getNumber<UInt32>("socketBufferSize"), terminateSignal);
 
