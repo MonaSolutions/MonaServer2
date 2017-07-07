@@ -138,11 +138,14 @@ UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, con
 				BinaryReader cc(reader.current(), reader.available());
 				if (!begin)
 					begin = cc.data();
-				cc.shrink(reader.next(cc.read32()));
+				UInt32 size = cc.read32();
+				if (!size)
+					break;
+				cc.shrink(reader.next(size));
 				if ((cc.read8() & 0x1f)!=6 || cc.read8() != 4)
 					continue;
 				// SEI - user data registered
-				UInt32 size = 0;
+				size = 0;
 				while ((size += cc.read8()) == 255);
 				cc.shrink(size);
 				if(cc.read8()==0xFF)

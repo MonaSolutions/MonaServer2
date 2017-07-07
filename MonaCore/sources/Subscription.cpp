@@ -380,7 +380,9 @@ void Subscription::flush() {
 	if (_ejected)
 		return;
 	target.flush();
+	// update congestion status
 	_congested = 0;
+	_congestion(target.queueing());
 }
 
 
