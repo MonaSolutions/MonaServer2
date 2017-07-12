@@ -59,7 +59,7 @@ struct HTTPWriter : Writer, Media::TrackTarget, virtual Object {
 	template <typename ...Args>
 	void			writeError(const char* code, Args&&... args) { newSender<HTTPDataSender>(true, code, std::forward<Args>(args)...); }
 
-	void			flush() { Writer::flush(); }
+	void			flush() { Media::TrackTarget::flush();  Writer::flush(); }
 private:
 	void			flush(const shared<HTTPSender>& pSender);
 	void			flushing();

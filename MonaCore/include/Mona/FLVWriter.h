@@ -44,8 +44,6 @@ struct FLVWriter : MediaWriter, virtual Object {
 	static UInt8 ToCodecs(const Media::Audio::Tag& tag);
 	static UInt8 ToCodecs(const Media::Video::Tag& tag) { return ((tag.frame== Media::Video::FRAME_CONFIG ? Media::Video::FRAME_KEY : tag.frame) << 4) | tag.codec; }
 
-	static bool  ParseAVCConfig(const Packet& packet, Packet& sps, Packet& pps);
-	static void  WriteAVCConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer, const OnWrite& onWrite = nullptr);
 private:
 	void write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt16 compositionOffset, const Packet& packet, const OnWrite& onWrite);
 	

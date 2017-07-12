@@ -53,38 +53,33 @@ struct MediaFile : virtual Static {
 			UInt32 _lost;
 		};
 		struct Decoder : File::Decoder, private Media::Source, virtual Object {
-			typedef Event<void(shared<Media::Base>&)>	ON(Media);
-			typedef Event<void(shared<Lost>&)>			ON(Lost);
-			typedef Event<void()>						ON(Flush);
-			typedef Event<void()>						ON(Reset);
+			typedef Event<void()>	ON(Flush);
 
-			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const Path& path, const std::string& name) :
-				_name(name), _handler(handler), _pReader(pReader), _path(path) {}
+			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const Path& path, const std::string& name, const shared<std::deque<unique<Media::Base>>>& pMedias) :
+				_name(name), _handler(handler), _pReader(pReader), _path(path), _pMedias(pMedias) {}
 
 		private:
 			UInt32 decode(shared<Buffer>& pBuffer, bool end);
 
-			void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { _handler.queue(onMedia, new Media::Audio(tag, packet, track)); }
-			void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { _handler.queue(onMedia, new Media::Video(tag, packet, track)); }
-			void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { _handler.queue(onMedia, new Media::Data(type, packet, track)); }
-			void setProperties(UInt8 track, DataReader& reader) { _handler.queue(onMedia, new Media::Data(reader, track)); }
-			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { _handler.queue(onLost, new Lost(type, lost, track)); }
-			void flush() { _flushed = true; _handler.queue(onFlush); }
-			void reset() { _handler.queue(onReset); }
+			void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { if(!_mediaTimeGotten) _mediaTimeGotten = !tag.isConfig; _pMedias->emplace_back(new Media::Audio(tag, packet, track)); }
+			void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { if (!_mediaTimeGotten) _mediaTimeGotten = tag.frame != Media::Video::FRAME_CONFIG; _pMedias->emplace_back(new Media::Video(tag, packet, track)); }
+			void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { _pMedias->emplace_back(new Media::Data(type, packet, track)); }
+			void setProperties(UInt8 track, DataReader& reader) { _pMedias->emplace_back(new Media::Data(reader, track)); }
+			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { _pMedias->emplace_back(new Lost(type, lost, track)); }
+			void flush() { } // do nothing on source flush, to do the flush in end of file reading!
+			void reset() { _pMedias->emplace_back(); }
 
 			
 			shared<MediaReader>		_pReader;
 			std::string				_name;
 			const Handler&			_handler;
 			Path					_path;
-			bool					_flushed;
+			bool					_mediaTimeGotten;
 			
+			shared<std::deque<unique<Media::Base>>> _pMedias;
 		};
 
-		Decoder::OnLost			_onLost;
 		Decoder::OnFlush		_onFlush;
-		Decoder::OnReset		_onReset;
-		Decoder::OnMedia		_onMedia;
 
 		File::OnError			_onFileError;
 
@@ -95,7 +90,7 @@ struct MediaFile : virtual Static {
 
 		Timer::OnTimer			_onTimer;
 		Time					_realTime;
-		std::deque<shared<Media::Base>> _medias;
+		shared<std::deque<unique<Media::Base>>> _pMedias;
 	};
 
 

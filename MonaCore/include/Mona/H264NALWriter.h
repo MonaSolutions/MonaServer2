@@ -30,13 +30,19 @@ struct H264NALWriter : MediaTrackWriter, virtual Object {
 
 	H264NALWriter();
 
-	void beginMedia() { _start = false; }
+	void beginMedia() { _nal = NAL_START; _time = 0; }
 	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
 	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
 
 private:
-	UInt8	_buffer[6];
-	bool	_start;
+	UInt8	_buffer[10];
+	UInt32  _time;
+	enum Nal {
+		NAL_UNDEFINED=0,
+		NAL_VCL, // 1  to 5
+		NAL_CONFIG, // 7 to 8
+		NAL_START
+	} _nal;
 };
 
 

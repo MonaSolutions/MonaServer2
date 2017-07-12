@@ -34,13 +34,12 @@ struct MediaReader : virtual Object {
 	virtual MIME::Type	mime() const; // Keep virtual to allow to RTPReader to redefine it
 	virtual const char*	subMime() const; // Keep virtual to allow to RTPReader to redefine it
 
-	virtual ~MediaReader();
+	~MediaReader() { flush(Media::Source::Null()); } // release data!
 protected:
 	MediaReader() {}
 
-
 	virtual void	onFlush(const Packet& packet, Media::Source& source);
-	virtual bool	parsePacket(const Packet& packet, Media::Source& source);
+	virtual void	parsePacket(const Packet& packet, Media::Source& source);
 private:
 	/*!
 	Implements this method, and return rest to wait more data.
@@ -64,7 +63,7 @@ struct MediaTrackReader : virtual Object, MediaReader {
 protected:
 	MediaTrackReader(UInt8 track=1) : track(track), time(0),compositionOffset(0) {}
 
-	bool	parsePacket(const Packet& packet, Media::Source& source) { MediaReader::parsePacket(packet, source); return false; } // no flush for track, container will do it rather
+	void	parsePacket(const Packet& packet, Media::Source& source) { MediaReader::parsePacket(packet, source); }
 	void	onFlush(const Packet& packet, Media::Source& source) {} // no reset and flush for track, container will do it rather
 };
 

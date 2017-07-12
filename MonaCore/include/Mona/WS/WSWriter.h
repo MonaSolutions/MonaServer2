@@ -48,7 +48,7 @@ struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	bool			writeProperties(const Media::Properties& properties);
 	void			endMedia(const std::string& name);
 
-	void			flush() { Writer::flush(); }
+	void			flush() { Media::TrackTarget::flush(); Writer::flush(); }
 private:
 	
 	void			flushing();

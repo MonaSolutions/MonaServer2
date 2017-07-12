@@ -41,7 +41,9 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		{ "js", { TYPE_APPLICATION, "javascript"} }, // utf8 not required, done in HTML inclusion => <script src="/test.js" charset="utf-8"></script>
 		{ "mona", { TYPE_VIDEO, "mona" } },
 		{ "flv", { TYPE_VIDEO, "x-flv"} },
+		{ "f4v",{ TYPE_VIDEO, "x-f4v" } },
 		{ "ts", { TYPE_VIDEO, "mp2t"} },
+		{ "mp4",{ TYPE_VIDEO, "mp4" } },
 		{ "264", { TYPE_VIDEO, "h264" } },
 		{ "mp3",{ TYPE_AUDIO, "mp3" } },
 		{ "aac",{ TYPE_AUDIO, "aac" } },

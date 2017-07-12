@@ -17,8 +17,8 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/FLVReader.h"
-#include "Mona/ADTSReader.h"
 #include "Mona/AMFReader.h"
+#include "Mona/MPEG4.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -36,7 +36,7 @@ UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::T
 	 // empty packet => initialize isConfig = false (change everytime)
 	UInt8 codecs(reader.read8());
 	tag.codec = Media::Audio::Codec(codecs >> 4);
-	if (reader.available() && tag.codec == Media::Audio::CODEC_AAC && !reader.read8() && ADTSReader::ReadConfig(reader.current(), reader.available(), tag.rate, tag.channels)) {
+	if (reader.available() && tag.codec == Media::Audio::CODEC_AAC && !reader.read8() && MPEG4::ReadAudioConfig(reader.current(), reader.available(), tag.rate, tag.channels)) {
 		// Use rate here of AAC config rather previous!
 		tag.isConfig = true;
 		config.set(tag);
@@ -62,31 +62,6 @@ UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Video::T
 	}
 	tag.compositionOffset = 0;
 	return 1;
-}
-
-UInt32 FLVReader::ReadAVCConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
-	BinaryReader reader(data, size);
-	
-	reader.next(5); // skip avcC version 1 + 3 bytes of profile, compatibility, level + 1 byte xFF
-
-	// SPS and PPS
-	BinaryWriter writer(buffer);
-	UInt8 count(reader.read8() & 0x1F);
-	bool isPPS(false);
-	while (reader.available() >= 2 && count--) {
-		size = reader.read16();
-		if (size > reader.available())
-			size = reader.available();
-		writer.write32(size).write(reader.current(), size);
-		reader.next(size);
-		if (!count) {
-			if (isPPS)
-				break;
-			count = reader.read8(); // PPS now!
-			isPPS = true;
-		}
-	}
-	return reader.position();
 }
 
 UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
@@ -146,7 +121,7 @@ UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
 				content += ReadMediaHeader(content.data(), content.size(), _video);
 				if (_video.codec == Media::Video::CODEC_H264 && _video.frame==Media::Video::FRAME_CONFIG) {
 					shared<Buffer> pBuffer(new Buffer());
-					content += ReadAVCConfig(content.data(), content.size(), *pBuffer);
+					content += MPEG4::ReadVideoConfig(content.data(), content.size(), *pBuffer);
 					source.writeVideo(track ? track : 1, _video, Packet(pBuffer));
 				}
 				if(content) // because if was just a config packet, there is no more data!

@@ -18,46 +18,12 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/ADTSReader.h"
 #include "Mona/ADTSWriter.h"
+#include "Mona/MPEG4.h"
 #include "Mona/Logs.h"
 
 using namespace std;
 
 namespace Mona {
-
-	
-UInt8 ADTSReader::ReadConfig(const UInt8* data, UInt32 size, UInt32& rate, UInt8& channels) {
-	UInt8 rateIndex;
-	UInt8 type(ReadConfig(data, size, rateIndex, channels));
-	if (!type)
-		return 0;
-	rate = RateFromIndex(rateIndex);
-	return type;
-}
-
-UInt8 ADTSReader::ReadConfig(const UInt8* data, UInt32 size, UInt8& rateIndex, UInt8& channels) {
-	// http://wiki.multimedia.cx/index.php?title=MPEG-4_Audio
-	// http://thompsonng.blogspot.fr/2010/03/aac-configuration.html
-	// http://www.mpeg-audio.org/docs/w14751_(mpeg_AAC_TransportFormats).pdf
-
-	if (size < 2) {
-		WARN("AAC configuration packet must have a minimum size of 2 bytes");
-		return 0;
-	}
-
-	UInt8 type(data[0]>>3);
-	if(!type) {
-		WARN("AAC configuration packet invalid");
-		return 0;
-	}
-
-	rateIndex = (data[0] & 3)<<1;
-	rateIndex |= data[1]>>7;
-
-	channels = (data[1] >> 3) & 0x0F;
-
-	return type;
-}
-
 
 UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 	
@@ -102,10 +68,20 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 
 			// codec from Audio Object Type => https://wiki.multimedia.cx/index.php?title=MPEG-4_Audio#Audio_Object_Types
 			UInt8 value(header[2] >> 6);
+			if ((_infos >> 12) != value) {
+				// changed!
+				_infos |= value<<12;
+				_tag.isConfig = true;
+			}
 			_tag.codec = value>30 && value<34 ? Media::Audio::CODEC_MP3 : Media::Audio::CODEC_AAC;
 
 			value = (header[2] >> 2) & 0x0f;
-			_tag.rate = RateFromIndex(value);
+			if (((_infos >> 8) & 0x0F) != value) {
+				// changed!
+				_infos |= value << 8;
+				_tag.isConfig = true;
+			}
+			_tag.rate = MPEG4::RateFromIndex(value);
 
 			// time
 			_tag.time = time;
@@ -118,7 +94,12 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 			// Keep it because WMP is unable to read inband PCE (so sound will not worked)
 			if (!_tag.channels)
 				_tag.channels = 2;
-	
+			if ((_infos & 0xFF) != _tag.channels) {
+				// changed!
+				_infos |= _tag.channels;
+				_tag.isConfig = true;
+			}
+
 			// Config header
 			if (_tag.isConfig) {
 				// http://wiki.multimedia.cx/index.php?title=MPEG-4_Audio
@@ -128,7 +109,6 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 				// ADTS profile 2 first bits => MPEG-4 Audio Object Type minus 1
 				ADTSWriter::WriteConfig((header[2] >> 6) + 1, value, _tag.channels, config);
 				source.writeAudio(track, _tag, Packet(config, 2));
-
 				_tag.isConfig = false; // just one time
 			}
 			
@@ -148,8 +128,8 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 void ADTSReader::onFlush(const Packet& packet, Media::Source& source) {
 	if (_size)
 		source.writeAudio(track, _tag, packet);
-	_tag.isConfig = true; // to send AAC header on next parse!
 	_size = 0;
+	_infos = 0;
 	_syncError = false;
 	MediaTrackReader::onFlush(packet, source);
 }

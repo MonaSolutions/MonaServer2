@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/FLVWriter.h"
+#include "Mona/MPEG4.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -58,58 +59,6 @@ UInt8 FLVWriter::ToCodecs(const Media::Audio::Tag& tag) {
 	return codecs | (tag.codec << 4);
 }
 
-bool FLVWriter::ParseAVCConfig(const Packet& packet, Packet& sps, Packet& pps) {
-	BinaryReader reader(packet.data(), packet.size());
-	UInt32 length;
-	while (reader.available()) {
-		length = reader.read32();
-		if (length > reader.available())
-			length = reader.available();
-		if (!length)
-			continue;
-		UInt8 id(*reader.current() & 0x1F);
-		if (id == 7)
-			sps.set(packet, reader.current(), length);
-		else if (id == 8)
-			pps.set(packet, reader.current(), length);
-		reader.next(length);
-	}
-	if (sps)
-		return true; // pps not mandatory
-	WARN("H264 configuration malformed");
-	return false;
-}
-
-void FLVWriter::WriteAVCConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer, const OnWrite& onWrite) {
-	// SPS + PPS
-	writer.write8(0x01); // avcC version 1
-	writer.write(sps.data() + 1, 3); // profile, compatibility, level
-
-	writer.write8(0xff); // 111111 + 2 bit NAL size - 1
-							// sps
-	writer.write8(0xe1); // 11 + number of SPS
-	writer.write16(sps.size());
-	if (onWrite) {
-		onWrite(writer);
-		onWrite(sps);
-		writer.clear();
-	} else
-		writer.write(sps);
-
-	// pps
-	writer.write8(0x01); // number of PPS
-	writer.write16(pps.size());
-	if (onWrite) {
-		onWrite(writer);
-		onWrite(pps);
-		writer.clear();
-	} else
-		writer.write(pps);
-}
-
-
-
-
 void FLVWriter::beginMedia(const OnWrite& onWrite) {
 	if (onWrite)
 		onWrite(Packet(EXPAND("\x46\x4c\x56\x01\x05\x00\x00\x00\x09\x00\x00\x00\x00")));
@@ -140,7 +89,7 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 				if (isConfig) {
 					// find just sps and pps data, ignore the rest
 					size -= packet.size();
-					if (!ParseAVCConfig(packet, _sps, _pps))
+					if (!MPEG4::ParseVideoConfig(packet, _sps, _pps))
 						return;
 					size += _sps.size() + _pps.size() + 11;
 				}
@@ -181,7 +130,7 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 	
 	if (_sps) {
 		// SPS + PPS
-		WriteAVCConfig(_sps, _pps, writer.clear(), onWrite);
+		MPEG4::WriteVideoConfig(_sps, _pps, writer.clear(), onWrite);
 		_sps.reset();
 		_pps.reset();
 	} else if(packet)

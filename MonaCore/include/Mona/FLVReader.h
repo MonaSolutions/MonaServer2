@@ -32,7 +32,6 @@ struct FLVReader : virtual Object, MediaReader {
 	Read fmash media header, beware you have to use previous Media::Audio/Video::Tag on every call */
 	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::Tag& tag, Media::Audio::Config& config);
 	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Video::Tag& tag);
-	static UInt32 ReadAVCConfig(const UInt8* data, UInt32 size, Buffer& buffer);
 private:
 	UInt32	parse(const Packet& packet, Media::Source& source);
 

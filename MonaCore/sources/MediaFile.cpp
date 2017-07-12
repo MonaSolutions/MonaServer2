@@ -28,23 +28,24 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	Packet packet(pBuffer); // to capture pBuffer!
 	if (!_pReader || _pReader.unique())
 		return 0;
-	_flushed = false;
+	_mediaTimeGotten = false;
 	_pReader->read(packet, *this);
-	if (!end)
-		return _flushed ? 0 : packet.size(); // continue to read if no flush
-	_pReader->flush(*this);
-	_pReader.reset();
+	if (end) {
+		_pReader->flush(*this);
+		_pReader.reset();
+	} else if(!_mediaTimeGotten)
+		return packet.size(); // continue to read if no flush
 	_handler.queue(onFlush);
 	return 0;
 }
 
 MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io) :
-	Media::Stream(TYPE_FILE), io(io), path(path), _pReader(pReader), timer(timer),
+	Media::Stream(TYPE_FILE), io(io), path(path), _pReader(pReader), timer(timer), _pMedias(new deque<unique<Media::Base>>()),
 		_onTimer([this](UInt32 delay) {
-			shared_ptr<Media::Base> pMedia;
-			while (!_medias.empty()) {
-				pMedia = move(_medias.front());
-				_medias.pop_front();
+			unique<Media::Base> pMedia;
+			while (!_pMedias->empty()) {
+				pMedia = move(_pMedias->front());
+				_pMedias->pop_front();
 				if (pMedia) {
 					if (*pMedia || typeid(pMedia) != typeid(Lost)) {
 						_pSource->writeMedia(*pMedia);
@@ -108,11 +109,8 @@ void MediaFile::Reader::start() {
 	if (_pFile)
 		return;
 	_realTime =	0; // reset realTime
-	shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, path, _pSource->name()));
+	shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, path, _pSource->name(), _pMedias));
 	pDecoder->onFlush = _onFlush = [this]() { _onTimer(); };
-	pDecoder->onReset = _onReset = [this]() { _medias.emplace_back(); };
-	pDecoder->onLost = _onLost = [this](shared<Lost>& pLost) { _medias.emplace_back(pLost); };
-	pDecoder->onMedia = _onMedia = [this](shared<Media::Base>& pMedia) { _medias.emplace_back(pMedia); };
 	io.open(_pFile, path, pDecoder, nullptr, _onFileError);
 	io.read(_pFile);
 	INFO(description(), " starts");
@@ -124,10 +122,7 @@ void MediaFile::Reader::stop() {
 	timer.set(_onTimer, 0);
 	io.close(_pFile);
 	_onFlush = nullptr;
-	_onReset = nullptr;
-	_onLost = nullptr;
-	_onMedia = nullptr;
-	_medias.clear();
+	_pMedias.reset(new std::deque<unique<Media::Base>>());
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if (_pReader.unique())
 		_pReader->flush(*_pSource);

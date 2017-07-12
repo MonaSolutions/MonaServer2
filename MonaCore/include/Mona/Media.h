@@ -111,6 +111,7 @@ struct Media : virtual Static {
 		}
 		
 		enum Frame { // Aligned values with FLV frame type value, and ignore FRAME_GENERATED_KEYFRAME which is redundant with FRAME_KEY for a "key frame" test condition
+			FRAME_UNSPECIFIED = 0,
 			FRAME_KEY = 1,
 			FRAME_INTER = 2, // Used too by H264 for Config sequence
 			FRAME_DISPOSABLE_INTER = 3, // just for H263
@@ -119,8 +120,8 @@ struct Media : virtual Static {
 			FRAME_CONFIG = 7
 		};
 		struct Tag : virtual Object {
-			explicit Tag() : frame(FRAME_KEY), compositionOffset(0) {}
-			explicit Tag(Media::Video::Codec codec) : codec(codec), frame(FRAME_KEY), compositionOffset(0) {}
+			explicit Tag() : frame(FRAME_UNSPECIFIED), compositionOffset(0) {}
+			explicit Tag(Media::Video::Codec codec) : codec(codec), frame(FRAME_UNSPECIFIED), compositionOffset(0) {}
 			explicit Tag(const Tag& other) : codec(other.codec), frame(other.frame), time(other.time), compositionOffset(other.compositionOffset) {}
 	
 			UInt32				 time;
@@ -134,7 +135,7 @@ struct Media : virtual Static {
 			explicit Config(const Tag& tag, const Packet& packet) { time = 0; set(tag, packet); }
 			operator bool() const { return frame == FRAME_CONFIG; ; }
 			void reset() {
-				frame = FRAME_KEY;
+				frame = FRAME_UNSPECIFIED;
 				Packet::reset();
 			}
 			Config& set(const Tag& tag, const Packet& packet) {
@@ -301,15 +302,17 @@ struct Media : virtual Static {
 	
 		/*!
 		Overload just if target bufferizes data before to send it*/
-		virtual void flush() {}
+		virtual void flush() { _queueing = 0; }
 
 		static Target& Null() { static Target Null; return Null; }
 	protected:
-		Target() : audioTrack(-1), videoTrack(-1), dataTrack(-1), audioReliable(true), videoReliable(true), dataReliable(true) {}
+		Target() : _queueing(0), audioTrack(-1), videoTrack(-1), dataTrack(-1), audioReliable(true), videoReliable(true), dataReliable(true) {}
 	private:
 		virtual bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
 		virtual bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
 		virtual bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
+
+		UInt32 _queueing;
 	};
 	struct TrackTarget : Target, virtual Object {
 		bool audioSelected(UInt8 track) { return (audioTrack < 0 && track == 1) || audioTrack == track; }

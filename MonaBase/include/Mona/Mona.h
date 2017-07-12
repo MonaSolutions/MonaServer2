@@ -196,6 +196,15 @@ const char* strrpbrk(const char* value, const char* markers);
 const char *strrstr(const char* where, const char* what);
 
 template<typename NumberType>
+inline UInt8 limit8(NumberType value) { return value > 0xFF ? 0xFF : UInt8(value); }
+template<typename NumberType>
+inline UInt16 limit16(NumberType value) { return value > 0xFFFF ? 0xFFFF : UInt16(value); }
+template<typename NumberType>
+inline UInt32 limit24(NumberType value) { return value > 0xFFFFFF ? 0xFFFFFF : UInt32(value); }
+template<typename NumberType>
+inline UInt32 limit32(NumberType value) { return value > 0xFFFFFFFF ? 0xFFFFFFFF : UInt32(value); }
+
+template<typename NumberType>
 inline NumberType max(NumberType value) { return value; }
 template<typename NumberType, typename ...Args>
 inline NumberType max(NumberType value1, NumberType value2, Args&&... args) { return value2 > value1 ? max<NumberType>(value2, args ...) : max<NumberType>(value1, args ...); }

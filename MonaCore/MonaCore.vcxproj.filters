@@ -301,6 +301,12 @@
     <ClInclude Include="include\Mona\CCaption.h">
       <Filter>Multimedia</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\MP4Reader.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\MPEG4.h">
+      <Filter>Multimedia</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -510,6 +516,12 @@
     </ClCompile>
     <ClCompile Include="sources\Publish.cpp" />
     <ClCompile Include="sources\CCaption.cpp">
+      <Filter>Multimedia</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\MP4Reader.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\MPEG4.cpp">
       <Filter>Multimedia</Filter>
     </ClCompile>
   </ItemGroup>

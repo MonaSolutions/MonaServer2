@@ -17,7 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/ADTSWriter.h"
-#include "Mona/ADTSReader.h"
+#include "Mona/MPEG4.h"
 #include "Mona/Logs.h"
 
 
@@ -80,7 +80,7 @@ void ADTSWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, 
 
 	if (tag.isConfig) { // Read config packet to get object type
 		// has configs! prefer AAC configs!
-		UInt8 type(ADTSReader::ReadConfig(packet.data(), 2, _rateIndex, _channels));
+		UInt8 type(MPEG4::ReadAudioConfig(packet.data(), 2, _rateIndex, _channels));
 		if (type)
 			_codecType = type - 1; // minus 1
 		return; // remove config packet (no need, already all infos in header)

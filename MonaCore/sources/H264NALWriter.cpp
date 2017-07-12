@@ -26,7 +26,7 @@ namespace Mona {
 
 H264NALWriter::H264NALWriter() {
 	// Unit Access demilited requires by some plugins like HLSFlash!
-	memcpy(_buffer, EXPAND("\x00\x00\x00\x01\x09\xF0"));
+	memcpy(_buffer, EXPAND("\x00\x00\x00\x01\x09\xF0\x00\x00\x00\x01"));
 }
 
 void H264NALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
@@ -38,16 +38,23 @@ void H264NALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packe
 	}
 	// 9 => Access time unit required in TS container (MPEG2) => https://mailman.videolan.org/pipermail/x264-devel/2005-April/000469.html
 
-	 // Flush everything before when new frame (bethween 1 and 5) or config packet (7 or 8)
+	 // NAL UNIT delimiter at the beginning + on time change + when NAL type change (group config packet (7 or 8) in different NAL access unit than other frames)
 	// (NOTE 2 – Sequence parameter set NAL units or picture parameter set NAL units may be present in an access unit,
 	// but cannot follow the last VCL NAL unit of the primary coded picture within the access unit,
 	// as this condition would specify the start of a new access unit.)
+	// + on time change!
 
 	// About 00 00 01 and 00 00 00 01 difference => http://stackoverflow.com/questions/23516805/h264-nal-unit-prefixes
-	// 00 00 00 01 for NAL Type 7 (SPS), 8 (PPS) and 5 (key frame)
+	// 00 00 00 01 for NAL Type 7 (SPS), 8 (PPS) and after NAL UNIT delimiter
 
 	finalSize = 0;
-	bool start(_start);
+	
+	if (_time != tag.time) {
+		_time = tag.time;
+		_nal = NAL_START;
+	}
+
+	Nal nal(_nal);
 
 	BinaryReader reader(packet.data(), packet.size());
 	while (reader.available()) {
@@ -57,16 +64,18 @@ void H264NALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packe
 		if (!size)
 			continue;
 		UInt8 type((*reader.current() & 0x1F));
-		if (type) {
-			if (!start) {
-				finalSize += 5;  // NAL unit delimiter
-				start = true;
-			}
-			finalSize += (type == 5 || type == 7 || type == 8) ? 4 : 3;
+		if(type!=9) {
+			Nal newNal = (type >= 1 && type <= 5) ? NAL_VCL : ((type == 7 || type == 8) ? NAL_CONFIG : NAL_UNDEFINED);
+			if (nal == NAL_START || (nal && newNal != nal))
+				finalSize += 10;  // NAL unit delimiter + 00 00 00 01 prefix
+			else if (type == 7 || type == 8)
+				finalSize += 4; // 00 00 00 01 prefix
+			else
+				finalSize += 3; // 00 00 01 prefix
 			finalSize += size;
-			if (type <= 5)
-				start = false; // end NAL unit
-		}
+			nal = newNal;
+		} else
+			nal = NAL_START;
 		reader.next(size);
 	}
 	reader.reset();
@@ -78,19 +87,18 @@ void H264NALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packe
 		if (!size)
 			continue;
 		UInt8 type((*reader.current() & 0x1F));
-		if (type) {
-			if (!_start) {
-				onWrite(Packet(_buffer + 1, 5)); // "\x00\x00\x01\x09\xF0"
-				_start = true;
-			}
-			if (type==5 || type==7 || type==8)
-				onWrite(Packet(_buffer, 4)); // "\x00\x00\x00\x01"
+		if (type != 9) {
+			Nal newNal = (type >= 1 && type <= 5) ? NAL_VCL : ((type == 7 || type == 8) ? NAL_CONFIG : NAL_UNDEFINED);
+			if (_nal == NAL_START || (_nal && newNal != _nal))
+				onWrite(Packet(_buffer, 10));  // NAL unit delimiter + 00 00 00 01 prefix
+			else if (type == 7 || type == 8)
+				onWrite(Packet(_buffer, 4)); // 00 00 00 01 prefix
 			else
-				onWrite(Packet(_buffer+1, 3)); // "\x00\x00\x01"
-			onWrite(Packet(packet,  reader.current(), size));
-			if (type <= 5)
-				_start = false; // end NAL unit
-		}
+				onWrite(Packet(_buffer+1, 3)); // 00 00 00 01 prefix
+			onWrite(Packet(packet, reader.current(), size));
+			_nal = newNal;
+		} else
+			_nal = NAL_START;
 		reader.next(size);
 	}
 }

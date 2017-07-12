@@ -20,6 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/FLVReader.h"
 #include "Mona/TSReader.h"
+#include "Mona/MP4Reader.h"
 #include "Mona/H264NALReader.h"
 #include "Mona/ADTSReader.h"
 #include "Mona/MP3Reader.h"
@@ -44,6 +45,7 @@ struct Format {
 static const map<size_t, Format> _Formats({
 	{ typeid(FLVReader).hash_code(), Format("FLV", MIME::TYPE_VIDEO, "x-flv") },
 	{ typeid(TSReader).hash_code(), Format("TS", MIME::TYPE_VIDEO, "mp2t") },
+	{ typeid(MP4Reader).hash_code(), Format("MP4", MIME::TYPE_VIDEO, "mp4") },
 	{ typeid(H264NALReader).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
 	{ typeid(ADTSReader).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	{ typeid(MP3Reader).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
@@ -66,6 +68,8 @@ MediaReader* MediaReader::New(const char* subMime) {
 		return new FLVReader();
 	if (String::ICompare(subMime, "mp2t") == 0 || String::ICompare(subMime, "ts") == 0)
 		return new TSReader();
+	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0)
+		return new MP4Reader();
 	if (String::ICompare(subMime, "h264") == 0 || String::ICompare(subMime, "264") == 0)
 		return new H264NALReader();
 	if (String::ICompare(subMime, "aac") == 0)
@@ -77,20 +81,13 @@ MediaReader* MediaReader::New(const char* subMime) {
 	return NULL;
 }
 
-MediaReader::~MediaReader() {
-	if (_pBuffer)
-		WARN("Flush forgotten on ", format()," Reader");
-}
-
 void MediaReader::read(const Packet& packet, Media::Source& source) {
 	shared<Buffer> pBuffer(_pBuffer);
 	if (pBuffer) {
 		pBuffer->append(packet.data(), packet.size());
-		if (!parsePacket(Packet(pBuffer), source))
-			return;
-	} else if (!parsePacket(packet, source))
-		return;
-	source.flush();
+		parsePacket(Packet(pBuffer), source);
+	} else
+		parsePacket(packet, source);
 }
 void MediaReader::flush(Media::Source& source) {
 	if (_pBuffer)
@@ -102,11 +99,11 @@ void MediaReader::onFlush(const Packet& packet, Media::Source& source) {
 	source.reset();
 	source.flush(); // flush after reset!
 }
-bool MediaReader::parsePacket(const Packet& packet, Media::Source& source) {
+void MediaReader::parsePacket(const Packet& packet, Media::Source& source) {
 	UInt32 rest = parse(packet, source);
 	if (!rest) {
 		_pBuffer.reset();
-		return true; // can flush!
+		return;
 	}
 	if (rest > packet.size()) {
 		WARN(typeof(*this)," indicatse a media rest more greather than data");
@@ -115,7 +112,7 @@ bool MediaReader::parsePacket(const Packet& packet, Media::Source& source) {
 
 	if (!_pBuffer) {
 		_pBuffer.reset(new Buffer(rest, packet.data() + packet.size() - rest));
-		return false;
+		return;
 	}
 	// here packet encapsulate _pBuffer!
 	if (_pBuffer.unique()) {
@@ -125,7 +122,6 @@ bool MediaReader::parsePacket(const Packet& packet, Media::Source& source) {
 		}
 	} else // else new buffer because has been captured in a packet by decoding code
 		_pBuffer.reset(new Buffer(rest, _pBuffer->data() + _pBuffer->size() - rest));
-	return false;
 }
 
 } // namespace Mona

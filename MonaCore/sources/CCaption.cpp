@@ -135,14 +135,17 @@ UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, con
 	switch (tag.codec) {
 		case Media::Video::CODEC_H264: {	
 			while (reader.available()) {
-				BinaryReader cc(reader.current(), reader.available());
 				if (!begin)
-					begin = cc.data();
-				cc.shrink(reader.next(cc.read32()));
+					begin = reader.current();
+				UInt32 size = reader.read32();
+				if (!size)
+					continue;
+				BinaryReader cc(reader.current(), reader.available());
+				cc.shrink(reader.next(size));
 				if ((cc.read8() & 0x1f)!=6 || cc.read8() != 4)
 					continue;
 				// SEI - user data registered
-				UInt32 size = 0;
+				size = 0;
 				while ((size += cc.read8()) == 255);
 				cc.shrink(size);
 				if(cc.read8()==0xFF)
