@@ -526,7 +526,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					return reader.available();
 				BinaryReader tkhd(reader.current(), 16);
 				tkhd.next(12); // version + flags + creation time + modification time
-				auto& it = _ids.emplace(tkhd.read32(), &_tracks.back());
+				const auto& it = _ids.emplace(tkhd.read32(), &_tracks.back());
 				if (!it.second)
 					ERROR("Bad track header id, identification ", it.first->first, " already used");
 				break;
@@ -538,7 +538,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				BinaryReader trex(reader.current(), _boxes.back());
 				trex.next(4); // version + flags
 				UInt32 id = trex.read32();
-				auto& it = _ids.find(id);
+				const auto& it = _ids.find(id);
 				if (it == _ids.end()) {
 					ERROR("Impossible to find track with ", id, " as identification");
 					break;
@@ -557,7 +557,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				tfhd.next(); // version
 				UInt32 flags = tfhd.read24(); // flags
 				UInt32 id = tfhd.read32();
-				auto& it = _ids.find(id);
+				const auto& it = _ids.find(id);
 				if (it == _ids.end()) {
 					ERROR("Impossible to find track with ", id, " as identification");
 					_pTrack = NULL;
