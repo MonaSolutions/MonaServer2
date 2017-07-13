@@ -114,7 +114,7 @@ bool MonaTiny::onPublish(Exception& ex, Publication& publication, Client* pClien
 	return true; // "true" to allow, "false" to forbid
 }
 
-void MonaTiny::onUnpublish(const Publication& publication, Client* pClient) {
+void MonaTiny::onUnpublish(Publication& publication, Client* pClient) {
 	if (pClient) {
 		NOTE("Client unpublish ", publication.name());
 		if(pClient->hasCustomData())
