@@ -106,7 +106,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				writer.writeRandom(3064);
 
 				if (encrypted) {
-					unique<RC4_KEY>	pEncryptKey;
+					unique<RC4_KEY>	pEncryptKey(new RC4_KEY);
 					_pDecryptKey.reset(new RC4_KEY);
 
 					UInt32 farPubKeySize;
