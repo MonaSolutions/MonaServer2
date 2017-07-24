@@ -20,6 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/FLVWriter.h"
 #include "Mona/TSWriter.h"
+#include "Mona/MP4Writer.h"
 #include "Mona/H264NALWriter.h"
 #include "Mona/ADTSWriter.h"
 //#include "Mona/MP3Writer.h"
@@ -45,6 +46,7 @@ struct Format {
 static const map<size_t, Format> _Formats({
 	{ typeid(FLVWriter).hash_code(), Format("FLV", MIME::TYPE_VIDEO, "x-flv") },
 	{ typeid(TSWriter).hash_code(), Format("TS", MIME::TYPE_VIDEO, "mp2t") },
+	{ typeid(MP4Writer).hash_code(), Format("MP4", MIME::TYPE_VIDEO, "mp4") },
 	{ typeid(H264NALWriter).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
 	{ typeid(ADTSWriter).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	// { typeid(MP3Writer).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
@@ -67,6 +69,8 @@ MediaWriter* MediaWriter::New(const char* subMime) {
 		return new FLVWriter();
 	if (String::ICompare(subMime, "mp2t") == 0 || String::ICompare(subMime, "ts") == 0)
 		return new TSWriter();
+	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0)
+		return new MP4Writer();
 	if (String::ICompare(subMime, "h264") == 0 || String::ICompare(subMime, "264") == 0)
 		return new H264NALWriter();
 	if (String::ICompare(subMime, "aac") == 0)

@@ -227,6 +227,7 @@
     <ClInclude Include="include\Mona\MP3Reader.h" />
     <ClInclude Include="include\Mona\MediaSocket.h" />
     <ClInclude Include="include\Mona\MP4Reader.h" />
+    <ClInclude Include="include\Mona\MP4Writer.h" />
     <ClInclude Include="include\Mona\MPEG4.h" />
     <ClInclude Include="include\Mona\PacketWriter.h" />
     <ClInclude Include="include\Mona\Peer.h" />
@@ -316,6 +317,7 @@
     <ClCompile Include="sources\MP3Reader.cpp" />
     <ClCompile Include="sources\FLVWriter.cpp" />
     <ClCompile Include="sources\MP4Reader.cpp" />
+    <ClCompile Include="sources\MP4Writer.cpp" />
     <ClCompile Include="sources\MPEG4.cpp" />
     <ClCompile Include="sources\Protocol.cpp" />
     <ClCompile Include="sources\Publish.cpp" />
