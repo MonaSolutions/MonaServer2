@@ -54,7 +54,7 @@ protected:
 	//// Publication Events /////
 
 	bool onPublish(Exception& ex, Publication& publication, Client* pClient);
-	void onUnpublish(const Publication& publication, Client* pClient);
+	void onUnpublish(Publication& publication, Client* pClient);
 
 	bool onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication, Client* pClient);
 	void onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient);

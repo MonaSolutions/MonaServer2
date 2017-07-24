@@ -18,7 +18,7 @@ struct App : virtual Object {
 		virtual bool onFileAccess(Exception& ex, Mona::File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) { return true; }
 
 		virtual bool onPublish(Exception& ex, Publication& publication) { return true; }
-		virtual void onUnpublish(const Publication& publication) {}
+		virtual void onUnpublish(Publication& publication) {}
 
 		virtual bool onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication) { return true; }
 		virtual void onUnsubscribe(const Subscription& subscription, const Publication& publication) {}
