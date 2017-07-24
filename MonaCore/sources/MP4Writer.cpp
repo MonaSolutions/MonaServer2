@@ -50,7 +50,10 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 			}
 			return;
 		}
-		_audios.resize(track + 1);
+		vector<deque<Media::Audio>> oldAudios(track + 1);
+		for (UInt8 i = 0; i < _audios.size(); ++i)
+			oldAudios[i] = move(_audios[i]);
+		_audios = move(oldAudios);
 	}
 	_audios[track].emplace_back(tag, packet, track);
 	if (tag.isConfig)
@@ -73,7 +76,10 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 			}
 			return;
 		}
-		_videos.resize(track + 1);
+		vector<deque<Media::Video>> oldVideos(track+1);
+		for (UInt8 i = 0; i < _videos.size(); ++i)
+			oldVideos[i] = move(_videos[i]);
+		_videos = move(oldVideos);
 	}
 	_videos[track].emplace_back(tag, packet, track);
 	if (tag.frame==Media::Video::FRAME_CONFIG)
@@ -118,7 +124,6 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 				writer.write(EXPAND("\x00\x00\x00\x5c\x74\x6b\x68\x64\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00"));
 				writer.write32(++track);
 				writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
-				writer.write32(_audios.size() + _videos.size() + 1); // next track id
 			} { // mdia
 				UInt32 sizePos = writer.size();
 				writer.next(4); // skip size!
@@ -126,14 +131,14 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 				{	// mdhd
 					writer.write(EXPAND("\x00\x00\x00\x20\x6d\x64\x68\x64\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
 					writer.write32(0xFFFFFFFF); // timescale!
-					writer.write(EXPAND("\x00\x00\xbb\x80\x00\x00\x00\x00"));
+					writer.write(EXPAND("\x00\x00\x00\x00")); // duration
 					writer.write16(0x55C4); // TODO lang (0x55C4 = undefined)
 					writer.write16(0); // predefined
 				} {	// hdlr
 					writer.write(EXPAND("\x00\x00\x00\x21\x68\x64\x6c\x72\x00\x00\x00\x00\x00\x00\x00\x00\x73\x6f\x75\x6e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
 				} { // minf + smhd + dinf + dref + url + stbl + stsd + stts + stsc + stsz + stco
 
-					Packet config;
+					Packet* pConfig(NULL);
 					UInt32 size(223);
 					for (Media::Audio& audio : audios) {
 						if (audio.tag.isConfig) {
@@ -142,7 +147,7 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 								continue;
 							}
 							size += audio.size() + 2;
-							config = audio;
+							pConfig = &audio;
 							break;
 						}
 					}
@@ -169,8 +174,8 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 					writer.write(EXPAND("\x73\x74\x62\x6C"));
 						// \x00\x00\x00\x5B
 					size = 0x52;
-					if (config)
-						size += 2 + config.size();
+					if (pConfig)
+						size += 2 + pConfig->size();
 					writer.write32(size);
 					// \x73\x74\x73\x64 stsd
 					// \x00\x00\x00\x00\x00\x00\x00\x01
@@ -198,8 +203,8 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 					writer.write(EXPAND("\x65\x73\x64\x73\x00\x00\x00\x00\x03"));
 						// 16				 length
 					size = 0x12;
-					if (config)
-						size += 2 + config.size();
+					if (pConfig)
+						size += 2 + pConfig->size();
 					writer.write8(size);
 					// 00 02			 ES ID
 					// 00				 flags
@@ -212,10 +217,10 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 					// 05				Audio config descriptor
 						// 02				length
 						// 11 B0			audio specific config
-					if (config) {
+					if (pConfig) {
 						writer.write8(5);
-						writer.write8(config.size());
-						writer.write(config);
+						writer.write8(pConfig->size());
+						writer.write(*pConfig);
 					}
 					// 06				SL config descriptor
 					// 01				length
