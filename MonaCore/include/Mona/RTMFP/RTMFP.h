@@ -72,8 +72,9 @@ struct RTMFP : virtual Static {
 		~Group() {
 			INFO("Deletion group ", String::Hex(id, Entity::SIZE));
 		}
-		void join(Member& member);
-		void unjoin(Member& member);
+		void			join(Member& member);
+		const_iterator  exchange(const UInt8* memberId);
+		void			unjoin(Member& member);
 	private:
 		Entity::Map<RTMFP::Group>& _groups;
 	};
@@ -85,11 +86,15 @@ struct RTMFP : virtual Static {
 
 		bool			decode(Exception& ex, Buffer& buffer, const SocketAddress& address);
 		shared<Buffer>&	encode(shared<Buffer>& pBuffer, UInt32 farId, const SocketAddress& address);
+		shared<Buffer>&	encode(shared<Buffer>& pBuffer, UInt32 farId, const std::set<SocketAddress>& addresses);
 
 		static bool				Decode(Exception& ex, Buffer& buffer, const SocketAddress& address) { return Default().decode(ex, buffer, address); }
 		static shared<Buffer>&	Encode(shared<Buffer>& pBuffer, UInt32 farId, const SocketAddress& address) { return Default().encode(pBuffer, farId, address); }
+		static shared<Buffer>&	Encode(shared<Buffer>& pBuffer, UInt32 farId, const std::set<SocketAddress>& addresses) { return Default().encode(pBuffer, farId, addresses); }
 
 	private:
+		void	encode(const shared<Buffer>& pBuffer, UInt32 farId);
+
 		static Engine& Default() { thread_local Engine Engine(BIN "Adobe Systems 02"); return Engine; }
 
 		enum { KEY_SIZE = 0x10 };
@@ -101,6 +106,12 @@ struct RTMFP : virtual Static {
 		Handshake(const Packet& packet, const SocketAddress& address, const shared<Packet>& pResponse) : pResponse(pResponse), address(address), Packet(std::move(packet)) {}
 		const SocketAddress address;
 		shared<Packet>		pResponse;
+	};
+	struct EdgeMember : Packet, virtual Object {
+		EdgeMember(const Packet& packet, map<SocketAddress, bool>& redirections) : redirections(std::move(redirections)), Packet(std::move(packet)), id(packet.data()), groupId(packet.data()+Entity::SIZE) {}
+		const UInt8* id;
+		const UInt8* groupId;
+		map<SocketAddress, bool> redirections;
 	};
 	struct Message : virtual Object, Packet {
 		Message(UInt64 flowId, UInt32 lost, const Packet& packet) : lost(lost), flowId(flowId), Packet(std::move(packet)) {}
@@ -153,7 +164,7 @@ struct RTMFP : virtual Static {
 	static UInt16			TimeNow() { return Time(Mona::Time::Now()); }
 	static UInt16			Time(Int64 time) { return UInt16(time / RTMFP::TIMESTAMP_SCALE); }
 
-
+	static Location			ReadAddress(BinaryReader& reader, SocketAddress& address);
 	static BinaryWriter&	WriteAddress(BinaryWriter& writer, const SocketAddress& address, Location location);
 
 };

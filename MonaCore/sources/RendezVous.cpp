@@ -25,6 +25,27 @@ using namespace std;
 
 namespace Mona {
 
+RendezVous::RendezVous() :
+	_checkRedirection([this](const UInt8* keySearched, map<const UInt8*, Redirection, Entity::Comparator>::iterator& it) {
+		return memcmp(keySearched, it->first, Entity::SIZE) == 0 || it->second; // if current searched or is valid!
+	}) {
+}
+
+void RendezVous::setRedirection(const UInt8* peerId, map<SocketAddress, bool>& addresses) {
+	lock_guard<mutex> lock(_mutex);
+	_redirections[peerId].set(addresses);
+}
+void RendezVous::setRedirection(const Packet& peerId, map<SocketAddress, bool>& addresses, UInt32 timeout) {
+	lock_guard<mutex> lock(_mutex);
+	Redirection& redirection = _redirections[peerId.data()];
+	redirection.set(addresses, peerId);
+	redirection.timeout = timeout;
+}
+void RendezVous::eraseRedirection(const UInt8* peerId) {
+	lock_guard<mutex> lock(_mutex);
+	_redirections.erase(peerId);
+}
+
 void RendezVous::setIntern(const UInt8* peerId, const SocketAddress& address, const SocketAddress& serverAddress, std::set<SocketAddress>& addresses, void* pData) {
 	lock_guard<mutex> lock(_mutex);
 	const auto& it = _peers.find(peerId);
@@ -37,8 +58,7 @@ void RendezVous::setIntern(const UInt8* peerId, const SocketAddress& address, co
 	pPeer->address = address;
 	pPeer->serverAddress = serverAddress;
 	pPeer->pData = pData;
-	if (!addresses.empty())
-		pPeer->addresses = move(addresses);
+	pPeer->addresses = move(addresses);
 	_peersByAddress.emplace(address, pPeer);
 }
 
@@ -53,6 +73,12 @@ void RendezVous::erase(const UInt8* peerId) {
 
 void* RendezVous::meetIntern(const SocketAddress& aAddress, const UInt8* bPeerId, map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, map<SocketAddress, bool>& bAddresses) {
 	lock_guard<mutex> lock(_mutex);
+	const auto& itRedirection = _redirections.find(bPeerId);
+	if (itRedirection != _redirections.end()) {
+		for (auto& it : itRedirection->second)
+			aAddresses.emplace(it.first, it.second);
+		return NULL;
+	}
 	const auto& bIt = _peers.find(bPeerId);
 	if (bIt == _peers.end())
 		return NULL;

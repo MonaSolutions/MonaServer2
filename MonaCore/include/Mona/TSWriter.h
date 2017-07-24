@@ -36,8 +36,7 @@ struct TSWriter : MediaWriter, virtual Object {
 		ts error: libdvbpsi error (PSI decoder): TS discontinuity (received 0, expected 6) for PID 32 => nevermind, packet is processed, and save PID between sessions could limit the maximum number of PIDs usable on long session
 		core error: ES_OUT_SET_(GROUP_)PCR is called too late (pts_delay increased to 1725 ms)
 		core error: ES_OUT_RESET_PCR called */
-public:
-	
+
 	TSWriter() : _version(0) {}
 
 	void beginMedia(const OnWrite& onWrite);

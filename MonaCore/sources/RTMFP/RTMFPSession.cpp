@@ -27,12 +27,13 @@ using namespace std;
 
 namespace Mona {
 
-void RTMFPSession::Flow::join(RTMFP::Group& group) {
+bool RTMFPSession::Flow::join(RTMFP::Group& group) {
 	if (_pGroup == &group)
-		return;
+		return false;
 	unjoin();
 	_pGroup = &group;
 	group.join(*this);
+	return true;
 }
 void RTMFPSession::Flow::unjoin() {
 	if (!_pGroup)
@@ -105,7 +106,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 		// join group
 		if (type == AMF::TYPE_CHUNKSIZE) { // trick to catch group in RTMFP (CHUNCKSIZE format doesn't exist in RTMFP)
 			UInt32 size = reader.read7BitValue();
-			Entity::Map<RTMFP::Group>& groups(this->protocol<RTMFProtocol>().groups);
+			Entity::Map<RTMFP::Group>& groups(protocol<RTMFProtocol>().groups);
 			Entity::Map<RTMFP::Group>::iterator it;
 			const UInt8* groupId;
 			if (reader.read8() == 0x10) {
@@ -127,7 +128,15 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			it = groups.lower_bound(groupId);
 			if (it == groups.end() || memcmp(it->first, groupId, Entity::SIZE) != 0)
 				it = groups.emplace_hint(it, *new RTMFP::Group(groupId, groups));
-			_pFlow->join(*it->second);
+			if (_pFlow->join(*it->second)) {
+				// warn servers!
+				shared<Buffer> pBuffer;
+				BinaryWriter writer(protocol<RTMFProtocol>().initBuffer(pBuffer));
+				writer.write(peer.id, Entity::SIZE).write(it->second->id, Entity::SIZE);
+				RTMFP::WriteAddress(writer, peer.serverAddress, RTMFP::LOCATION_PUBLIC);
+				std::set<SocketAddress> addresses = protocol<RTMFProtocol>().addresses;
+				protocol<RTMFProtocol>().send(0x10, pBuffer, addresses);
+			}
 			return;
 		}
 

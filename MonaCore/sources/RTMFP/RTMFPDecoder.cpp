@@ -25,7 +25,8 @@ using namespace std;
 namespace Mona {
 
 struct RTMFPDecoder::Handshake : virtual Object {
-	OnHandshake	onHandshake;
+	OnHandshake		onHandshake;
+	OnEdgeMember	onEdgeMember;
 
 	Handshake(const Handler& handler, const shared<RendezVous>& pRendezVous) : _recvTime(Time::Now()), track(0), _pResponse(new Packet()), _pRendezVous(pRendezVous), _handler(handler) {}
 
@@ -52,6 +53,28 @@ struct RTMFPDecoder::Handshake : virtual Object {
 		UInt8 type = reader.read8();
 		reader.shrink(reader.read16());
 		switch (type) {
+			case 0x10: {
+				// New member group, normally used between RTMFP servers
+				// format => memberId + groupId + redirection addresses
+				if (reader.available()<(Entity::SIZE*2)) {
+					ERROR("New member group message without valid peer/group id");
+					return;
+				}
+				Packet member(pBuffer, reader.current(), reader.available());
+				reader.next(Entity::SIZE*2); // peerId + groupId
+				map<SocketAddress, bool> redirections({ {address , false} });
+				while (reader.available()) {
+					SocketAddress address;
+					RTMFP::Location location = RTMFP::ReadAddress(reader, address);
+					if (!location) {
+						WARN("New member group message with invalid redirection address");
+						break;
+					}
+					redirections[address] = location != RTMFP::LOCATION_LOCAL;
+				}
+				_handler.queue(onEdgeMember, member);
+				break;
+			}
 			case 0x30: {
 				reader.read7BitLongValue(); // useless
 				reader.read7BitLongValue(); // size epd (useless)
@@ -61,6 +84,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						ERROR("Handshake 0x30-0F rendezvous without peer id and 16 bytes tag field");
 						return;
 					}
+					shared<Buffer> pBuffer;
 					
 					const UInt8* peerId(reader.current());
 					reader.next(Entity::SIZE);
@@ -70,11 +94,23 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					map<SocketAddress, bool> aAddresses, bAddresses;
 					RTMFP::Session* pSession = _pRendezVous->meet<RTMFP::Session>(address, peerId, aAddresses, bAddress, bAddresses);
 					if (!pSession) {
+						if (!aAddresses.empty()) {
+							// Redirection!
+							RTMFP::InitBuffer(pBuffer, 0x0B);
+							BinaryWriter writer(*pBuffer);
+							writer.write8(0x71).next(2).write8(16).write(tag); // tag in header
+							for (auto& it : aAddresses) {
+								DEBUG(address, it.second ? " redirected to public " : " redirected to local ", it.first);
+								RTMFP::WriteAddress(writer, it.first, RTMFP::LOCATION_REDIRECTION);
+							}
+							BinaryWriter(pBuffer->data() + 10, 2).write16(pBuffer->size() - 12);  // write size header
+							RTMFP::Send(socket, Packet(RTMFP::Engine::Encode(pBuffer, 0, address)), address);
+							return;
+						}
 						DEBUG("UDP Hole punching, session ", String::Hex(peerId, Entity::SIZE), " wanted not found")
-						return; // peerId unknown! TODO?
+						return; // peerId unknown!
 					}
 
-					shared<Buffer> pBuffer;
 					{ // B get A in first (A is waiting B)
 						RTMFP::InitBuffer(pBuffer);
 						BinaryWriter writer(*pBuffer);
@@ -211,7 +247,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 	shared<Packet>			_pResponse;
 };
 
-RTMFPDecoder::RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool) : _handler(handler), _threadPool(threadPool), _pRendezVous(new RendezVous()), _pReceiving(new atomic<UInt32>(0)),
+RTMFPDecoder::RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool) : _pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(new atomic<UInt32>(0)),
 	_validateReceiver([this](UInt32 keySearched, map<UInt32, shared<RTMFPReceiver>>::iterator& it) {
 		return keySearched != it->first && it->second.unique() && it->second->obsolete() ? false : true;
 	}),
@@ -267,6 +303,7 @@ UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& addres
 			// Create handshake
 			it = _handshakes.emplace_hint(it, piecewise_construct, forward_as_tuple(address), forward_as_tuple(new Handshake(_handler, _pRendezVous)));
 			it->second->onHandshake = onHandshake;
+			it->second->onEdgeMember = onEdgeMember;
 		}
 		receive(it->second, pBuffer, address, pSocket);
 	} else {

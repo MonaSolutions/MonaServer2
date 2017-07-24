@@ -43,7 +43,7 @@ private:
 		UInt16				streamId;
 		shared<RTMFPWriter>	pWriter;
 
-		void  join(RTMFP::Group& group);
+		bool  join(RTMFP::Group& group);
 		void  unjoin();
 	private:
 		Client&			client() { return _client; }

@@ -118,7 +118,7 @@ void Sessions::removeByPeer(Session& session) {
 
 void Sessions::remove(const map<UInt32, Session*>::iterator& it, SESSION_OPTIONS options) {
 	Session& session(*it->second);
-	DEBUG(session.name(), " deleted");
+	DEBUG(session.name(), " deleted (client.id=", String::Hex(session.peer.id, Entity::SIZE),")");
 
 	if (options&SESSION_BYPEER)
 		removeByPeer(session);

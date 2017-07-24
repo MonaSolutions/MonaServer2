@@ -27,7 +27,7 @@ using namespace std;
 namespace Mona {
 
 
-RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions) {
+RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions), _pRendezVous(new RendezVous()){
 	memcpy(_certificat, "\x01\x0A\x41\x0E", 4);
 	Util::Random(&_certificat[4], 64);
 	memcpy(&_certificat[68], "\x02\x15\x02\x02\x15\x05\x02\x15\x0E", 9);
@@ -73,6 +73,13 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 			send(0x70, pBuffer, handshake.address, handshake.pResponse);
 		}
 	};
+	_onEdgeMember = [this](RTMFP::EdgeMember& edgeMember) {
+		const auto& it = groups.find(edgeMember.groupId);
+		if (it == groups.end())
+			return;
+		_pRendezVous->setRedirection(edgeMember, edgeMember.redirections, 400000); // timeout between 6 and 7 min => RTMFP session validity time (time max to dispatch edgeMember) + 95sec (time max of udp hole punching attempt) 
+		it->second->exchange(edgeMember.id);
+	};
 	_onSession = [this](shared<RTMFP::Session>& pSession) {
 		RTMFPSession* pClient = this->sessions.find<RTMFPSession>(pSession->id);
 		if (pClient)
@@ -83,14 +90,16 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 }
 
 shared<Socket::Decoder>	RTMFProtocol::newDecoder() {
-	shared<RTMFPDecoder> pDecoder(new RTMFPDecoder(api.handler, api.threadPool));
+	shared<RTMFPDecoder> pDecoder(new RTMFPDecoder(_pRendezVous, api.handler, api.threadPool));
 	pDecoder->onSession = _onSession;
+	pDecoder->onEdgeMember = _onEdgeMember;
 	pDecoder->onHandshake = _onHandshake;
 	return pDecoder;
 }
 
 RTMFProtocol::~RTMFProtocol() {
 	_onHandshake = nullptr;
+	_onEdgeMember = nullptr;
 	_onSession = nullptr;
 	if (groups.empty())
 		return;
@@ -113,6 +122,22 @@ bool RTMFProtocol::load(Exception& ex) {
 		setNumber("keepaliveServer", 5);
 	}
 
+
+	const char* addresses = getString("addresses");
+
+	if (!addresses)
+		return true;
+
+	String::ForEach forEach([this](UInt32 index, const char* value) {
+		SocketAddress address;
+		Exception ex;
+		if (!address.set(ex, value))
+			return true;
+		this->addresses.emplace(address);
+		return true;
+	});
+	String::Split(addresses, ";", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
+
 	return true;
 }
 
@@ -121,25 +146,28 @@ Buffer& RTMFProtocol::initBuffer(shared<Buffer>& pBuffer) {
 	return BinaryWriter(*pBuffer).write8(0x0B).write16(RTMFP::TimeNow()).next(3).buffer();
 }
 
-void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, const SocketAddress& address, shared<Packet>& pResponse) {
+void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, set<SocketAddress>& addresses, shared<Packet>& pResponse) {
 	struct Sender : Runner, virtual Object {
-		Sender(const shared<Socket>& pSocket, shared<Buffer>& pBuffer, const SocketAddress& address, shared<Packet>& pResponse) : _address(address), _pResponse(move(pResponse)), _pSocket(pSocket), _pBuffer(move(pBuffer)), Runner("RTMFPProtocolSender") {}
+		Sender(const shared<Socket>& pSocket, shared<Buffer>& pBuffer, set<SocketAddress>& addresses, shared<Packet>& pResponse) : _addresses(move(addresses)), _pResponse(move(pResponse)), _pSocket(pSocket), _pBuffer(move(pBuffer)), Runner("RTMFPProtocolSender") {}
 	private:
 		bool run(Exception& ex) {
-			Packet packet(RTMFP::Engine::Encode(_pBuffer, 0, _address));
-			_pResponse->set(move(packet));
-			_pResponse.reset(); // free response before sending to avoid "38 before 30 handshake" error
-			RTMFP::Send(*_pSocket, packet, _address);
+			Packet packet(RTMFP::Engine::Encode(_pBuffer, 0, _addresses));
+			if(_pResponse) {
+				_pResponse->set(move(packet));
+				_pResponse.reset(); // free response before sending to avoid "38 before 30 handshake" error
+			}
+			for(const SocketAddress& address : _addresses)
+				RTMFP::Send(*_pSocket, packet, address);
 			return true;
 		}
-		shared<Buffer>	_pBuffer;
-		shared<Socket>	_pSocket;
-		SocketAddress	_address;
-		shared<Packet>  _pResponse;
+		shared<Buffer>		_pBuffer;
+		shared<Socket>		_pSocket;
+		set<SocketAddress>	_addresses;
+		shared<Packet>		_pResponse;
 	};
 	Exception ex;
 	BinaryWriter(pBuffer->data() + 9, 3).write8(type).write16(pBuffer->size() - 12);
-	AUTO_ERROR(api.threadPool.queue(ex, make_shared<Sender>(socket(), pBuffer, address, pResponse)), "RTMFPSend");
+	AUTO_ERROR(api.threadPool.queue(ex, make_shared<Sender>(socket(), pBuffer, addresses, pResponse)), "RTMFPSend");
 }
 
 

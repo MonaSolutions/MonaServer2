@@ -28,43 +28,72 @@ using namespace std;
 namespace Mona {
 
 void RTMFP::Group::join(RTMFP::Member& member) {
+	// No check here on "member already in the group", because this check is done before
+	emplace_hint(exchange(member), member);
+	DEBUG(member->address, " join group ", String::Hex(id, Entity::SIZE));
+}
+
+RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
 	// Give the 6 peers closest (see https://drive.google.com/open?id=0B21tGxCEiSXGcHpYTkNOMHVvXzg),
 	// to allow new member to estimate the more precisely possible N, and because its neighborns are desired
 	// by this member (relating RTMFP spec), so give it immediatly rather wait that it find it itself (save time and resource).
-	UInt8 count = 6;
-	auto it = lower_bound(member);
-	if(size()) {
-		auto itLeft = it;
-		auto itRight = it;
-		for(;;) {
-			if (itLeft != begin()) {
-				if ((--itLeft)->second->writer()) { // if is opened (not closed)
-					itLeft->second->writer().sendMember(member);
-					if (!--count)
-						break;
-				}
-			} else if (itRight == end())
-				break;
-			if (itRight != end()) {
-				if (itRight->second->writer()) { // if is opened (not closed)
-					itRight->second->writer().sendMember(member);
-					if (!--count)
-						break;
-				}
-				++itRight;
-			}
-		};
-	}
 
-	if (it != end() && member == *it->second)
-		return;
-	emplace_hint(it, member); // insert now, not before!
-	DEBUG(member->address, " join group ", String::Hex(id, Entity::SIZE));
+	auto it = lower_bound(memberId);
+	UInt32 size = this->size();
+
+	// Left side
+	auto itSide = it;
+	UInt8 left = 3;
+	while (itSide != begin()) {
+		--size;
+		if (!(--itSide)->second->writer())
+			continue; // ignore closed member
+		itSide->second->writer().sendMember(memberId);
+		if (!--left)
+			break;
+	};
+
+	// Right side
+	itSide = it;
+	UInt8 right = 3;
+	while (itSide != end()) {
+		--size;
+		if (itSide->second->writer()) { // if is opened (not closed)
+			itSide->second->writer().sendMember(memberId);
+			if (!--right)
+				break;
+		}
+		++itSide;
+	};
+
+	// Circle!
+	if (!left) {
+		// turn from right to begin
+		if (size > right)
+			size = right;
+		for (auto& it = begin(); it != end(); ++it) {
+			if (!size--)
+				break;
+			if (it->second->writer()) // if is opened (not closed)
+				it->second->writer().sendMember(memberId);
+		}
+	} else if (!right) {
+		// turn from left to end
+		if (size > left)
+			size = left;
+		for (auto& it = rbegin(); it != rend(); ++it) {
+			if (!size--)
+				break;
+			if (it->second->writer()) // if is opened (not closed)
+				it->second->writer().sendMember(memberId);
+		}
+	}
+	return it;
 }
 
 void RTMFP::Group::unjoin(RTMFP::Member& member) {
 	if (!erase(member)) {
-		ERROR(String::Hex(member, Entity::SIZE)," was not member of group ", String::Hex(id, Entity::SIZE));
+		WARN(String::Hex(member, Entity::SIZE)," was not member of group ", String::Hex(id, Entity::SIZE));
 		return;
 	}
 	DEBUG(member->address, " unjoin group ", String::Hex(id, Entity::SIZE));
@@ -121,9 +150,20 @@ bool RTMFP::Engine::decode(Exception& ex, Buffer& buffer, const SocketAddress& a
 }
 
 shared<Buffer>& RTMFP::Engine::encode(shared<Buffer>& pBuffer, UInt32 farId, const SocketAddress& address) {
-	if(address)
+	if (address)
 		DUMP_RESPONSE("RTMFP", pBuffer->data() + 6, pBuffer->size() - 6, address);
+	encode(pBuffer, farId);
+	return pBuffer;
+}
 
+shared<Buffer>& RTMFP::Engine::encode(shared<Buffer>& pBuffer, UInt32 farId, const set<SocketAddress>& addresses) {
+	for(const SocketAddress& address : addresses)
+		DUMP_RESPONSE("RTMFP", pBuffer->data() + 6, pBuffer->size() - 6, address);
+	encode(pBuffer, farId);
+	return pBuffer;
+}
+
+void RTMFP::Engine::encode(const shared<Buffer>& pBuffer, UInt32 farId) {
 	int size = pBuffer->size();
 	if (size > RTMFP::SIZE_PACKET)
 		CRITIC("Packet exceeds 1192 RTMFP maximum size, risks to be ignored by client");
@@ -147,7 +187,6 @@ shared<Buffer>& RTMFP::Engine::encode(shared<Buffer>& pBuffer, UInt32 farId, con
 
 	reader.reset(4);
 	BinaryWriter(data, 4).write32(reader.read32() ^ reader.read32() ^ farId);
-	return pBuffer;
 }
 
 void RTMFP::ComputeAsymetricKeys(const UInt8* secret, UInt16 secretSize, const UInt8* initiatorNonce, UInt16 initNonceSize, const UInt8* responderNonce, UInt16 respNonceSize, UInt8* requestKey, UInt8* responseKey) {
@@ -178,6 +217,28 @@ BinaryWriter& RTMFP::WriteAddress(BinaryWriter& writer, const SocketAddress& add
 	for (NET_SOCKLEN i = 0; i<size; ++i)
 		writer.write8(bytes[i]);
 	return writer.write16(address.port());
+}
+
+template<typename AddrType>
+static AddrType& ReadAddr(BinaryReader& reader, AddrType& addr) {
+	if (reader.available() < (sizeof(addr) + 2))
+		memset(&addr, 0, sizeof(addr));
+	else
+		memcpy(&addr, reader.current(), sizeof(addr));
+	reader.next(sizeof(addr));
+	return addr;
+}
+
+RTMFP::Location RTMFP::ReadAddress(BinaryReader& reader, SocketAddress& address) {
+	UInt8 type = reader.read8();
+	if (type & 0x80) {
+		in6_addr addr;
+		address.set(ReadAddr(reader, addr), reader.read16());
+	} else {
+		in_addr addr;
+		address.set(ReadAddr(reader, addr), reader.read16());
+	}
+	return address ? Location(type & 0x7F) : Location::LOCATION_UNSPECIFIED;
 }
 
 

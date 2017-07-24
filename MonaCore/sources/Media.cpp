@@ -348,29 +348,35 @@ Media::Source& Media::Source::Null() {
 }
 
 bool Media::Target::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
-	if (audioSelected(track)) {
-		if ((_queueing += packet.size()) >= Net::MTU_RELIABLE_SIZE)
-			flush();
-		writeAudio(track, tag, packet, audioReliable || tag.isConfig);
-	}	
+	if (!audioSelected(track))
+		return true;
+	bool flush = _queueing >= Net::MTU_RELIABLE_SIZE;
+	writeAudio(track, tag, packet, audioReliable || tag.isConfig);
+	if (flush)
+		this->flush();
+	_queueing += packet.size();
 	return true;
 }
 bool Media::Target::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
 	if (tag.frame == Media::Video::FRAME_CC && dataTrack > 0 && track == dataTrack)
 		return true; // Remove CaptionClosed frame if data track explicitly selected is equals to video CC track!
-	if (videoSelected(track)) {
-		if ((_queueing += packet.size()) >= Net::MTU_RELIABLE_SIZE)
-			flush();
-		writeVideo(track, tag, packet, videoReliable || tag.frame == Media::Video::FRAME_CONFIG);
-	}
+	if (!videoSelected(track))
+		return true;
+	bool flush = _queueing >= Net::MTU_RELIABLE_SIZE;
+	writeVideo(track, tag, packet, videoReliable || tag.frame == Media::Video::FRAME_CONFIG);
+	if (flush)
+		this->flush();
+	_queueing += packet.size();
 	return true;
 }
 bool Media::Target::writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {
-	if (dataSelected(track)) {
-		if ((_queueing += packet.size()) >= Net::MTU_RELIABLE_SIZE)
-			flush();
-		writeData(track, type, packet, dataReliable);
-	}
+	if (!dataSelected(track))
+		return true;
+	bool flush = _queueing >= Net::MTU_RELIABLE_SIZE;
+	writeData(track, type, packet, dataReliable);
+	if (flush)
+		this->flush();
+	_queueing += packet.size();
 	return true;
 }
 

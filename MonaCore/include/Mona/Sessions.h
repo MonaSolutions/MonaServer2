@@ -92,7 +92,7 @@ struct Sessions : virtual Object {
 		pSession->_sessionsOptions = options;
 		addByPeer(*pSession);
 		addByAddress(*pSession);
-		DEBUG(pSession->name(), " created");
+		DEBUG(pSession->name(), " created (client.id=", String::Hex(pSession->peer.id, Entity::SIZE),")");
 		return *pSession;
 	}
 

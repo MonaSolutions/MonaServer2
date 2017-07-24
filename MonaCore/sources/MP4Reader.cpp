@@ -275,12 +275,13 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				if (reader.available()<22)
 					return reader.available();
 				BinaryReader mdhd(reader.current(), 22);
-				mdhd.next(12); // version + flags + creation time + modification time
+				UInt8 version = mdhd.read8();
+				mdhd.next(version ? 19 : 11); // version + flags + creation time + modification time
 				Track& track = _tracks.back();
 				track.timeStep = mdhd.read32();
 				if (track.timeStep)
 					track.timeStep = 1000 / track.timeStep;
-				mdhd.next(4); // duration
+				mdhd.next(version ? 8 : 4); // duration
 				// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap4/qtff4.html#//apple_ref/doc/uid/TP40000939-CH206-27005
 				UInt16 lang = mdhd.read16();
 				if (lang < 0x400) {
@@ -345,7 +346,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					if (description.shrink(stsd.next(size)) < 4)
 						continue;
 					const char* typeName = STR description.current();
-					description.next(12);
+					description.next(12); // type name (4 bytes) + reserved (6 bytes) + data reference index (2 bytes)
 					if (memcmp(typeName, EXPAND("avc1")) == 0) {
 						track.types.emplace_back(Media::Video::CODEC_H264);
 						// see https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html#//apple_ref/doc/uid/TP40000939-CH205-74522
@@ -392,7 +393,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							// section 7.2.6.5
 							// section 7.2.6.6.1 
 							// AudioSpecificConfig => https://csclub.uwaterloo.ca/~pbarfuss/ISO14496-3-2009.pdf
-							extension.next(8); // skip type + version
+							extension.next(8); // skip name + version
 							if (extension.read8() != 3)  // ES descriptor type = 3
 								continue;
 							UInt8 value = extension.read8();
@@ -525,7 +526,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				if (reader.available()<16)
 					return reader.available();
 				BinaryReader tkhd(reader.current(), 16);
-				tkhd.next(12); // version + flags + creation time + modification time
+				tkhd.next(tkhd.read8() ? 19 : 11); // version + flags + creation time + modification time
 				const auto& it = _ids.emplace(tkhd.read32(), &_tracks.back());
 				if (!it.second)
 					ERROR("Bad track header id, identification ", it.first->first, " already used");

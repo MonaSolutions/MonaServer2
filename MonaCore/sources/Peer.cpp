@@ -28,8 +28,8 @@ using namespace std;
 
 namespace Mona {
 
-Peer::Peer(ServerAPI& api, const char* protocol) : Client(protocol), _rttvar(0), _rto(Net::RTO_INIT), _pWriter(&Writer::Null()), _pNetStats(NULL), _ping(0), pingTime(0), _api(api) {
-	DEBUG("peer.id ", String::Hex(id, Entity::SIZE));
+Peer::Peer(ServerAPI& api, const char* protocol) :
+	Client(protocol), _rttvar(0), _rto(Net::RTO_INIT), _pWriter(&Writer::Null()), _pNetStats(NULL), _ping(0), pingTime(0), _api(api) {
 }
 
 Peer::~Peer() {

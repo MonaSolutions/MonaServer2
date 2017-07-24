@@ -25,16 +25,16 @@ namespace Mona {
 
 struct RTMFPDecoder : Socket::Decoder, virtual Object {
 	typedef Event<void(RTMFP::Handshake&)>			ON(Handshake);
+	typedef Event<void(RTMFP::EdgeMember&)>			ON(EdgeMember);
 	typedef Event<void(shared<RTMFP::Session>&)>	ON(Session);
 
-	RTMFPDecoder(const Handler& handler, const ThreadPool& threadPool);
+	RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool);
 
 private:
 	UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
 
 	struct Handshake;
 	bool finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver);
-
 
 	template<typename ReceiverType>
 	void receive(const shared<ReceiverType>& pReceiver, shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
