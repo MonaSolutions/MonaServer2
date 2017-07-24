@@ -127,11 +127,12 @@ private:
 			address = pProtocol->socket()->address();
 		pProtocol->setString("host", address.host());
 		pProtocol->setNumber("port", address.port());
+		pProtocol->setString("address", address);
 
 		NOTE(name, " server started on ", address, pProtocol->socket() ? (pProtocol->socket()->type == Socket::TYPE_DATAGRAM ? " (UDP)" : " (TCP)") : "");
 		_protocols.emplace_hint(it, name, pProtocol);
 
-		// Build protocol.address (public address)
+		// Build public address (protocol.address)
 		buffer.clear();
 		pProtocol->getString("publicHost", buffer);
 		if (!buffer.empty())
@@ -143,6 +144,7 @@ private:
 			address.setPort(port);
 		pProtocol->setString("publicHost", address.host());
 		pProtocol->setNumber("publicPort", address.port());
+		pProtocol->setString("publicAddress", address);
 
 		// Copy protocol params to api params! (to get defaults protocol params + configs params on api)
 		for (auto& it : *pProtocol)

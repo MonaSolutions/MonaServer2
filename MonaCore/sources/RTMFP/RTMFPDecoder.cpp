@@ -72,7 +72,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					}
 					redirections[address] = location != RTMFP::LOCATION_LOCAL;
 				}
-				_handler.queue(onEdgeMember, member);
+				_handler.queue(onEdgeMember, member, redirections);
 				break;
 			}
 			case 0x30: {

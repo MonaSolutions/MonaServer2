@@ -108,10 +108,10 @@ struct RTMFP : virtual Static {
 		shared<Packet>		pResponse;
 	};
 	struct EdgeMember : Packet, virtual Object {
-		EdgeMember(const Packet& packet, map<SocketAddress, bool>& redirections) : redirections(std::move(redirections)), Packet(std::move(packet)), id(packet.data()), groupId(packet.data()+Entity::SIZE) {}
+		EdgeMember(const Packet& packet, std::map<SocketAddress, bool>& redirections) : redirections(std::move(redirections)), Packet(std::move(packet)), id(packet.data()), groupId(packet.data()+Entity::SIZE) {}
 		const UInt8* id;
 		const UInt8* groupId;
-		map<SocketAddress, bool> redirections;
+		std::map<SocketAddress, bool> redirections;
 	};
 	struct Message : virtual Object, Packet {
 		Message(UInt64 flowId, UInt32 lost, const Packet& packet) : lost(lost), flowId(flowId), Packet(std::move(packet)) {}
