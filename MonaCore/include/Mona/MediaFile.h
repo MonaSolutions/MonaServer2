@@ -120,8 +120,8 @@ struct MediaFile : virtual Static {
 
 		template<typename WriteType, typename ...Args>
 		bool write(Args&&... args) {
-			if (!_running)
-				return false; // Stream not started!
+			if (!_running || !_pFile)
+				return false; // Stream not started or has failed!
 			Exception ex;
 			bool success;
 			AUTO_ERROR(success = io.threadPool.queue(ex, std::make_shared<WriteType>(_pName, io, _pFile, _pWriter, args ...), _writeTrack), description());

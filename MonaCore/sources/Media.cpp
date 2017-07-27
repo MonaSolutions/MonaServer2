@@ -427,98 +427,129 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 	// Net => [@][address] [type/TLS][/MediaFormat] [parameter MediaFormat]
 	// File = > @file[.format][MediaFormat][parameter]
 	
-	SocketAddress address;
-	Type type(TYPE_FILE);
-	bool isSecure(false), isTarget(false), isPort(false), isAddress(false);
-	string format;
-	Path   path;
-	String::ForEach forEach([&](UInt32 index, const char* value) {
-		if (!index) {
-			if ((isTarget = (*value == '@')))
-				++value;
-			// Address[/path]
-	
-			size_t size;
-			const char* slash(strpbrk(description, "/\\"));
-			if (slash) {
-				type = TYPE_HTTP;
-				size = slash - value;
-			} else
-				size = strlen(value);
+	description = String::TrimLeft(description);
 
-			UInt16 port;
-			if (String::ToNumber(value, size, port)) {
-				isPort = true;
-				address.setPort(port);
-				if(slash)
-					path.set(slash);
-				return true;
-			}
-			{
-				String::Scoped scoped(value + size);
-				isAddress = address.set(ex, value);
-			}
-			ex = nullptr;
-			if(!isAddress)
-				path.set(value); // File!
-			else if(slash)
-				path.set(slash);
-			return isAddress;
+	bool isTarget(false);
+	if ((isTarget = (*description == '@')))
+		++description;
+
+	string first;
+	if (*description == '"' || *description=='\'') {
+		const char* end = strchr(description +1, *description);
+		if (end) {
+			++description;
+			first.assign(description, end - description);
+			description = end +1;
 		}
-		
-		String::ForEach forEach([&](UInt32 index, const char* value) {
-			if (String::ICompare(value, "UDP") == 0) {
-				type = TYPE_UDP;
-				return true;
-			}
-			if (String::ICompare(value, "TCP") == 0) {
-				if(type != TYPE_HTTP)
-					type = TYPE_TCP;
-				return true;
-			}
-			if (String::ICompare(value, "HTTP") == 0) {
-				type = TYPE_HTTP;
-				return true;
-			}
-			if (String::ICompare(value, "TLS") == 0) {
-				isSecure = true;
-				return true;
-			}
-			format = value;
-			return false;
-		});
-		String::Split(value, "/", forEach);
+	}
+
+	size_t size = 0;
+	for(;;) {
+		switch (description[size]) {
+			default:
+				++size;
+				continue;
+			case ' ':
+			case '\t':
+			case 0:;
+		}
+		first.append(description, size);
+		description += size;
+		break;
+	}
+	
+
+	Type type(TYPE_FILE);
+	
+	for (size = 0; size < first.size(); ++size) {
+		if (first[size] == '\\' || first[size] == '/') {
+			type = TYPE_HTTP;
+			break;
+		}
+	}
+
+	bool isSecure(false);
+	string format;
+	String::ForEach forEach([&](UInt32 index, const char* value) {
+		if (String::ICompare(value, "UDP") == 0) {
+			type = TYPE_UDP;
+			return true;
+		}
+		if (String::ICompare(value, "TCP") == 0) {
+			if (type != TYPE_HTTP)
+				type = TYPE_TCP;
+			return true;
+		}
+		if (String::ICompare(value, "HTTP") == 0) {
+			type = TYPE_HTTP;
+			return true;
+		}
+		if (String::ICompare(value, "TLS") == 0) {
+			isSecure = true;
+			return true;
+		}
+		format = value;
 		return false;
 	});
-	String::Split(description, " \t", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
 
 
-	if (isPort) {
-		if (type!=TYPE_UDP || isTarget) // if no host and TCP or target
+	description = String::TrimLeft(description);
+	const char* params = strpbrk(description, " \t\r\n\v\f");
+	
+	Path   path;
+	SocketAddress address;
+	UInt16 port;
+	if (String::ToNumber(first.data(), size, port)) {
+		address.setPort(port);
+		path.set(first.data()+size);
+		String::Split(description, params ? (description - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
+		if (type != TYPE_UDP || isTarget) // if no host and TCP or target
 			address.host().set(IPAddress::Loopback());
-	} else if (isAddress) {
-		if (!address.host() && (type != TYPE_UDP || isTarget)) {
-			ex.set<Ex::Net::Address::Ip>("A TCP or target Stream can't have a wildcard ip");
-			return NULL;
-		}
 	} else {
-		// File!
-		if (!path) {
-			ex.set<Ex::Format>("No file name in stream file description");
+		bool isAddress;
+		{
+			String::Scoped scoped(first.data() + size);
+			Exception ex;
+			isAddress = address.set(ex, first.data());
+		}
+		Exception ex;
+		if (isAddress) {
+			path.set(first.data() + size);
+			String::Split(description, params ? (description - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
+			if (!address.host() && (type != TYPE_UDP || isTarget)) {
+				ex.set<Ex::Net::Address::Ip>("A TCP or target Stream can't have a wildcard ip");
+				return NULL;
+			}
+		} else {
+			// File!
+			if (!path.set(move(first))) {
+				ex.set<Ex::Format>("No file name in stream file description");
+				return NULL;
+			}
+			if (path.isFolder()) {
+				ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
+				return NULL;
+			}
+			if (isTarget) {
+				if (MediaWriter* pWriter = MediaWriter::New(format.empty() ? path.extension().c_str() : format.c_str()))
+					return new MediaFile::Writer(path, pWriter, ioFile);
+			} else if (MediaReader* pReader = MediaReader::New(format.empty() ? path.extension().c_str() : format.c_str()))
+				return new MediaFile::Reader(path, pReader, timer, ioFile);
+			ex.set<Ex::Unsupported>("Stream file format ", format, " not supported");
 			return NULL;
 		}
-		if (path.isFolder()) {
-			ex.set<Ex::Format>("Stream file ", path," can't be a folder");
-			return NULL;
-		}
-		if (isTarget) {
-			if (MediaWriter* pWriter = MediaWriter::New(format.empty() ? path.extension().c_str() : format.c_str()))
-				return new MediaFile::Writer(path, pWriter, ioFile);
-		} else if (MediaReader* pReader = MediaReader::New(format.empty() ? path.extension().c_str() : format.c_str()))
-			return new MediaFile::Reader(path, pReader, timer, ioFile);
-		ex.set<Ex::Unsupported>("Stream file format ", format, " not supported");
-		return NULL;
 	}
+	
+	// fix params!
+	if (params) {
+		while (isspace(*params)) {
+			if (!*++params) {
+				params = NULL;
+				break;
+			}
+		}
+	}
+
 
 	if (format.empty()) {
 		switch (type) {

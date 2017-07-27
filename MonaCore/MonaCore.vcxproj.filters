@@ -310,7 +310,6 @@
     <ClInclude Include="include\Mona\MP4Writer.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\ServerConnection.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -531,6 +530,5 @@
     <ClCompile Include="sources\MP4Writer.cpp">
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
-    <ClCompile Include="sources\ServerConnection.cpp" />
   </ItemGroup>
 </Project>

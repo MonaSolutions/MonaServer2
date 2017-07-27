@@ -28,7 +28,7 @@ namespace Mona {
 	static int output_exp_old_format(_set_output_format(_TWO_DIGIT_EXPONENT));
 #endif
 
-size_t String::Split(const char* value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options) {
+size_t String::Split(const char* value, size_t size, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options) {
 	const char* it1(value);
 	const char* it2(NULL);
 	const char* it3(NULL);
@@ -36,12 +36,16 @@ size_t String::Split(const char* value, const char* separators, const String::Fo
 
 	for(;;) {
 		if (options & SPLIT_TRIM) {
-			while (*it1 && isspace(*it1))
+			while ((*it1 && size) && isspace(*it1)) {
 				++it1;
+				--size;
+			}
 		}
 		it2 = it1;
-		while (*it2 && !strchr(separators,*it2))
+		while ((*it2 && size) && !strchr(separators, *it2)) {
 			++it2;
+			--size;
+		}
 		it3 = it2;
 		if ((options & SPLIT_TRIM) && it3 != it1) {
 			--it3;
@@ -56,19 +60,19 @@ size_t String::Split(const char* value, const char* separators, const String::Fo
 				return string::npos;
 		}
 		it1 = it2;
-		if (!*it1)
+		if (!*it1 || !size--)
 			break;
 		++it1;
 	};
 	return count;
 }
 
-vector<string>& String::Split(const char* value, const char* separators, vector<string>& values, SPLIT_OPTIONS options) {
+vector<string>& String::Split(const char* value, size_t size, const char* separators, vector<string>& values, SPLIT_OPTIONS options) {
 	ForEach forEach([&values](UInt32 index,const char* value){
 		values.emplace_back(value);
 		return true;
 	});
-	Split(value, separators, forEach, options);
+	Split(value, size, separators, forEach, options);
 	return values;
 }
 

@@ -30,8 +30,6 @@ struct MP4Writer : MediaWriter, virtual Object {
 	// https://www.adobe.com/content/dam/Adobe/en/devnet/flv/pdfs/video_file_format_spec_v10.pdf
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
 
-	MP4Writer() {}
-
 	void beginMedia(const OnWrite& onWrite);
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite);
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite);
@@ -41,13 +39,32 @@ struct MP4Writer : MediaWriter, virtual Object {
 private:
 	void flush(const OnWrite& onWrite);
 
-	bool							_loading;
-	Media::Base*					_pAVFront;
-	Media::Base*					_pAVBack;
-	bool							_audioOutOfRange;
-	bool							_videoOutOfRange;
-	std::vector<std::deque<Media::Audio>> _audios;
-	std::vector<std::deque<Media::Video>> _videos;
+	struct Audios : virtual Object, std::deque<Media::Audio> {
+		Audios() : rate(0), timeRef(0) {}
+		Audios(Audios&& audios) : config(std::move(audios.config)), rate(audios.rate), timeRef(audios.timeRef), std::deque<Media::Audio>(std::move(audios)) {}
+		Packet  config;
+		UInt32  rate;
+		UInt32  timeRef;
+		UInt32  sizeTraf;
+	};
+	struct Videos : virtual Object, std::deque<Media::Video> {
+		Videos() : timeRef(0) {}
+		Videos(Videos&& videos) : sps(std::move(videos.sps)), pps(std::move(videos.pps)), timeRef(videos.timeRef), std::deque<Media::Video>(std::move(videos)) {}
+		Packet  sps;
+		Packet	pps;
+		UInt32  timeRef;
+		UInt32  sizeTraf;
+	};
+
+	UInt64						_offset;
+	bool						_loading;
+	std::vector<Audios>			_audios;
+	std::vector<Videos>			_videos;
+	bool						_audioOutOfRange;
+	bool						_videoOutOfRange;
+	UInt32						_sequence;
+	Media::Base*				_pAVFront;
+	Media::Base*				_pAVBack;
 };
 
 

@@ -71,21 +71,21 @@ RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
 		// turn from right to begin
 		if (size > right)
 			size = right;
-		for (auto& it = begin(); it != end(); ++it) {
+		for (auto& it : *this) {
 			if (!size--)
 				break;
-			if (it->second->writer()) // if is opened (not closed)
-				it->second->writer().sendMember(memberId);
+			if (it.second->writer()) // if is opened (not closed)
+				it.second->writer().sendMember(memberId);
 		}
 	} else if (!right) {
 		// turn from left to end
 		if (size > left)
 			size = left;
-		for (auto& it = rbegin(); it != rend(); ++it) {
+		for (auto& it : *this) {
 			if (!size--)
 				break;
-			if (it->second->writer()) // if is opened (not closed)
-				it->second->writer().sendMember(memberId);
+			if (it.second->writer()) // if is opened (not closed)
+				it.second->writer().sendMember(memberId);
 		}
 	}
 	return it;

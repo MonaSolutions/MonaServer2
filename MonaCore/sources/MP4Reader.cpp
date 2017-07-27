@@ -204,8 +204,8 @@ MP4Reader::Box& MP4Reader::Box::operator=(BinaryReader& reader) {
 		_type = CTTS;
 	} else if (memcmp(reader.current(), EXPAND("mdat")) == 0) {
 		_type = MDAT;
-	}// else
-		//DEBUG("Undefined box ", string(STR reader.current(), 4), " (size=", _size, ")");
+	} else
+		TRACE("Undefined box ", string(STR reader.current(), 4), " (size=", _size, ")");
 	reader.next(4);
 	return _rest ? *this : operator=(reader); // if empty, continue to read!
 }
@@ -244,7 +244,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 		if (!_boxes.back()) {
 			if (!(_boxes.back() = reader))
 				return reader.available();
-			//DEBUG(string(_boxes.size() - 1, '\t'), _boxes.back().name());
+			//DEBUG(string(_boxes.size() - 1, '\t'), _boxes.back().name(), " (size=", _boxes.back().size(), ")");
 		}
 
 		Box::Type type = _boxes.back().type();
@@ -350,12 +350,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					if (memcmp(typeName, EXPAND("avc1")) == 0) {
 						track.types.emplace_back(Media::Video::CODEC_H264);
 						// see https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html#//apple_ref/doc/uid/TP40000939-CH205-74522
-						description.next(44);
-						if (!description.read16()) {
-							// Color table
-							description.next(14); //header
-							description.next((description.read16()+1)*8);
-						}
+						description.next(70); // slip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
 					} else if (memcmp(typeName, EXPAND("mp4a")) == 0) {
 						track.types.emplace_back(Media::Audio::CODEC_AAC);
 						Track::Type& type = track.types.back();
@@ -436,7 +431,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							// section 5.2.4.1.1
 							extension.next(4);
 							shared<Buffer> pBuffer(new Buffer());
-							MPEG4::ReadVideoConfig(extension.current(), extension.size(), *pBuffer);
+							MPEG4::ReadVideoConfig(extension.current(), extension.available(), *pBuffer);
 							track.types.back().config.set(pBuffer);
 						}
 
@@ -603,8 +598,9 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				change = (change << 32) | _fragment.typeIndex;
 				_pTrack->size = (flags & 0x200) ? 0 : _fragment.defaultSize;
 
-				if (flags & 1)
-					_chunks[_offset + trun.read32()] = _pTrack;
+				UInt32 value = flags & 1 ? trun.read32() : 0; // To fix a bug with ffmpeg and omit_tfhd_offset flags (flags stays set but value is 0!)
+				if(value)
+					_chunks[_offset + value] = _pTrack;
 				else if(!_chunks.empty())
 					_chunks[_chunks.rbegin()->first+1] = _pTrack;
 				else
@@ -621,7 +617,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					_pTrack->durations.back().value = _fragment.defaultDuration;
 				}
 
-				UInt32 value;
+				
 				while (count-- && trun.available()) {
 					if (flags & 0x100) {
 						value = trun.read32();
@@ -723,6 +719,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 										track = 0;
 									}
 								}
+							//	DEBUG("Audio ", type.audio.time);
 								if(track)
 									_medias.emplace(type.audio.time, new Media::Audio(type.audio, Packet(packet, reader.current(), size), track));
 								break;
@@ -753,6 +750,8 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 										track.compositionOffsets.pop_front();
 								} else
 									type.video.compositionOffset = 0;
+
+								//DEBUG("Video ", type.video.time);
 								
 								// Get the correct video.frame type!
 								// + support SPS and PPS inner samples (required by specification)
@@ -777,7 +776,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 												_medias.emplace(type.video.time, new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
 										} // else erase duplicate config type
 										frame = NULL;
-									} else if (frameType == 7 || frameType == 8) {
+									} else if (frame && (frameType == 7 || frameType == 8)) {
 										// flush what before config packet
 										_medias.emplace(type.video.time, new Media::Video(type.video, Packet(packet, frame, frameSize), track));
 										frame = NULL;
@@ -789,6 +788,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 									}
 									frameSize += frames.next(frames.read32()) + 4;
 								}
+								
 								if (frame)
 									_medias.emplace(type.video.time, new Media::Video(type.video, type.video.frame == Media::Video::FRAME_CONFIG ? (type.config = Packet(frame, frameSize)) : Packet(packet, frame, frameSize), track));
 								break;

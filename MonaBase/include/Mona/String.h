@@ -97,9 +97,11 @@ struct String : std::string, virtual NullableObject {
 	static void ToUTF8(const char* value, std::size_t size, const String::OnEncoded& onEncoded);
 	
 	typedef std::function<bool(UInt32 index,const char* value)> ForEach; /// String::Split function type handler
-	static std::size_t Split(const std::string& value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0) { return Split(value.data(), separators, forEach, options); }
-	static std::size_t Split(const char* value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0);
-	static std::vector<std::string>& Split(const char* value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0);
+	static std::size_t Split(const std::string& value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0) { return Split(value.data(), value.size(), separators, forEach, options); }
+	static std::size_t Split(const char* value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0) { return Split(value, std::string::npos, separators, forEach, options); }
+	static std::size_t Split(const char* value, std::size_t size, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0);
+	static std::vector<std::string>& Split(const char* value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0) { return Split(value, std::string::npos, separators, values, options); }
+	static std::vector<std::string>& Split(const char* value, std::size_t size, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0);
 	static std::vector<std::string>& Split(const std::string& value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0) { return Split(value.c_str(),separators,values,options); }
 
 	template<typename Type, NUMNAME(Type)>
@@ -377,6 +379,17 @@ struct String : std::string, virtual NullableObject {
 			return Append<OutType>(out, std::forward<Args>(args)...);
 		}
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
+	}
+
+	struct Sub : virtual Object {
+		Sub(const std::string& value, std::size_t size) : value(value.data()), size(size == std::string::npos ? value.size() : size) {}
+		Sub(const char* value,        std::size_t size) : value(value), size(size==std::string::npos ? strlen(value) : size) {}
+		const char*	value;
+		std::size_t size;
+	};
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const Sub& sub, Args&&... args) {
+		return Append<OutType>((OutType&)out.append(sub.value, sub.size), std::forward<Args>(args)...);
 	}
 
 	struct Date : virtual Object {

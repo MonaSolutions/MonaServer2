@@ -212,11 +212,11 @@ void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pa
 	AudioTrack* pAudio = track ? &_audios[track] : NULL;
 	// save audio codec packet for future listeners
 	if (tag.isConfig)
-		DEBUG("Audio configuration received on publication ", _name);
+		DEBUG("Audio configuration received on publication ", _name, " (size=", packet.size(), ")");
 	_byteRate += packet.size() + sizeof(tag);
 	_audios.byteRate += packet.size() + sizeof(tag);
 	_new = true;
-	// TRACE("Audio ",tag.time);
+	// DEBUG("Audio ",tag.time);
 	for (auto& it : subscriptions) {
 		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
 			it->writeAudio(track, tag, packet);
@@ -238,7 +238,7 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 	VideoTrack* pVideo = track ? &_videos[track] : NULL;
 	// save video codec packet for future listeners
 	if (tag.frame == Media::Video::FRAME_CONFIG) {
-		DEBUG("Video configuration received on publication ", _name);
+		DEBUG("Video configuration received on publication ", _name," (size=",packet.size(),")");
 	} else if (pVideo) {
 		if (tag.frame == Media::Video::FRAME_KEY) {
 			pVideo->waitKeyFrame = false;
@@ -260,7 +260,7 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 		_byteRate += packet.size() + sizeof(tag);
 		_videos.byteRate += packet.size() + sizeof(tag);
 		_new = true;
-		// TRACE("Video ", tag.time);
+		// DEBUG("Video ", tag.time);
 		for (auto& it : subscriptions) {
 			if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
 				it->writeVideo(track, tag, packet);

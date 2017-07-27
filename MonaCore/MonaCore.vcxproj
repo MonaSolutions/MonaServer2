@@ -247,7 +247,6 @@
     <ClInclude Include="include\Mona\SDP.h" />
     <ClInclude Include="include\Mona\Server.h" />
     <ClInclude Include="include\Mona\ServerAPI.h" />
-    <ClInclude Include="include\Mona\ServerConnection.h" />
     <ClInclude Include="include\Mona\SplitWriter.h" />
     <ClInclude Include="include\Mona\StringReader.h" />
     <ClInclude Include="include\Mona\StringWriter.h" />
@@ -328,12 +327,6 @@
     <ClCompile Include="sources\RTP_H264.cpp" />
     <ClCompile Include="sources\RTP_MPEG.cpp" />
     <ClCompile Include="sources\MediaSocket.cpp" />
-    <ClCompile Include="sources\ServerConnection.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="sources\Subscription.cpp" />
     <ClCompile Include="sources\Peer.cpp" />
     <ClCompile Include="sources\QueryReader.cpp" />

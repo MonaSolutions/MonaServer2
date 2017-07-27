@@ -295,7 +295,7 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 	audio.rate = tag.rate;
 	audio.isConfig = tag.isConfig;
 	fixTag(tag.isConfig, tag, audio);
-	TRACE("Audio time => ", audio.time);
+	// DEBUG("Audio time => ", audio.time);
 	if (_pMediaWriter)
 		_pMediaWriter->writeAudio(track, audio, packet, _onMediaWrite);
 	else if(!target.writeAudio(track, audio, packet))
@@ -352,7 +352,7 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 		_pMediaWriter->writeVideo(track, video, packet, _onMediaWrite);
 	else if (!target.writeVideo(track, video, packet))
 		_ejected = EJECTED_ERROR;
-	TRACE("Video time => ", video.time, "\t", String::Hex(packet.data(), 5));
+	// DEBUG("Video time => ", video.time);
 }
 
 void Subscription::setFormat(const char* format) {
