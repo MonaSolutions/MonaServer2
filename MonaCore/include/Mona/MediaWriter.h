@@ -29,7 +29,7 @@ struct MediaWriter : virtual Object {
 	static MediaWriter* New(const char* subMime);
 
 	const char*			format() const;
-	virtual MIME::Type	mime() const; // Keep virtual to allow to RTPReader to redefine it
+	MIME::Type			mime() const;
 	virtual const char* subMime() const; // Keep virtual to allow to RTPReader to redefine it
 
 

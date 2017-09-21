@@ -29,8 +29,8 @@ struct MPEG4 : virtual Static {
 
 	static bool   ParseVideoConfig(const Packet& packet, Packet& sps, Packet& pps);
 
-	static UInt32 ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer);
-	static void   WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer, const MediaWriter::OnWrite& onWrite=nullptr);
+	static UInt32			ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer);
+	static BinaryWriter&	WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer);
 
 
 	static UInt8 ReadAudioConfig(const UInt8* data, UInt32 size, UInt32& rate, UInt8& channels);

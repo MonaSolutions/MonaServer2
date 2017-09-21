@@ -213,7 +213,7 @@ void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packe
 
 	auto it(_audios.lower_bound(track));
 	if (it == _audios.end() || it->first != track) {
-		if (tag.codec != Media::Audio::CODEC_AAC && tag.codec != Media::Audio::CODEC_MP3 && tag.codec != Media::Audio::CODEC_MP3_8K) {
+		if (tag.codec != Media::Audio::CODEC_AAC && tag.codec != Media::Audio::CODEC_MP3) {
 			ERROR("Audio track ",track," ignored, TS format doesn't support ", Media::Audio::CodecToString(tag.codec), " codec");
 			return;
 		}

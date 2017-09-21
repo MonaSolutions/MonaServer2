@@ -99,20 +99,22 @@ void* RendezVous::meetIntern(const SocketAddress& aAddress, const UInt8* bPeerId
 	bool hasExteriorPeer = pA && pA->serverAddress.host() != b.serverAddress.host();
 
 //// A get B
+	// fill in first local addresses to avoid an overloading of one public address (at less one public address is required)
+	for (const SocketAddress& address : b.addresses)
+		bAddresses[address] = false;
 	bAddresses[bAddress] = true;
 	if (hasExteriorPeer)
 		bAddresses[SocketAddress(pA->serverAddress.host(), bAddress.port())] = true;
-	for (const SocketAddress& address : b.addresses)
-		bAddresses[address] = false;
 	
 //// B get A
-	aAddresses[aAddress] = true;
-	if (hasExteriorPeer)
-		aAddresses[SocketAddress(b.serverAddress.host(), aAddress.port())] = true;
-	if(pA) {
+	if (pA) {
+		// fill in first local addresses to avoid an overloading of one public address (at less one public address is required)
 		for (const SocketAddress& address : pA->addresses)
 			aAddresses[address] = false;
 	}
+	aAddresses[aAddress] = true;
+	if (hasExteriorPeer)
+		aAddresses[SocketAddress(b.serverAddress.host(), aAddress.port())] = true;
 	return b.pData ? b.pData : this; // must return something != NULL (success)
 }
 

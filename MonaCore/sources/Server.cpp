@@ -214,7 +214,7 @@ void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
 			if (!it2.second.empty())
 				continue;
 			Media::Stream* pStream;
-			AUTO_ERROR(pStream = Media::Stream::New(ex=nullptr, name, timer, ioFile, ioSocket, pTLSClient), name);
+			AUTO_ERROR(pStream = Media::Stream::New(ex = nullptr, name, timer, ioFile, ioSocket, pTLSClient), name);
 			if (!pStream)
 				continue;
 			streams.emplace(it.first, pStream);

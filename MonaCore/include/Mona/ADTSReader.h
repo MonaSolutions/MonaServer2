@@ -28,6 +28,7 @@ struct ADTSReader : virtual Object, MediaTrackReader {
 	// Compatible AAC and MP3
 	// http://wiki.multimedia.cx/index.php?title=ADTS
 	// http://blog.olivierlanglois.net/index.php/2008/09/12/aac_adts_header_buffer_fullness_field
+	// http://thompsonng.blogspot.fr/2010/06/adts-audio-data-transport-stream-frame.html
 	// http://thompsonng.blogspot.fr/2010/03/aac-configuration.html
 	ADTSReader(UInt8 track=1) : _syncError(false), _size(0), MediaTrackReader(track), _infos(0) {}
 

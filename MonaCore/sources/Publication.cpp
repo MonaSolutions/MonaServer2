@@ -26,7 +26,7 @@ namespace Mona {
 
 Publication::Publication(const string& name): _latency(0),
 	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate),
-	_publishing(false),_new(false), _newProperties(false), _newLost(false), _name(name) {
+	_waitingFirstVideoSync(0), _publishing(false),_new(false), _newProperties(false), _newLost(false), _name(name) {
 	DEBUG("New publication ",name);
 }
 
@@ -103,6 +103,7 @@ void Publication::start(MediaFile::Writer* pRecorder, bool append) {
 	if (!_publishing) {
 		_publishing = true;
 		INFO("Publication ", _name, " started");
+		_waitingFirstVideoSync.update();
 	}
 	if(pRecorder)
 		startRecording(*pRecorder, append);
@@ -117,6 +118,7 @@ void Publication::reset() {
 	_audios.clear();
 	_videos.clear();
 	_datas.clear();
+	_waitingFirstVideoSync.update();
 
 	// Erase track metadata just!
 	auto it = begin();
@@ -144,6 +146,7 @@ void Publication::stop() {
 	stopRecording();
 
 	_publishing =false;
+	_waitingFirstVideoSync = 0;
 
 	// release resources!
 	_audios.clear();
@@ -211,12 +214,18 @@ void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pa
 	// create track
 	AudioTrack* pAudio = track ? &_audios[track] : NULL;
 	// save audio codec packet for future listeners
-	if (tag.isConfig)
+	if (!tag.isConfig) {
+		if (_waitingFirstVideoSync) {
+			if(!_waitingFirstVideoSync.isElapsed(1000))
+				return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
+			_waitingFirstVideoSync = 0;
+		}
+	} else
 		DEBUG("Audio configuration received on publication ", _name, " (size=", packet.size(), ")");
 	_byteRate += packet.size() + sizeof(tag);
 	_audios.byteRate += packet.size() + sizeof(tag);
 	_new = true;
-	// DEBUG("Audio ",tag.time);
+	//DEBUG("Audio ",tag.time);
 	for (auto& it : subscriptions) {
 		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
 			it->writeAudio(track, tag, packet);
@@ -236,23 +245,25 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 
 	// create track
 	VideoTrack* pVideo = track ? &_videos[track] : NULL;
+	if (_waitingFirstVideoSync)
+		_waitingFirstVideoSync.update(); // video is coming, wait more time
 	// save video codec packet for future listeners
-	if (tag.frame == Media::Video::FRAME_CONFIG) {
-		DEBUG("Video configuration received on publication ", _name," (size=",packet.size(),")");
-	} else if (pVideo) {
-		if (tag.frame == Media::Video::FRAME_KEY) {
+	if (tag.frame == Media::Video::FRAME_KEY) {
+		if(pVideo) {
 			pVideo->waitKeyFrame = false;
 			if (pVideo->keyFrameTime &&  tag.time > pVideo->keyFrameTime)
 				pVideo->keyFrameInterval = tag.time - pVideo->keyFrameTime;
 			pVideo->keyFrameTime = tag.time;
-			onKeyFrame(track); // can add a new subscription for this publication!
-		} else if (pVideo->waitKeyFrame) {
-			// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
-			INFO("Video frame dropped, ", _name, " waits a key frame");
-			return;
 		}
+		_waitingFirstVideoSync = 0;
+		onKeyFrame(track); // can add a new subscription for this publication!
+	} else if (tag.frame == Media::Video::FRAME_CONFIG) {
+		DEBUG("Video configuration received on publication ", _name, " (size=", packet.size(), ")");
+	} else if (pVideo && pVideo->waitKeyFrame) {
+		// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
+		INFO("Video frame dropped, ", _name, " waits a key frame");
+		return;
 	}
-
 	// flush properties before to deliver media packet (to be sync with media content)
 	flushProperties();
 
@@ -260,7 +271,7 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 		_byteRate += packet.size() + sizeof(tag);
 		_videos.byteRate += packet.size() + sizeof(tag);
 		_new = true;
-		// DEBUG("Video ", tag.time);
+		//INFO("Video ", tag.time, " (", tag.compositionOffset, ")");
 		for (auto& it : subscriptions) {
 			if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
 				it->writeVideo(track, tag, packet);

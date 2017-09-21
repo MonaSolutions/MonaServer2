@@ -66,11 +66,12 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 
 	const std::string& name() const;
 
+	bool streaming(UInt32 timeout) const { return _streaming ? _streaming.isElapsed(timeout) : false; }
+	const Time& streaming() const { return _streaming; }
+
 	/*!
 	Allow to reset the reference live timestamp */
 	void seek(UInt32 time);
-
-	bool streaming() const { return _streaming ? true : false; }
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
 	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
 	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet);
@@ -92,16 +93,12 @@ private:
 
 	template<typename TagType>
 	TagType& fixTag(bool isConfig, const TagType& tagIn, TagType& tagOut) {
-		if (_firstTime && !isConfig) {
-			_firstTime = false;
-			_startTime = tagIn.time;
-		}
 		if (isConfig)
 			tagOut.time = _lastTime;
 		else if (_firstTime) {
 			_firstTime = false;
 			_startTime = tagIn.time;
-			_lastTime = _seekTime;
+			_lastTime = tagOut.time = _seekTime;
 		} else if (_startTime > tagIn.time) {
 			tagOut.time = _seekTime;
 			WARN(typeid(TagType) == typeid(Media::Audio::Tag) ? "Audio" : "Video", " time too late on ", name());
@@ -126,6 +123,7 @@ private:
 	UInt32					_lastTime;
 
 	Time					_streaming;
+	Time					_waitingFirstVideoSync;
 
 	UInt8					_congested;
 	Congestion				_congestion;

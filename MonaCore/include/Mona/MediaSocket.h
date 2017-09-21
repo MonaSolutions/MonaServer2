@@ -82,6 +82,7 @@ struct MediaSocket : virtual Static {
 			UInt8					_rest;
 			std::string				_name;
 			const Handler&			_handler;
+			SocketAddress			_address;
 		};
 
 		Decoder::OnError			_onError;

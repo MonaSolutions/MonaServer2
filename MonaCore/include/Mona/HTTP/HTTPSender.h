@@ -45,7 +45,6 @@ protected:
 	bool send(const char* code) { return send(code, MIME::TYPE_UNKNOWN, NULL, Packet::Null()); }
 
 	const shared<Socket>& socket() { return _pSocket; }
-	virtual void shutdown() { _pSocket->shutdown(); }
 
 protected:
 	template <typename ...Args>
@@ -66,10 +65,10 @@ protected:
 				writer.write(code);
 		HTML_END_COMMON_RESPONSE(_pRequest->host)
 	}
-private:
-	virtual void run(const HTTP::Header& request) = 0;
 
+private:
 	bool run(Exception&);
+	virtual void run(const HTTP::Header& request, bool& keepalive) = 0;
 
 	shared<Socket>				_pSocket;
 	UInt8						_connection;

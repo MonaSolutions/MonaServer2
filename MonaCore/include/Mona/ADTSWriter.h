@@ -28,6 +28,7 @@ struct ADTSWriter : MediaTrackWriter, virtual Object {
 	// Compatible AAC and MP3
 	// http://wiki.multimedia.cx/index.php?title=ADTS
 	// http://blog.olivierlanglois.net/index.php/2008/09/12/aac_adts_header_buffer_fullness_field
+	// http://thompsonng.blogspot.fr/2010/06/adts-audio-data-transport-stream-frame.html
 	// http://thompsonng.blogspot.fr/2010/03/aac-configuration.html
 
 	ADTSWriter() : _codecType(0),_channels(0) {}

@@ -140,7 +140,7 @@ private:
 
 	std::deque<Message>	_messages;
 
-	// current buffer =>
+	// current buffer (similar to variable local, trick to avoid to pass it in flush method as params) =>
 	shared<Buffer>		_pBuffer;
 	UInt32				_fragments;
 	UInt8				_flags;

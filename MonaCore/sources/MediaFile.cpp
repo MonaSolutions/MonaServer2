@@ -30,10 +30,9 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 		return 0;
 	_mediaTimeGotten = false;
 	_pReader->read(packet, *this);
-	if (end) {
-		_pReader->flush(*this);
-		_pReader.reset();
-	} else if(!_mediaTimeGotten)
+	if (end)
+		_pReader.reset(); // no flush, because will be done by the main thread!
+	else if(!_mediaTimeGotten)
 		return packet.size(); // continue to read if no flush
 	_handler.queue(onFlush);
 	return 0;
@@ -123,13 +122,13 @@ void MediaFile::Reader::stop() {
 	io.close(_pFile);
 	_onFlush = nullptr;
 	_pMedias.reset(new std::deque<unique<Media::Base>>());
+	INFO(description(), " stops"); // to display "stops" before possible "publication reset"
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if (_pReader.unique())
 		_pReader->flush(*_pSource);
 	else
 		_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
-	_pReader.reset(MediaReader::New(_pReader->format()));
-	INFO(description(), " stops");
+	_pReader.reset(MediaReader::New(_pReader->subMime()));
 }
 
 

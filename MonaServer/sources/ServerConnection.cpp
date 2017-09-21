@@ -192,7 +192,7 @@ void ServerConnection::send(ServerMessage& message) {
 	_pClient->send(message.buffer());
 }
 
-bool ServerConnection::protocolAddress(Exception& ex, const string& protocol,SocketAddress& socketAddress) {
+bool ServerConnection::protocolAddress(Exception& ex, const string& protocol, SocketAddress& socketAddress) {
 	if (!getBoolean<false>(protocol)) {
 		ex.set<Ex::Application::Config>("Server ", address, " has ", protocol, " disabled");
 		return false;

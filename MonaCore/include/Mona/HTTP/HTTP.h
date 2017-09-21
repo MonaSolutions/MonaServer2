@@ -161,6 +161,7 @@ struct HTTP : virtual Static {
 		std::string		host;
 		float			version;
 		const char*		origin;
+		const char*		range; // TODO supports it?
 
 		UInt8			connection;
 		const char*		upgrade;

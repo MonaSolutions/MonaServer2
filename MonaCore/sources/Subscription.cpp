@@ -28,7 +28,7 @@ namespace Mona {
 
 Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
 	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(-1), _startTime(0), _lastTime(0),
-	_pMediaWriter(NULL), _onMediaWrite([this](const Packet& packet) { writeData(0, Media::Data::TYPE_MEDIA, packet); }) {
+	_waitingFirstVideoSync(0), _pMediaWriter(NULL), _onMediaWrite([this](const Packet& packet) { writeData(0, Media::Data::TYPE_MEDIA, packet); }) {
 }
 
 Subscription::~Subscription() {
@@ -156,7 +156,9 @@ void Subscription::beginMedia() {
 		_ejected = EJECTED_ERROR;
 		return;
 	}
+	_waitingFirstVideoSync.update();
 	_streaming.update();
+	
 
 	if (!pPublication) {
 		if(this->count())
@@ -200,6 +202,7 @@ void Subscription::endMedia() {
 	target.endMedia(name());
 	target.flush();
 
+	_waitingFirstVideoSync = 0;
 	_streaming = 0;
 	_seekTime = _lastTime;
 	_audios.clear();
@@ -276,6 +279,12 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 	if(track)
 		_audios[track];
 
+	if (_waitingFirstVideoSync && !tag.isConfig) {
+		if (!_waitingFirstVideoSync.isElapsed(1000))
+			return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
+		_waitingFirstVideoSync = 0;
+	}
+
 	if (congested()) {
 		if (target.audioReliable || _congestion(target.queueing(), Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
@@ -318,14 +327,19 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 
 	// Create track!
 	VideoTrack* pVideo = track ? &_videos[track] : NULL;
+	if (_waitingFirstVideoSync)
+		_waitingFirstVideoSync.update(); // video is coming, wait more time
 	bool isConfig(tag.frame == Media::Video::FRAME_CONFIG);
-	if (!isConfig && pVideo && pVideo->waitKeyFrame) {
-		if (tag.frame != Media::Video::FRAME_KEY) {
+	if (!isConfig) {
+		if (tag.frame == Media::Video::FRAME_KEY) {
+			_waitingFirstVideoSync = 0;
+			if(pVideo)
+				pVideo->waitKeyFrame = false;
+		} else if(pVideo && pVideo->waitKeyFrame) {
 			++_videos.dropped;
 			DEBUG("Video frame dropped, waits a key frame from ", name());
 			return;
 		}
-		pVideo->waitKeyFrame = false;
 	}
 
 	if (congested()) {
@@ -352,7 +366,7 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 		_pMediaWriter->writeVideo(track, video, packet, _onMediaWrite);
 	else if (!target.writeVideo(track, video, packet))
 		_ejected = EJECTED_ERROR;
-	// DEBUG("Video time => ", video.time);
+	 //DEBUG("Video time => ", video.time, " (", video.frame,")");
 }
 
 void Subscription::setFormat(const char* format) {

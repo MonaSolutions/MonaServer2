@@ -28,8 +28,8 @@ namespace Mona {
 
 
 struct MonaTiny : Server {
-	MonaTiny(const std::string& wwwPath, UInt16 threads, TerminateSignal& terminateSignal) :
-		Server(threads), _wwwPath(wwwPath), _terminateSignal(terminateSignal) { }
+	MonaTiny(const std::string& wwwPath, UInt16 cores, TerminateSignal& terminateSignal) :
+		Server(cores), _wwwPath(wwwPath), _terminateSignal(terminateSignal) { }
 
 	virtual ~MonaTiny() { stop(); }
 

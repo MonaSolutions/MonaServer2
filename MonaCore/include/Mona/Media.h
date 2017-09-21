@@ -46,8 +46,11 @@ struct Media : virtual Static {
 	struct Base : Packet, virtual Object {
 		Base() : type(TYPE_NONE), track(0) {}
 		Base(Media::Type type, const Packet& packet, UInt8 track) : type(type), track(track), Packet(std::move(packet)) {}
-		const Media::Type type;
-		const UInt8		  track;
+		UInt32 time() const;
+		UInt32 compositionOffset() const { return type == TYPE_VIDEO ? ((Media::Video*)this)->tag.compositionOffset : 0; }
+		bool   isConfig() const;
+		Media::Type type;
+		UInt8		track;
 	};
 
 	struct Data : Base, virtual Object {
@@ -86,7 +89,7 @@ struct Media : virtual Static {
 		Properties usage! */
 		Data(DataReader& properties, UInt8 track = 1);
 
-		const Media::Data::Type	tag;
+		Media::Data::Type	tag;
 
 	private:
 		static Type ToType(const std::type_info& info);
@@ -148,7 +151,7 @@ struct Media : virtual Static {
 		};
 
 		Video(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) : Base(TYPE_VIDEO, packet, track), tag(tag) {}
-		const Media::Video::Tag	tag;
+		Media::Video::Tag	tag;
 	};
 	static const char* CodecToString(Media::Video::Codec codec) { return Video::CodecToString(codec); }
 
@@ -165,7 +168,7 @@ struct Media : virtual Static {
 			CODEC_G711U = 8,
 			CODEC_AAC = 10,
 			CODEC_SPEEX = 11,
-			CODEC_MP3_8K = 14
+			CODEC_MP38K_FLV = 14 // just usefull for FLV!
 		};
 		static const char* CodecToString(Codec codec) {
 			static const char* Strings[] = { "RAW", "ADPCM", "MP3", "PCM_LITTLE", "NELLYMOSER_16K", "NELLYMOSER_8K", "NELLYMOSER", "G711A", "G711U", "UNKNOWN", "AAC", "SPEEX", "UNKNOWN", "UNKNOWN", "MPEG4_2" };
@@ -202,7 +205,7 @@ struct Media : virtual Static {
 		};
 
 		Audio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) : Base(TYPE_AUDIO, packet, track), tag(tag) {}
-		const Media::Audio::Tag	tag;
+		Media::Audio::Tag	tag;
 	};
 	static const char* CodecToString(Media::Audio::Codec codec) { return Audio::CodecToString(codec); }
 

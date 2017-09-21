@@ -116,7 +116,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						BinaryWriter writer(*pBuffer);
 						for (auto& it : aAddresses) {
 							if (!it.second)
-								continue; // useless to considerate local address on this side (could exceeds packet size, and useless on the paper too, see UDP hole punching process)
+								continue; // useless to considerate local address on this side (in addition could exceeds packet size, and useless on the paper too, see UDP hole punching process)
 							writer.write8(0x0F).write16(it.first.host().size() + Entity::SIZE + 22).write24(0x22210F).write(peerId, Entity::SIZE);
 							DEBUG(bAddress, it.second ? " get public " : " get local ", it.first);
 							RTMFP::WriteAddress(writer, it.first, it.second ? RTMFP::LOCATION_PUBLIC : RTMFP::LOCATION_LOCAL);

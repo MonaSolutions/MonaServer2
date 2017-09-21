@@ -87,7 +87,7 @@ UInt32 MPEG4::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 	return reader.position();
 }
 
-void MPEG4::WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer, const MediaWriter::OnWrite& onWrite) {
+BinaryWriter& MPEG4::WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer) {
 	// SPS + PPS
 	writer.write8(0x01); // avcC version 1
 	writer.write(sps.data() + 1, 3); // profile, compatibility, level
@@ -96,22 +96,13 @@ void MPEG4::WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter&
 						 // sps
 	writer.write8(0xe1); // 11 + number of SPS
 	writer.write16(sps.size());
-	if (onWrite) {
-		onWrite(writer);
-		onWrite(sps);
-		writer.clear();
-	} else
-		writer.write(sps);
+	writer.write(sps);
 
 	// pps
 	writer.write8(0x01); // number of PPS
 	writer.write16(pps.size());
-	if (onWrite) {
-		onWrite(writer);
-		onWrite(pps);
-		writer.clear();
-	} else
-		writer.write(pps);
+	writer.write(pps);
+	return writer;
 }
 
 

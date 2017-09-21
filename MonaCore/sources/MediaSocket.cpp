@@ -46,8 +46,14 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const SocketAd
 		if (!++buffer)
 			return _rest=0;
 	}
-	if (!_pReader.unique())
+	if (!_pReader.unique()) {
+		if (_address != address) {
+			if(_address)
+				_pReader->flush(*this); // address has changed, means that we are in UDP, it's a new stream (come from someone else)
+			_address = address;
+		}
 		_pReader->read(buffer, *this);
+	}
 	return _rest=0;
 }
 
@@ -129,7 +135,7 @@ void MediaSocket::Reader::stop() {
 	io.unsubscribe(_pSocket);
 	_pSocket.reset();
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
-	_pReader.reset(MediaReader::New(_pReader->format()));
+	_pReader.reset(MediaReader::New(_pReader->subMime()));
 	_onError = nullptr;
 	_onFlush = nullptr;
 	_onReset = nullptr;
@@ -260,7 +266,7 @@ void MediaSocket::Writer::stop() {
 	io.unsubscribe(_pSocket);
 	_pSocket.reset();
 	// reset _pWriter because could be used by different thread by new Socket and its sending thread
-	_pWriter.reset(MediaWriter::New(_pWriter->format()));
+	_pWriter.reset(MediaWriter::New(_pWriter->subMime()));
 	_pName.reset();
 	_subscribed = false;
 	if (*_pStreaming) {

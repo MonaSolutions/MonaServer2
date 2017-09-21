@@ -69,7 +69,7 @@ MediaWriter* MediaWriter::New(const char* subMime) {
 		return new FLVWriter();
 	if (String::ICompare(subMime, "mp2t") == 0 || String::ICompare(subMime, "ts") == 0)
 		return new TSWriter();
-	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0)
+	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0 || String::ICompare(subMime, "mov") == 0)
 		return new MP4Writer();
 	if (String::ICompare(subMime, "h264") == 0 || String::ICompare(subMime, "264") == 0)
 		return new H264NALWriter();

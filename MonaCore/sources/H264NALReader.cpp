@@ -98,7 +98,7 @@ void H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& sour
 			} else
 				flush = true;
 		} else {
-			_tag.frame = MPEG4::UpdateFrame(_type);
+			_tag.frame = MPEG4::UpdateFrame(_type, _tag.frame);
 			if (_tag.frame == Media::Video::FRAME_CONFIG) {
 				flushNal(source); // flush if time change
 				flush = false; // wait the other config type!

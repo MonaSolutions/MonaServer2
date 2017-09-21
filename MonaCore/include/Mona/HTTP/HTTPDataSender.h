@@ -51,7 +51,7 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 	DataWriter&		writer() { return _pWriter ? *_pWriter : DataWriter::Null(); }
 
 private:
-	void run(const HTTP::Header& request) { send(_code, _mime, _subMime, Packet(_pBuffer)); }
+	void run(const HTTP::Header& request, bool& keepalive) { send(_code, _mime, _subMime, Packet(_pBuffer)); }
 
 	const char*				_code;
 	MIME::Type				_mime;

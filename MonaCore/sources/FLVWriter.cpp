@@ -41,6 +41,8 @@ UInt8 FLVWriter::ToCodecs(const Media::Audio::Tag& tag) {
 
 	if (tag.codec == Media::Audio::CODEC_AAC)
 		codecs |= (3 << 2); // Always 3 for AAC (real info in config packet)
+	else if (tag.codec == Media::Audio::CODEC_MP3 && tag.rate == 8000)
+		return codecs | (Media::Audio::CODEC_MP38K_FLV << 4); // soundRate = 0
 	else if (tag.rate >= 44100) {
 		codecs |= (3 << 2);
 		if (tag.rate>44100)
@@ -64,22 +66,18 @@ void FLVWriter::beginMedia(const OnWrite& onWrite) {
 		onWrite(Packet(EXPAND("\x46\x4c\x56\x01\x05\x00\x00\x00\x09\x00\x00\x00\x00")));
 }
 
-void FLVWriter::endMedia(const OnWrite& onWrite) {
-	_sps.reset();
-	_pps.reset();
-}
-
-
 void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt16 compositionOffset, const Packet& packet, const OnWrite& onWrite) {
 	if (!onWrite)
 		return;
 	TRACE(type, " ", codecs, " ", isConfig, " ", time," ", compositionOffset);
-	BinaryWriter writer(_buffer, sizeof(_buffer));
+	BinaryWriter writer(_buffer.clear());
 	/// 11 bytes of header
 
 	bool isAVC(false);
 
 	UInt32 size(packet.size());
+
+	Packet	sps, pps;
 
 	switch (type) {
 		case AMF::TYPE_VIDEO:
@@ -89,9 +87,9 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 				if (isConfig) {
 					// find just sps and pps data, ignore the rest
 					size -= packet.size();
-					if (!MPEG4::ParseVideoConfig(packet, _sps, _pps))
+					if (!MPEG4::ParseVideoConfig(packet, sps, pps))
 						return;
-					size += _sps.size() + _pps.size() + 11;
+					size += sps.size() + pps.size() + 11;
 				}
 			}
 			break;
@@ -126,16 +124,12 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 			writer.write24(compositionOffset);
 	}
 
-	onWrite(writer); // header
-	
-	if (_sps) {
-		// SPS + PPS
-		MPEG4::WriteVideoConfig(_sps, _pps, writer.clear(), onWrite);
-		_sps.reset();
-		_pps.reset();
-	} else if(packet)
-		onWrite(packet);
+	if (sps)
+		return onWrite(MPEG4::WriteVideoConfig(sps, pps, writer).write32(11 + size)); // write sps + pps + footer
 
+	onWrite(writer); // header
+	if(packet)
+		onWrite(packet);
 	onWrite(writer.clear().write32(11 + size)); // footer
 }
 

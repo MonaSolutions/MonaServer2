@@ -33,15 +33,26 @@ HTTPFileSender::HTTPFileSender(const shared<Socket>& pSocket,
 
 bool HTTPFileSender::flush() {
 	// /!\ Can be called by an other thread!
-	if (opened())
-		read(); // continue to read file when paused on congestion
+	if (opened()) {
+		// continue to read file when paused on congestion
+		read();
+		return false;
+	}
 	return _head || _file.isFolder();
+}
+
+void HTTPFileSender::onFlush() {
+	if (_head)
+		return;
+	if (_keepalive)
+		return io.handler.queue(HTTPSender::onFlush);
+	socket()->shutdown();
 }
 
 
 shared<File::Decoder> HTTPFileSender::newDecoder() {
 	shared<Decoder> pDecoder(new Decoder(io.handler, socket()));
-	pDecoder->onEnd = onFlush;
+	pDecoder->onEnd = HTTPSender::onFlush;
 	return pDecoder;
 }
 
@@ -55,7 +66,7 @@ UInt32 HTTPFileSender::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	return _pSocket->queueing() ? 0 : packet.size();
 }
 
-void HTTPFileSender::run(const HTTP::Header& request) {
+void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 	
 	string buffer;
 	Exception ex;
@@ -96,10 +107,15 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 
 	// FILE
 	// /!\ Here if !_head we have to call onFlush on end!
+	if (!_head) {
+		_keepalive = keepalive;
+		keepalive = true;
+	}
 
 	onError = [this](const Exception& ex) {
 		ERROR(ex);
-		return shutdown(); // can't repair the session (client wait content-length!)
+		socket()->shutdown(); // can't repair the session (client wait content-length!)
+		return;
 	};
 	if (!open(ex, _file)) {
 		if (ex.cast<Ex::Unfound>()) {
@@ -123,15 +139,14 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 
 		} else if (!sendError(HTTP_CODE_401, "Impossible to open ", request.path, '/', _file.name(), " file"))
 			return;
-		if(!_head)
-			io.handler.queue(onFlush);
+		onFlush();
 		return;
 	}
 
 	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
 	if (!_properties.count() && request.ifModifiedSince >= (*this)->lastModified()) {
-		if(send(HTTP_CODE_304) && !_head) // NOT MODIFIED
-			io.handler.queue(onFlush);
+		if(send(HTTP_CODE_304)) // NOT MODIFIED
+			onFlush();
 		return;
 	}
 
@@ -151,14 +166,13 @@ void HTTPFileSender::run(const HTTP::Header& request) {
 		AUTO_ERROR(readen = (*this)->read(ex, pBuffer->data(), pBuffer->size()),"HTTP get ", request.path, '/', _file.name());
 		if (readen < 0) {
 			ERROR(ex);
-			return shutdown(); // can't repair the session (client wait content-length!)
+			socket()->shutdown(); // can't repair the session (client wait content-length!)
+			return; 
 		}
-		sendFile(Packet(pBuffer, pBuffer->data(), readen));
-	} else {
-		sendHeader((*this)->size());
-		if (!_head)
-			read();
-	}
+		if (sendFile(Packet(pBuffer, pBuffer->data(), readen)))
+			onFlush();
+	} else if(sendHeader((*this)->size()) && !_head)
+		read();
 }
 
 bool HTTPFileSender::sendHeader(UInt64 fileSize) {
@@ -177,7 +191,7 @@ bool HTTPFileSender::sendHeader(UInt64 fileSize) {
 	return send(HTTP_CODE_200, mime, subMime, Packet(pBuffer), fileSize);
 }
 
-void HTTPFileSender::sendFile(const Packet& packet) {
+bool HTTPFileSender::sendFile(const Packet& packet) {
 
 	vector<Packet> packets;
 
@@ -251,17 +265,18 @@ void HTTPFileSender::sendFile(const Packet& packet) {
 
 	// Add rest size
 	size += cur - begin;
-	if (!sendHeader(size) || _head)
-		return;
+	if (!sendHeader(size))
+		return false;
+	if (_head)
+		return true;
 
 	for (const Packet& packet : packets) {
 		if (!send(packet))
-			return;
+			return false;
 	}
 
 	// Send the rest
-	if (cur > begin)
-		send(Packet(packet, begin, cur - begin));
+	return cur > begin ? send(Packet(packet, begin, cur - begin)) : true;
 }
 
 } // namespace Mona

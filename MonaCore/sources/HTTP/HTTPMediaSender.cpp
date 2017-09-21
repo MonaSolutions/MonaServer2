@@ -33,7 +33,8 @@ HTTPMediaSender::HTTPMediaSender(const shared<Socket>& pSocket,
 	this->pWriter = pWriter;
 }
 
-void HTTPMediaSender::run(const HTTP::Header& request) {
+void HTTPMediaSender::run(const HTTP::Header& request, bool& keepalive) {
+	keepalive = _first;
 	if (_first) {
 		// first packet streaming
 		if (send(HTTP_CODE_200, pWriter->mime(), pWriter->subMime(), Packet::Null()))
@@ -41,7 +42,6 @@ void HTTPMediaSender::run(const HTTP::Header& request) {
 		return;
 	}
 	pWriter->endMedia(onWrite);
-	HTTPSender::shutdown(); // no content-length => shutdown!
 }
 
 

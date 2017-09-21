@@ -109,7 +109,7 @@ struct MediaFile : virtual Static {
 	
 		void setMediaParams(const Parameters& parameters);
 		bool beginMedia(const std::string& name);
-		bool writeProperties(const Media::Properties& properties) { Media::Data::Type type; const Packet& packet(properties(type)); return write<MediaWrite<Media::Data>>(0, type, packet); }
+		bool writeProperties(const Media::Properties& properties) { Media::Data::Type type(Media::Data::TYPE_UNKNOWN); const Packet& packet(properties(type)); return write<MediaWrite<Media::Data>>(0, type, packet); }
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(track, tag, packet); }
 		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Video>>(track, tag, packet); }
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Data>>(track, type, packet); }

@@ -46,9 +46,11 @@ private:
 		shared<Socket> _pSocket;
 	};
 
-	void  run(const HTTP::Header& request);
+	void  run(const HTTP::Header& request, bool& keepalive);
+	void  onFlush();
+
 	bool  sendHeader(UInt64 fileSize);
-	void  sendFile(const Packet& packet);
+	bool  sendFile(const Packet& packet);
 	
 	shared<File::Decoder> newDecoder();
 
@@ -56,6 +58,7 @@ private:
 	Path					_file;
 	Path					_appPath;
 	bool					_head;
+	bool					_keepalive;
 };
 
 

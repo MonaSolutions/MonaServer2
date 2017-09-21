@@ -46,7 +46,8 @@ HTTP::Header::Header(const char* protocol, const SocketAddress& serverAddress) :
 	secWebsocketKey(NULL),
 	secWebsocketAccept(NULL),
 	accessControlRequestHeaders(NULL),
-	host(serverAddress) {
+	host(serverAddress),
+	range(NULL) {
 }
 
 void HTTP::Header::set(const char* key, const char* value) {
@@ -58,6 +59,10 @@ void HTTP::Header::set(const char* key, const char* value) {
 			WARN("Unknown Content-Type ", value);
 	} else if (String::ICompare(key, "connection") == 0) {
 		connection = ParseConnection(value);
+	} else if (String::ICompare(key, "range") == 0) {
+		range = strchr(value, '=');
+		if (range)
+			String::TrimLeft(++range);
 	} else if (String::ICompare(key, "host") == 0) {
 		host = value;
 	} else if (String::ICompare(key, "origin") == 0) {

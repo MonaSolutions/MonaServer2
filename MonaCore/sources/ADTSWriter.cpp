@@ -73,7 +73,7 @@ void ADTSWriter::beginMedia() {
 }
 
 void ADTSWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
-	if (tag.codec != Media::Audio::CODEC_AAC && tag.codec != Media::Audio::CODEC_MP3 && tag.codec != Media::Audio::CODEC_MP3_8K) {
+	if (tag.codec != Media::Audio::CODEC_AAC && tag.codec != Media::Audio::CODEC_MP3) {
 		ERROR("ADTS format doesn't support ", Media::Audio::CodecToString(tag.codec), " codec");
 		return;
 	}

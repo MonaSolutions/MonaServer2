@@ -98,7 +98,6 @@ void HTTPWriter::flush(const shared<HTTPSender>& pSender) {
 	if (!flush) {
 		// Wait onFlush!
 		pSender->onFlush = [this]() {
-			shared<HTTPSender> pThis(move(_flushings.front()));
 			_flushings.pop_front();
 			while (!_flushings.empty()) {
 				bool flush = _flushings.front()->flush();
@@ -116,8 +115,10 @@ void HTTPWriter::flush(const shared<HTTPSender>& pSender) {
 }
 
 void HTTPWriter::flushing() {
-	for (shared<HTTPSender>& pSender : _flushings)
-		pSender->flush(); // continue to read the file when paused on congestion
+	for (shared<HTTPSender>& pSender : _flushings) {
+		if(pSender.unique()) // just if pSender is not running!
+			pSender->flush(); // continue to read the file when paused on congestion
+	}
 	if (_requesting) // during request wait the main response before flush
 		return;
 	if (_pResponse) {

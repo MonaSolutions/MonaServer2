@@ -31,7 +31,7 @@ struct MediaReader : virtual Object {
 	virtual void flush(Media::Source& source);
 
 	const char*			format() const;
-	virtual MIME::Type	mime() const; // Keep virtual to allow to RTPReader to redefine it
+	MIME::Type			mime() const;
 	virtual const char*	subMime() const; // Keep virtual to allow to RTPReader to redefine it
 
 	~MediaReader() { flush(Media::Source::Null()); } // release data!

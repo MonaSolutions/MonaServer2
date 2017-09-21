@@ -50,8 +50,8 @@ static const map<size_t, Format> _Formats({
 	{ typeid(ADTSReader).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	{ typeid(MP3Reader).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
 	{ typeid(MonaReader).hash_code(), Format("MONA", MIME::TYPE_VIDEO, "mona") },
-	{ typeid(RTPReader<RTP_MPEG>).hash_code(), Format("RTP_MPEG", MIME::TYPE_VIDEO, NULL) }, // Keep NULL to force RTPReader to redefine mime()!
-	{ typeid(RTPReader<RTP_H264>).hash_code(), Format("RTP_H264", MIME::TYPE_VIDEO, NULL) } // Keep NULL to force RTPReader to redefine mime()!
+	{ typeid(RTPReader<RTP_MPEG>).hash_code(), Format("RTP_MPEG", MIME::TYPE_VIDEO, NULL) }, // Keep NULL to force RTPReader to redefine subMime()!
+	{ typeid(RTPReader<RTP_H264>).hash_code(), Format("RTP_H264", MIME::TYPE_VIDEO, NULL) } // Keep NULL to force RTPReader to redefine subMime()!
 });
 const char* MediaReader::format() const {
 	return _Formats.at(typeid(*this).hash_code()).format; // keep exception isf no exists => developper warn! Add it!
@@ -68,7 +68,7 @@ MediaReader* MediaReader::New(const char* subMime) {
 		return new FLVReader();
 	if (String::ICompare(subMime, "mp2t") == 0 || String::ICompare(subMime, "ts") == 0)
 		return new TSReader();
-	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0)
+	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0 || String::ICompare(subMime, "mov") == 0)
 		return new MP4Reader();
 	if (String::ICompare(subMime, "h264") == 0 || String::ICompare(subMime, "264") == 0)
 		return new H264NALReader();

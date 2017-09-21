@@ -39,6 +39,26 @@ using namespace std;
 
 namespace Mona {
 
+UInt32 Media::Base::time() const {
+	switch (type) {
+		case TYPE_AUDIO:
+			return ((Media::Audio*)this)->tag.time;
+		case TYPE_VIDEO:
+			return ((Media::Video*)this)->tag.time;
+		default:;
+	}
+	return 0;
+}
+bool Media::Base::isConfig() const {
+	switch (type) {
+		case TYPE_AUDIO:
+			return ((Media::Audio*)this)->tag.isConfig;
+		case TYPE_VIDEO:
+			return ((Media::Video*)this)->tag.frame == Media::Video::FRAME_CONFIG;
+		default:;
+	}
+	return false;
+}
 
 
 BinaryWriter& Media::Pack(BinaryWriter& writer, const Audio::Tag& tag, UInt8 track) {
@@ -460,27 +480,23 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 	
 
 	Type type(TYPE_FILE);
-	
-	for (size = 0; size < first.size(); ++size) {
-		if (first[size] == '\\' || first[size] == '/') {
-			type = TYPE_HTTP;
-			break;
-		}
-	}
-
 	bool isSecure(false);
+	bool isFile(false);
 	string format;
 	String::ForEach forEach([&](UInt32 index, const char* value) {
 		if (String::ICompare(value, "UDP") == 0) {
+			isFile = false;
 			type = TYPE_UDP;
 			return true;
 		}
 		if (String::ICompare(value, "TCP") == 0) {
+			isFile = false;
 			if (type != TYPE_HTTP)
 				type = TYPE_TCP;
 			return true;
 		}
 		if (String::ICompare(value, "HTTP") == 0) {
+			isFile = false;
 			type = TYPE_HTTP;
 			return true;
 		}
@@ -488,55 +504,64 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 			isSecure = true;
 			return true;
 		}
+		if (String::ICompare(value, "FILE") == 0) {
+			// force file!
+			isFile = true;
+			type = TYPE_FILE;
+			return true;
+		}
 		format = value;
 		return false;
 	});
 
-
-	description = String::TrimLeft(description);
-	const char* params = strpbrk(description, " \t\r\n\v\f");
+	const char* params = strpbrk(description = String::TrimLeft(description), " \t\r\n\v\f");
+	String::Split(description, params ? (description - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
 	
 	Path   path;
 	SocketAddress address;
 	UInt16 port;
-	if (String::ToNumber(first.data(), size, port)) {
-		address.setPort(port);
-		path.set(first.data()+size);
-		String::Split(description, params ? (description - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
-		if (type != TYPE_UDP || isTarget) // if no host and TCP or target
-			address.host().set(IPAddress::Loopback());
-	} else {
-		bool isAddress;
-		{
-			String::Scoped scoped(first.data() + size);
-			Exception ex;
-			isAddress = address.set(ex, first.data());
-		}
-		Exception ex;
-		if (isAddress) {
+	
+	if (!isFile) {
+		// if is not explicitly a file, test if it's a port
+		size = first.find_first_of("/\\", 0);
+		if (String::ToNumber(first.data(), size, port)) {
+			address.setPort(port);
 			path.set(first.data() + size);
-			String::Split(description, params ? (description - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
-			if (!address.host() && (type != TYPE_UDP || isTarget)) {
-				ex.set<Ex::Net::Address::Ip>("A TCP or target Stream can't have a wildcard ip");
-				return NULL;
-			}
+			if (type != TYPE_UDP || isTarget) // if no host and TCP or target
+				address.host().set(IPAddress::Loopback());
 		} else {
-			// File!
-			if (!path.set(move(first))) {
-				ex.set<Ex::Format>("No file name in stream file description");
-				return NULL;
+			bool isAddress = false;
+			// Test if it's a address
+			{
+				String::Scoped scoped(first.data() + (size==string::npos ? first.size() : size));
+				Exception exc;
+				isAddress = address.set(exc, first.data());
+				if (!isAddress && type) {
+					// explicitly indicate as network, and however address invalid!
+					ex = exc;
+					return NULL;
+				}
 			}
-			if (path.isFolder()) {
-				ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
-				return NULL;
+			if (isAddress) {
+				path.set(first.data() + size);
+				if (!address.host() && (type != TYPE_UDP || isTarget)) {
+					ex.set<Ex::Net::Address::Ip>("A TCP or target Stream can't have a wildcard ip");
+					return NULL;
+				}
+			} else {
+				if (!path.set(move(first))) {
+					ex.set<Ex::Format>("No file name in stream file description");
+					return NULL;
+				}
+				if (path.isFolder()) {
+					ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
+					return NULL;
+				}
+				isFile = true;
+				type = TYPE_FILE;
+				if (format.empty())
+					format = path.extension();
 			}
-			if (isTarget) {
-				if (MediaWriter* pWriter = MediaWriter::New(format.empty() ? path.extension().c_str() : format.c_str()))
-					return new MediaFile::Writer(path, pWriter, ioFile);
-			} else if (MediaReader* pReader = MediaReader::New(format.empty() ? path.extension().c_str() : format.c_str()))
-				return new MediaFile::Reader(path, pReader, timer, ioFile);
-			ex.set<Ex::Unsupported>("Stream file format ", format, " not supported");
-			return NULL;
 		}
 	}
 	
@@ -549,7 +574,6 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 			}
 		}
 	}
-
 
 	if (format.empty()) {
 		switch (type) {
@@ -568,9 +592,21 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 				ex.set<Ex::Format>("Stream description have to indicate a media format");
 				return NULL;
 		}
-	} else if (!type)
-		type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
+	}
 	
+	if (isFile) {
+		if (isTarget) {
+			if (MediaWriter* pWriter = MediaWriter::New(format.c_str()))
+				return new MediaFile::Writer(path, pWriter, ioFile);
+		} else if (MediaReader* pReader = MediaReader::New(format.c_str()))
+			return new MediaFile::Reader(path, pReader, timer, ioFile);
+		ex.set<Ex::Unsupported>("Stream file format ", format, " not supported");
+		return NULL;
+	}
+	
+	if(!type)
+		type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
+
 	if (isTarget) {
 		if (MediaWriter* pWriter = MediaWriter::New(format.c_str()))
 			return new MediaSocket::Writer(type, path, pWriter, address, ioSocket, isSecure ? pTLS : nullptr);

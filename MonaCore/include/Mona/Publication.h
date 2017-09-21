@@ -136,6 +136,7 @@ private:
 	UInt16							_latency;
 
 	bool							_publishing;
+	Time							_waitingFirstVideoSync;
 	std::string						_name;
 
 	bool							_new;

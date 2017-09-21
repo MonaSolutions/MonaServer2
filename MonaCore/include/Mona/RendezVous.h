@@ -39,6 +39,9 @@ struct RendezVous : virtual Object {
 
 	void erase(const UInt8* peerId);
 
+	/*!
+	On meet successed it returns something!=NULL (pData or this) and aAddresses and bAddresses contains at less one address (the public always in first entry)
+	On meet failed it returns NULL but aAddresses can be filled with redirections addresses */
 	template<typename DataType = void>
 	DataType* meet(const SocketAddress& aAddress, const UInt8* bPeerId, std::map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, std::map<SocketAddress, bool>& bAddresses) { return (DataType*)meetIntern(aAddress, bPeerId, aAddresses, bAddress, bAddresses); }
 
