@@ -54,7 +54,7 @@ ADD_TEST(General) {
 	CHECK(tEpoch == 0);
 
 	Time now;
-	Thread::Sleep(201);
+	Thread::Sleep(210);
 	CHECK(now.elapsed() >= 200);
 	CHECK(now.isElapsed(200));
 	CHECK(!now.isElapsed(2000));

@@ -48,7 +48,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define sprintf sprintf_s
 #define snprintf sprintf_s
 #define PATH_MAX 4096 // to match Linux!
-#define assert _ASSERT
 #define __BIG_ENDIAN__ 0 // windows is always little endian!
 #elif defined(__FreeBSD__) || defined(__APPLE__) || defined(__TOS_MACOS__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #define _BSD 1 // Detect BSD system

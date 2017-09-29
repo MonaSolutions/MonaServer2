@@ -121,10 +121,13 @@ private:
 };
 
 #if defined(_DEBUG)
-#define		FATAL_CHECK(CONDITION)			{ assert(CONDITION); }
+
 #if defined(_WIN32)
+#define		FATAL_CHECK(ASSERT)				{ _ASSERTE(ASSERT); }
 #define		FATAL_ERROR(...)				{ if (_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, NULL, Mona::String(__VA_ARGS__).c_str()) == 1) _CrtDbgBreak(); }
-#elif defined(__ANDROID__)
+#else
+#define		FATAL_CHECK(ASSERT)				{ assert(ASSERT); }
+#if defined(__ANDROID__)
 #define		FATAL_ERROR(...)				{  __assert(__FILE__,__LINE__, Mona::String(__VA_ARGS__).c_str()); }
 #elif defined(__APPLE__)
 #define		FATAL_ERROR(...)				{  __assert_rtn(NULL, __FILE__,__LINE__, Mona::String(__VA_ARGS__).c_str()); }
@@ -133,10 +136,11 @@ private:
 #else
 #define		FATAL_ERROR(...)				{  __assert_fail(Mona::String(__VA_ARGS__).c_str(),__FILE__,__LINE__,NULL); }
 #endif
+#endif
 
 #else
 
-#define		FATAL_CHECK(CONDITION)		{ if(!(CONDITION)) {throw std::runtime_error( #CONDITION " assertion, " __FILE__ "[" LINE_STRING "]");} }
+#define		FATAL_CHECK(ASSERT)			{ if(!(ASSERT)) {throw std::runtime_error( #ASSERT " assertion, " __FILE__ "[" LINE_STRING "]");} }
 #define		FATAL_ERROR(...)			{ throw std::runtime_error(Mona::String(__VA_ARGS__,", " __FILE__ "[" LINE_STRING "]"));}
 
 #endif

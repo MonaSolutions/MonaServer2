@@ -98,7 +98,7 @@ ADD_TEST(UnpackUrl) {
 	CHECK(Util::UnpackUrl("rtmp://127.0.0.1:1234/file.txt?name1=value1&name2=value2", address, path, query)!=string::npos)
 	CHECK(Util::UnpackUrl("rtmp://127.0.0.1:1234//path/file.txt?name1=value1&name2=value2", address, path, query)!=string::npos)
 
-	DEBUG_CHECK(query == "name1=value1&name2=value2");
+	DEBUG_CHECK(query == "?name1=value1&name2=value2");
 	DEBUG_CHECK(path=="/path/file.txt");
 	DEBUG_CHECK(address=="127.0.0.1:1234");
 }
