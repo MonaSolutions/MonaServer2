@@ -39,6 +39,11 @@ struct MPEG4 : virtual Static {
 		static UInt32 Rates[15] = { 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350, 48000, 48000 }; // 1024000.0/ [ 96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350 ] => t = 1/rate... 1024 samples/frame (in kHz)
 		return Rates[index];
 	}
+
+	static UInt8*	WriteAudioConfig(UInt8 type, UInt32 rate, UInt8 channels, UInt8 config[2]) { return WriteAudioConfig(type, RateToIndex(rate), channels, config); }
+	static UInt8*	WriteAudioConfig(UInt8 type, UInt8 rateIndex, UInt8 channels, UInt8 config[2]);
+	static UInt8	RateToIndex(UInt32 rate);
+
 };
 
 

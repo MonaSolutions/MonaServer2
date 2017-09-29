@@ -102,7 +102,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 		return;
 	}
 
-	if (!peer.connected) {
+	if (!peer) {
 		// writer on FlashMainStream is necessary main request => a close will close the entiere session!
 		writer.writeAMFMainError("NetConnection.Connect.Failed", "Connect before to send any message");
 		writer.writeInvocation("close");
@@ -187,7 +187,7 @@ void FlashMainStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter&
 		UInt32 elapsed0(reader.read32());
 		if (!elapsed0)
 			return; // can be equals to 0 in RTMP for example if a other ping is following
-		UInt32 elapsed1 = UInt32(peer.connectionTime.elapsed());
+		UInt32 elapsed1 = UInt32(peer.connection.elapsed());
 		if (elapsed1>elapsed0)
 			peer.setPing(elapsed1 - elapsed0);
 		return;

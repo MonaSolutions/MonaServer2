@@ -36,6 +36,8 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		{ "html",{ TYPE_TEXT, "html; charset=utf-8" } },
 		{ "htm",{ TYPE_TEXT, "html; charset=utf-8" } },
 		{ "txt",{ TYPE_TEXT, "plain; charset=utf-8" } },
+		{ "vtt",{ TYPE_TEXT, "vtt; charset=utf-8" } },
+		{ "srt",{ TYPE_TEXT, "plain; charset=utf-8" } },
 		{ "csv",{ TYPE_TEXT, "csv" } },
 		{ "css",{ TYPE_TEXT, "css" } },
 		{ "js", { TYPE_APPLICATION, "javascript"} }, // utf8 not required, done in HTML inclusion => <script src="/test.js" charset="utf-8"></script>

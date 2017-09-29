@@ -28,7 +28,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct Client : Entity, virtual Object, Net::Stats {
+struct Client : Entity, virtual NullableObject, Net::Stats {
 	typedef Event<bool(DataReader& reader, std::string& value)> ON(CallProperties);
 
 	const SocketAddress			address;
@@ -38,8 +38,8 @@ struct Client : Entity, virtual Object, Net::Stats {
 
 	virtual const Parameters&	properties() const = 0;
 
-	const bool					connected;
-	const Time					connectionTime;
+	operator bool() const		{ return connection ? true : false; }
+	const Time					connection;
 
 	 // user data (custom data)
 	template <typename DataType>
@@ -60,7 +60,7 @@ struct Client : Entity, virtual Object, Net::Stats {
 	virtual Writer&				writer() = 0;
 
 protected:
-	Client(const char* protocol) : protocol(protocol), _pData(NULL), connected(false), connectionTime(0) {}
+	Client(const char* protocol) : protocol(protocol), _pData(NULL), connection(0) {}
 
 private:
 	mutable void*				_pData;

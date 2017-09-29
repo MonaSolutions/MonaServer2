@@ -58,7 +58,7 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 	memcpy(BIN peer.id, pSession->peerId, Entity::SIZE);
 	_pSession = pSession;
-	_pSenderSession.reset(new RTMFPSender::Session(pSession, socket()));
+	_pSenderSession.reset(new RTMFPSender::Session(pSession, protocol().socket()));
 
 	_pSession->onAddress = [this](SocketAddress& address) {
 		// onAddress is defined on _pSession so 
@@ -327,7 +327,7 @@ bool RTMFPSession::manage() {
 			kill(ERROR_CONGESTED); // timeout connection without response possible, client congested? client canceled?
 			return false;
 		}
-		if (!peer.connected) {
+		if (!peer) {
 			WARN(name(), " failed, connection client timeout");
 			kill(ERROR_IDLE);
 			return false;

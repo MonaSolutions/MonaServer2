@@ -36,7 +36,7 @@ struct Protocol : virtual Object, Parameters {
 	bool load(Exception& ex);
 
 	virtual void  manage() {}
-	virtual const shared<Socket>&	socket() { return _pSocket; }
+	virtual const shared<Socket>& socket() { return _pSocket; }
 
 protected:
 	Protocol(const char* name, ServerAPI& api, Sessions& sessions);

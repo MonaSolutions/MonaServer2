@@ -32,6 +32,8 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 		const char* code, MIME::Type mime, const char* subMime=NULL) : _mime(mime), _pBuffer(new Buffer(4, "\r\n\r\n")), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pSocket, pRequest, pSetCookie) {
 		if (!mime || !subMime || !(_pWriter = Media::Data::NewWriter(Media::Data::ToType(subMime), *_pBuffer)))
 			_pWriter = new StringWriter(*_pBuffer);
+		else
+			mime = MIME::TYPE_APPLICATION; // Fix mime => Media::Data::ToType success just for APPLICATION submime!
 	}
 
 	template <typename ...Args>

@@ -23,13 +23,15 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
+/*!
+/!\ Don't support mp4 file with mdat before moov, used -movflags faststart with ffmpeg to avoid it (or a fragmented mp4 file)*/
 struct MP4Reader : virtual Object, MediaReader {
 	// http://atomicparsley.sourceforge.net/mpeg-4files.html
 	// https://www.adobe.com/content/dam/Adobe/en/devnet/flv/pdfs/video_file_format_spec_v10.pdf
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
 	// https://w3c.github.io/media-source/isobmff-byte-stream-format.html
 	// With fragments box = > http://l.web.umkc.edu/lizhu/teaching/2016sp.video-communication/ref/mp4.pdf
-	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0) {}
+	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _firstMoov(true) {}
 
 private:
 	UInt32  parse(const Packet& packet, Media::Source& source);
@@ -100,6 +102,10 @@ private:
 		UInt32 count;
 		UInt32 value;
 	};
+	struct Durations : std::deque<Repeat>, virtual Object {
+		Durations() : time(0) {}
+		double time;
+	};
 	struct Track : Fragment, virtual Object {
 		struct Type : virtual Object {
 			Type() : _type(Media::TYPE_NONE) {}
@@ -107,7 +113,7 @@ private:
 			Type(Media::Video::Codec codec) : _type(Media::TYPE_VIDEO), video(codec) {}
 			~Type() {}
 			operator Media::Type() const { return _type; }
-			void setTime(double time) { if (_type < Media::TYPE_AUDIO) return; (_type == Media::TYPE_AUDIO ? audio.time : video.time) = UInt32(round(time)); }
+			Type& operator=(nullptr_t) { _type = Media::TYPE_NONE; return *this; }
 			Packet config;
 			union {
 				Media::Audio::Tag audio;
@@ -117,12 +123,11 @@ private:
 			Media::Type _type;
 		};
 
-		Track() : _id(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL), buffered(false) { lang[0] = 0; }
+		Track() : _id(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL) { lang[0] = 0; }
 
 		operator UInt8() const { return _id; }
 		Track& operator=(UInt8 id) { _id = id; return *this; }
 
-		bool						buffered;
 		double						time;
 		double						timeStep;
 		char						lang[3]; // if lang[0]==0 => undefined!
@@ -137,7 +142,7 @@ private:
 		std::map<UInt32, UInt64>	changes; // stsc => key = first chunk, value = 4 bytes for "sample count" and 4 bytes for "type index"
 		UInt32						size;
 		std::vector<UInt32>			sizes;   // stsz
-		std::deque<Repeat>			durations; // stts
+		Durations					durations; // stts
 		std::deque<Repeat>			compositionOffsets; // ctts
 
 	private:
@@ -148,17 +153,19 @@ private:
 	UInt32								_position;
 	UInt64								_offset;
 	bool								_failed;
+	UInt8								_audios;
+	UInt8								_videos;
 
 	std::map<UInt64, Track*>			_chunks; // stco
 	std::deque<Box>						_boxes;
 	std::deque<Track>					_tracks;
 	std::map<UInt32,Track*>				_ids;
-	Track*								_pTrack;
-	std::vector<Track*>					_audios;
-	std::vector<Track*>					_videos;
+	std::map<UInt32, UInt32>			_times;
 	std::multimap<UInt32, Media::Base*> _medias;
 
+	Track*								_pTrack;
 	Fragment							_fragment;
+	bool								_firstMoov;
 };
 
 

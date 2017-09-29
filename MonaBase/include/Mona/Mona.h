@@ -196,26 +196,19 @@ const char* strrpbrk(const char* value, const char* markers);
 const char *strrstr(const char* where, const char* what);
 
 template<typename NumberType>
-inline UInt8 limit8(NumberType value) { return value > 0xFF ? 0xFF : UInt8(value); }
-template<typename NumberType>
-inline UInt16 limit16(NumberType value) { return value > 0xFFFF ? 0xFFFF : UInt16(value); }
-template<typename NumberType>
-inline UInt32 limit24(NumberType value) { return value > 0xFFFFFF ? 0xFFFFFF : UInt32(value); }
-template<typename NumberType>
-inline UInt32 limit32(NumberType value) { return value > 0xFFFFFFFF ? 0xFFFFFFFF : UInt32(value); }
+inline NumberType min(NumberType value) { return value; }
+template<typename NumberType1, typename NumberType2, typename ...Args>
+inline typename std::conditional<std::numeric_limits<NumberType1>::max() >= std::numeric_limits<NumberType2>::max(), NumberType1, NumberType2>::type
+min(NumberType1 value1, NumberType2 value2, Args&&... args) { return value1 < value2 ? min(value1, args ...) : min(value2, args ...); }
 
 template<typename NumberType>
 inline NumberType max(NumberType value) { return value; }
-template<typename NumberType, typename ...Args>
-inline NumberType max(NumberType value1, NumberType value2, Args&&... args) { return value2 > value1 ? max<NumberType>(value2, args ...) : max<NumberType>(value1, args ...); }
+template<typename NumberType1, typename NumberType2, typename ...Args>
+inline typename std::conditional<std::numeric_limits<NumberType1>::max() >= std::numeric_limits<NumberType2>::max(), NumberType1, NumberType2>::type
+				  max(NumberType1 value1, NumberType2 value2, Args&&... args) { return value1 > value2 ? max(value1, args ...) : max(value2, args ...); }
 
-template<typename NumberType>
-inline NumberType min(NumberType value) { return value; }
-template<typename NumberType, typename ...Args>
-inline NumberType min(NumberType value1, NumberType value2, Args&&... args) { return value2 < value1 ? min<NumberType>(value2, args ...) : min<NumberType>(value1, args ...); }
-
-template<typename NumberType>
-inline NumberType between(NumberType value, NumberType min, NumberType max) { return value < min ? min : ((value>max) ? max : value); }
+template<typename RangeType, typename NumberType>
+inline RangeType range(NumberType value) { return value > std::numeric_limits<RangeType>::max() ? std::numeric_limits<RangeType>::max() : ((std::is_signed<NumberType>::value && value < std::numeric_limits<RangeType>::min()) ? std::numeric_limits<RangeType>::min() : (RangeType)value); }
 
 const std::string& typeof(const std::type_info& info);
 template<typename ObjectType>

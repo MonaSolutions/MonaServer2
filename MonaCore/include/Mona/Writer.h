@@ -46,7 +46,7 @@ struct Writer : virtual NullableObject {
 
 	virtual DataWriter&		writeInvocation(const char* name) { return DataWriter::Null(); }
 	virtual DataWriter&		writeMessage() { return DataWriter::Null(); }
-	virtual DataWriter&		writeResponse(UInt8 type) { return writeMessage(); }
+	virtual DataWriter&		writeResponse(UInt8 type=0) { return writeMessage(); }
 	virtual void			writeRaw(DataReader& reader) {}
 
 	/*!

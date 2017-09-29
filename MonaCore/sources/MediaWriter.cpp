@@ -24,6 +24,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/H264NALWriter.h"
 #include "Mona/ADTSWriter.h"
 //#include "Mona/MP3Writer.h"
+#include "Mona/SRTWriter.h"
+#include "Mona/VTTWriter.h"
 #include "Mona/MonaWriter.h"
 #include "Mona/RTPWriter.h"
 #include "Mona/RTP_MPEG.h"
@@ -50,6 +52,8 @@ static const map<size_t, Format> _Formats({
 	{ typeid(H264NALWriter).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
 	{ typeid(ADTSWriter).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	// { typeid(MP3Writer).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
+	{ typeid(SRTWriter).hash_code(), Format("SRT", MIME::TYPE_TEXT, "plain; charset=utf-8") },
+	{ typeid(VTTWriter).hash_code(), Format("VTT", MIME::TYPE_TEXT, "vtt; charset=utf-8") },
 	{ typeid(MonaWriter).hash_code(), Format("MONA", MIME::TYPE_VIDEO, "mona") },
 	{ typeid(RTPWriter<RTP_MPEG>).hash_code(), Format("RTP_MPEG", MIME::TYPE_VIDEO, NULL) }, // Keep NULL to force RTPReader to redefine mime()!
 	{ typeid(RTPWriter<RTP_H264>).hash_code(), Format("RTP_H264", MIME::TYPE_VIDEO, NULL) } // Keep NULL to force RTPReader to redefine mime()!
@@ -65,19 +69,23 @@ const char* MediaWriter::subMime() const {
 }
 
 MediaWriter* MediaWriter::New(const char* subMime) {
-	if (String::ICompare(subMime, "x-flv") == 0 || String::ICompare(subMime, "flv") == 0)
+	if (String::ICompare(subMime, EXPAND("x-flv")) == 0 || String::ICompare(subMime, EXPAND("flv")) == 0)
 		return new FLVWriter();
-	if (String::ICompare(subMime, "mp2t") == 0 || String::ICompare(subMime, "ts") == 0)
+	if (String::ICompare(subMime, EXPAND("mp2t")) == 0 || String::ICompare(subMime, EXPAND("ts")) == 0)
 		return new TSWriter();
-	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0 || String::ICompare(subMime, "mov") == 0)
+	if (String::ICompare(subMime, EXPAND("mp4")) == 0 || String::ICompare(subMime, EXPAND("f4v")) == 0 || String::ICompare(subMime, EXPAND("mov")) == 0)
 		return new MP4Writer();
-	if (String::ICompare(subMime, "h264") == 0 || String::ICompare(subMime, "264") == 0)
+	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
 		return new H264NALWriter();
-	if (String::ICompare(subMime, "aac") == 0)
+	if (String::ICompare(subMime, EXPAND("aac")) == 0)
 		return new ADTSWriter();
-//	if (String::ICompare(subMime, "mp3") == 0)
+//	if (String::ICompare(subMime, EXPAND("mp3")) == 0)
 //		return new MP3Writer();
-	if (String::ICompare(subMime, "mona") == 0)
+	if (String::ICompare(subMime, EXPAND("plain")) == 0) // if "subMime=plain" it requests "text data" (srt for example)
+		return new SRTWriter();
+	if (String::ICompare(subMime, EXPAND("vtt")) == 0) // if "subMime=plain" it requests "text data" (srt for example)
+		return new VTTWriter();
+	if (String::ICompare(subMime, EXPAND("mona")) == 0)
 		return new MonaWriter();
 	return NULL;
 }

@@ -363,9 +363,9 @@ void TSReader::readPESHeader(BinaryReader& reader, Program& pProgram) {
 			WARN("Time ",dts," inferior to start time ", _startTime);
 			_startTime = dts;
 		} else if(_startTime<0)
-			_startTime = dts - min(200.0, dts); // + 200ms which is a minimum required offset with PCR (see TSWriter.cpp)
+			_startTime = dts - min(200, dts); // + 200ms which is a minimum required offset with PCR (see TSWriter.cpp)
 		pProgram->time = UInt32(round(dts) - _startTime);
-		pProgram->compositionOffset = limit16(round(pts - dts));
+		pProgram->compositionOffset = range<UInt16>(round(pts - dts));
 
 		//DEBUG(isVideo ? "video " : "audio ", pProgram->track, " => ", pProgram->time, " ", pProgram->compositionOffset);
 	}

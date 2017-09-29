@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder) : _tcpSession(session), Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
+WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder) : Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
 	_onRequest([this](WS::Request& request) {
 		Exception ex;
 
@@ -81,7 +81,7 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> 
 				break;
 			case WS::TYPE_PONG: {
 				UInt32 elapsed0(BinaryReader(request.data(), request.size()).read32());
-				UInt32 elapsed1 = UInt32(peer.connectionTime.elapsed());
+				UInt32 elapsed1 = UInt32(peer.connection.elapsed());
 				if (elapsed1>elapsed0)
 					peer.setPing(elapsed1 - elapsed0);
 				return;
@@ -224,8 +224,7 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 bool WSSession::manage() {
 	if (!Session::manage())
 		return false;
-
-	if (peer.connected && peer.pingTime.isElapsed(_tcpSession.timeout()/2)) {
+	if (peer && peer.pingTime.isElapsed(timeout/2)) {
 		writer.writePing();
 		peer.pingTime.update();
 	}

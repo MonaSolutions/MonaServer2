@@ -30,8 +30,11 @@ namespace Mona {
 #define HTML_END_COMMON_RESPONSE(SERVER_ADDRESS) \
 	__writer.write(EXPAND("</p><hr><address>Mona Server at ")).write(SERVER_ADDRESS).write(EXPAND("</address></body></html>")); }
 
+#define HTTP_LIVE_HEADER	"Cache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache"
+
 #define HTTP_BEGIN_HEADER(WRITER)  { BinaryWriter& __writer(WRITER); __writer.buffer().resize(__writer.buffer().size()-2);
 #define HTTP_ADD_HEADER(NAME, ...) { String::Append(__writer, NAME, ": ", __VA_ARGS__, "\r\n"); }
+#define HTTP_ADD_HEADER_LINE(...) { String::Append(__writer, __VA_ARGS__, "\r\n"); }
 #define HTTP_END_HEADER  __writer.write("\r\n");  }
 
 #define HTTP_CODE_100	"100 Continue"

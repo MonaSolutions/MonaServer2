@@ -28,7 +28,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct HTTPWriter : Writer, Media::TrackTarget, virtual Object {
+struct HTTPWriter : Writer, Media::Target, virtual Object {
 	HTTPWriter(TCPSession& session);
 	~HTTPWriter();
 
@@ -41,17 +41,18 @@ struct HTTPWriter : Writer, Media::TrackTarget, virtual Object {
 
 	DataWriter&		writeInvocation(const char* name) { DataWriter& writer(writeMessage()); writer.writeString(name,strlen(name)); return writer; }
 	DataWriter&		writeMessage() { return writeMessage(false); }
-	DataWriter&		writeResponse(UInt8 type) { return writeMessage(true); }
+	DataWriter&		writeResponse(UInt8 type=0) { return writeMessage(true); }
 	void			writeRaw(DataReader& reader);
 
 	bool			writeSetCookie(DataReader& reader, const HTTP::OnCookie& onCookie = nullptr) { if (!_pSetCookie) _pSetCookie.reset(new Buffer()); return HTTP::WriteSetCookie(reader, *_pSetCookie, onCookie); }
 	void			writeFile(const Path& file, Parameters& properties) { newSender<HTTPFileSender>(true, _session.api.ioFile, file, properties); }
 	BinaryWriter&   writeRaw(const char* code);
+	DataWriter&     writeResponse(const char* subMime);
 
 	bool			beginMedia(const std::string& name);
-	bool			writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Audio>>(_pMediaWriter, tag, packet) ? true : false; }
-	bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Video>>(_pMediaWriter, tag, packet) ? true : false; }
-	bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Data>>(_pMediaWriter, type, packet) ? true : false; }
+	bool			writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Audio>>(_pMediaWriter, tag, packet, track) ? true : false; }
+	bool			writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Video>>(_pMediaWriter, tag, packet, track) ? true : false; }
+	bool			writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return newSender<HTTPMediaSend<Media::Data>>(_pMediaWriter, type, packet, track) ? true : false; }
 	// No writeProperties here because HTTP has no way to control a multiple channel global stream
 	void			endMedia(const std::string& name);
 
@@ -59,7 +60,7 @@ struct HTTPWriter : Writer, Media::TrackTarget, virtual Object {
 	template <typename ...Args>
 	void			writeError(const char* code, Args&&... args) { newSender<HTTPDataSender>(true, code, std::forward<Args>(args)...); }
 
-	void			flush() { Media::TrackTarget::flush();  Writer::flush(); }
+	void			flush() { Media::Target::flush();  Writer::flush(); }
 private:
 	void			flush(const shared<HTTPSender>& pSender);
 	void			flushing();

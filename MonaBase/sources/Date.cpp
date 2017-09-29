@@ -474,6 +474,7 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 	int microsecond(0);
 	bool isDST(false);
 	int optional(0);
+	Int64 _time = 0;
 
 	while (*format) {
 
@@ -576,6 +577,30 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 			case 'h':
 				PARSE_NUMBER_N(hour, 2);
 				break;
+			case 'T': {
+				UInt32 factor(1);
+				if (CAN_READ && isalpha(READ)) {
+					switch (tolower(*current)) {
+						case 'h':
+							factor = 3600000;
+							break;
+						case 'm':
+							factor = 60000;
+							break;
+						case 's':
+							factor = 1000;
+							break;
+					}
+				}
+				const char* times = current;
+				UInt32 count(0);
+				while (CAN_READ && isdigit(*current)) {
+					READ;
+					++count;
+				}
+				_time += String::ToNumber<Int64, 0>(times, count);
+				break;
+			}
 			case 'a':
 			case 'A': {
 				const char* ampm(current);
@@ -657,6 +682,9 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 
 	update(year,month,day,hour,minute,second,millisecond,offset);
 	_isDST = isDST;
+
+	if (_time)
+		update(time() + _time);
 
 	if (microsecond > 0)
 		ex.set<Ex::Format>("Microseconds information lost, not supported by Mona Date system");

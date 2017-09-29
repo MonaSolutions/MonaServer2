@@ -26,8 +26,8 @@ using namespace std;
 
 namespace Mona {
 
-Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
-	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(-1), _startTime(0), _lastTime(0),
+Subscription::Subscription(Media::Target& target, UInt32 defaultTimeout) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
+	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(defaultTimeout), _defaultTimeout(defaultTimeout), _startTime(0), _lastTime(0),
 	_waitingFirstVideoSync(0), _pMediaWriter(NULL), _onMediaWrite([this](const Packet& packet) { writeData(0, Media::Data::TYPE_MEDIA, packet); }) {
 }
 
@@ -58,7 +58,7 @@ const string& Subscription::name() const {
 Subscription::EJECTED Subscription::ejected() const {
 	if (_ejected)
 		return _ejected;
-	if (_streaming && _timeout > 0 && _streaming.isElapsed(_timeout)) {
+	if (_streaming && _timeout && _streaming.isElapsed(_timeout)) {
 		INFO(name(), " timeout, idle since ", _timeout / 1000, " seconds");
 		((Subscription&)*this).endMedia();
 	}
@@ -75,10 +75,32 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 	else if (String::ICompare(key, EXPAND("format")) == 0)
 		setFormat(pValue ? pValue->data() : NULL);
 	else if (String::ICompare(key, EXPAND("timeout")) == 0) {
-		if (!pValue)
-			_timeout = -1;
-		else if (String::ToNumber(*pValue, _timeout))
+		_timeout = _defaultTimeout;
+		if (pValue && String::ToNumber(*pValue, _timeout))
 			_timeout *= 1000;
+	} else if (String::ICompare(key, EXPAND("time")) == 0) {
+		if (pValue) {
+			switch (*pValue->c_str()) {
+				case '-':
+				case '+':
+				case 's': // to allow "time=source"
+					// time relative to publication time (source time)
+					_firstTime = false;
+					/// _lastTime = tagIn.time - _startTime + _seekTime;
+					/// tagIn.time = _lastTime + _startTime - _seekTime;
+					_lastTime = _lastTime + _startTime - _seekTime;
+					String::ToNumber(*pValue, _startTime = 0);
+					_lastTime += _startTime;
+					_seekTime = 0;
+					break;
+				default:
+					// currentTime!
+					_firstTime = true;
+					String::ToNumber(*pValue, _seekTime = 0);
+					_lastTime = _seekTime;
+					_startTime = 0;
+			}
+		} // not change on remove to keep time progressive
 	} else {
 		Int16 track = -1;
 		if (String::ICompare(key, EXPAND("audio")) == 0) {
@@ -94,7 +116,7 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 }
 void Subscription::onParamClear() {
 	target.audioReliable = target.videoReliable = target.dataReliable = true;
-	_timeout = -1;
+	_timeout = _defaultTimeout;
 	setAudioTrack(-1);
 	setVideoTrack(-1);
 	target.dataTrack = -1;
@@ -211,14 +233,6 @@ void Subscription::endMedia() {
 	_firstTime = true;
 	_startTime = 0;
 	_congested = 0;
-}
-
-void Subscription::seek(UInt32 time) {
-	// Doesn't considerate "_ejected" because can be assinged on stop to change _seekTime
-	// To force the time to be as requested, but the stream continue normally (not reseted _codecInfosSent and _firstMedia)
-	_firstTime = true;
-	_lastTime = _startTime = 0;
-	_seekTime = time;
 }
 
 void Subscription::writeProperties(const Media::Properties& properties) {
@@ -366,7 +380,7 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 		_pMediaWriter->writeVideo(track, video, packet, _onMediaWrite);
 	else if (!target.writeVideo(track, video, packet))
 		_ejected = EJECTED_ERROR;
-	 //DEBUG("Video time => ", video.time, " (", video.frame,")");
+	// DEBUG("Video time => ", video.time, " (", video.frame,")");
 }
 
 void Subscription::setFormat(const char* format) {

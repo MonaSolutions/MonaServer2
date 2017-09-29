@@ -310,6 +310,12 @@
     <ClInclude Include="include\Mona\MP4Writer.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\SRTWriter.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\VTTWriter.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -528,6 +534,9 @@
       <Filter>Multimedia</Filter>
     </ClCompile>
     <ClCompile Include="sources\MP4Writer.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\SRTWriter.cpp">
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
   </ItemGroup>

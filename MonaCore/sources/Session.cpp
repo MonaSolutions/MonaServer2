@@ -39,20 +39,21 @@ Int32 Session::ToError(const Exception& ex) {
 }
 
 Session::Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name) : _pPeer(pPeer), peer(*pPeer),
-	_protocol(protocol), _name(name ? name : ""), api(protocol.api), died(false), _id(0) {
+	_protocol(protocol), _name(name ? name : ""), api(protocol.api), died(false), _id(0), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
 	init(*this);
 }
 	
 Session::Session(Protocol& protocol, const SocketAddress& address, const char* name) : peer(*new Peer(protocol.api, protocol.name)),
-	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0) {
+	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
 	_pPeer.reset(&peer);
 	peer.setAddress(address);
 	init(*this);
 }
 
 Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer), peer(*session._pPeer),
-	_sessionsOptions(session._sessionsOptions), _protocol(protocol), api(protocol.api), died(false), _id(session._id) {
+	_sessionsOptions(session._sessionsOptions), _protocol(protocol), api(protocol.api), died(false), _id(session._id), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
 	// Morphing
+	session._name.clear(); // to fix name!
 	((string&)peer.protocol) = protocol.name;
 	peer.onParameters = nullptr;
 	DEBUG("Upgrading ", session.name(), " to ", protocol.name, " session");
@@ -82,8 +83,13 @@ const string& Session::name() const {
 	if (!_name.empty())
 		return _name;
 	if(_id)
-		return String::Assign(_name, _protocol.name," session ", _id);
-	return String::Assign(_name, _protocol.name, " session");;
+		return String::Assign(_name, peer.protocol," session ", _id); // use peer.protocol rather _protocol.name to expect session morphing
+	return String::Assign(_name, peer.protocol, " session");
+}
+
+void Session::onParameters(const Parameters& parameters) {
+	if (parameters.getNumber("timeout", _timeout))
+		_timeout *= 1000;
 }
 
 void Session::kill(Int32 error, const char* reason) {
@@ -113,7 +119,12 @@ bool Session::manage() {
 		kill(ERROR_CONGESTED);
 		return false;
 	}
-	return true;
+	// Connection timeout to liberate useless socket ressource (usually used just for TCP session)
+	if (!timeout || (!peer.recvTime().isElapsed(timeout) && !peer.sendTime().isElapsed(timeout))) // Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
+		return true;
+	INFO(name(), " timeout connection");
+	kill(ERROR_IDLE);
+	return false;
 }
 
 

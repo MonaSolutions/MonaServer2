@@ -29,7 +29,7 @@ Protocol::Protocol(const char* name, ServerAPI& api, Sessions& sessions) :
 }
 
 Protocol::Protocol(const char* name, Protocol& tunnel) :
-	name(name), api(tunnel.api), sessions(tunnel.sessions), _pSocket(tunnel._pSocket) {
+	name(name), api(tunnel.api), sessions(tunnel.sessions), _pSocket(tunnel.socket()) {
 	// copy parameters from tunnel (publicHost, publicPort,  etc...)
 	for (auto& it : tunnel)
 		setString(it.first, it.second);

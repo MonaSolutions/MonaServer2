@@ -52,7 +52,7 @@ RTMPSession::RTMPSession(Protocol& protocol) : _first(true), _controller(2, *thi
 				kill(ERROR_PROTOCOL);
 				return;
 			}
-			if (!peer.connected) {
+			if (!peer) {
 				SocketAddress address;
 				if (peer.onHandshake(address)) {
 					// redirection
@@ -128,7 +128,7 @@ void RTMPSession::kill(Int32 error, const char* reason) {
 bool RTMPSession::manage() {
 	if (!TCPSession::manage())
 		return false;
-	if (peer.connected && peer.pingTime.isElapsed(timeout()>>1)) { // = timeout/2
+	if (peer && peer.pingTime.isElapsed(timeout/2)) {
 		_controller.writePing();
 		peer.pingTime.update();
 	}

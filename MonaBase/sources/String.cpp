@@ -128,10 +128,10 @@ template<typename Type, typename>
 bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& result) {
 	int comma = 0;	
 	bool beginning = true, negative = false;
+	Int8 sign = 1;
 
 	long double number(0);
-
-	bool isSigned = numeric_limits<Type>::is_signed;
+	
 	Type max = numeric_limits<Type>::max();
 
 	const char* current(value);
@@ -149,24 +149,26 @@ bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& resul
 			return false;
 		}
 
-		if (*current == '-') {
-			if (isSigned && beginning && !negative) {
+		switch (*current) {
+			case '-':
 				negative = true;
+			case '+':
+				if (!beginning) {
+					ex.set<Ex::Format>(value, " is not a correct number");
+					return false;
+				}
+				beginning = false;
 				++current;
 				continue;
-			}
-			ex.set<Ex::Format>(value, " is not a correct number");
-			return false;
-		}
-
-		if (*current == '.' || *current == ',') {
-			if (comma == 0 && !beginning) {
+			case '.':
+			case ',':
+				if (beginning || comma) {
+					ex.set<Ex::Format>(value, " is not a correct number");
+					return false;
+				}
 				comma = 1;
 				++current;
 				continue;
-			}
-			ex.set<Ex::Format>(value, " is not a correct number");
-			return false;
 		}
 
 		if (beginning)

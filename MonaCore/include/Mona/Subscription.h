@@ -25,7 +25,14 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 /*!
-Subscription to Publication */
+Subscription to Publication
+Params:
+	audioReliable|videoReliable|dataReliable=true|false
+	format=SubMime
+	timeout=UInt32 (0 = no timeout)
+	time=Int32 (set current time, if +Int32 or -Int32 it sets a time relative to source, and "time=source" let time of source unchanged)
+	audio|video|data=false|0|UInt8|all|true (disable|disable|track selected|all selected|allselected)
+	*/
 struct Publication;
 struct Subscription : Media::Source, Media::Properties, virtual Object {
 	enum EJECTED {
@@ -49,7 +56,10 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 		bool waitKeyFrame;
 	};
 
-	Subscription(Media::Target& target);
+	/*!
+	Create subscription
+	Timeout of 14 sec to be superior to max framekey interval possible of 10 sec (timeout allows to consider the stream death in its source and leave the subscribers load on publication in idle state especially because there is no control on publication state as congestion) */
+	Subscription(Media::Target& target, UInt32 defaultTimeout=14000);
 	~Subscription();
 
 	/*!
@@ -69,9 +79,6 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	bool streaming(UInt32 timeout) const { return _streaming ? _streaming.isElapsed(timeout) : false; }
 	const Time& streaming() const { return _streaming; }
 
-	/*!
-	Allow to reset the reference live timestamp */
-	void seek(UInt32 time);
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
 	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
 	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet);
@@ -129,6 +136,7 @@ private:
 	Congestion				_congestion;
 
 	UInt32					_timeout;
+	UInt32					_defaultTimeout;
 	mutable EJECTED			_ejected;
 
 	// For "format" parameter

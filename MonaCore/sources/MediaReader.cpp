@@ -64,19 +64,19 @@ const char* MediaReader::subMime() const {
 }
 
 MediaReader* MediaReader::New(const char* subMime) {
-	if (String::ICompare(subMime, "x-flv") == 0 || String::ICompare(subMime, "flv") == 0)
+	if (String::ICompare(subMime, EXPAND("x-flv")) == 0 || String::ICompare(subMime, EXPAND("flv")) == 0)
 		return new FLVReader();
-	if (String::ICompare(subMime, "mp2t") == 0 || String::ICompare(subMime, "ts") == 0)
+	if (String::ICompare(subMime, EXPAND("mp2t")) == 0 || String::ICompare(subMime, EXPAND("ts")) == 0)
 		return new TSReader();
-	if (String::ICompare(subMime, "mp4") == 0 || String::ICompare(subMime, "f4v") == 0 || String::ICompare(subMime, "mov") == 0)
+	if (String::ICompare(subMime, EXPAND("mp4")) == 0 || String::ICompare(subMime, EXPAND("f4v")) == 0 || String::ICompare(subMime, EXPAND("mov")) == 0)
 		return new MP4Reader();
-	if (String::ICompare(subMime, "h264") == 0 || String::ICompare(subMime, "264") == 0)
+	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
 		return new H264NALReader();
-	if (String::ICompare(subMime, "aac") == 0)
+	if (String::ICompare(subMime, EXPAND("aac")) == 0)
 		return new ADTSReader();
-	if (String::ICompare(subMime, "mp3") == 0)
+	if (String::ICompare(subMime, EXPAND("mp3")) == 0)
 		return new MP3Reader();
-	if (String::ICompare(subMime, "mona") == 0)
+	if (String::ICompare(subMime, EXPAND("mona")) == 0)
 		return new MonaReader();
 	return NULL;
 }

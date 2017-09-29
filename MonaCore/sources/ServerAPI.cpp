@@ -71,7 +71,7 @@ Publication* ServerAPI::publish(Exception& ex, string& stream, Client* pClient) 
 }
 
 Publication* ServerAPI::publish(Exception& ex, const string& stream, const char* ext, const char* query, Client* pClient) {
-	if (pClient && !pClient->connected) {
+	if (pClient && !pClient->connection) {
 		ERROR(ex.set<Ex::Intern>("Client must be connected before ", stream, " publication"));
 		return NULL;
 	}
@@ -142,7 +142,7 @@ void ServerAPI::unpublish(Publication& publication, Client* pClient) {
 		WARN("Publication ", publication.name()," unfound");
 		return;
 	}
-	if (pClient && !pClient->connected)
+	if (pClient && !pClient->connection)
 		ERROR("Unpublication client before connection")
 	else
 		onUnpublish(publication, pClient);
@@ -167,7 +167,7 @@ bool ServerAPI::subscribe(Exception& ex, string& stream, Subscription& subscript
 }
 
 bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, Subscription& subscription, const char* queryParameters, Client* pClient) {
-	if (pClient && !pClient->connected) {
+	if (pClient && !pClient->connection) {
 		ERROR(ex.set<Ex::Intern>("Client must be connected before ",stream," publication subscription"))
 		return false;
 	}
@@ -249,7 +249,7 @@ void ServerAPI::unsubscribe(Subscription& subscription, Client* pClient) {
 void ServerAPI::unsubscribe(Subscription& subscription, Publication& publication, Client* pClient) {
 	if (!((set<Subscription*>&)publication.subscriptions).erase(&subscription))
 		return; // no subscription
-	if (pClient && !pClient->connected)
+	if (pClient && !pClient->connection)
 		ERROR(publication.name()," unsubscription before client connection")
 	else
 		onUnsubscribe(subscription, publication, pClient);

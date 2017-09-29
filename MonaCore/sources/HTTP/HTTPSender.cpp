@@ -57,7 +57,7 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, co
 		MIME::Write(writer.write(EXPAND("\r\nContent-Type: ")), mime, subMime);
 		if (!packet) {
 			// no content-length
-			writer.write(EXPAND("\r\nCache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache"));
+			writer.write(EXPAND("\r\n" HTTP_LIVE_HEADER));
 			_connection = HTTP::CONNECTION_CLOSE; // write "connection: close" (session until end of socket)
 		} else
 			String::Append(writer.write(EXPAND("\r\nContent-Length: ")), extraSize);

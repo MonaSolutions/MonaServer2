@@ -186,9 +186,10 @@ UInt32 Util::UnpackQuery(const char* query, size_t count, const ForEachParameter
 			} else if (c == '+')
 				c = ' ';
 		}
-		if (isName)
-			name += c;
-		else
+		if (isName) {
+			if(countPairs || c != '?') // ignore first '?'!
+				name += c;
+		} else
 			value += c; 
 		return true;
 	});
@@ -208,17 +209,15 @@ UInt32 Util::DecodeURI(const char* value, std::size_t count, const ForEachDecode
 
 	while (count && (count!=string::npos || *value)) {
 
-		char c(*value);
-		bool encoded(false);
-
-		if (c == '%') {
+		if (*value == '%') {
 			// %
 			++value;
 			if(count!=string::npos)
 				--count;
 			if (!count || (count==string::npos && !*value)) {
 				 // syntax error
-				forEach('%',encoded);
+				if (!forEach('%', false))
+					--value;
 				return value-begin;
 			}
 			
@@ -228,36 +227,37 @@ UInt32 Util::DecodeURI(const char* value, std::size_t count, const ForEachDecode
 				--count;
 			if (!count || (count==string::npos && !*value)) {
 				// syntax error
-				if (forEach('%',encoded))
-					forEach(hi,encoded);
-				else
-					--value;
+				if (forEach('%', false)) {
+					if (!forEach(hi, false))
+						--value;
+				} else
+					value-=2;
 				return value-begin;
 			}
 			char lo = toupper(*value++);
-if (count != string::npos)
---count;
-if (!isxdigit(lo) || !isxdigit(hi)) {
-	// syntax error
-	if (forEach('%', encoded)) {
-		if (forEach(hi, encoded)) {
-			if (forEach(lo, encoded))
+			if (count != string::npos)
+				--count;
+			if (!isxdigit(lo) || !isxdigit(hi)) {
+				// syntax error
+				if (forEach('%', false)) {
+					if (forEach(hi, false)) {
+						if (forEach(lo, false))
+							continue;
+					} else
+						--value;
+				} else
+					value -= 2;
+				return value - begin;
+			}
+			if (forEach(char((hi - (hi <= '9' ? '0' : '7')) << 4) | ((lo - (lo <= '9' ? '0' : '7')) & 0x0F), true))
 				continue;
-		} else
-			--value;
-	} else
-		value -= 2;
-	return value - begin;
-}
-encoded = true;
-c = ((hi - (hi <= '9' ? '0' : '7')) << 4) | ((lo - (lo <= '9' ? '0' : '7')) & 0x0F);
-		} else {
+			return value - 3 - begin;
+		}
+		if (!forEach(*value, false))
+			break;
 		++value;
 		if (count != string::npos)
 			--count;
-		}
-		if (!forEach(c, encoded))
-			break;
 	}
 
 	return value - begin;

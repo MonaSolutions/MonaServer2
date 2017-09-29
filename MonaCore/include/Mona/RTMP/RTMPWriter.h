@@ -35,7 +35,7 @@ struct RTMPWriter : FlashWriter, virtual Object {
 
 	void			clear() { _senders.clear(); FlashWriter::clear(); }
 
-	void			writePing() { write(AMF::TYPE_RAW)->write16(0x0006).write32(UInt32(_session.peer.connectionTime.elapsed())); }
+	void			writePing() { write(AMF::TYPE_RAW)->write16(0x0006).write32(UInt32(_session.peer.connection.elapsed())); }
 
 	void			writeAck(UInt32 count) { write(AMF::TYPE_ACK)->write32(count); }
 	void			writeWinAckSize(UInt32 value) { write(AMF::TYPE_WIN_ACKSIZE)->write32(value); }

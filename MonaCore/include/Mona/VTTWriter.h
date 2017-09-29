@@ -19,15 +19,17 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Protocol.h"
+#include "Mona/SRTWriter.h"
 
 namespace Mona {
 
-struct WSProtocol : Protocol, virtual Object {
-	WSProtocol(const char* name, Protocol& tunnel) : Protocol(name, tunnel) {
-		setNumber("timeout", 80);  // 80 sec, default Websocket timeout
-	}
+/*!
+SRT subtitles compatible VTT */
+struct VTTWriter : SRTWriter, virtual Object {
+	VTTWriter() : SRTWriter("%TH:%M:%S.%i") {}
+	void beginMedia(const OnWrite& onWrite) { SRTWriter::beginMedia(onWrite);  if (onWrite) onWrite(Packet(EXPAND("WEBVTT \n\n"))); } // on space after WEBVTT is required
 };
+
 
 
 } // namespace Mona

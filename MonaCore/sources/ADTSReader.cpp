@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/ADTSReader.h"
-#include "Mona/ADTSWriter.h"
 #include "Mona/MPEG4.h"
 #include "Mona/Logs.h"
 
@@ -107,7 +106,7 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 				// http://www.mpeg-audio.org/docs/w14751_(mpeg_AAC_TransportFormats).pdf
 				UInt8 config[2];
 				// ADTS profile 2 first bits => MPEG-4 Audio Object Type minus 1
-				ADTSWriter::WriteConfig((header[2] >> 6) + 1, value, _tag.channels, config);
+				MPEG4::WriteAudioConfig((header[2] >> 6) + 1, value, _tag.channels, config);
 				source.writeAudio(track, _tag, Packet(config, 2));
 				_tag.isConfig = false; // just one time
 			}

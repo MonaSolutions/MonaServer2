@@ -24,7 +24,7 @@ using namespace std;
 
 namespace Mona {
 
-TCPSession::TCPSession(Protocol& protocol) : TCPClient(api.ioSocket), onData(TCPClient::onData), _sendingTrack(0), _timeout(protocol.getNumber<UInt32>("timeout") * 1000), Session(protocol, SocketAddress::Wildcard()) {}
+TCPSession::TCPSession(Protocol& protocol) : TCPClient(api.ioSocket), onData(TCPClient::onData), _sendingTrack(0), Session(protocol, SocketAddress::Wildcard()) {}
 
 void TCPSession::connect(const shared<Socket>& pSocket) {
 	peer.setAddress(pSocket->peerAddress());
@@ -59,8 +59,6 @@ void TCPSession::setSocketParameters(Socket& socket, const Parameters& parameter
 
 void TCPSession::onParameters(const Parameters& parameters) {
 	Session::onParameters(parameters);
-	if (parameters.getNumber("timeout", _timeout))
-		_timeout *= 1000;
 	setSocketParameters(*socket(), parameters);
 }
 
@@ -87,18 +85,6 @@ void TCPSession::kill(Int32 error, const char* reason) {
 	onError = nullptr;
 	onFlush = nullptr;
 	disconnect();
-}
-
-bool TCPSession::manage() {
-	if (!Session::manage())
-		return false;
-	// TCP connection timeout to liberate useless socket ressource
-	if (_timeout && socket()->recvTime().isElapsed(_timeout) && socket()->sendTime().isElapsed(_timeout)) {
-		// Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
-		INFO(name(), " timeout connection");
-		kill(ERROR_IDLE);
-	}
-	return true;
 }
 
 

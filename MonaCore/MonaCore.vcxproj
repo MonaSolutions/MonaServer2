@@ -248,6 +248,7 @@
     <ClInclude Include="include\Mona\Server.h" />
     <ClInclude Include="include\Mona\ServerAPI.h" />
     <ClInclude Include="include\Mona\SplitWriter.h" />
+    <ClInclude Include="include\Mona\SRTWriter.h" />
     <ClInclude Include="include\Mona\StringReader.h" />
     <ClInclude Include="include\Mona\StringWriter.h" />
     <ClInclude Include="include\Mona\Subscription.h" />
@@ -255,6 +256,7 @@
     <ClInclude Include="include\Mona\TSReader.h" />
     <ClInclude Include="include\Mona\TSWriter.h" />
     <ClInclude Include="include\Mona\UDProtocol.h" />
+    <ClInclude Include="include\Mona\VTTWriter.h" />
     <ClInclude Include="include\Mona\Writer.h" />
     <ClInclude Include="include\Mona\Protocol.h" />
     <ClInclude Include="include\Mona\Protocols.h" />
@@ -327,6 +329,7 @@
     <ClCompile Include="sources\RTP_H264.cpp" />
     <ClCompile Include="sources\RTP_MPEG.cpp" />
     <ClCompile Include="sources\MediaSocket.cpp" />
+    <ClCompile Include="sources\SRTWriter.cpp" />
     <ClCompile Include="sources\Subscription.cpp" />
     <ClCompile Include="sources\Peer.cpp" />
     <ClCompile Include="sources\QueryReader.cpp" />

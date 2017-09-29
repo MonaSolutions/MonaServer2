@@ -151,6 +151,11 @@ DataWriter& HTTPWriter::writeMessage(bool isResponse) {
 	return pSender ? pSender->writer() : DataWriter::Null();
 }
 
+DataWriter& HTTPWriter::writeResponse(const char* subMime) {
+	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(true, HTTP_CODE_200, MIME::TYPE_APPLICATION, subMime ? subMime : "json");
+	return pSender ? pSender->writer() : DataWriter::Null();
+}
+
 void HTTPWriter::writeRaw(DataReader& reader) {
 	// Take the entiere control
 	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN);
@@ -185,8 +190,8 @@ bool HTTPWriter::beginMedia(const string& name) {
 		return true;
 	// 415 Unsupported media type
 	_senders.pop_back();
-	string error;
-	ERROR(String::Assign(error, "Can't play ", name,", HTTP streaming doesn't support ", _pRequest->subMime, " media"));
+	String error("Can't play ", name, ", HTTP streaming doesn't support ", _pRequest->subMime, " media");
+	ERROR(error);
 	writeError(HTTP_CODE_415, error);
 	return false;
 }

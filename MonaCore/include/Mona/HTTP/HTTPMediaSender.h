@@ -43,7 +43,7 @@ private:
 template<typename MediaType>
 struct HTTPMediaSend : HTTPMediaSender, MediaType, virtual Object {
 	HTTPMediaSend(const shared<Socket>& pSocket, const shared<const HTTP::Header>& pRequest, shared<Buffer>& pSetCookie, shared<MediaWriter>& pWriter,
-					const typename MediaType::Tag& tag, const Packet& packet) : HTTPMediaSender(pSocket, pRequest, pSetCookie, pWriter), MediaType(tag, packet) {}
+					const typename MediaType::Tag& tag, const Packet& packet, UInt8 track) : HTTPMediaSender(pSocket, pRequest, pSetCookie, pWriter), MediaType(tag, packet, track) {}
 private:
 	void run(const HTTP::Header& request, bool& keepalive) { keepalive = true; pWriter->writeMedia(*this, onWrite); }
 };

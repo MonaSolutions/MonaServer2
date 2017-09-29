@@ -225,7 +225,7 @@ void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pa
 	_byteRate += packet.size() + sizeof(tag);
 	_audios.byteRate += packet.size() + sizeof(tag);
 	_new = true;
-	//DEBUG("Audio ",tag.time);
+	// DEBUG("Audio ",tag.time);
 	for (auto& it : subscriptions) {
 		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
 			it->writeAudio(track, tag, packet);
@@ -271,7 +271,7 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 		_byteRate += packet.size() + sizeof(tag);
 		_videos.byteRate += packet.size() + sizeof(tag);
 		_new = true;
-		//INFO("Video ", tag.time, " (", tag.compositionOffset, ")");
+		// INFO("Video ", tag.time, " (", tag.compositionOffset, ")");
 		for (auto& it : subscriptions) {
 			if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
 				it->writeVideo(track, tag, packet);

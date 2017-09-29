@@ -27,8 +27,6 @@ namespace Mona {
 struct TCPSession : Session, private TCPClient, virtual Object {
 	void connect(const shared<Socket>& pSocket);
 
-	UInt32 timeout() const { return _timeout; }
-
 	const shared<Socket>&	socket() { return TCPClient::socket(); }
 
 	void send(const Packet& packet);
@@ -53,13 +51,11 @@ protected:
 	TCPSession(Protocol& protocol);
 
 	virtual void onParameters(const Parameters& parameters);
-	virtual bool manage();
-	
+
 private:
 	void setSocketParameters(Socket& socket, const Parameters& parameters);
 
-	UInt32			_timeout;
-	UInt16			_sendingTrack;
+	UInt16 _sendingTrack;
 };
 
 

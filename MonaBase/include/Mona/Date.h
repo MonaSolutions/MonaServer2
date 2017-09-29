@@ -181,6 +181,25 @@ struct Date : Time, virtual Object {
 				case 'c': out.append(buffer, snprintf(buffer, sizeof(buffer), "%u", _millisecond / 100)); break;
 				case 'z': Timezone::Format(isGMT() ? Timezone::GMT : offset(), out); break;
 				case 'Z': Timezone::Format(isGMT() ? Timezone::GMT : offset(), out, false); break;
+				case 't':
+				case 'T': {
+					if (iFormat == formatSize)
+						break;
+					UInt32 factor(1);
+					switch (tolower(format[iFormat++])) {
+						case 'h':
+							factor = 3600000;
+							break;
+						case 'm':
+							factor = 60000;
+							break;
+						case 's':
+							factor = 1000;
+							break;
+					}
+					out.append(buffer, snprintf(buffer, sizeof(buffer), "%02llu", time() / factor));
+					break;
+				}
 				default: out.append(&c, 1);
 			}
 		}

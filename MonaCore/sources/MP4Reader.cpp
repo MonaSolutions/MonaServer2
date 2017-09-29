@@ -229,6 +229,7 @@ MP4Reader::Box& MP4Reader::Box::operator-=(UInt32 readen) {
 	return *this;
 }
 
+
 UInt32 MP4Reader::parse(const Packet& packet, Media::Source& source) {
 	UInt32 rest = parseData(packet, source);
 	_position += packet.size() - rest;
@@ -253,12 +254,27 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				_tracks.emplace_back();
 			case Box::TRAF:
 				_pTrack = NULL;
-			case Box::MOOV:
 			case Box::MVEX:
 			case Box::MDIA:
 			case Box::MINF:
 			case Box::STBL:
 			case Box::DINF:
+				_boxes.emplace_back();
+				continue;
+			case Box::MOOV:
+				// Reset resources =>
+				_times.clear(); // force to flush all Medias!
+				flushMedias(source); // clear _medias
+				_audios = _videos = 0;
+				_pTrack = NULL;
+				_tracks.clear();
+				_chunks.clear();
+				_ids.clear();
+				_failed = false;
+				if (_firstMoov)
+					_firstMoov = false;
+				else
+					source.reset();
 				_boxes.emplace_back();
 				continue;
 			case Box::MOOF:
@@ -351,8 +367,8 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						track.types.emplace_back(Media::Video::CODEC_H264);
 						// see https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html#//apple_ref/doc/uid/TP40000939-CH205-74522
 						description.next(70); // slip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
-					} else if (memcmp(typeName, EXPAND("mp4a")) == 0) {
-						track.types.emplace_back(Media::Audio::CODEC_AAC);
+					} else if (memcmp(typeName, EXPAND("mp4a")) == 0 || memcmp(typeName, EXPAND(".mp3")) == 0) {
+						track.types.emplace_back(*typeName=='.' ? Media::Audio::CODEC_MP3 : Media::Audio::CODEC_AAC);
 						Track::Type& type = track.types.back();
 						UInt16 version = description.read16();
 						if (version==2) {
@@ -362,7 +378,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							description.next(20);
 						} else {
 							description.next(6); // skip revision level and vendor
-							type.audio.channels = limit8(description.read16());
+							type.audio.channels = range<UInt8>(description.read16());
 							description.next(6); // skip sample size, compression id and packet size
 							type.audio.rate = description.read16();
 							description.next(2);
@@ -413,7 +429,35 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								value = extension.read8();
 							}
 							extension.shrink(value);
-							extension.next(13); // skip decoder config descriptor
+							Track::Type& type = track.types.back();
+							UInt8 codec = extension.read8();
+							UInt8 config[2];
+							switch (codec) {
+								case 64: // AAC
+									break;
+								case 102: // MPEG-4 ADTS main
+									type.config = Packet(MPEG4::WriteAudioConfig(1, type.audio.rate, type.audio.channels, config), 2);
+									break;
+								case 103: // MPEG-4 ADTS Low Complexity
+									type.config = Packet(MPEG4::WriteAudioConfig(2, type.audio.rate, type.audio.channels, config), 2);
+									break;
+								case 104: // MPEG-4 ADTS Scalable Sampling Rate
+									type.config = Packet(MPEG4::WriteAudioConfig(3, type.audio.rate, type.audio.channels, config), 2);
+									break;
+								case 105: // MPEG-2 ADTS
+									type.audio.codec = Media::Audio::CODEC_MP3;
+									break;
+								default:
+									if (type == Media::TYPE_AUDIO)
+										WARN("Audio track with unsupported ", codec, " codec")
+									else
+										WARN("Video track with unsupported ", codec, " codec")
+									type = nullptr;
+									break;
+							}
+							if(!type)
+								break;
+							extension.next(12); // skip decoder config descriptor (buffer size + max bitrate + average bitrate)
 							if (extension.read8() != 5)  // Audio specific config = 5
 								continue;
 							value = extension.read8();
@@ -422,7 +466,6 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								value = extension.read8();
 							}
 							extension.shrink(value);
-							Track::Type& type = track.types.back();
 							type.config = Packet(extension.current(), extension.available());
 							// Fix rate and channels with configs packet (more precise!)
 							MPEG4::ReadAudioConfig(type.config.data(), type.config.size(), type.audio.rate, type.audio.channels);
@@ -454,7 +497,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				while (count-- && stsc.available()>=8) { // 8 => required at less "first chunk" and "sample count" field
 					UInt64& value = track.changes[stsc.read32()];
 					value = stsc.read32();
-					value = value<<32 | max<UInt32>(stsc.read32(), 1);
+					value = value<<32 | max(stsc.read32(), 1u);
 				}
 				break;
 			}
@@ -488,9 +531,16 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				BinaryReader stts(reader.current(), _boxes.back());
 				stts.next(4); // version + flags
 				UInt32 count = stts.read32();
+				UInt32 time = UInt32(round(track.durations.time));
+				auto itTime = _times.lower_bound(time);
 				while (count-- && stts.available() >= 8) {
 					track.durations.emplace_back(stts.read32());
-					track.durations.back().value = stts.read32();
+					Repeat& repeat = track.durations.back();
+					repeat.value = stts.read32();
+					for (UInt32 i = 0; i < repeat.count; ++i) {
+						++(itTime = _times.emplace_hint(itTime, time, 0))->second;
+						time = UInt32(round(track.durations.time += repeat.value * track.timeStep));
+					}
 				}
 				break;
 			}
@@ -614,10 +664,18 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						break;
 					}
 					_pTrack->durations.emplace_back(count);
-					_pTrack->durations.back().value = _fragment.defaultDuration;
+					Repeat& repeat = _pTrack->durations.back();
+					repeat.value = _fragment.defaultDuration;
+					UInt32 time = UInt32(round(_pTrack->durations.time));
+					auto itTime = _times.lower_bound(time);
+					for (UInt32 i = 0; i < repeat.count; ++i) {
+						++(itTime = _times.emplace_hint(itTime, time, 0))->second;
+						time = UInt32(round(_pTrack->durations.time += repeat.value * _pTrack->timeStep));
+					}
 				}
 
-				
+				UInt32 time = UInt32(round(_pTrack->durations.time));
+				auto itTime = _times.lower_bound(time);
 				while (count-- && trun.available()) {
 					if (flags & 0x100) {
 						value = trun.read32();
@@ -626,6 +684,9 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							_pTrack->durations.back().value = value;
 						} else
 							++_pTrack->durations.back().count;
+
+						++(itTime = _times.emplace_hint(itTime, time, 0))->second;
+						time = UInt32(round(_pTrack->durations.time += value * _pTrack->timeStep));
 					}
 					if (flags & 0x200)
 						_pTrack->sizes.emplace_back(trun.read32());
@@ -645,13 +706,20 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 			}
 			case Box::MDAT: {
 				// DATA
-				while(!_failed && !_chunks.empty() && reader.available()) {
-					if(_chunks.begin()->second->buffered)
-						flushMedias(source);
+				while(!_failed && reader.available()) {
+					if (_tracks.empty()) {
+						ERROR("No tracks information before mdat (No support of mdat box before moov box)");
+						_failed = true;
+						break;
+					}
+					if (_chunks.empty())
+						break;
 
+					// consume
 					UInt32 value = reader.position() + _position;				
 					if (value < _chunks.begin()->first)
 						_boxes.back() -= reader.next(UInt32(_chunks.begin()->first - value));
+
 					Track& track = *_chunks.begin()->second;
 					if (!track.timeStep) {
 						ERROR("Data box without mdhd box with valid timeScale field before");
@@ -682,13 +750,10 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						// determine size
 						value = track.sample + track.samples;
 						UInt32 size = value < track.sizes.size() ? track.sizes[value] : track.size;
-						if (!size) {
-							ERROR("No sample size matched");
-							_failed = true;
-							break;
-						}
-						if(reader.available()<size)
+						if (reader.available() < size) {
+							flushMedias(source); // flush when all read buffer is readen
 							return reader.available();
+						}
 
 						// determine type
 						value = it->second & 0xFFFFFFFF;
@@ -699,59 +764,61 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						}
 						
 						Track::Type& type = value ? track.types[value - 1] : *track.pType;
-						type.setTime(track.time);
-
+						UInt32 time = UInt32(round(track.time));
+						UInt32 mediaSizes = _medias.size();
 						switch (type) {
 							case Media::TYPE_AUDIO:
+								type.audio.time = time;
 								if (&type != track.pType) {
 									// has changed!
 									track.pType = &type;				
-									if (_audios.size() < 0xFF) {
-										_audios.emplace_back(&track);
-										track = UInt8(_audios.size());
+									if (_audios < 0xFF) {
+										track = ++_audios;
 										if(type.config) {
 											type.audio.isConfig = true;
-											_medias.emplace(type.audio.time, new Media::Audio(type.audio, type.config, track));
+											_medias.emplace(time, new Media::Audio(type.audio, type.config, track));
+											++_times[time]; // to match with times synchro
 											type.audio.isConfig = false;
 										}
 									} else {
-										WARN("Audio track ", _audios.size(), " ignored because Mona doesn't accept more than 255 tracks");
+										WARN("Audio track ", _audios, " ignored because Mona doesn't accept more than 255 tracks");
 										track = 0;
 									}
 								}
 							//	DEBUG("Audio ", type.audio.time);
-								if(track)
-									_medias.emplace(type.audio.time, new Media::Audio(type.audio, Packet(packet, reader.current(), size), track));
+								if (track && size) // if size == 0 => silence!
+									_medias.emplace(time, new Media::Audio(type.audio, Packet(packet, reader.current(), size), track));
 								break;
 							case Media::TYPE_VIDEO: {
+								type.video.time = time;
 								if (&type != track.pType) {
 									// has changed!
 									track.pType = &type;
-									if (_videos.size() < 0xFF) {
-										_videos.emplace_back(&track);
-										track = UInt8(_videos.size());
+									if (_videos < 0xFF) {
+										track = ++_videos;
 										if(type.config) {
 											type.video.frame = Media::Video::FRAME_CONFIG;
-											_medias.emplace(type.video.time,new Media::Video(type.video, type.config, track));
+											_medias.emplace(time,new Media::Video(type.video, type.config, track));
+											++_times[time]; // to match with times synchro
 										}
 									} else {
-										WARN("Audio track ", _audios.size(), " ignored because Mona doesn't accept more than 255 tracks");
+										WARN("Video track ", _videos, " ignored because Mona doesn't accept more than 255 tracks");
 										track = 0;
 									}
 								}
-								if (!track)
+								if (!track || !size) // no size => silence!
 									break; // ignored!
 
 								// determine compositionOffset
 								if(!track.compositionOffsets.empty()) {
 									Repeat& repeat = track.compositionOffsets.front();
-									type.video.compositionOffset = limit16(round(repeat.value*track.timeStep));
+									type.video.compositionOffset = range<UInt16>(round(repeat.value*track.timeStep));
 									if (!--repeat.count)
 										track.compositionOffsets.pop_front();
 								} else
 									type.video.compositionOffset = 0;
 
-								//DEBUG("Video ", type.video.time);
+								//DEBUG("Video ", time);
 								
 								// Get the correct video.frame type!
 								// + support SPS and PPS inner samples (required by specification)
@@ -759,6 +826,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								type.video.frame = Media::Video::FRAME_UNSPECIFIED;
 								const UInt8* frame=NULL;
 								UInt32 frameSize;
+								Media::Video* pLastVideo = NULL;
 								while (frames.available()>4) {
 									UInt8 frameType = frames.current()[4] & 0x1F;
 									if (type.video.frame == Media::Video::FRAME_CONFIG) {
@@ -768,17 +836,24 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 											if (frameType == 7 || frameType == 8) {
 												// complete config packet!
 												frameSize += frames.next(frames.read32()) + 4;
-												_medias.emplace(type.video.time, new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
+												if(pLastVideo)
+													++_times[time]; // to match with times synchro
+												_medias.emplace(time, pLastVideo=new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
 												frame = NULL;
 												continue;
 											} // else new frame is not a config part
-											if (prevType == 7) // else ignore 8 alone packet
-												_medias.emplace(type.video.time, new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
+											if (prevType == 7) { 
+												if (pLastVideo)
+													++_times[time]; // to match with times synchro
+												_medias.emplace(time, pLastVideo = new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
+											} // else ignore 8 alone packet
 										} // else erase duplicate config type
 										frame = NULL;
 									} else if (frame && (frameType == 7 || frameType == 8)) {
 										// flush what before config packet
-										_medias.emplace(type.video.time, new Media::Video(type.video, Packet(packet, frame, frameSize), track));
+										if (pLastVideo)
+											++_times[time]; // to match with times synchro
+										_medias.emplace(time, pLastVideo = new Media::Video(type.video, Packet(packet, frame, frameSize), track));
 										frame = NULL;
 									}
 									type.video.frame = MPEG4::UpdateFrame(frameType, type.video.frame);
@@ -789,19 +864,26 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 									frameSize += frames.next(frames.read32()) + 4;
 								}
 								
-								if (frame)
-									_medias.emplace(type.video.time, new Media::Video(type.video, type.video.frame == Media::Video::FRAME_CONFIG ? (type.config = Packet(frame, frameSize)) : Packet(packet, frame, frameSize), track));
-								break;
+								if (frame) {
+									if (pLastVideo)
+										++_times[time]; // to match with times synchro
+									_medias.emplace(time, new Media::Video(type.video, type.video.frame == Media::Video::FRAME_CONFIG ? (type.config = Packet(frame, frameSize)) : Packet(packet, frame, frameSize), track));
+									break;
+								}
 							}
 							default:; // ignored!
 						}
-			
+
+						// Add a media to match times reference if no media added!
+						if (mediaSizes == _medias.size())
+							_medias.emplace(time, nullptr);
+
 						// determine next time
 						Repeat& repeat = track.durations.front();
 						track.time += repeat.value*track.timeStep;
 						if (track.durations.size() > 1 && !--repeat.count) // repeat the last duration if few duration entries are missing
 							track.durations.pop_front();
-			
+						
 						// consume!
 						++track.sample;
 						_boxes.back() -= reader.next(size);
@@ -812,9 +894,8 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						track.changes.erase(track.changes.begin());
 					track.samples += samples;
 					track.sample = 0;
-					track.buffered = true;
 				}
-				flushMedias(source);
+				flushMedias(source); // flush when all read buffer is readen
 				break;
 			}
 			default:; // unknown or ignored	
@@ -837,26 +918,35 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 }
 
 void MP4Reader::flushMedias(Media::Source& source) {
-	for (Track& track : _tracks)
-		track.buffered = false;
-	for (auto& it : _medias) {
-		source.writeMedia(*it.second);
-		delete it.second;
+	auto it = _medias.begin();
+	for (it; it != _medias.end(); ++it) {
+		if (!_times.empty()) {
+			if (it->first > _times.begin()->first)
+				break;
+			if(it->first== _times.begin()->first && !--_times.begin()->second)
+				_times.erase(_times.begin());
+		}
+		if (!it->second)
+			continue;
+		source.writeMedia(*it->second);
+		delete it->second;
 	}
-	_medias.clear();
+	_medias.erase(_medias.begin(), it);
 }
 
 void MP4Reader::onFlush(const Packet& packet, Media::Source& source) {
+	// release resources
+	_times.clear(); // to force media flush (and clear _medias)
 	flushMedias(source);
 	_boxes.resize(1);
 	_boxes.back() = nullptr;
-	_offset = _position = 0;
-	_failed = false;
 	_chunks.clear();
 	_tracks.clear();
-	_audios.clear();
-	_videos.clear();
 	_ids.clear();
+	
+	_offset = _position = 0;
+	_firstMoov = true;
+
 	MediaReader::onFlush(packet, source);
 }
 

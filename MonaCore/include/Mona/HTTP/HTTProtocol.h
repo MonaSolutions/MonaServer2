@@ -28,7 +28,7 @@ struct HTTProtocol : TCProtocol, virtual Object {
 	HTTProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS = nullptr) : TCProtocol(name, api, sessions, pTLS) {
 
 		setNumber("port", pTLS ? 443 : 80);
-		setNumber("timeout", 10); // 10 seconds => ideal value between 7 and 10, but 10 to be superior or egal to keyFrameInterval max value from video usual codec (for HTTP subscription for example which is waiting first key frame)
+		setNumber("timeout", 7); // ideal value between 7 and 10
 		setBoolean("index", true); // index directory, if false => forbid directory index, otherwise redirection to index
 
 		onConnection = [this](const shared<Socket>& pSocket) {

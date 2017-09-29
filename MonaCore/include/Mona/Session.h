@@ -49,11 +49,10 @@ struct Session : virtual Object {
 	If id>0 => managed by _sessions! */
 	UInt32				id() const   { return _id; }
 	const std::string&	name()	const;
+	const UInt32		timeout;
 
 	virtual void		kill(Int32 error = 0, const char* reason = NULL);
 
-	virtual const shared<Socket>&	socket() { return _protocol.socket(); }
-	
 	template<typename ProtocolType = Protocol>
 	ProtocolType& protocol() { return (ProtocolType&)_protocol; }
 
@@ -65,7 +64,7 @@ struct Session : virtual Object {
 	/*!
 	implement it to flush writers to avoid message queue exceed! */
 	virtual void flush() = 0;
-	virtual void onParameters(const Parameters& parameters) {}
+	virtual void onParameters(const Parameters& parameters);
 	/*!
 	Manage every 2 seconds */
 	virtual bool manage();
@@ -87,6 +86,7 @@ private:
 	mutable std::string			_name;
 	SESSION_OPTIONS				_sessionsOptions;
 	Protocol&					_protocol;
+	UInt32						_timeout;
 
 
 	friend struct Sessions;

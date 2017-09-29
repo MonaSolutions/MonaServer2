@@ -70,7 +70,9 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 	if (!onWrite)
 		return;
 	TRACE(type, " ", codecs, " ", isConfig, " ", time," ", compositionOffset);
-	BinaryWriter writer(_buffer.clear());
+	
+	BUFFER_RESET(_pBuffer, 0);
+	BinaryWriter writer(*_pBuffer);
 	/// 11 bytes of header
 
 	bool isAVC(false);
@@ -124,13 +126,17 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 			writer.write24(compositionOffset);
 	}
 
-	if (sps)
-		return onWrite(MPEG4::WriteVideoConfig(sps, pps, writer).write32(11 + size)); // write sps + pps + footer
+	if (!sps) {
+		onWrite(Packet(_pBuffer)); // header
+		if (packet)
+			onWrite(packet);
+		BUFFER_RESET(_pBuffer, 0);
+		
+	} else
+		MPEG4::WriteVideoConfig(sps, pps, writer); // write sps + pps
 
-	onWrite(writer); // header
-	if(packet)
-		onWrite(packet);
-	onWrite(writer.clear().write32(11 + size)); // footer
+	BinaryWriter(*_pBuffer).write32(11 + size); // footer
+	onWrite(Packet(_pBuffer));
 }
 
 

@@ -57,7 +57,6 @@ private:
 	Media::Audio::Tag		_audio;
 	Media::Data::Type		_data;
 	Subscription*			_pSubscription;
-	TCPSession&				_tcpSession;
 };
 
 

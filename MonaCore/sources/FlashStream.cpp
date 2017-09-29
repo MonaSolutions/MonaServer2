@@ -250,7 +250,7 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 			} else {
 				UInt32 position;
 				if (message.readNumber(position))
-					_pSubscription->seek(position);
+					_pSubscription->setNumber("time", position);
 				onStart(id, writer); // stream begin
 				// useless, client knows it when it calls NetStream::resume method
 				//	writer.writeAMFStatus("NetStream.Unpause.Notify", _pListener->publication.name() + " resumed");
@@ -261,7 +261,7 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 		if (name == "seek") {
 			UInt32 position;
 			if (message.readNumber(position)) {
-				_pSubscription->seek(position);
+				_pSubscription->setNumber("time", position);
 				 // TODO support seek for VOD
 				onStart(id, writer); // stream begin
 				// useless, client knows it when it calls NetStream::seek method, and wait "NetStream.Seek.Complete" rather (raised by client side)

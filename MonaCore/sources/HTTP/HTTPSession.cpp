@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/HTTP/HTTPSession.h"
+#include "Mona/MapReader.h"
 #include "Mona/MapWriter.h"
 #include "Mona/QueryReader.h"
 #include "Mona/StringReader.h"
@@ -83,13 +84,13 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 				} else {
 
 					// onConnection
-					if (!peer.connected && handshake(request)) {
+					if (!peer && handshake(request)) {
 						peer.onConnection(ex, _writer, *socket(), parameters);
 						parameters.reset();
 					}
 
 					// onInvocation/<method>/onRead
-					if (!ex && peer.connected) {
+					if (!ex && peer) {
 
 						/// HTTP GET & HEAD
 						switch (request->type) {
@@ -199,17 +200,24 @@ bool HTTPSession::manage() {
 	if (_pUpgradeSession)
 		return _pUpgradeSession->manage();
 
+	// Cancel timeout when subscribing => Case particular to HTTP which can't communicate in the both way in same time and has no ping feature
+	UInt32 timeout = this->timeout;
+	if (_pSubscription)
+		(UInt32&)this->timeout = 0;
+
 	if (!TCPSession::manage())
 		return false;
-
+	
 	// check subscription
-	if (_pSubscription && _pSubscription->ejected()) {
-		if (_pSubscription->ejected() == Subscription::EJECTED_BANDWITDH)
-			_writer.writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
-		// else HTTPWriter error, error already written!
-		unsubscribe();
+	if (_pSubscription) {
+		if (_pSubscription->ejected()) {
+			if (_pSubscription->ejected() == Subscription::EJECTED_BANDWITDH)
+				_writer.writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
+			// else HTTPWriter error, error already written!
+			unsubscribe();
+		}
+		(UInt32&)this->timeout = timeout;
 	}
-
 	return true;
 }
 
@@ -318,8 +326,34 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		}
 		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD, filePath.lastModified()==0 means "doesn't exists")
 		// Subscribe for a live stream with the basename file as stream name
-		if (!file.exists() && request->type == HTTP::TYPE_GET && (request->mime == MIME::TYPE_VIDEO || request->mime == MIME::TYPE_AUDIO))
-			return subscribe(ex, file.baseName(), _writer);
+		if (!file.exists()) {
+			switch (request->mime) {
+				case MIME::TYPE_TEXT:
+					// subtitle?
+					if (String::ICompare(file.extension(), "srt") != 0 && String::ICompare(file.extension(), "vtt") != 0)
+						break;
+				case MIME::TYPE_VIDEO:
+				case MIME::TYPE_AUDIO:
+					if (request->query == "?") {
+						// request publication properties!
+						const auto& it = api.publications.find(file.baseName());
+						if (it == api.publications.end())
+							_writer.writeError(HTTP_CODE_404, "Publication ", file.baseName(), " unfound");
+						else
+							MapReader<Parameters>(it->second).read(_writer.writeResponse("json"));
+					} else if (request->type == HTTP::TYPE_HEAD) {
+						// HEAD, want just immediatly the header format of audio/video live streaming!
+						HTTP_BEGIN_HEADER(*_writer.writeResponse())
+							HTTP_ADD_HEADER_LINE(HTTP_LIVE_HEADER)
+						HTTP_END_HEADER
+					} else
+						subscribe(ex, file.baseName(), _writer);
+					return;
+				default:;
+			}
+		}
+
+
 		if (!file.isFolder())
 			return _writer.writeFile(file, fileProperties);
 	}

@@ -23,25 +23,23 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
+/*!
+SRT subtitles compatible VTT */
+struct SRTWriter : MediaWriter, virtual Object {
+	SRTWriter(const char* timeFormat = "%TH:%M:%S,%i") : _timeFormat(timeFormat) {}
 
-struct ADTSWriter : MediaTrackWriter, virtual Object {
-	// Compatible AAC and MP3
-	// http://wiki.multimedia.cx/index.php?title=ADTS
-	// http://blog.olivierlanglois.net/index.php/2008/09/12/aac_adts_header_buffer_fullness_field
-	// http://thompsonng.blogspot.fr/2010/06/adts-audio-data-transport-stream-frame.html
-	// http://thompsonng.blogspot.fr/2010/03/aac-configuration.html
-
-	ADTSWriter() : _codecType(0),_channels(0) {}
-
-	void beginMedia();
-	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
-	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
+	void beginMedia(const OnWrite& onWrite);
+	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {}
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { _time = tag.time; }
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { _time = tag.time; }
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
+	void endMedia(const OnWrite& onWrite);
 
 private:
-	
-	UInt8	_codecType;
-	UInt8	_rateIndex;
-	UInt8	_channels;
+	shared<Buffer>	_pBuffer;
+	UInt32			_index;
+	UInt32			_time;
+	const char*		_timeFormat;
 };
 
 
