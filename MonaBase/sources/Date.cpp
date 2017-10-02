@@ -598,7 +598,7 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 					READ;
 					++count;
 				}
-				_time += String::ToNumber<Int64, 0>(times, count);
+				_time += String::ToNumber<Int64, 0>(times, count) * factor;
 				break;
 			}
 			case 'a':

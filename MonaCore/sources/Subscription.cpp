@@ -26,8 +26,8 @@ using namespace std;
 
 namespace Mona {
 
-Subscription::Subscription(Media::Target& target, UInt32 defaultTimeout) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
-	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(defaultTimeout), _defaultTimeout(defaultTimeout), _startTime(0), _lastTime(0),
+Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
+	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(0), _startTime(0), _lastTime(0),
 	_waitingFirstVideoSync(0), _pMediaWriter(NULL), _onMediaWrite([this](const Packet& packet) { writeData(0, Media::Data::TYPE_MEDIA, packet); }) {
 }
 
@@ -75,7 +75,7 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 	else if (String::ICompare(key, EXPAND("format")) == 0)
 		setFormat(pValue ? pValue->data() : NULL);
 	else if (String::ICompare(key, EXPAND("timeout")) == 0) {
-		_timeout = _defaultTimeout;
+		_timeout = 0;
 		if (pValue && String::ToNumber(*pValue, _timeout))
 			_timeout *= 1000;
 	} else if (String::ICompare(key, EXPAND("time")) == 0) {
@@ -83,7 +83,7 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 			switch (*pValue->c_str()) {
 				case '-':
 				case '+':
-				case 's': // to allow "time=source"
+				case 'r': // to allow "time=real"
 					// time relative to publication time (source time)
 					_firstTime = false;
 					/// _lastTime = tagIn.time - _startTime + _seekTime;
@@ -116,7 +116,7 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 }
 void Subscription::onParamClear() {
 	target.audioReliable = target.videoReliable = target.dataReliable = true;
-	_timeout = _defaultTimeout;
+	_timeout = 0;
 	setAudioTrack(-1);
 	setVideoTrack(-1);
 	target.dataTrack = -1;

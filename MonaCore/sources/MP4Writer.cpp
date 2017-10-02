@@ -142,20 +142,20 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 		return;
 	}
 
-	if (!tag.isConfig) { // config packet has not a safe time information
-		if (tag.time >= _timeBack) {
-			_timeBack = tag.time;
-			flush(onWrite); // flush before emplace_back
-		}  // else _timeBack unchanged, no flush possible
-	} else {
+
+	if (tag.isConfig) {
+		// config packet has not a safe time information
 		if (!packet) {
 			WARN("MP4 current implementation doesn't support dynamic noise suppression");
 			return; // ignore empty config packet (silence signal)
 		}
-		if (!_sequence)
+		if (_sequence)
 			WARN("Audio dynamic configuration change is not supported by MP4 format")
-	}
-
+	} else if (tag.time >= _timeBack) {
+		_timeBack = tag.time;
+		flush(onWrite); // flush before emplace_back
+	}  // else _timeBack unchanged, no flush possible
+	
 	if(tag.time<_timeFront) {
 		WARN("Timestamp already played, audio ignored");
 		return;
@@ -249,7 +249,7 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 			{ // tkhd
 				writer.write(EXPAND("\x00\x00\x00\x5c""tkhd\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00"));
 				writer.write32(++track);
-				writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+				writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00\xFF\xFF\x00\x00\xFF\xFF\x00\x00")); // width = height = -1 (to get default dimensions values rather)
 			}
 			{ // mdia
 				UInt32 sizePos = writer.size();

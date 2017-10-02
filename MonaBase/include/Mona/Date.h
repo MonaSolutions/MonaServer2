@@ -19,6 +19,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Time.h"
 #include "Mona/Timezone.h"
+#include "inttypes.h"
 
 namespace Mona {
 
@@ -197,7 +198,7 @@ struct Date : Time, virtual Object {
 							factor = 1000;
 							break;
 					}
-					out.append(buffer, snprintf(buffer, sizeof(buffer), "%02llu", time() / factor));
+					out.append(buffer, snprintf(buffer, sizeof(buffer), "%02" PRIu64, UInt64(time() / factor)));
 					break;
 				}
 				default: out.append(&c, 1);

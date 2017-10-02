@@ -126,11 +126,9 @@ bool String::ToNumber(const char* value, size_t size, Type& result)  {
 
 template<typename Type, typename>
 bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& result) {
-	int comma = 0;	
 	bool beginning = true, negative = false;
-	Int8 sign = 1;
-
 	long double number(0);
+	UInt64 comma(0);
 	
 	Type max = numeric_limits<Type>::max();
 
@@ -189,7 +187,7 @@ bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& resul
 		return false;
 	}
 
-	if (comma > 0)
+	if (comma)
 		number /= comma;
 
 	if (number > max) {

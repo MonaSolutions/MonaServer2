@@ -210,7 +210,12 @@ bool HTTPSession::manage() {
 	
 	// check subscription
 	if (_pSubscription) {
-		if (_pSubscription->ejected()) {
+		if (!_pSubscription->streaming(timeout)) {
+			INFO(name(), " timeout connection");
+			kill(ERROR_IDLE);
+			return false;
+		}
+		if(_pSubscription->ejected()) {
 			if (_pSubscription->ejected() == Subscription::EJECTED_BANDWITDH)
 				_writer.writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
 			// else HTTPWriter error, error already written!
