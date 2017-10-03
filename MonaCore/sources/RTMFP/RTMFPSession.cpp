@@ -83,7 +83,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 		// find or create flow requested
 		const auto& it = _flows.lower_bound(message.flowId);
 		if (it == _flows.end() || it->first != message.flowId)
-			_pFlow = &_flows.emplace_hint(it, piecewise_construct, forward_as_tuple(message.flowId), forward_as_tuple(peer))->second;
+			_pFlow = &_flows.emplace_hint(it, piecewise_construct, forward_as_tuple(message.flowId), forward_as_tuple(peer, _pSession->memberId))->second;
 		else
 			_pFlow = &it->second;
 
@@ -129,10 +129,10 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			if (it == groups.end() || memcmp(it->first, groupId, Entity::SIZE) != 0)
 				it = groups.emplace_hint(it, *new RTMFP::Group(groupId, groups));
 			if (_pFlow->join(*it->second)) {
-				// warn servers!
+				// warn servers (scalability)
 				shared<Buffer> pBuffer;
 				BinaryWriter writer(protocol<RTMFProtocol>().initBuffer(pBuffer));
-				writer.write(peer.id, Entity::SIZE).write(it->second->id, Entity::SIZE);
+				writer.write(_pSession->memberId, Entity::SIZE).write(it->second->id, Entity::SIZE);
 				RTMFP::WriteAddress(writer, peer.serverAddress, RTMFP::LOCATION_PUBLIC);
 				std::set<SocketAddress> addresses = protocol<RTMFProtocol>().addresses;
 				protocol<RTMFProtocol>().send(0x10, pBuffer, addresses);

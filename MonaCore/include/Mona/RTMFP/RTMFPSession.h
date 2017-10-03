@@ -37,7 +37,7 @@ struct RTMFPSession : RTMFP::Output, Session, Net::Stats, virtual Object {
 
 private:
 	struct Flow : virtual Object, RTMFP::Member {
-		Flow(Client& client) : _pGroup(NULL), streamId(0), _client(client) {}
+		Flow(Client& client, const UInt8* memberId) : _pGroup(NULL), streamId(0), _client(client), RTMFP::Member(memberId) {}
 		~Flow() { unjoin(); pWriter->close(); }
 
 		UInt16				streamId;

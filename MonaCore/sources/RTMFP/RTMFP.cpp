@@ -93,7 +93,7 @@ RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
 
 void RTMFP::Group::unjoin(RTMFP::Member& member) {
 	if (!erase(member)) {
-		WARN(String::Hex(member, Entity::SIZE)," was not member of group ", String::Hex(id, Entity::SIZE));
+		WARN(member->address," was not member of group ", String::Hex(id, Entity::SIZE));
 		return;
 	}
 	DEBUG(member->address, " unjoin group ", String::Hex(id, Entity::SIZE));

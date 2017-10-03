@@ -59,11 +59,14 @@ struct RTMFP : virtual Static {
 		MESSAGE_END				= 0x01
 	};
 
-	struct Member {
-		operator const UInt8*() { return client().id; }
+	struct Member : virtual Object {
+		Member(const  UInt8* id) : _id(id) {}
+		operator const UInt8*() { return _id; }
 		Client*					operator->() { return &client(); }
 		virtual Client&			client() = 0;
 		virtual RTMFPWriter&	writer() = 0;
+	private:
+		const  UInt8* _id;
 	};
 	struct Group : virtual Object, Entity, Entity::Map<Member> {
 		Group(const UInt8* id, Entity::Map<Group>& groups) : Entity(id), _groups(groups) {
@@ -133,12 +136,14 @@ struct RTMFP : virtual Static {
 		typedef Event<void(RTMFP::Flush&)>		ON(Flush);
 
 		Session(UInt32 id, UInt32 farId, const UInt8* farPubKey, UInt8 farPubKeySize, const UInt8* decryptKey, const UInt8* encryptKey, const shared<RendezVous>& pRendezVous) : 
-				id(id), farId(farId), peerId(), pDecoder(new Engine(decryptKey)), pEncoder(new Engine(encryptKey)), pRendezVous(pRendezVous), initiatorTime(0) {
+				id(id), farId(farId), peerId(), memberId(), pDecoder(new Engine(decryptKey)), pEncoder(new Engine(encryptKey)), pRendezVous(pRendezVous), initiatorTime(0) {
 			Crypto::Hash::SHA256(farPubKey, farPubKeySize, BIN peerId);
+			Crypto::Hash::SHA256(peerId, Entity::SIZE, BIN memberId);
 		}
 		const UInt32				id;
 		const UInt32				farId;
 		const UInt8					peerId[Entity::SIZE];
+		const UInt8					memberId[Entity::SIZE];
 		const shared<Engine>		pDecoder;
 		const shared<Engine>		pEncoder;
 		const shared<RendezVous>	pRendezVous;
