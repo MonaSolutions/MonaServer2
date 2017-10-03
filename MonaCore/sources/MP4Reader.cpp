@@ -919,7 +919,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 
 void MP4Reader::flushMedias(Media::Source& source) {
 	auto it = _medias.begin();
-	for (it; it != _medias.end(); ++it) {
+	for (; it != _medias.end(); ++it) {
 		if (!_times.empty()) {
 			if (it->first > _times.begin()->first)
 				break;
