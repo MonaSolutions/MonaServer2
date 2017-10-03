@@ -484,6 +484,8 @@ IPAddress::LocalAddresses::LocalAddresses() {
 
 		for (adapt = pAddresses; adapt; adapt = adapt->Next) {
 			for (aip = adapt->FirstUnicastAddress; aip; aip = aip->Next) {
+				if (aip->DadState != IP_DAD_STATE::IpDadStatePreferred)
+					continue; // useless address
 				if (aip->Address.lpSockaddr->sa_family == AF_INET6)
 					emplace_back(reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_scope_id);
 				else if (aip->Address.lpSockaddr->sa_family == AF_INET)
