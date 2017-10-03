@@ -29,11 +29,11 @@ namespace Mona {
 
 void RTMFP::Group::join(RTMFP::Member& member) {
 	// No check here on "member already in the group", because this check is done before
-	emplace_hint(exchange(member), member);
+	emplace_hint(exchange(member, member->id), member);
 	DEBUG(member->address, " join group ", String::Hex(id, Entity::SIZE));
 }
 
-RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
+RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId, const UInt8* peerId) {
 	// Give the 6 peers closest (see https://drive.google.com/open?id=0B21tGxCEiSXGcHpYTkNOMHVvXzg),
 	// to allow new member to estimate the more precisely possible N, and because its neighborns are desired
 	// by this member (relating RTMFP spec), so give it immediatly rather wait that it find it itself (save time and resource).
@@ -48,7 +48,7 @@ RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
 		--size;
 		if (!(--itSide)->second->writer())
 			continue; // ignore closed member
-		itSide->second->writer().sendMember(memberId);
+		itSide->second->writer().sendMember(peerId);
 		if (!--left)
 			break;
 	};
@@ -59,7 +59,7 @@ RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
 	while (itSide != end()) {
 		--size;
 		if (itSide->second->writer()) { // if is opened (not closed)
-			itSide->second->writer().sendMember(memberId);
+			itSide->second->writer().sendMember(peerId);
 			if (!--right)
 				break;
 		}
@@ -75,7 +75,7 @@ RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
 			if (!size--)
 				break;
 			if (it.second->writer()) // if is opened (not closed)
-				it.second->writer().sendMember(memberId);
+				it.second->writer().sendMember(peerId);
 		}
 	} else if (!right) {
 		// turn from left to end
@@ -85,7 +85,7 @@ RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId) {
 			if (!size--)
 				break;
 			if (it.second->writer()) // if is opened (not closed)
-				it.second->writer().sendMember(memberId);
+				it.second->writer().sendMember(peerId);
 		}
 	}
 	return it;

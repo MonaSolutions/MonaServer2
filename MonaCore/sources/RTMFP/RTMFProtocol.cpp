@@ -78,7 +78,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		if (it == groups.end())
 			return;
 		_pRendezVous->setRedirection(edgeMember, edgeMember.redirections, 400000); // timeout between 6 and 7 min => RTMFP session validity time (time max to dispatch edgeMember) + 95sec (time max of udp hole punching attempt) 
-		it->second->exchange(edgeMember.id);
+		it->second->exchange(edgeMember.id, edgeMember.peerId);
 	};
 	_onSession = [this](shared<RTMFP::Session>& pSession) {
 		RTMFPSession* pClient = this->sessions.find<RTMFPSession>(pSession->id);

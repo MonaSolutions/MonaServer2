@@ -76,7 +76,7 @@ struct RTMFP : virtual Static {
 			INFO("Deletion group ", String::Hex(id, Entity::SIZE));
 		}
 		void			join(Member& member);
-		const_iterator  exchange(const UInt8* memberId);
+		const_iterator  exchange(const UInt8* memberId, const UInt8* peerId);
 		void			unjoin(Member& member);
 	private:
 		Entity::Map<RTMFP::Group>& _groups;
@@ -111,8 +111,9 @@ struct RTMFP : virtual Static {
 		shared<Packet>		pResponse;
 	};
 	struct EdgeMember : Packet, virtual Object {
-		EdgeMember(const Packet& packet, std::map<SocketAddress, bool>& redirections) : redirections(std::move(redirections)), Packet(std::move(packet)), id(packet.data()), groupId(packet.data()+Entity::SIZE) {}
+		EdgeMember(const Packet& packet, std::map<SocketAddress, bool>& redirections) : redirections(std::move(redirections)), Packet(std::move(packet)), peerId(packet.data()), id(packet.data() + Entity::SIZE), groupId(packet.data()+(2*Entity::SIZE)) {}
 		const UInt8* id;
+		const UInt8* peerId;
 		const UInt8* groupId;
 		std::map<SocketAddress, bool> redirections;
 	};

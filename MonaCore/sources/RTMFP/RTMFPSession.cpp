@@ -132,7 +132,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 				// warn servers (scalability)
 				shared<Buffer> pBuffer;
 				BinaryWriter writer(protocol<RTMFProtocol>().initBuffer(pBuffer));
-				writer.write(_pSession->memberId, Entity::SIZE).write(it->second->id, Entity::SIZE);
+				writer.write(peer.id, Entity::SIZE).write(_pSession->memberId, Entity::SIZE).write(it->second->id, Entity::SIZE);
 				RTMFP::WriteAddress(writer, peer.serverAddress, RTMFP::LOCATION_PUBLIC);
 				std::set<SocketAddress> addresses = protocol<RTMFProtocol>().addresses;
 				protocol<RTMFProtocol>().send(0x10, pBuffer, addresses);

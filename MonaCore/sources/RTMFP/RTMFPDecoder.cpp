@@ -55,13 +55,13 @@ struct RTMFPDecoder::Handshake : virtual Object {
 		switch (type) {
 			case 0x10: {
 				// New member group, normally used between RTMFP servers
-				// format => memberId + groupId + redirection addresses
-				if (reader.available()<(Entity::SIZE*2)) {
-					ERROR("New member group message without valid peer/group id");
+				// format => peerId + memberId + groupId + redirection addresses
+				if (reader.available()<(Entity::SIZE*3)) {
+					ERROR("New member group message without valid peer/member/group id");
 					return;
 				}
 				Packet member(pBuffer, reader.current(), reader.available());
-				reader.next(Entity::SIZE*2); // peerId + groupId
+				reader.next(Entity::SIZE*3); // peerId + groupId
 				map<SocketAddress, bool> redirections({ {address , false} });
 				while (reader.available()) {
 					SocketAddress address;
