@@ -139,7 +139,12 @@ struct RTMFP : virtual Static {
 		Session(UInt32 id, UInt32 farId, const UInt8* farPubKey, UInt8 farPubKeySize, const UInt8* decryptKey, const UInt8* encryptKey, const shared<RendezVous>& pRendezVous) : 
 				id(id), farId(farId), peerId(), memberId(), pDecoder(new Engine(decryptKey)), pEncoder(new Engine(encryptKey)), pRendezVous(pRendezVous), initiatorTime(0) {
 			Crypto::Hash::SHA256(farPubKey, farPubKeySize, BIN peerId);
-			Crypto::Hash::SHA256(peerId, Entity::SIZE, BIN memberId);
+
+			// memberId/GroupAddress == sha256(210f + peerId)
+			static UInt8 rawId[Entity::SIZE + 2];
+			memcpy(rawId, "\x21\x0f", 2);
+			memcpy(rawId+2, peerId, Entity::SIZE);
+			Crypto::Hash::SHA256(rawId, Entity::SIZE+2, BIN memberId);
 		}
 		const UInt32				id;
 		const UInt32				farId;
