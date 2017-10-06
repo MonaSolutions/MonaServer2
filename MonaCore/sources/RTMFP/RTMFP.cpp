@@ -40,54 +40,41 @@ RTMFP::Group::const_iterator RTMFP::Group::exchange(const UInt8* memberId, const
 
 	auto it = lower_bound(memberId);
 	UInt32 size = this->size();
+	if (!size)
+		return it;
 
 	// Left side
+	UInt8 count = 3;
 	auto itSide = it;
-	UInt8 left = 3;
-	while (itSide != begin()) {
-		--size;
+	do {
+		if (itSide == begin())
+			itSide = end();
+
 		if (!(--itSide)->second->writer())
 			continue; // ignore closed member
+
 		itSide->second->writer().sendMember(peerId);
-		if (!--left)
-			break;
-	};
+		--count;
+	} while (--size && count);
+
+	if (!size)
+		return it;
 
 	// Right side
+	count = 3;
 	itSide = it;
-	UInt8 right = 3;
-	while (itSide != end()) {
-		--size;
-		if (itSide->second->writer()) { // if is opened (not closed)
+	do {
+		if (itSide == end())
+			itSide = begin();
+
+		if (itSide->second->writer()) { // ignore closed member
+
 			itSide->second->writer().sendMember(peerId);
-			if (!--right)
-				break;
+			--count;
 		}
 		++itSide;
-	};
+	} while (--size && count);
 
-	// Circle!
-	if (!left) {
-		// turn from right to begin
-		if (size > right)
-			size = right;
-		for (auto& it : *this) {
-			if (!size--)
-				break;
-			if (it.second->writer()) // if is opened (not closed)
-				it.second->writer().sendMember(peerId);
-		}
-	} else if (!right) {
-		// turn from left to end
-		if (size > left)
-			size = left;
-		for (auto& it : *this) {
-			if (!size--)
-				break;
-			if (it.second->writer()) // if is opened (not closed)
-				it.second->writer().sendMember(peerId);
-		}
-	}
 	return it;
 }
 
