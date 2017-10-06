@@ -50,8 +50,17 @@ Socket::~Socket() {
 		return;
 	// gracefull disconnection => flush + shutdown + close
 	/// shutdown + flush
-	shutdown();
+	Exception ignore;
+	flush(ignore, true);
+	close();
 	NET_CLOSESOCKET(_sockfd);
+}
+
+bool Socket::close(ShutdownType type) {
+	if (::shutdown(_sockfd, type) == 0)
+		return true;
+	Net::LastError(); // to pick up _errno
+	return false;
 }
 
 bool Socket::shutdown(Socket::ShutdownType type) {
@@ -62,10 +71,7 @@ bool Socket::shutdown(Socket::ShutdownType type) {
 		Exception ignore;
 		flush(ignore);
 	}
-	if (::shutdown(_sockfd, type) == 0)
-		return true;
-	Net::LastError(); // to pick up _errno
-	return false;
+	return close(type);
 }
 
 void Socket::init() {
@@ -422,8 +428,7 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 		} else {
 			// RELIABILITY IMPOSSIBLE => is not an error socket + is not connected (connecting = (peerAddress && error==NET_ENOTCONN) = false) + is not WOUldBLOCK
 			if (type == TYPE_STREAM) { // else udp socket which send a packet without destinator address
-				if (!::shutdown(_sockfd, SHUTDOWN_BOTH)) // shutdown system to avoid to try to send before shutdown!
-					Net::LastError(); // to pick up _errno
+				close(); // shutdown system to avoid to try to send before shutdown!
 				_sendings.clear();
 			}
 			return -1;
@@ -436,7 +441,7 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 	return sent;
 }
 
-bool Socket::flush(Exception& ex) {
+bool Socket::flush(Exception& ex, bool deleting) {
 	if (_sockex) {
 		ex = _sockex;
 		return false;
@@ -444,7 +449,9 @@ bool Socket::flush(Exception& ex) {
 
 	UInt32 written(0);
 
-	lock_guard<mutex> lock(_mutexSending);
+	unique_lock<mutex> lock(_mutexSending, defer_lock);
+	if (!deleting)
+		lock.lock();
 	int sent(0);
 	while(sent>=0 && !_sendings.empty()) {
 		Sending& sending(_sendings.front());
@@ -462,12 +469,15 @@ bool Socket::flush(Exception& ex) {
 			break;
 		} else if (type == TYPE_STREAM) {
 			// fail to send few reliable data, shutdown send!
-			if(!::shutdown(_sockfd, SHUTDOWN_BOTH)) // shutdown system to avoid to try to send before shutdown!
-				Net::LastError(); // to pick up _errno
+			close(); // shutdown system to avoid to try to send before shutdown!
 			_sendings.clear();
 			return false;
 		}
 		_sendings.pop_front();
+	}
+	if (deleting) {
+		_sendings.clear();
+		return true;
 	}
 	if (written)
 		_queueing -= written;

@@ -61,8 +61,14 @@ TLS::Socket::Socket(Type type, const shared<TLS>& pTLS) : pTLS(pTLS), Mona::Sock
 TLS::Socket::Socket(NET_SOCKET sockfd, const sockaddr& addr, const shared<TLS>& pTLS) : pTLS(pTLS), Mona::Socket(sockfd, addr), _ssl(NULL) {}
 
 TLS::Socket::~Socket() {
-	if (_ssl)
-		SSL_free(_ssl);
+	if (!_ssl)
+		return;
+	// gracefull disconnection => flush + shutdown + close
+	/// shutdown + flush
+	Exception ignore;
+	flush(ignore, true);
+	SSL_shutdown(_ssl);
+	SSL_free(_ssl);
 }
 
 UInt32 TLS::Socket::available() const {
@@ -170,23 +176,33 @@ UInt64 TLS::Socket::queueing() const {
 	return Mona::Socket::queueing();
 }
 
-bool TLS::Socket::flush(Exception& ex) {
+bool TLS::Socket::flush(Exception& ex, bool deleting) {
 	// Call when Writable!
 	if (!pTLS || Mona::Socket::queueing()) // if queueing a SLL_Write will do the handshake!
-		return Mona::Socket::flush(ex);
+		return Mona::Socket::flush(ex, deleting);
 	// maybe WRITE event for handshake need!
-	lock_guard<mutex> lock(_mutex);
+	unique_lock<mutex> lock(_mutex, defer_lock);
+	if (!deleting)
+		lock.lock();
 	if (!_ssl)
-		return Mona::Socket::flush(ex);
+		return Mona::Socket::flush(ex, deleting);
 	int result(catchResult(ex, SSL_do_handshake(_ssl)));
 	if (result >= 0) // handshake success
-		return Mona::Socket::flush(ex); // try to flush after hanshake
+		return Mona::Socket::flush(ex, deleting); // try to flush after hanshake
 	if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 		return false;
 	ex = nullptr;
 	return true;
 }
 
+bool TLS::Socket::close(Socket::ShutdownType type) {
+	if(type && pTLS) {
+		lock_guard<mutex> lock(_mutex);
+		if (_ssl) // shutdown just if SEND (or BOTH)
+			SSL_shutdown(_ssl); // ignore error, it's the error of main socket which has priority
+	}
+	return Mona::Socket::close(type);
+}
 
 struct SSLInitializer {
 	SSLInitializer() {

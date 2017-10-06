@@ -120,7 +120,7 @@ static const char* _MacLangs[149]{
 	"nya",
 	"mlg",
 	"epo", // 94
-	"xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx", "xxx",
+	"und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und", "und",
 	"wel", // 128
 	"baq",
 	"cat",
@@ -264,17 +264,18 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 			case Box::MOOV:
 				// Reset resources =>
 				_times.clear(); // force to flush all Medias!
-				flushMedias(source); // clear _medias
+				if (!_firstMoov) {
+					flushMedias(source); // clear _medias
+					source.reset();
+				} else
+					_firstMoov = false;
 				_audios = _videos = 0;
 				_pTrack = NULL;
 				_tracks.clear();
 				_chunks.clear();
 				_ids.clear();
 				_failed = false;
-				if (_firstMoov)
-					_firstMoov = false;
-				else
-					source.reset();
+				
 				_boxes.emplace_back();
 				continue;
 			case Box::MOOF:
@@ -300,11 +301,11 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				mdhd.next(version ? 8 : 4); // duration
 				// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap4/qtff4.html#//apple_ref/doc/uid/TP40000939-CH206-27005
 				UInt16 lang = mdhd.read16();
-				if (lang < 0x400) {
+				if (lang < 0x400 || lang==0x7FFF) { // if lang == 0x7FFF means "unspecified lang code" => "und"
 					if (lang >= 149)
-						lang = 100; // => xxx
+						lang = 100; // => und
 					memcpy(track.lang, _MacLangs[lang], 3);
-				} else if (lang != 0x7FFF && lang != 0x55C4) { // 0x55C4 = "und"!
+				} else if (lang != 0x55C4) { // 0x55C4 = no lang information
 					track.lang[0] = ((lang >> 10) & 0x1F) + 0x60;
 					track.lang[1] = ((lang >> 5) & 0x1F) + 0x60;
 					track.lang[2] = (lang & 0x1F) + 0x60;
@@ -917,7 +918,35 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 	return 0;
 }
 
+
 void MP4Reader::flushMedias(Media::Source& source) {
+	struct TrackReader : DataReader, virtual Object {
+		TrackReader(const Track& track) : _track(track), _done(false) {}
+		void		reset() { _done = false; }
+	private:
+		UInt8 followingType() { return _done ? END : OTHER; }
+		bool readOne(UInt8 type, DataWriter& writer) {
+			_done = true;
+			writer.beginObject();
+			if (_track.lang[0]) {
+				writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
+				writer.writeString(_track.lang, sizeof(_track.lang));
+			}
+			writer.endObject();
+			return true;
+		}
+
+		bool		 _done;
+		const Track& _track;
+	};
+	for (Track& track : _tracks) {
+		if (!track || !track.pType || track.propertiesFlushed)
+			continue;
+		track.propertiesFlushed = true;
+		TrackReader reader(track);
+		source.setProperties(track, reader);
+	}
+
 	auto it = _medias.begin();
 	for (; it != _medias.end(); ++it) {
 		if (!_times.empty()) {

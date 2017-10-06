@@ -52,9 +52,12 @@ struct TLS : virtual Object {
 
 		int	 sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags = 0);
 
-		bool flush(Exception& ex);
+		bool flush(Exception& ex) { return Mona::Socket::flush(ex); }
 	private:
-		int			  receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
+		int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
+		bool flush(Exception& ex, bool deleting);
+		bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);
+
 		Mona::Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr);
 
 		// Create a socket from Socket::accept

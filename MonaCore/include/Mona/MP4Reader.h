@@ -123,14 +123,16 @@ private:
 			Media::Type _type;
 		};
 
-		Track() : _id(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL) { lang[0] = 0; }
+		Track() : _id(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL), propertiesFlushed(false) { lang[0] = 0; }
 
 		operator UInt8() const { return _id; }
 		Track& operator=(UInt8 id) { _id = id; return *this; }
 
+		char						lang[3]; // if lang[0]==0 => undefined!
+		bool						propertiesFlushed;
+
 		double						time;
 		double						timeStep;
-		char						lang[3]; // if lang[0]==0 => undefined!
 		Type*						pType;
 		std::deque<Type>			types;
 

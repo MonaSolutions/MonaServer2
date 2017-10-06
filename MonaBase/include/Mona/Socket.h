@@ -131,7 +131,7 @@ struct Socket : virtual Object, Net::Stats {
 	int			 write(Exception& ex, const Packet& packet, int flags = 0) { return write(ex, packet, SocketAddress::Wildcard(), flags); }
 	int			 write(Exception& ex, const Packet& packet, const SocketAddress& address, int flags = 0);
 
-	virtual bool flush(Exception& ex);
+	bool		 flush(Exception& ex) { return flush(ex, false); }
 
 	template <typename ...Args>
 	static void SetException(Exception& ex, int error, Args&&... args) {
@@ -146,9 +146,10 @@ protected:
 	virtual int		receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 
 
-	void send(UInt32 count) { _sendTime = Time::Now(); _sendByteRate += count; }
-	void receive(UInt32 count) { _recvTime = Time::Now(); _recvByteRate += count; }
-
+	void			send(UInt32 count) { _sendTime = Time::Now(); _sendByteRate += count; }
+	void			receive(UInt32 count) { _recvTime = Time::Now(); _recvByteRate += count; }
+	virtual bool	flush(Exception& ex, bool deleting);
+	virtual bool	close(ShutdownType type = SHUTDOWN_BOTH);
 private:
 	void init();
 
