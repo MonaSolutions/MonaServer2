@@ -84,6 +84,9 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						ERROR("Handshake 0x30-0F rendezvous without peer id and 16 bytes tag field");
 						return;
 					}
+
+					DEBUG("Rendezvous request from ", address);
+
 					shared<Buffer> pBuffer;
 					
 					const UInt8* peerId(reader.current());
@@ -115,12 +118,12 @@ struct RTMFPDecoder::Handshake : virtual Object {
 						RTMFP::InitBuffer(pBuffer);
 						BinaryWriter writer(*pBuffer);
 						for (auto& it : aAddresses) {
-							if (!it.second)
-								continue; // useless to considerate local address on this side (in addition could exceeds packet size, and useless on the paper too, see UDP hole punching process)
-							writer.write8(0x0F).write16(it.first.host().size() + Entity::SIZE + 22).write24(0x22210F).write(peerId, Entity::SIZE);
-							DEBUG(bAddress, it.second ? " get public " : " get local ", it.first);
-							RTMFP::WriteAddress(writer, it.first, it.second ? RTMFP::LOCATION_PUBLIC : RTMFP::LOCATION_LOCAL);
-							writer.write(tag); // tag in footer
+							if (writer.size() < 1100 || it.second) { // could exceeds RTMFP::SIZE_PACKET, so write just public address if UDP packet is exceeding 1100 bytes (never more than 2 publics addresses in aAddresses)
+								writer.write8(0x0F).write16(it.first.host().size() + Entity::SIZE + 22).write24(0x22210F).write(peerId, Entity::SIZE);
+								DEBUG(bAddress, it.second ? " get public " : " get local ", it.first);
+								RTMFP::WriteAddress(writer, it.first, it.second ? RTMFP::LOCATION_PUBLIC : RTMFP::LOCATION_LOCAL);
+								writer.write(tag); // tag in footer
+							}
 						}
 						// create a new encoder to be thread safe =>
 						RTMFP::Send(socket, Packet(RTMFP::Engine(*pSession->pEncoder).encode(pBuffer, pSession->farId, bAddress)), bAddress);
