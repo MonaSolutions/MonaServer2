@@ -24,6 +24,7 @@ using namespace std;
 
 namespace Mona {
 
+
 struct RTMFPDecoder::Handshake : virtual Object {
 	OnHandshake		onHandshake;
 	OnEdgeMember	onEdgeMember;
@@ -97,7 +98,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 					map<SocketAddress, bool> aAddresses, bAddresses;
 					RTMFP::Session* pSession = _pRendezVous->meet<RTMFP::Session>(address, peerId, aAddresses, bAddress, bAddresses);
 					if (!pSession) {
-						if (!aAddresses.empty()) {
+						if (!aAddresses.empty() || this->tag == tag) {
 							// Redirection!
 							RTMFP::InitBuffer(pBuffer, 0x0B);
 							BinaryWriter writer(*pBuffer);
@@ -106,10 +107,15 @@ struct RTMFPDecoder::Handshake : virtual Object {
 								DEBUG(address, it.second ? " redirected to public " : " redirected to local ", it.first);
 								RTMFP::WriteAddress(writer, it.first, RTMFP::LOCATION_REDIRECTION);
 							}
+							if (aAddresses.empty()) {
+								RTMFP::WriteAddress(writer, SocketAddress::Wildcard(), RTMFP::LOCATION_UNSPECIFIED);
+								DEBUG(address, " get the wildcard address to inform peer death");
+							}
 							BinaryWriter(pBuffer->data() + 10, 2).write16(pBuffer->size() - 12);  // write size header
 							RTMFP::Send(socket, Packet(RTMFP::Engine::Encode(pBuffer, 0, address)), address);
 							return;
 						}
+						this->tag = move(tag); // save tag to log "unfound" repeating request and send Wildcard() if repeating (libRTMFP interprets it as: peer dies)
 						DEBUG("UDP Hole punching, session ", String::Hex(peerId, Entity::SIZE), " wanted not found")
 						return; // peerId unknown!
 					}

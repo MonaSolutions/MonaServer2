@@ -155,11 +155,7 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 		_timeBack = tag.time;
 		flush(onWrite); // flush before emplace_back
 	}  // else _timeBack unchanged, no flush possible
-	
-	if(tag.time<_timeFront) {
-		WARN("Timestamp already played, audio ignored");
-		return;
-	}
+
 	audios.emplace_back(tag, packet);
 }
 
@@ -204,10 +200,6 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	} else if (!packet)
 		return; // ignore empty config packet (silence signal)
 
-	if (tag.time<_timeFront) {
-		WARN("Timestamp already played, video ignored");
-		return;
-	}
 	videos.emplace_back(tag, packet);
 }
 
