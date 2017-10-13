@@ -38,7 +38,7 @@ HTTP::Header::Header(const char* protocol, const SocketAddress& serverAddress) :
 	mime(MIME::TYPE_UNKNOWN),
 	type(TYPE_UNKNOWN),
 	version(0),
-	connection(CONNECTION_ABSENT),
+	connection(CONNECTION_CLOSE),
 	ifModifiedSince(0),
 	subMime(NULL),
 	origin(NULL),
@@ -153,18 +153,16 @@ HTTP::Type HTTP::ParseType(const char* value, size_t size) {
 }
 
 UInt8 HTTP::ParseConnection(const char* value) {
-	UInt8 type(CONNECTION_ABSENT);
+	UInt8 type(CONNECTION_CLOSE);
 	String::ForEach forEach([&type](UInt32 index,const char* field){
-		if (String::ICompare(field, "upgrade") == 0)
-			type |= CONNECTION_UPGRADE;
-		else if (String::ICompare(field, "keep-alive") == 0)
-			type |= CONNECTION_KEEPALIVE;
-		else if (String::ICompare(field, "close") == 0)
-			type |= CONNECTION_CLOSE;
-		else if (String::ICompare(field, "update") == 0)
-			type |= CONNECTION_UPDATE;
-		else
-			WARN("Unknown HTTP type connection ", field);
+		if (String::ICompare(field, "close") != 0) {
+			if (String::ICompare(field, "keep-alive") == 0)
+				type |= CONNECTION_KEEPALIVE;
+			else if (String::ICompare(field, "upgrade") == 0)
+				type |= CONNECTION_UPGRADE;
+			else
+				WARN("Unknown HTTP type connection ", field);
+		}
 		return true;
 	});
 	String::Split(value, ",", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);

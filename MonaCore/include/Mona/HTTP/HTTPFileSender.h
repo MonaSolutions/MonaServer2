@@ -47,12 +47,13 @@ private:
 	};
 
 	void  run(const HTTP::Header& request, bool& keepalive);
-	void  onFlush();
 
 	bool  sendHeader(UInt64 fileSize);
 	bool  sendFile(const Packet& packet);
 	
 	shared<File::Decoder> newDecoder();
+
+	Decoder::OnEnd			_onEnd;
 
 	Parameters				_properties;
 	Path					_file;

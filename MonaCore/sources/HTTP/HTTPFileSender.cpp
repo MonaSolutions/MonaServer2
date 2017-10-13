@@ -28,7 +28,12 @@ HTTPFileSender::HTTPFileSender(const shared<Socket>& pSocket,
 	const shared<const HTTP::Header>& pRequest,
 	shared<Buffer>& pSetCookie,
 	IOFile& ioFile, const Path& file, Parameters& properties) : HTTPSender("HTTPFileSender", pSocket, pRequest, pSetCookie),
-		_file(file), _properties(move(properties)), FileReader(ioFile), _head(pRequest->type==HTTP::TYPE_HEAD) {
+		_file(file), _properties(move(properties)), FileReader(ioFile), _head(pRequest->type==HTTP::TYPE_HEAD),
+		_onEnd([this]() {
+			if (_keepalive)
+				return io.handler.queue(HTTPSender::onFlush);
+			socket()->shutdown();
+		}) {
 }
 
 bool HTTPFileSender::flush() {
@@ -41,18 +46,10 @@ bool HTTPFileSender::flush() {
 	return _head || _file.isFolder();
 }
 
-void HTTPFileSender::onFlush() {
-	if (_head)
-		return;
-	if (_keepalive)
-		return io.handler.queue(HTTPSender::onFlush);
-	socket()->shutdown();
-}
-
 
 shared<File::Decoder> HTTPFileSender::newDecoder() {
 	shared<Decoder> pDecoder(new Decoder(io.handler, socket()));
-	pDecoder->onEnd = HTTPSender::onFlush;
+	pDecoder->onEnd = _onEnd;
 	return pDecoder;
 }
 
@@ -106,8 +103,9 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 	}
 
 	// FILE
-	// /!\ Here if !_head we have to call onFlush on end!
+	// /!\ Here if !_head we have to call _onEnd on end!
 	if (!_head) {
+		// keep alive the time to read the file!
 		_keepalive = keepalive;
 		keepalive = true;
 	}
@@ -139,14 +137,15 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 
 		} else if (!sendError(HTTP_CODE_401, "Impossible to open ", request.path, '/', _file.name(), " file"))
 			return;
-		onFlush();
+		if(!_head)
+			_onEnd();
 		return;
 	}
 
 	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
 	if (!_properties.count() && request.ifModifiedSince >= (*this)->lastModified()) {
-		if(send(HTTP_CODE_304)) // NOT MODIFIED
-			onFlush();
+		if(send(HTTP_CODE_304) && !_head) // NOT MODIFIED
+			_onEnd();
 		return;
 	}
 
@@ -169,8 +168,8 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 			socket()->shutdown(); // can't repair the session (client wait content-length!)
 			return; 
 		}
-		if (sendFile(Packet(pBuffer, pBuffer->data(), readen)))
-			onFlush();
+		if (sendFile(Packet(pBuffer, pBuffer->data(), readen)) && !_head)
+			_onEnd();
 	} else if(sendHeader((*this)->size()) && !_head)
 		read();
 }

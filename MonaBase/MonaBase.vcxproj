@@ -198,6 +198,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Application.cpp" />
+    <ClCompile Include="sources\BitReader.cpp" />
     <ClCompile Include="sources\Buffer.cpp" />
     <ClCompile Include="sources\BufferPool.cpp" />
     <ClCompile Include="sources\Cache.cpp" />
@@ -251,6 +252,7 @@
   <ItemGroup>
     <ClInclude Include="include\Mona\Allocator.h" />
     <ClInclude Include="include\Mona\Binary.h" />
+    <ClInclude Include="include\Mona\BitReader.h" />
     <ClInclude Include="include\Mona\Buffer.h" />
     <ClInclude Include="include\Mona\BufferPool.h" />
     <ClInclude Include="include\Mona\Byte.h" />

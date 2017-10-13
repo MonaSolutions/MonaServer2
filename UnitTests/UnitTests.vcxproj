@@ -200,6 +200,7 @@
   <ItemGroup>
     <ClCompile Include="sources\BaseTest.cpp" />
     <ClCompile Include="sources\BinaryTest.cpp" />
+    <ClCompile Include="sources\BitTest.cpp" />
     <ClCompile Include="sources\BufferTest.cpp" />
     <ClCompile Include="sources\DateTest.cpp" />
     <ClCompile Include="sources\DecoderTest.cpp" />

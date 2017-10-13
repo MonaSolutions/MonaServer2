@@ -238,10 +238,21 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 			UInt32 sizePos = writer.size();
 			writer.next(4); // skip size!
 			writer.write(EXPAND("trak"));
+
+			Packet sps, pps, &config(videos.empty() ? videos.config : videos.front().config);
+			UInt32 dimension=0;
+			if (config && MPEG4::ParseVideoConfig(config, sps, pps)) {
+				config = nullptr;
+				dimension = MPEG4::SPSToVideoDimension(sps.data(), sps.size());
+			} else
+				WARN("No avcC configuration");
+
 			{ // tkhd
 				writer.write(EXPAND("\x00\x00\x00\x5c""tkhd\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00"));
 				writer.write32(++track);
-				writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00\xFF\xFF\x00\x00\xFF\xFF\x00\x00")); // width = height = -1 (to get default dimensions values rather)
+				writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00"));
+				writer.write16(dimension>>16).write16(0); // width
+				writer.write16(dimension&0xFFFF).write16(0); // height
 			}
 			{ // mdia
 				UInt32 sizePos = writer.size();
@@ -278,33 +289,32 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 							{ // avc1 TODO => switch to avc3 when players are ready? (test video config packet inband!)	
 								UInt32 sizePos = writer.size();
 								writer.next(4); // skip size!
-												// avc1
-												// 00 00 00 00 00 00	reserved (6 bytes)
-												// 00 01				data reference index (2 bytes)
-												// 00 00 00 00			version + revision level
-												// 00 00 00 00			vendor
-												// 00 00 00 00			temporal quality
-												// 00 00 00 00			spatial quality
-												// 00 00 00 00			width + height
-												// 00 00 00 00			horizontal resolution
-												// 00 00 00 00			vertical resolution
-												// 00 00 00 00			data size
-												// 00 01				frame by sample, always 1
-								writer.write(EXPAND("avc1\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"));
+								// avc1
+								// 00 00 00 00 00 00	reserved (6 bytes)
+								// 00 01				data reference index (2 bytes)
+								// 00 00 00 00			version + revision level
+								// 00 00 00 00			vendor
+								// 00 00 00 00			temporal quality
+								// 00 00 00 00			spatial quality
+								writer.write(EXPAND("avc1\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+								// 05 00 02 20			width + height
+								writer.write32(dimension); // width + height	
+								// 00 00 00 00			horizontal resolution
+								// 00 00 00 00			vertical resolution
+								// 00 00 00 00			data size
+								// 00 01				frame by sample, always 1
+								writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"));
 								// 32 x 0				32 byte pascal string - compression name
 								writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
 								// 00 18				depth (24 bits)
 								// FF FF				default color table
 								writer.write(EXPAND("\x00\x18\xFF\xFF"));
 
-								Packet sps, pps, &config(videos.empty() ? videos.config : videos.front().config);
-								if (config && MPEG4::ParseVideoConfig(config, sps, pps)) {
-									config = nullptr;
+								if (sps) {
 									// file:///C:/Users/mathieu/Downloads/standard8978%20(1).pdf => 5.2.1.1
 									UInt32 sizePos = writer.size();
 									BinaryWriter(pBuffer->data() + sizePos, 4).write32(MPEG4::WriteVideoConfig(sps, pps, writer.next(4).write(EXPAND("avcC"))).size() - sizePos);
-								} else
-									WARN("No avcC configuration");
+								}
 								BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 							} // avc1
 							BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);

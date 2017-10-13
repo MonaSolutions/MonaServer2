@@ -36,7 +36,7 @@ UInt32 BinaryReader::next(UInt32 count) {
 UInt32 BinaryReader::shrink(UInt32 available) {
 	UInt32 rest(this->available());
 	if (available > rest)
-		available = rest;
+		return rest;
 	_end = _current+ available;
 	_size = _end-_data;
 	return available;

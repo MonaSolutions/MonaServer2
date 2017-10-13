@@ -27,10 +27,11 @@ namespace Mona {
 struct MPEG4 : virtual Static {
 	static Media::Video::Frame UpdateFrame(UInt8 type, Media::Video::Frame frame = Media::Video::FRAME_UNSPECIFIED);
 
-	static bool   ParseVideoConfig(const Packet& packet, Packet& sps, Packet& pps);
+	static bool				ParseVideoConfig(const Packet& packet, Packet& sps, Packet& pps);
 
 	static UInt32			ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer);
 	static BinaryWriter&	WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer);
+	static UInt32			SPSToVideoDimension(const UInt8* data, UInt32 size);
 
 
 	static UInt8 ReadAudioConfig(const UInt8* data, UInt32 size, UInt32& rate, UInt8& channels);
@@ -43,7 +44,6 @@ struct MPEG4 : virtual Static {
 	static UInt8*	WriteAudioConfig(UInt8 type, UInt32 rate, UInt8 channels, UInt8 config[2]) { return WriteAudioConfig(type, RateToIndex(rate), channels, config); }
 	static UInt8*	WriteAudioConfig(UInt8 type, UInt8 rateIndex, UInt8 channels, UInt8 config[2]);
 	static UInt8	RateToIndex(UInt32 rate);
-
 };
 
 

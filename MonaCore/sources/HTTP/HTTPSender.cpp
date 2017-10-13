@@ -25,7 +25,7 @@ using namespace std;
 namespace Mona {
 
 bool HTTPSender::run(Exception&) {
-	bool keepalive(_connection != HTTP::CONNECTION_CLOSE); 
+	bool keepalive(_connection ? true : false); 
 	run(*_pRequest, keepalive);
 	if (!keepalive)
 		_pSocket->shutdown();
@@ -68,13 +68,9 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, co
 		writer.write(EXPAND("\r\nConnection: keep-alive"));
 		if (_connection&HTTP::CONNECTION_UPGRADE)
 			writer.write(EXPAND(", upgrade"));
-		if (_connection&HTTP::CONNECTION_CLOSE)
-			writer.write(EXPAND(", close"));
-	} else if (_connection&HTTP::CONNECTION_UPGRADE) {
+	} else if (_connection&HTTP::CONNECTION_UPGRADE)
 		writer.write(EXPAND("\r\nConnection: upgrade"));
-		if (_connection&HTTP::CONNECTION_CLOSE)
-			writer.write(EXPAND(", close"));
-	} else if (_connection&HTTP::CONNECTION_CLOSE)
+	else
 		writer.write(EXPAND("\r\nConnection: close"));
 
 	/// allow cross request, indeed if onConnection has not been rejected, every cross request are allowed

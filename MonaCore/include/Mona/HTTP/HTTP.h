@@ -120,11 +120,9 @@ struct HTTP : virtual Static {
 	};
 
 	enum Connection {
-		CONNECTION_ABSENT = 0,
-		CONNECTION_CLOSE = 1,
-		CONNECTION_UPGRADE = 2,
-		CONNECTION_KEEPALIVE = 4,
-		CONNECTION_UPDATE = 8
+		CONNECTION_CLOSE = 0, // close by default, other values requires a connection staying opened (upgrade or keepalive)
+		CONNECTION_UPGRADE = 1,
+		CONNECTION_KEEPALIVE = 2,
 	};
 
 	enum Sort {

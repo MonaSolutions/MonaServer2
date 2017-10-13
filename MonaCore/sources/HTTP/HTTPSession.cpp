@@ -38,7 +38,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 			if (!request.ex) {
 				//// Disconnection if requested or query changed (path changed is done in setPath)
-				if (request->connection&HTTP::CONNECTION_UPGRADE || request->connection&HTTP::CONNECTION_UPDATE || String::ICompare(peer.query, request->query) != 0) {
+				if (request->connection&HTTP::CONNECTION_UPGRADE || String::ICompare(peer.query, request->query) != 0) {
 					unpublish();
 					unsubscribe();
 					peer.onDisconnection();

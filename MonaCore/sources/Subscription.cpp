@@ -28,7 +28,9 @@ namespace Mona {
 
 Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
 	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(0), _startTime(0), _lastTime(0),
-	_waitingFirstVideoSync(0), _pMediaWriter(NULL), _onMediaWrite([this](const Packet& packet) { writeData(0, Media::Data::TYPE_MEDIA, packet); }) {
+	_waitingFirstVideoSync(0), _pMediaWriter(NULL), _onMediaWrite([&target](const Packet& packet) {
+		target.writeData(0, Media::Data::TYPE_MEDIA, packet);
+	}) {
 }
 
 Subscription::~Subscription() {
@@ -134,14 +136,11 @@ void Subscription::setAudioTrack(Int16 track) {
 		return;
 	track = 1;
 	for (const Publication::AudioTrack& audio : pPublication->audios) {
-		if (audio.config) {
-			Media::Audio::Tag config(audio.config);
-			config.time = _lastTime;
-			if (!target.writeAudio(UInt8(track), config, audio.config)) {
-				_ejected = EJECTED_ERROR;
-				return;
-			}
-		}
+		if (!audio.config)
+			continue;
+		writeAudio(UInt8(track), audio.config, audio.config);
+		if (_ejected)
+			return;
 		++track;
 	}
 }
@@ -153,14 +152,11 @@ void Subscription::setVideoTrack(Int16 track) {
 		return;
 	track = 1;
 	for (const Publication::VideoTrack& video : pPublication->videos) {
-		if (video.config) {
-			Media::Video::Tag config(video.config);
-			config.time = _lastTime;
-			if (!target.writeVideo(UInt8(track), config, video.config)) {
-				_ejected = EJECTED_ERROR;
-				return;
-			}
-		}
+		if (!video.config)
+			continue;
+		writeVideo(UInt8(track), video.config, video.config);
+		if (_ejected)
+			return;
 		++track;
 	}
 }
@@ -174,10 +170,13 @@ void Subscription::beginMedia() {
 		return; // wait publication running to start subscription
 
 	target.setMediaParams(*this); // begin with media params!
+	
 	if (!target.beginMedia(name())) {
 		_ejected = EJECTED_ERROR;
 		return;
 	}
+	if (_pMediaWriter)
+		_pMediaWriter->beginMedia(_onMediaWrite);
 	_waitingFirstVideoSync.update();
 	_streaming.update();
 	
@@ -194,22 +193,20 @@ void Subscription::beginMedia() {
 	// Send codecs settings on start! Time is 0 (like following first packet)
 	UInt8 track(1);
 	for (const Publication::AudioTrack& audio : pPublication->audios) {
-		if (audio.config) {
-			if(!target.writeAudio(track, audio.config, audio.config)) {
-				_ejected = EJECTED_ERROR;
-				return;
-			}
-		}
+		if (!audio.config)
+			continue;
+		writeAudio(UInt8(track), audio.config, audio.config);
+		if (_ejected)
+			return;
 		++track;
 	}
 	track = 1;
 	for (const Publication::VideoTrack& video : pPublication->videos) {
-		if (video.config) {
-			if (!target.writeVideo(track, video.config, video.config)) {
-				_ejected = EJECTED_ERROR;
-				return;
-			}
-		}
+		if (!video.config)
+			continue;
+		writeVideo(UInt8(track), video.config, video.config);
+		if (_ejected)
+			return;
 		++track;
 	}
 }
@@ -245,7 +242,10 @@ void Subscription::writeProperties(const Media::Properties& properties) {
 	if (_ejected)
 		return;
 	INFO("Properties sent to one ",name()," subscription")
-	if(!target.writeProperties(properties))
+	if(target.writeProperties(properties)) {
+		if (_pMediaWriter)
+			_pMediaWriter->writeProperties(properties, _onMediaWrite);
+	} else
 		_ejected = EJECTED_ERROR;
 }
 
@@ -275,7 +275,9 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 		return;
 	}
 
-	if(!target.writeData(track, type, packet))
+	if (_pMediaWriter)
+		_pMediaWriter->writeData(track, type, packet, _onMediaWrite);
+	else if(!target.writeData(track, type, packet))
 		_ejected = EJECTED_ERROR;
 }
 
