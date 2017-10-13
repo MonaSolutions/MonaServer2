@@ -23,7 +23,7 @@ On linux there are 2 prerequisites :
 
 Then you can checkout and compile MonaTiny :
 
-    git checkout https://github.com/MonaSolutions/MonaServer2.git
+    git clone https://github.com/MonaSolutions/MonaServer2.git
     cd MonaServer2
     make
 
@@ -31,7 +31,7 @@ Then you can checkout and compile MonaTiny :
 
 On Windows you have to install [Microsoft Visual Studio Express 2015 for Windows Desktop](https://www.visualstudio.com/fr/post-download-vs/?sku=xdesk&clcid=0x409&telem=ga).
 
-Then checkout this repository, open the **Mona.sln** project file, right clic on "MonaTiny" then clic on "Build".
+Then clone this repository, open the **Mona.sln** project file, right clic on "MonaTiny" then clic on "Build".
 
 You can then start MonaTiny (CTRL+F5 or F5 in debug mode).
 
