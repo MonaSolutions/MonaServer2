@@ -42,7 +42,7 @@ release:
 	mkdir -p tmp/release/
 	@$(MAKE) -k $(OBJECT)
 	@echo creating executable $(EXEC)
-	@$(CXX) $(CFLAGS) -O2 $(LDFLAGS) $(LIBDIRS) -o $(EXEC) $(OBJECT) $(LIBS)
+	@$(CXX) $(CFLAGS) -O3 $(LDFLAGS) $(LIBDIRS) -o $(EXEC) $(OBJECT) $(LIBS)
 
 debug:	
 	mkdir -p tmp/debug/

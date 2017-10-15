@@ -49,7 +49,7 @@ void RTMPWriter::flushing() {
 AMFWriter& RTMPWriter::write(AMF::Type type, UInt32 time, Media::Data::Type packetType, const Packet& packet, bool reliable) {
 	if(closed())
         return AMFWriter::Null();
-	_senders.emplace_back(new RTMPSender(type, time, streamId, _pChannel, _session.socket(), _pEncryptKey, packetType, packet));
+	_senders.emplace_back(new RTMPSender(type, time, streamId, _pChannel, _session, _pEncryptKey, packetType, packet));
 	return _senders.back()->writer;
 }
 

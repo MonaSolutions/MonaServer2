@@ -95,18 +95,13 @@ void Session::onParameters(const Parameters& parameters) {
 void Session::kill(Int32 error, const char* reason) {
 	if (died)
 		return;
-	(bool&)died = true;
-	peer.onParameters = nullptr;
 	if (error == ERROR_UNEXPECTED)
 		ERROR("Unexpected close from ", name());
-	// If Peer is shared, maybe it's also in an other session (morphing for example), so call kill of other possible session by this trick way
-	if (!_pPeer.unique()) {
-		_pPeer.reset(); // to avoid to call again kill morphing session from master session
-		peer.onClose(error, reason);
-	}
 	// Unsubscribe onClose before onDisconnection which could close the main writer (and so recall kill)
+	peer.onParameters = nullptr;
 	peer.onClose = nullptr;
 	peer.onDisconnection();
+	(bool&)died = true; // keep in last to allow TCPSession::send in peer.onDisconnection!
 }
 
 bool Session::manage() {
@@ -120,7 +115,8 @@ bool Session::manage() {
 		return false;
 	}
 	// Connection timeout to liberate useless socket ressource (usually used just for TCP session)
-	if (!timeout || (!peer.recvTime().isElapsed(timeout) && !peer.sendTime().isElapsed(timeout))) // Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
+	// Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
+	if (!timeout || (peer && (!peer.recvTime().isElapsed(timeout) || !peer.sendTime().isElapsed(timeout))) || !peer.disconnection.isElapsed(timeout))
 		return true;
 	INFO(name(), " timeout connection");
 	kill(ERROR_IDLE);

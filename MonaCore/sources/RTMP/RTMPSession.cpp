@@ -68,7 +68,7 @@ RTMPSession::RTMPSession(Protocol& protocol) : _first(true), _controller(2, *thi
 					return;
 				}
 			}
-			if(pStream->process(request.type, request.time, request, writer, *socket()))
+			if(pStream->process(request.type, request.time, request, writer, *self))
 				writer.flush();
 		}
 		if (!request.flush)
@@ -112,17 +112,20 @@ void RTMPSession::kill(Int32 error, const char* reason) {
 	_mainStream.onStart = nullptr;
 	_mainStream.onStop = nullptr;
 	_mainStream.clearStreams();
-	
-	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.clear() because call onDisconnection and writers can be used here
+
+	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.close() to allow last message
 	peer.onDisconnection();
 
-	// close writer (flush)
+	// close writers (flush)
 	for (auto& it : _writers)
 		it.second.close(error, reason);
-	_writers.clear(); 
-
-	// to disconnect!
+	
+	// in last because will disconnect
 	TCPSession::kill(error, reason);
+
+	// release resources (sockets)
+	_writers.clear();
+	_controller.clear();
 }
 
 bool RTMPSession::manage() {

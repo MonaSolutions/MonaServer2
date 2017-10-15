@@ -179,7 +179,7 @@ struct UDPEchoClient :  UDPSocket {
 	UDPEchoClient(IOSocket& io) : UDPSocket(io) {
 		onError = [this](const Exception& ex) { FATAL_ERROR("UDPEchoClient, ", ex); };
 		onPacket = [this](shared<Buffer>& pBuffer, const SocketAddress& address) {
-			CHECK(address == socket()->peerAddress());
+			CHECK(address == self->peerAddress());
 			CHECK(_packets.front().size() == pBuffer->size() && memcmp(_packets.front().data(), pBuffer->data(), pBuffer->size()) == 0);
 			_packets.pop_front();
 		};
@@ -229,13 +229,13 @@ ADD_TEST(UDP_NonBlocking) {
 	CHECK(!client.connected() && !client->peerAddress());
 
 	server.close();
-	CHECK(!server.bound() && !server->address());
+	CHECK(!server.bound() && !server);
 
 	server.onError = nullptr;
 	server.onPacket = nullptr;
 
 	client.close();
-	CHECK(!client->address())
+	CHECK(!client)
 
 	_ThreadPool.join();
 	handler.flush();
@@ -304,7 +304,7 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 
 		pConnection->onError = onError;
 		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address && !(*pConnection)->peerAddress());
+			CHECK(!pConnection->connected() && address && !*pConnection);
 			pConnections.erase(pConnection);
 			delete pConnection; // here no unsubscription required because event dies before the function
 		};
@@ -327,18 +327,18 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	address = server->address();
 	server.stop();
 	CHECK(!server.running() && server.start(ex, address) && !ex  && server.running());
-	
+
 	TCPEchoClient client(io, pClientTLS);
 	SocketAddress target(IPAddress::Loopback(), address.port());
 	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
 	client.echo(EXPAND("hi mathieu and thomas"));
 	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	CHECK(handler.join([&client]()->bool { return client.connected() && !client.echoing(); }));
+	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); } ));
 
 	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
 
 	client.disconnect();
-	CHECK(!client.connected() && !client->peerAddress());
+	CHECK(!client.connected() && !client);
 
 	CHECK(!client.ex);
 	
@@ -347,14 +347,14 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	if (client.connect(ex, unknown)) {
 		CHECK(!ex && !client.connected() && client.connecting() && client->address() && client->peerAddress() == unknown);
 		if (Util::Random()) // Random to check that with or without sending, after SocketEngine join we get a client.connected()==false!
-			CHECK(client.send(ex, Packet(EXPAND("salut"))) && !ex);
+			CHECK((client.send(ex, Packet(EXPAND("salut"))) && !ex) || ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED);
 		CHECK(handler.join([&client]()->bool { return !client.connecting(); }));
-		CHECK(client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED);
+		CHECK((ex && !client.ex) || client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED); // if ex it has been set by random client.send
 	}
 	CHECK(!client.connected() && !client.connecting());
 	
 	server.stop();
-	CHECK(!server.running());
+	CHECK(!server.running() && !server);
 	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
 
 	server.onConnection = nullptr;

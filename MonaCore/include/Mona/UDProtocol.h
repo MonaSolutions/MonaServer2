@@ -30,7 +30,7 @@ struct UDProtocol : Protocol, private UDPSocket, virtual Object {
 
 	bool load(Exception& ex) { return Protocol::load(ex) ? bind(ex, address) : true; }
 
-	const shared<Socket>&	socket() { return UDPSocket::socket(); }
+	const shared<Socket>&	socket() { return self; }
 
 protected:
 	UDProtocol(const char* name, ServerAPI& api, Sessions& sessions);

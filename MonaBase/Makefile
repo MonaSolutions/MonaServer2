@@ -33,7 +33,7 @@ release:
 	mkdir -p lib
 	@$(MAKE) -k $(OBJECT)
 	@echo creating dynamic lib $(LIB)
-	@$(CXX) $(CFLAGS) -O2 -fPIC $(SHARED) -o $(LIB) $(OBJECT) $(LIBS)
+	@$(CXX) $(CFLAGS) -O3 -fPIC $(SHARED) -o $(LIB) $(OBJECT) $(LIBS)
 	@echo creating static lib $(AR)
 	@ar rcs $(AR) $(OBJECT)
 

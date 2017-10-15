@@ -22,30 +22,24 @@ using namespace std;
 
 namespace Mona {
 
-TCPServer::TCPServer(IOSocket& io, const shared<TLS>& pTLS) : io(io), _pSocket(new TLS::Socket(Socket::TYPE_STREAM, pTLS)), _running(false) {
+TCPServer::TCPServer(IOSocket& io, const shared<TLS>& pTLS) : io(io), _pTLS(pTLS) {
 }
 
 TCPServer::~TCPServer() {
-	if (_running)
+	if (_pSocket)
 		io.unsubscribe(_pSocket);
 }
 
 bool TCPServer::start(Exception& ex,const SocketAddress& address) {
-	if (_running) {
+	if (_pSocket) {
 		if (address == _pSocket->address())
 			return true;
 		stop();
 	}
 
-	if (!_pSocket->bind(ex, address))
-		return false;
-	
-	if (!_pSocket->listen(ex))
-		return false;
-	_running = true; // _running before subscription to do working the possible "stop" on subscribption fails
-
-	// subscribe after bind + listen in TCP!
-	if (io.subscribe(ex, _pSocket, onConnection, onError))
+	_pSocket.reset(new TLS::Socket(Socket::TYPE_STREAM, _pTLS));
+	// can subscribe after bind + listen for server, no risk to miss an event
+	if (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, onConnection, onError))
 		return true;
 
 	stop();
@@ -53,12 +47,8 @@ bool TCPServer::start(Exception& ex,const SocketAddress& address) {
 }
 
 void TCPServer::stop() {
-	if (!_running)
-		return;
-	shared<TLS> pTLS(((TLS::Socket*)_pSocket.get())->pTLS);
-	io.unsubscribe(_pSocket);
-	_pSocket.reset(new TLS::Socket(Socket::TYPE_STREAM, pTLS));
-	_running = false;
+	if (_pSocket)
+		io.unsubscribe(_pSocket);
 }
 
 

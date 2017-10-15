@@ -41,7 +41,7 @@ private:
 
 	bool			handshake(HTTP::Request& request);
 
-	void			subscribe(Exception& ex, const std::string& stream, HTTPWriter& writer);
+	void			subscribe(Exception& ex, const std::string& stream);
 	void			unsubscribe();
 
 	void			publish(Exception& ex, const Path& stream);
@@ -57,7 +57,7 @@ private:
 	void			processPost(Exception& ex, HTTP::Request& request);
 	void			processPut(Exception& ex, HTTP::Request& request);
 
-	HTTPWriter			_writer;
+	unique<HTTPWriter>  _pWriter; // pointer to release source on session::kill
 	Subscription*		_pSubscription;
 	Publication*		_pPublication;
 

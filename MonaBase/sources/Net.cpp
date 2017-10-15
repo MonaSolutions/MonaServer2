@@ -16,7 +16,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Net.h"
 #if !defined(_WIN32)
-#include <signal.h>
+#include <sys/resource.h>
 #endif
 
 using namespace std;
@@ -60,7 +60,7 @@ const char* Net::ErrorToMessage(int error) {
 		case NET_ENOBUFS: return "No buffer space available";
 		case NET_EISCONN: return "Socket is already connected";
 		case NET_ENOTCONN: return "Socket is not connected";
-		case NET_ESHUTDOWN: return "Cannot send after socket shutdown";
+		case NET_ESHUTDOWN: return "Cannot read/write after socket shutdown";
 		case NET_ETIMEDOUT: return "Timeout";
 		case NET_ECONNREFUSED: return "Connection refused";
 		case NET_EHOSTDOWN: return "Host is down";
@@ -83,11 +83,14 @@ Net::Net() {
 	if (WSAStartup(version, &data) != 0)
 		FATAL_ERROR("Impossible to initialize network (version ", version, "), ", Net::LastErrorMessage());
 #else
-	// SIGPIPE sends a signal that if unhandled (which is the default)
-	// will crash the process.
-	// In order to have sockets behave the same across platforms, it is
-	// best to just ignore SIGPIPE all together.
-	signal(SIGPIPE, SIG_IGN);
+	// remove ulimit!
+	struct rlimit limit;
+	limit.rlim_cur = RLIM_INFINITY;
+	limit.rlim_max = RLIM_INFINITY;
+	if (setrlimit(RLIMIT_NOFILE, &limit) != 0 && getrlimit(RLIMIT_NOFILE, &limit) == 0) {
+		limit.rlim_cur = limit.rlim_max;
+		setrlimit(RLIMIT_NOFILE, &limit);
+	}
 #endif
 	// Get Default Recv/Send buffer size, connect before because on some targets environment it's required (otherwise SO_RCVBUF/SO_SNDBUF returns 0)
 	struct sockaddr_in address;

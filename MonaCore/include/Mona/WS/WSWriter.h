@@ -29,7 +29,7 @@ namespace Mona {
 struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	WSWriter(TCPSession& session) : _session(session) {}
 	
-	UInt64			queueing() const { return _session.socket()->queueing(); }
+	UInt64			queueing() const { return _session->queueing(); }
 
 	void			clear() { _senders.clear(); }
 
@@ -61,7 +61,7 @@ private:
 	DataWriter&		write(Args&&... args) {
 		if (closed())
 			return DataWriter::Null();
-		_senders.emplace_back(new SenderType(_session.socket(), std::forward<Args>(args)...));
+		_senders.emplace_back(new SenderType(_session, std::forward<Args>(args)...));
 		return _senders.back()->writer;
 	}
 

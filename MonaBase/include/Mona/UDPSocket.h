@@ -22,7 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct UDPSocket : virtual Object {
+struct UDPSocket : virtual NullableObject {
 	typedef Socket::OnReceived	ON(Packet);
 	typedef Socket::OnFlush		ON(Flush);
 	typedef Socket::OnError		ON(Error);
@@ -30,51 +30,46 @@ struct UDPSocket : virtual Object {
 	UDPSocket(IOSocket& io);
 	virtual ~UDPSocket();
 
-	IOSocket&				io;
-	const shared<Socket>&	socket() { return _pSocket; }
-	Socket*					operator->() { return _pSocket.get(); }
+	IOSocket&	io;
 
-	bool connect(Exception& ex, const SocketAddress& address);
-	bool connected() const { return _connected; }
+	operator	bool() const { return _pSocket.operator bool(); }
+	operator	const shared<Socket>&() { return _pSocket; }
+	Socket&		operator*() { return *_pSocket; }
+	Socket*		operator->() { return _pSocket.get(); }
 
-	bool bind(Exception& ex, const SocketAddress& address);
-	bool bind(Exception& ex, const IPAddress& ip = IPAddress::Wildcard()) { return bind(ex, SocketAddress(ip, 0)); }
-	bool bound() { return _bound;  }
+	bool		connect(Exception& ex, const SocketAddress& address);
+	bool		connected() const { return _connected; }
 
-	void disconnect();
-	void close();
+	bool		bind(Exception& ex, const SocketAddress& address);
+	bool		bind(Exception& ex, const IPAddress& ip = IPAddress::Wildcard()) { return bind(ex, SocketAddress(ip, 0)); }
+	bool		bound() { return _bound;  }
+
+	void		disconnect();
+	void		close();
+
+	bool		send(Exception& ex, const Packet& packet, int flags = 0) { return send(ex, packet, SocketAddress::Wildcard(), flags); }
+	bool		send(Exception& ex, const Packet& packet, const SocketAddress& address, int flags = 0);
 
 	/*!
-	Returns threadId on success or 0 otherwise, if queueing>0 wait onFlush before to continue to send large data */
-	bool	send(Exception& ex, const Packet& packet) { return send(ex, packet, SocketAddress::Wildcard()); }
-	bool	send(Exception& ex, const Packet& packet, UInt16& thread) { return send(ex, packet, SocketAddress::Wildcard(), thread); }
-	bool	send(Exception& ex, const Packet& packet, const SocketAddress& address) { return send(ex, packet, address, _sendingTrack) ? true : false; }
-	bool	send(Exception& ex, const Packet& packet, const SocketAddress& address, UInt16& thread) { return send(ex, std::make_shared<Sender>(_pSocket, packet, address), thread); }
-	template<typename SenderType>
-	bool	send(Exception& ex, const shared<SenderType>& pSender) { return (_sendingTrack=send<SenderType>(ex, pSender, _sendingTrack)) ? true : false; }
-	template<typename SenderType>
-	bool	send(Exception& ex, const shared<SenderType>& pSender, UInt16& thread) {
-		subscribe(ex); // warn (engine subscription not mandatory for udp sending)
-		return io.threadPool.queue(ex, pSender, thread);
-	}
-
-	struct Sender : Runner, Packet {
-		Sender(const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& address) : Runner("UDPSender"), _address(address), _pSocket(pSocket), Packet(std::move(packet)) {}
-		bool run(Exception& ex) { _pSocket->write(ex, *this, _address); return true; }
+	Runner example to send data with custom process in parallel thread */
+	struct Sender : Runner {
+		Sender(const shared<Socket>& pSocket, const Packet& packet, int flags = 0) :
+			Runner("UDPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)) { FATAL_CHECK(pSocket); }
+		Sender(const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& address, int flags = 0) :
+			Runner("UDPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)), _address(address) { FATAL_CHECK(pSocket); }
 	private:
+		bool run(Exception& ex) { _pSocket->write(ex, _packet, _address, _flags);  return true; } // UDP socket error is a WARN
 		shared<Socket>	_pSocket;
 		SocketAddress	_address;
+		Packet			_packet;
+		int				_flags;
 	};
 private:
 	virtual shared<Socket::Decoder> newDecoder() { return nullptr; }
 
-	bool subscribe(Exception& ex);
-
 	shared<Socket>		_pSocket;
-	bool						_connected;
-	bool						_bound;
-	bool						_subscribed;
-	UInt16						_sendingTrack;
+	bool				_connected;
+	bool				_bound;
 };
 
 

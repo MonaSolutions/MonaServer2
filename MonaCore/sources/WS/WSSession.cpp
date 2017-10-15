@@ -113,13 +113,10 @@ void WSSession::kill(Int32 error, const char* reason) {
 	unsubscribe();
 
 	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.clear() because call onDisconnection and writers can be used here
-	peer.onDisconnection();
-
-	// close writer (flush)
-	writer.close(error, reason);
-
-	// kill session!
 	Session::kill(error, reason);
+
+	// close writer (flush) and release socket resources
+	writer.close(error, reason);
 }
 
 void WSSession::subscribe(Exception& ex, string& stream, WSWriter& writer) {

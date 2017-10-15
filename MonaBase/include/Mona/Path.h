@@ -54,9 +54,9 @@ struct Path : virtual NullableObject {
 
 	// physical disk file
 	bool		exists(bool refresh = false) const { return _pImpl ? _pImpl->exists(refresh) : false; }
-	UInt64		size(bool refresh = false) const { return _pImpl ? _pImpl->size(refresh) : false; }
-	Int64		lastModified(bool refresh = false) const { return _pImpl ? _pImpl->lastModified(refresh) : false; }
-	UInt8		device() const { return _pImpl ? _pImpl->device() : false; }
+	UInt64		size(bool refresh = false) const { return _pImpl ? _pImpl->size(refresh) : 0; }
+	Int64		lastModified(bool refresh = false) const { return _pImpl ? _pImpl->lastModified(refresh) : 0; }
+	UInt8		device() const { return _pImpl ? _pImpl->device() : 0; }
 
 	// setters
 	template <typename ...Args>

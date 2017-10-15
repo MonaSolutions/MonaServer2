@@ -33,7 +33,7 @@ ADD_TEST(File) {
 	{
 		File file(name, File::MODE_WRITE);
 		CHECK(file.write(ex, EXPAND("Salut")) && !ex);
-		CHECK(file.size() == 5);
+		CHECK(file.written() == 5 && file.size(true) == 5);
 	}
 
 	{
@@ -41,7 +41,7 @@ ADD_TEST(File) {
 		File file(name, File::MODE_READ);
 		CHECK(file.size() == 10);
 		char data[10];
-		CHECK(file.read(ex, data, 20) == 10 && !ex && memcmp(data, EXPAND("SalutSalut")) == 0);
+		CHECK(file.read(ex, data, 20) == 10 && file.readen() == 10 && !ex && memcmp(data, EXPAND("SalutSalut")) == 0);
 		CHECK(!file.write(ex, data, sizeof(data)) && ex && ex.cast<Ex::Intern>());
 		ex = nullptr;
 	}
@@ -49,7 +49,7 @@ ADD_TEST(File) {
 	{
 		File file(name, File::MODE_WRITE);
 		CHECK(file.write(ex, EXPAND("Salut")) && !ex);
-		CHECK(file.size() == 5);
+		CHECK(file.written() == 5 && file.size(true) == 5);
 		char data[10];
 		CHECK(file.read(ex, data, sizeof(data)) == -1 && ex && ex.cast<Ex::Intern>());
 		ex = nullptr;
@@ -112,15 +112,15 @@ ADD_TEST(FileWriter) {
 	};
 	writer.open(name).write(salut);
 	io.join();
-	CHECK(writer->size() == 5);
+	CHECK(writer->written() == 5 && writer->size(true) == 5);
 	writer.write(salut);
 	io.join();
-	CHECK(writer->size() == 10);
+	CHECK(writer->written() == 10 && writer->size(true) == 10);
 	writer.close();
 
 	writer.open(name, true).write(salut);
 	io.join();
-	CHECK(writer->size() == 15);
+	CHECK(writer->written()==5 && writer->size(true) == 15);
 	writer.close();
 
 	CHECK(_Handler.join(0));

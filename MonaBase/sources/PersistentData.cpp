@@ -39,29 +39,25 @@ bool PersistentData::run(Exception& ex, const volatile bool& stopping) {
 
 		bool timeout(!wakeUp.wait(60000)); // 1 min timeout
 
-		for (;;) {
-
-			shared<Entry> pEntry;
-			{	// stop() must be encapsulated by _mutex!
-				std::lock_guard<std::mutex> lock(_mutex);
-				if (ex) {
-					// stop to display the error!
+		deque<shared<Entry>> entries;
+		{	// stop() must be encapsulated by _mutex!
+			std::lock_guard<std::mutex> lock(_mutex);
+			if (_entries.empty()) {
+				if (timeout)
 					stop();
-					return false;
-				}
-				if(_entries.empty()) {
-					if (timeout)
-						stop();
-					if(stopping)
-						return true;
-					break;
-				}
-				pEntry = move(_entries.front());
-				_entries.pop_front();
+				if (stopping)
+					return true;
+				continue;
 			}
-
-			processEntry(ex,*pEntry);
-			
+			entries = move(_entries);
+		}
+		for (shared<Entry>& pEntry : entries) {
+			processEntry(ex, *pEntry);
+			if (ex) {
+				// stop to display the error!
+				stop();
+				return false;
+			}
 		}
 	}
 }

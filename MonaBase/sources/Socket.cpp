@@ -27,44 +27,45 @@ namespace Mona {
 
 Socket::Socket(Type type) :
 #if !defined(_WIN32)
-	_pWeakThis(NULL), _firstWritable(true),
+	_pWeakThis(NULL),
 #endif
-	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _sockfd(NET_INVALID_SOCKET), _threadReceive(0) {
+	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
 
 	init();
 }
 
 // private constructor used just by Socket::accept, TCP initialized and connected socket
-Socket::Socket(NET_SOCKET sockfd, const sockaddr& addr) : _peerAddress(addr), _address(IPAddress::Loopback(),0), // computable!
+Socket::Socket(NET_SOCKET id, const sockaddr& addr) : _peerAddress(addr), _address(IPAddress::Loopback(),0), // computable!
 #if !defined(_WIN32)
-	_pWeakThis(NULL), _firstWritable(true),
+	_pWeakThis(NULL),
 #endif
-	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _sockfd(sockfd), _threadReceive(0) {
+	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
 
 	init();
 }
 
 
 Socket::~Socket() {
-	if (_sockfd == NET_INVALID_SOCKET)
+	if (_id == NET_INVALID_SOCKET)
 		return;
+	//::printf("DELETE socket %d\n", _id);
 	// gracefull disconnection => flush + shutdown + close
 	/// shutdown + flush
 	Exception ignore;
 	flush(ignore, true);
 	close();
-	NET_CLOSESOCKET(_sockfd);
+	NET_CLOSESOCKET(_id);
 }
 
 bool Socket::close(ShutdownType type) {
-	if (::shutdown(_sockfd, type) == 0)
+	if (::shutdown(_id, type) == 0)
 		return true;
 	Net::LastError(); // to pick up _errno
 	return false;
 }
 
 bool Socket::shutdown(Socket::ShutdownType type) {
-	if (_sockfd == NET_INVALID_SOCKET)
+	if (_id == NET_INVALID_SOCKET)
 		return false;
 	// Try to flush before to stop sending
 	if (type) { // type = SEND or BOTH
@@ -76,10 +77,10 @@ bool Socket::shutdown(Socket::ShutdownType type) {
 
 void Socket::init() {
 
-	if (_sockfd == NET_INVALID_SOCKET) {
-		_sockfd = ::socket(AF_INET6, type, 0);
-		if (_sockfd == NET_INVALID_SOCKET) {
-			SetException(_sockex, Net::LastError());
+	if (_id == NET_INVALID_SOCKET) {
+		_id = ::socket(AF_INET6, type, 0);
+		if (_id == NET_INVALID_SOCKET) {
+			SetException(_ex, Net::LastError());
 			return;
 		}
 	}
@@ -103,27 +104,27 @@ UInt32 Socket::available() const {
 		return value;
 #endif
 #if defined(_WIN32)
-	if (::ioctlsocket(_sockfd, FIONREAD, (u_long*)&value))
+	if (::ioctlsocket(_id, FIONREAD, (u_long*)&value))
 		return 0;
 	// size UDP packet on windows is impossible to determinate so take a multiple of 2 grater than max possible MTU (~1500 bytes)
 	return type == TYPE_DATAGRAM && value>2048 ? 2048 : value;
 #else
-	return ::ioctl(_sockfd, FIONREAD, &value) ? 0 : value;
+	return ::ioctl(_id, FIONREAD, &value) ? 0 : value;
 #endif
 }
 
 bool Socket::setNonBlockingMode(Exception& ex, bool value) {
 #if defined(_WIN32)
-	if (!ioctlsocket(_sockfd, FIONBIO, (u_long*)&value))
+	if (!ioctlsocket(_id, FIONBIO, (u_long*)&value))
 		return _nonBlockingMode = value;
 #else
-	int flags = fcntl(_sockfd, F_GETFL, 0);
+	int flags = fcntl(_id, F_GETFL, 0);
 	if (flags != -1) {
 		if (value)
 			flags |= O_NONBLOCK;
 		else
 			flags &= ~O_NONBLOCK;
-		if (fcntl(_sockfd, F_SETFL, flags) != -1)
+		if (fcntl(_id, F_SETFL, flags) != -1)
 			return _nonBlockingMode = value;
 	}
 #endif
@@ -152,7 +153,7 @@ const SocketAddress& Socket::address() const {
 			struct sockaddr_in6 sa_in6;
 		} addr;
 		NET_SOCKLEN addrSize = sizeof(addr);
-		if (::getsockname(_sockfd, (sockaddr*)&addr, &addrSize) == 0)
+		if (::getsockname(_id, (sockaddr*)&addr, &addrSize) == 0)
 			_address.set((sockaddr&)addr);
 	}
 	return _address;
@@ -160,8 +161,8 @@ const SocketAddress& Socket::address() const {
 
 
 bool Socket::setLinger(Exception& ex,bool on, int seconds) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 	struct linger l;
@@ -170,8 +171,8 @@ bool Socket::setLinger(Exception& ex,bool on, int seconds) {
 	return setOption(ex, SOL_SOCKET, SO_LINGER, l);
 }
 bool Socket::getLinger(Exception& ex, bool& on, int& seconds) const {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 	struct linger l;
@@ -200,8 +201,8 @@ bool Socket::getReusePort() const {
 }
 
 bool Socket::accept(Exception& ex, shared<Socket>& pSocket) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 	union {
@@ -212,7 +213,7 @@ bool Socket::accept(Exception& ex, shared<Socket>& pSocket) {
 	NET_SOCKET sockfd;
 	int error;
 	do {
-		sockfd = ::accept(_sockfd, (sockaddr*)&addr, &addrSize);
+		sockfd = ::accept(_id, (sockaddr*)&addr, &addrSize);
 	} while (sockfd == NET_INVALID_SOCKET && (error = Net::LastError()) == NET_EINTR);
 	if (sockfd == NET_INVALID_SOCKET) {
 		if (error == NET_EAGAIN)
@@ -228,8 +229,8 @@ bool Socket::accept(Exception& ex, shared<Socket>& pSocket) {
 }
 
 bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
@@ -243,9 +244,9 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 	// Allow to call multiple time this method, it can help on windows target to etablish a connection instead of waiting the connection!
 	int rc;
 	if(type == Socket::TYPE_DATAGRAM && !address) // fix a UDP disconnect problem (Wildcard IPv4-IPv6 mapping != sockaddr null!)
-		rc = ::connect(_sockfd, SocketAddress::Wildcard(IPAddress::IPv6).data(), SocketAddress::Wildcard(IPAddress::IPv6).size());
+		rc = ::connect(_id, SocketAddress::Wildcard(IPAddress::IPv6).data(), SocketAddress::Wildcard(IPAddress::IPv6).size());
 	else
-		rc = ::connect(_sockfd, address.data(), address.size());
+		rc = ::connect(_id, address.data(), address.size());
 
 	if (block)
 		setNonBlockingMode(ex, false); // reset blocking mode (as no effect if was subscribed to SocketEngine which forces non-blocking mode)
@@ -272,11 +273,11 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 			fd_set fdset;
 			timeval tv;
 			FD_ZERO(&fdset);
-			FD_SET(_sockfd, &fdset);
+			FD_SET(_id, &fdset);
 			tv.tv_sec = timeout;
 			tv.tv_usec = 0;
 
-			rc = select(_sockfd + 1, NULL, &fdset, NULL, &tv);
+			rc = select(_id + 1, NULL, &fdset, NULL, &tv);
 			if (rc <= 0) {
 				// timeout (=> connection refused) OR Error!
 				SetException(ex, rc ? NET_ECONNREFUSED : Net::LastError(), " (address=", address, ")");
@@ -294,8 +295,8 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 
 
 bool Socket::bind(Exception& ex, const SocketAddress& address) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
@@ -307,7 +308,7 @@ bool Socket::bind(Exception& ex, const SocketAddress& address) {
 		setLinger(ex, true, 0); // avoid a TCP port overriding on server usage
 		setReuseAddress(ex, true); // to avoid a conflict between address bind on not exactly same address (see http://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t)
 	}
-	if (::bind(_sockfd, address.data(), address.size()) != 0) {
+	if (::bind(_id, address.data(), address.size()) != 0) {
 		SetException(ex, Net::LastError(), " (address=", address, ")");
 		return false;
 	}
@@ -320,12 +321,12 @@ bool Socket::bind(Exception& ex, const SocketAddress& address) {
 }
 
 bool Socket::listen(Exception& ex, int backlog) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
-	if (::listen(_sockfd, backlog) == 0) {
+	if (::listen(_id, backlog) == 0) {
 		_listening = true;
 		return true;
 	}
@@ -334,8 +335,8 @@ bool Socket::listen(Exception& ex, int backlog) {
 }
 
 int Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return -1;
 	}
 	
@@ -348,10 +349,10 @@ int Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketA
 				struct sockaddr_in6 sa_in6;
 			} addr;
 			NET_SOCKLEN addrSize = sizeof(addr);
-			if ((rc = ::recvfrom(_sockfd, reinterpret_cast<char*>(buffer), size, flags, reinterpret_cast<sockaddr*>(&addr), &addrSize)) >= 0)
+			if ((rc = ::recvfrom(_id, reinterpret_cast<char*>(buffer), size, flags, reinterpret_cast<sockaddr*>(&addr), &addrSize)) >= 0)
 				pAddress->set(type == TYPE_STREAM ? peerAddress() : reinterpret_cast<const sockaddr&>(addr)); // check socket stream because WinSock doesn't assign correctly peerAddress on recvfrom for TCP socket
 		} else
-			rc = ::recv(_sockfd, reinterpret_cast<char*>(buffer), size, flags);
+			rc = ::recv(_id, reinterpret_cast<char*>(buffer), size, flags);
 	} while (rc < 0 && (error=Net::LastError()) == NET_EINTR);
 		
 	if (rc < 0) {
@@ -374,8 +375,8 @@ int Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketA
 }
 
 int Socket::sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return -1;
 	}
 
@@ -387,9 +388,9 @@ int Socket::sendTo(Exception& ex, const void* data, UInt32 size, const SocketAdd
 	int error;
 	do {
 		if (type == TYPE_DATAGRAM && address) // for TCP socket, address must be null!
-			rc = ::sendto(_sockfd, STR data, size, flags, address.data(), address.size());
+			rc = ::sendto(_id, STR data, size, flags, address.data(), address.size());
 		else
-			rc = ::send(_sockfd, STR data, size, flags);
+			rc = ::send(_id, STR data, size, flags);
 	} while (rc < 0 && (error=Net::LastError()) == NET_EINTR);
 	if (rc < 0) {
 		if (error == NET_EAGAIN)
@@ -421,8 +422,9 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 
 	int	sent = sendTo(ex, packet.data(), packet.size(), address);
 	if (sent < 0) {
-		if ((ex.cast<Ex::Net::Socket>().code == NET_ENOTCONN && _peerAddress) || ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK) {
-			// queue and wait onFlush, no error!
+		int code = ex.cast<Ex::Net::Socket>().code;
+		if ((code == NET_ENOTCONN && _peerAddress) || code == NET_EWOULDBLOCK) {
+			// queue and wait next call to flush(), no error!
 			ex = nullptr;
 			sent = 0;
 		} else {
@@ -442,8 +444,8 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 }
 
 bool Socket::flush(Exception& ex, bool deleting) {
-	if (_sockex) {
-		ex = _sockex;
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
@@ -463,15 +465,18 @@ bool Socket::flush(Exception& ex, bool deleting) {
 				sending += sent;
 				break;
 			}
-		} else if ((ex.cast<Ex::Net::Socket>().code == NET_ENOTCONN && _peerAddress) || ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK) {
-			// is connecting, can't send more now (wait onFlush)
-			ex = nullptr; 
-			break;
-		} else if (type == TYPE_STREAM) {
-			// fail to send few reliable data, shutdown send!
-			close(); // shutdown system to avoid to try to send before shutdown!
-			_sendings.clear();
-			return false;
+		} else {
+			int code = ex.cast<Ex::Net::Socket>().code;
+			if ((code == NET_ENOTCONN && _peerAddress) || code == NET_EWOULDBLOCK) {
+				// is connecting, can't send more now (wait onFlush)
+				ex = nullptr;
+				break;
+			} else if (type == TYPE_STREAM) {
+				// fail to send few reliable data, shutdown send!
+				close(); // shutdown system to avoid to try to send before shutdown!
+				_sendings.clear();
+				return false;
+			}
 		}
 		_sendings.pop_front();
 	}

@@ -59,14 +59,17 @@ void TCPSession::setSocketParameters(Socket& socket, const Parameters& parameter
 
 void TCPSession::onParameters(const Parameters& parameters) {
 	Session::onParameters(parameters);
-	setSocketParameters(*socket(), parameters);
+	setSocketParameters(*self, parameters);
 }
 
 void TCPSession::send(const Packet& packet) {
-	// No check "died" here because send must be possible on kill, check died just for Writer new message creation (pRunner new creation)
+	if (died) {
+		ERROR(name()," tries to send a message after dying");
+		return;
+	}
 	Exception ex;
 	bool success;
-	AUTO_ERROR(success = api.threadPool.queue(ex, make_shared<TCPClient::Sender>(socket(), packet), _sendingTrack), name());
+	AUTO_ERROR(success = api.threadPool.queue(ex, make_shared<TCPClient::Sender>(self, packet), _sendingTrack), name());
 	if (!success)
 		kill(ex.cast<Ex::Intern>() ? ERROR_RESOURCE : ERROR_SOCKET); // no more thread available? TCP reliable! => disconnection!
 }

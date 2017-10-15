@@ -30,6 +30,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 /////  Usefull macros and patchs   //////
 
+#define self    (*this)
+
 #define BIN		(Mona::UInt8*)
 #define STR		(char*)
 
@@ -74,7 +76,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 //
 
 #if defined(_DEBUG) && defined(_WIN32)
-	//#include <map> // A cause d'un pb avec le nouveau new debug! TODO enlever?
 	#define new new(_NORMAL_BLOCK, __FILE__, __LINE__)
 #endif
 
@@ -125,11 +126,9 @@ private:
 };
 
 struct NullableObject : virtual Object {
-	explicit operator bool() const { return false; }
 	// => No virtual for performance and to allow parent object to keep its methods (see SocketAddress => IPAddress inheritance)
 	// => explicit to avoid confusion with string operator override for example
-protected:
-	NullableObject() {}
+	explicit operator bool() const { return false; }
 };
 
 ////// ASCII ////////

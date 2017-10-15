@@ -61,7 +61,7 @@ HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0),_requesting(false
 
 HTTPWriter::~HTTPWriter() {
 	for (shared<HTTPSender>& pSender : _flushings)
-		pSender->onFlush = nullptr;
+		pSender->onFlush = nullptr; // to interrupt thread onFlush (pSender can be running in PoolThread)
 }
 
 void HTTPWriter::closing(Int32 error, const char* reason) {

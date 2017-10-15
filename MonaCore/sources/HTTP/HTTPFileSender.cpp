@@ -32,17 +32,14 @@ HTTPFileSender::HTTPFileSender(const shared<Socket>& pSocket,
 		_onEnd([this]() {
 			if (_keepalive)
 				return io.handler.queue(HTTPSender::onFlush);
-			socket()->shutdown();
+			socket()->shutdown(); // useless to addition handle.queue time (session is dying)
 		}) {
 }
 
 bool HTTPFileSender::flush() {
 	// /!\ Can be called by an other thread!
-	if (opened()) {
-		// continue to read file when paused on congestion
-		read();
-		return false;
-	}
+	if (opened() && self->readen() < self->size())
+		read(); // continue to read file when paused on congestion
 	return _head || _file.isFolder();
 }
 
@@ -56,7 +53,7 @@ shared<File::Decoder> HTTPFileSender::newDecoder() {
 UInt32 HTTPFileSender::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	// /!\ Parallel thread!
 	Packet packet(pBuffer);
-	if (!HTTP::Send(*_pSocket, packet))
+	if (packet && !HTTP::Send(*_pSocket, packet))
 		return 0; // stop reading (socket is shutdown now!)
 	if (end)
 		_handler.queue(onEnd);
@@ -153,7 +150,6 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 	// - Allow to parse every type of files! same a SVG file!
 	// - Allow to control "304 not modified code" response in checking arguments "If-Modified-Since" and update properties time
 	// - Allow by default to never parsing the document!
-
 	if (_properties.count() && (*this)->size() > 0xFFFF) {
 		ERROR(request.path, '/', _file.name(), " exceeds limit size of 65535 to allow parameter parsing, file parameters ignored");
 		_properties.clear();

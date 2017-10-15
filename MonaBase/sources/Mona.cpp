@@ -19,6 +19,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <mutex>
 #if !defined(_WIN32)
 #include <cxxabi.h>
+#include <signal.h>
 #endif
 
 
@@ -285,5 +286,22 @@ void DetectMemoryLeak() {
 #else
 void DetectMemoryLeak() {}
 #endif
+
+#if !defined(_WIN32)
+struct Init {
+	Init() {
+		// SIGPIPE sends a signal that if unhandled (which is the default)
+		// will crash the process.
+		// In order to have sockets behave the same across platforms, it is
+		// best to just ignore SIGPIPE all together.
+		struct sigaction act;
+		act.sa_handler = SIG_IGN;
+		act.sa_flags = SA_RESTART;
+		sigaction(SIGPIPE, &act, NULL);
+	}
+} _Init;
+
+#endif
+
 
 } // namespace Mona

@@ -34,8 +34,8 @@ TCProtocol::TCProtocol(const char* name, ServerAPI& api, Sessions& sessions, con
 
 
 TCProtocol::~TCProtocol() {
-	_server.onError = nullptr;
-	_server.onConnection = nullptr;
+	onError = nullptr;
+	onConnection = nullptr;
 }
 
 bool TCProtocol::load(Exception& ex) {

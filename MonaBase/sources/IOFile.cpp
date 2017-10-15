@@ -206,8 +206,9 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 			int size = pFile->read(ex, pBuffer->data(), pBuffer->size());
 			if (size < 0)
 				return false;
-			pBuffer->resize(size);
-			bool end = UInt32(size) < _size;
+			bool end = UInt32(size) < pBuffer->size();
+			if(end)
+				pBuffer->resize(size, true);
 			if (pFile->pDecoder) {
 				struct Decoding : Action {
 					Decoding(const Handler& handler, const shared<File>& pFile, const ThreadPool& threadPool, shared<Buffer>& pBuffer, bool end) : _threadPool(threadPool), _end(end), Action("DecodingFile", handler, pFile), _pBuffer(move(pBuffer)) {}
@@ -237,8 +238,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 		UInt32				_size;
 		const ThreadPool&	_threadPool;
 	};
-	if(size) // useless if 0 => to allows to garantee a right value to end param too!
-		dispatch(*pFile, make_shared<ReadFile>(handler, pFile, threadPool, size));
+	dispatch(*pFile, make_shared<ReadFile>(handler, pFile, threadPool, size));
 }
 
 void IOFile::write(const shared<File>& pFile, const Packet& packet) {

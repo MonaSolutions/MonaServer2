@@ -145,7 +145,7 @@ int TLS::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 	lock_guard<mutex> lock(_mutex);
 	if (!_ssl)
 		return Mona::Socket::receive(ex, buffer, size, flags, pAddress); // normal socket
-	int result = catchResult(ex, SSL_read(_ssl, buffer, size), " (from=", peerAddress(), ", size=", size, ", flags=", flags, ")");
+	int result = catchResult(ex, SSL_read(_ssl, buffer, size), " (from=", peerAddress(), ", size=", size, ")");
 
 	// assign pAddress (no other way possible here)
 	if(pAddress)
@@ -161,7 +161,7 @@ int TLS::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 	lock_guard<mutex> lock(_mutex);
 	if (!_ssl)
 		return Mona::Socket::sendTo(ex, data, size, address, flags); // normal socket
-	int result = catchResult(ex, SSL_write(_ssl, data, size), " (address=", address ? address : peerAddress(), ", size=", size, ", flags=", flags, ")");
+	int result = catchResult(ex, SSL_write(_ssl, data, size), " (address=", address ? address : peerAddress(), ", size=", size, ")");
 	if (result > 0)
 		Mona::Socket::send(result);
 	return result;

@@ -551,8 +551,7 @@ IPAddress::LocalAddresses::LocalAddresses() {
 #endif
 }
 
-struct IPBroadcaster : public IPAddress {
-public:
+struct IPBroadcaster : IPAddress {
 	IPBroadcaster() : IPAddress(IPv4) {
 		struct in_addr ia;
 		ia.s_addr = INADDR_BROADCAST;
@@ -560,8 +559,7 @@ public:
 	}
 };
 
-class IPLoopback : public IPAddress {
-public:
+struct IPLoopback : IPAddress {
 	IPLoopback(Family family) : IPAddress(family) {
 		if (family == IPv6) {
 			struct in6_addr	addr;

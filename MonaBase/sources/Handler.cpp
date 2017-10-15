@@ -33,26 +33,22 @@ void Handler::queue(const Event<void()>& onResult) const {
 	queue(make_shared<Result>(onResult));
 }
 
-UInt32 Handler::flush(UInt32 count) {
-	bool all(count==0);
-	UInt32 done(0);
-	for (;;) {
-		shared<Runner> pRunner;
-		{
-			lock_guard<mutex> lock(_mutex);
-			if (_runners.empty() || (!all && count--))
-				break;
-			pRunner = move(_runners.front());
-			_runners.pop_front();
-		}
-		Exception ex;
-		Thread::ChangeName newName(pRunner->name);
-		AUTO_ERROR(pRunner->run(ex), newName);
-		++done;
+UInt32 Handler::flush() {
+	// Flush all what is possible now, and not dynamically in real-time (in rechecking _runners)
+	// to keep the possibility to do something else between two flushs!
+	deque<shared<Runner>> runners;
+	{
+		lock_guard<mutex> lock(_mutex);
+		runners = move(_runners);
 	}
-	return done;
+	Exception ex;
+	for (shared<Runner>& pRunner : runners) {
+		Thread::ChangeName newName(pRunner->name);
+		AUTO_ERROR(pRunner->run(ex=nullptr), newName);
+		pRunner.reset(); // release resources
+	}
+	return runners.size();
 }
-
 
 
 } // namespace Mona

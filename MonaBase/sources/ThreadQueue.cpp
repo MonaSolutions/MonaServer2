@@ -29,27 +29,24 @@ bool ThreadQueue::run(Exception&, const volatile bool& stopping) {
 	_PCurrent = this;
 
 	for (;;) {
-
 		bool timeout = !wakeUp.wait(120000); // 2 mn of timeout
-		
-		for (;;) {
-			shared<Runner> pRunner;
-			{
-				std::lock_guard<std::mutex> lock(_mutex);
-				if(_runners.empty()) {
-					if (timeout)
-						stop(); // to set _stop immediatly!
-					if (stopping)
-						return true;
-					break;
-				}
-				pRunner = move(_runners.front());
-				_runners.pop_front();
+		deque<shared<Runner>> runners;
+		{
+			lock_guard<mutex> lock(_mutex);
+			if (_runners.empty()) {
+				if (timeout)
+					stop(); // to set _stop immediatly!
+				if (stopping)
+					return true;
+				continue;
 			}
-
-			Exception ex;
+			runners = move(_runners);
+		}
+		Exception ex;
+		for (shared<Runner>& pRunner : runners) {
 			setName(pRunner->name);
-			AUTO_ERROR(pRunner->run(ex), pRunner->name);
+			AUTO_ERROR(pRunner->run(ex = nullptr), pRunner->name);
+			pRunner.reset(); // release resources
 		}
 	}
 	return true;

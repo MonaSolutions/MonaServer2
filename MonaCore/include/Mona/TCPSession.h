@@ -27,13 +27,18 @@ namespace Mona {
 struct TCPSession : Session, private TCPClient, virtual Object {
 	void connect(const shared<Socket>& pSocket);
 
-	const shared<Socket>&	socket() { return TCPClient::socket(); }
+	operator const shared<Socket>&() { return TCPClient::operator const Mona::shared<Mona::Socket> &(); }
+	Socket*		operator->() { return TCPClient::operator->(); }
+	Socket&		operator*() { return TCPClient::operator*(); }
 
 	void send(const Packet& packet);
 
 	template<typename RunnerType>
 	void send(const shared<RunnerType>& pRunner)  {
-		// No check "died" here because send must be possible on kill, check died just for Writer new message creation (pRunner new creation)
+		if (died) {
+			ERROR(name(), " tries to send a message after dying");
+			return;
+		}
 		Exception ex;
 		bool success;
 		AUTO_ERROR(success = api.threadPool.queue(ex, pRunner, _sendingTrack), name());

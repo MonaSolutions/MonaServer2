@@ -27,7 +27,7 @@ using namespace std;
 namespace Mona {
 
 
-RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions), _pRendezVous(new RendezVous()){
+RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions), _pRendezVous(new RendezVous()) {
 	memcpy(_certificat, "\x01\x0A\x41\x0E", 4);
 	Util::Random(&_certificat[4], 64);
 	memcpy(&_certificat[68], "\x02\x15\x02\x02\x15\x05\x02\x15\x0E", 9);

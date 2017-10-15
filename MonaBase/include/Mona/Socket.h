@@ -61,6 +61,9 @@ struct Socket : virtual Object, Net::Stats {
 
 	const	Type		type;
 
+	NET_SOCKET			id() const { return _id; }
+	operator NET_SOCKET() const { return _id; }
+
 	virtual bool		isSecure() const { return false; }
 
 	Time				recvTime() const { return _recvTime.load(); }
@@ -73,8 +76,6 @@ struct Socket : virtual Object, Net::Stats {
 
 	virtual UInt32		available() const;
 	virtual UInt64		queueing() const { return _queueing; }
-
-	operator NET_SOCKET() const { return _sockfd; }
 	
 	const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }
@@ -134,14 +135,15 @@ struct Socket : virtual Object, Net::Stats {
 	bool		 flush(Exception& ex) { return flush(ex, false); }
 
 	template <typename ...Args>
-	static void SetException(Exception& ex, int error, Args&&... args) {
+	static Exception& SetException(Exception& ex, int error, Args&&... args) {
 		ex.set<Ex::Net::Socket>(Net::ErrorToMessage(error), std::forward<Args>(args)...).code = error;
+		return ex;
 	}
 
 protected:
 
 	// Create a socket from Socket::accept
-	Socket(NET_SOCKET sockfd, const sockaddr& addr);
+	Socket(NET_SOCKET id, const sockaddr& addr);
 	virtual Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr) { return new Socket(sockfd, (sockaddr&)addr); }
 	virtual int		receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 
@@ -155,12 +157,12 @@ private:
 
 	template<typename Type>
 	bool getOption(Exception& ex, int level, int option, Type& value) const {
-		if (_sockex) {
-			ex = _sockex;
+		if (_ex) {
+			ex = _ex;
 			return false;
 		}
         NET_SOCKLEN length(sizeof(value));
-		if (::getsockopt(_sockfd, level, option, reinterpret_cast<char*>(&value), &length) != -1)
+		if (::getsockopt(_id, level, option, reinterpret_cast<char*>(&value), &length) != -1)
 			return true;
 		SetException(ex, Net::LastError()," (level=",level,", option=",option,", length=",length,")");
 		return false;
@@ -168,12 +170,12 @@ private:
 
 	template<typename Type>
 	bool setOption(Exception& ex, int level, int option, Type value) {
-		if (_sockex) {
-			ex = _sockex;
+		if (_ex) {
+			ex = _ex;
 			return false;
 		}
         NET_SOCKLEN length(sizeof(value));
-		if (::setsockopt(_sockfd, level, option, reinterpret_cast<const char*>(&value), length) != -1)
+		if (::setsockopt(_id, level, option, reinterpret_cast<const char*>(&value), length) != -1)
 			return true;
 		SetException(ex, Net::LastError()," (level=",level,", option=",option,", length=",length,")");
 		return false;
@@ -186,8 +188,8 @@ private:
 		const int			flags;
 	};
 
-	Exception					_sockex;
-	NET_SOCKET					_sockfd;
+	Exception					_ex;
+	NET_SOCKET					_id;
 
 	volatile bool				_nonBlockingMode;
 
@@ -222,7 +224,6 @@ private:
 
 #if !defined(_WIN32)
 	weak<Socket>*				_pWeakThis;
-	bool						_firstWritable;
 #endif
 
 	friend struct IOSocket;

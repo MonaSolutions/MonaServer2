@@ -24,34 +24,29 @@ using namespace std;
 namespace Mona {
 
 
-UDPSocket::UDPSocket(IOSocket& io) : _sendingTrack(0), io(io), _connected(false), _bound(false), _subscribed(false), _pSocket(new Socket(Socket::TYPE_DATAGRAM)) {
+UDPSocket::UDPSocket(IOSocket& io) : io(io), _connected(false), _bound(false) {
 }
 
 UDPSocket::~UDPSocket() {
-	if (_subscribed)
+	if (_pSocket)
 		io.unsubscribe(_pSocket);
 }
 
-bool UDPSocket::subscribe(Exception& ex) {
-	if (_subscribed)
-		return true;
-	return _subscribed= io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError);
-}
-
-
 bool UDPSocket::connect(Exception& ex, const SocketAddress& address) {
-	// connect
-	if (!_pSocket->connect(ex, address))
-		return false;
-	// subscribe after connect for not getting two WRITE events (useless and impact socket performance)
-	if(subscribe(ex))
+	if (!_pSocket) {
+		_pSocket.reset(new Socket(Socket::TYPE_DATAGRAM));
+		io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError);
+	}
+	if (_pSocket->connect(ex, address))
 		return _connected = true;
-	// to reset the not working socket which has been able to connect but can't receive (connect = send + receive ability)
-	close();
+	close(); // release resources
 	return false;
 }
 
+
 void UDPSocket::disconnect() {
+	if (!_pSocket)
+		return;
 	Exception ex;
 	if (_pSocket->connect(ex, SocketAddress::Wildcard()))
 		_connected = false;
@@ -65,21 +60,24 @@ bool UDPSocket::bind(Exception& ex, const SocketAddress& address) {
 			return true;
 		close();
 	}
-	if (!_pSocket->bind(ex, address))
-		return false;
-	if (subscribe(ex))
+	_pSocket.reset(new Socket(Socket::TYPE_DATAGRAM));
+	if (io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError) && _pSocket->bind(ex, address))
 		return _bound = true;
-	// to reset the not working socket which has been able to bind!
-	close();
-	return false; 
+	close(); // release resources
+	return false;
 }
 
 void UDPSocket::close() {
-	if (_subscribed)
+	if (_pSocket)
 		io.unsubscribe(_pSocket);
-	_sendingTrack = 0;
-	_connected = _bound = _subscribed = false;
-	_pSocket.reset(new Socket(Socket::TYPE_DATAGRAM));
+	_connected = _bound = false;
 }
+
+bool UDPSocket::send(Exception& ex, const Packet& packet, const SocketAddress& address, int flags) {
+	if (!_pSocket && !bind(ex))  // explicit bind to create and subscribe socket
+		return false;
+	return _pSocket->write(ex, packet, address, flags) != -1;
+}
+
 
 } // namespace Mona

@@ -65,6 +65,9 @@ struct File : virtual NullableObject {
 
 	bool		loaded() const { return _handle != -1; }
 
+	UInt64		readen() const { return _readen; }
+	UInt64		written() const { return _written; }
+
 	UInt64		queueing() const;
 
 	// File operation
@@ -72,7 +75,7 @@ struct File : virtual NullableObject {
 	If reading error => Ex::Permission || Ex::Unfound || Ex::Intern */
 	bool				load(Exception& ex);
 	/*!
-	If reading error => Ex::System::File || Ex::Intern */
+	If reading error returns -1 => Ex::System::File || Ex::Intern */
 	int					read(Exception& ex, void* data, UInt32 size);
 	/*!
 	If writing error => Ex::System::File || Ex::Intern */
@@ -81,8 +84,10 @@ struct File : virtual NullableObject {
 	void				reset();
 
 private:
-	Path			_path;
-	long			_handle;
+	Path				_path;
+	long				_handle;
+	std::atomic<UInt64>	_readen;
+	std::atomic<UInt64>	_written;
 
 	//// Used by IOFile /////////////////////
 	shared<Decoder>				pDecoder;

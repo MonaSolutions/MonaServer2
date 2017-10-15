@@ -34,7 +34,7 @@ release:
 	mkdir -p lib
 	@$(MAKE) -k $(OBJECT)
 	@echo creating dynamic lib $(LIB)
-	@$(CXX) $(CFLAGS) -O2 $(LIBDIRS) -fPIC $(SHARED) -o $(LIB) $(OBJECT) $(LIBS)
+	@$(CXX) $(CFLAGS) -O3 $(LIBDIRS) -fPIC $(SHARED) -o $(LIB) $(OBJECT) $(LIBS)
 
 debug:
 	mkdir -p tmp/debug

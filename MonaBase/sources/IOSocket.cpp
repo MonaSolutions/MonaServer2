@@ -288,16 +288,12 @@ private:
 
 
 void IOSocket::write(const shared<Socket>& pSocket, int error) {
-	//::printf("WRITE(%d) socket %d\n", error, pSocket->_sockfd);
-#if !defined(_WIN32)
-	if (pSocket->_firstWritable)
-		pSocket->_firstWritable = false;
-#endif
+	// ::printf("WRITE(%d) socket %d\n", error, pSocket->id());
 	Action::Run(threadPool, make_shared<Send>(error, pSocket));
 }
 
 void IOSocket::read(const shared<Socket>& pSocket, int error) {
-	//::printf("READ(%d) socket %d\n", error, pSocket->_sockfd);
+	// ::printf("READ(%d) socket %d\n", error, pSocket->id());
 	if(pSocket->_reading && !error)
 		return; // useless!
 	++pSocket->_reading;
@@ -338,11 +334,15 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 					return true;
 				shared<Socket> pConnection;
 				bool stop(false);
-				while(!stop && pSocket->accept(ex, pConnection))
+				do {
+					if (!pSocket->accept(ex, pConnection)) {
+						if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
+							return false;
+						ex = nullptr;
+						return true;
+					}
 					handle<Handle>(pSocket, pConnection, stop);
-				if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
-					return false;
-				ex = nullptr;
+				} while (!stop);
 				return true;
 			}
 		};
@@ -397,22 +397,28 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				bool queueing(pSocket->queueing() ? true : false);
 				int received = pSocket->receive(ex, pBuffer->data(), available, 0, &address);
 				if (received < 0) {
-					// if NET_EMSGSIZE => UDP packet lost! (can happen on windows! error displaid!)
-					// error, but not necessary a disconnection
-					if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
-						return false;
-					// ::printf("NET_EWOULDBLOCK %d\n", pSocket->_sockfd);
+					if (ex.cast<Ex::Net::Socket>().code != NET_ESHUTDOWN) {
+						// if NET_EMSGSIZE => UDP packet lost! (can happen on windows! error displaid!)
+						// error, but not necessary a disconnection
+						if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
+							return false; 
+						// ::printf("NET_EWOULDBLOCK %d\n", pSocket->id());
+						ex = nullptr;
+						// Should almost never happen, when happen it's usually a "would block" relating a writing request (SSL handshake for example)
+						if (queueing)
+							Send(0, pSocket).process(ex, pSocket);
+						available = pSocket->available();
+						if (available)
+							continue;
+						break;
+					}
+					// If "shutdown" error on receive it means that that the user has called a shutdown BOTH because waits nothing else however IOSocket has receveid the "recv=0", so it's not an error!
 					ex = nullptr;
-					// Should almost never happen, when happen it's usually a "would block" relating a writing request (SSL handshake for example)
-					if (queueing)
-						Send(0, pSocket).process(ex, pSocket);
-					available = pSocket->available();
-					if (available)
-						continue;
-					break;
+					pSocket->_reading = 0xFF; // block reception!
+					return true;
 				}
 
-				// a recv returns 0 without any error can happen on TCP socket one time disconncted!
+				// a recv returns 0 without any error can happen on TCP socket one time disconnected!
 				if (!received && pSocket->type == Socket::TYPE_STREAM) {
 					pSocket->_reading = 0xFF; // block reception!
 					return true;
@@ -438,7 +444,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 }
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
-	//::printf("CLOSE(%d) socket %d\n", error, pSocket->_sockfd);
+	// ::printf("CLOSE(%d) socket %d\n", error, pSocket->id());
 	if (pSocket->type != Socket::TYPE_STREAM)
 		return; // no Disconnection requirement!
 	struct Close : Action {
@@ -465,7 +471,7 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 #if defined(_WIN32)
 	WNDCLASSEX wc;
-	memset(&wc, 0, sizeof(wc));
+	::memset(&wc, 0, sizeof(wc));
 	wc.cbSize = sizeof(WNDCLASSEX);
 	wc.lpfnWndProc = DefWindowProc;
 	wc.lpszClassName = name();
@@ -483,7 +489,8 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 		_eventFD = pipefds[1];
 	}
 
-// max possible socket, must be limited to the maximum threads possible on the system (and not too high because can exceeds stack limitation of 1Mo like on Android)
+	// max possible socket, must be superior to the maximum threads possible on the system, 
+	// and not too high because could exceed stack limitation of 1Mo like on Android
 #define MAXEVENTS  1024
 
 #if defined(_BSD)
@@ -627,7 +634,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 			int error = 0;
 			if (event.flags&EV_ERROR) {
 				socklen_t len(sizeof(error));
-				if (getsockopt(pSocket->_sockfd, SOL_SOCKET, SO_ERROR, (void *)&error, &len) == -1)
+				if (getsockopt(pSocket->id(), SOL_SOCKET, SO_ERROR, (void *)&error, &len) == -1)
 					error = Net::LastError();
 			}
 			if (event.flags&EV_EOF) // if close or shutdown RD = read (recv) => disconnection
@@ -636,7 +643,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 				read(pSocket, error);
 			else if (event.filter==EVFILT_WRITE)
 				write(pSocket, error);
-			else if (event.flags&EV_ERROR) // on few unix system we can get an error without anything else
+			else if (error) // on few unix system we can get an error without anything else
 				Action::Run(threadPool, make_shared<Action>("SocketError", error, pSocket), pSocket->_threadReceive);
 
 #else
@@ -662,22 +669,24 @@ bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
 			int error = 0;
 			if(event.events&EPOLLERR) {
 				socklen_t len(sizeof(error));
-				if(getsockopt(pSocket->_sockfd, SOL_SOCKET, SO_ERROR, (void *)&error, &len)==-1)
+				if(getsockopt(pSocket->id(), SOL_SOCKET, SO_ERROR, (void *)&error, &len)==-1)
 					error = Net::LastError();
 			}
-			if (event.events&EPOLLHUP) {
-				event.events &= ~EPOLLIN;
-				event.events &= ~EPOLLOUT;
-			}
-			if (event.events&EPOLLRDHUP) // => disconnection
+			if (event.events&EPOLLRDHUP) {
+				// disconnection
 				close(pSocket, error);
-			else if (event.events&EPOLLIN) {
-				if (event.events&EPOLLOUT && !error && pSocket->_firstWritable) // for first Flush requirement!
-					write(pSocket, 0); // before read! Connection!
-				read(pSocket, error);
-			} else if (event.events&EPOLLOUT)
-				write(pSocket, error);
-			else if (event.events&EPOLLERR) // on few unix system we can get an error without anything else
+				continue;
+			}
+			if (!(event.events&EPOLLHUP)) { // if socket unexpected close no more read or write!
+				if (event.events&EPOLLIN) {
+					read(pSocket, error);
+					error = 0;
+				} else if (event.events&EPOLLOUT) { // else if because EPOLLET!
+					write(pSocket, error);
+					error = 0;
+				}
+			}
+			if (error) // on few unix system we can get an error without anything else
 				Action::Run(threadPool, make_shared<Action>("SocketError", error, pSocket), pSocket->_threadReceive);
 #endif
 		}

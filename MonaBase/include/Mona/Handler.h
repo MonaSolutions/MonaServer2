@@ -53,7 +53,7 @@ struct Handler : virtual Object {
 	void queue(const Event<void()>& onResult) const;
 
 
-	UInt32 flush(UInt32 count = 0);
+	UInt32 flush();
 
 private:
 

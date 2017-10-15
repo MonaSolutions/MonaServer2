@@ -152,8 +152,7 @@ SocketAddress& Peer::onHandshake(SocketAddress& redirection) {
 }
 
 void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& arguments,DataWriter& response) {
-	if(!connection) {
-		((Time&)connection).update();
+	if(disconnection) {
 		_pWriter = &writer;
 		_pNetStats = &netStats;
 		writer.flushable = false; // response parameter causes unflushable to avoid a data corruption
@@ -173,11 +172,12 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 			_api.onDisconnection(*this);
 		}
 		if (ex) {
-			(Time&)connection = 0;
 			writer.clear();
 			_pWriter = NULL;
 			_pNetStats = NULL;
 		} else {
+			((Time&)connection).update();
+			(Time&)disconnection = 0;
 			onParameters(parameters);
 			DEBUG("Client ",address," connection")
 		}
@@ -187,9 +187,10 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 }
 
 void Peer::onDisconnection() {
-	if (!connection)
+	if (disconnection)
 		return;
 	(Time&)connection = 0;
+	((Time&)disconnection).update();
 	if (!((Entity::Map<Client>&)_api.clients).erase(id))
 		ERROR("Client ", String::Hex(id, Entity::SIZE), " seems already disconnected!");
 	_pWriter->onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!

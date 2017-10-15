@@ -24,7 +24,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct TCPClient : private StreamData<>, virtual Object {
+struct TCPClient : private StreamData<>, virtual NullableObject {
 	typedef Event<UInt32(Packet& buffer)>				ON(Data);
 	typedef Event<void()>								ON(Flush);
 	typedef Event<void(const SocketAddress& address)>	ON(Disconnection);
@@ -35,36 +35,34 @@ struct TCPClient : private StreamData<>, virtual Object {
 	TCPClient(IOSocket& io, const shared<TLS>& pTLS=nullptr);
 	virtual ~TCPClient();
 
-	IOSocket&				io;
-	const shared<Socket>&	socket();
-	Socket*					operator->() { return socket().get(); }
+	IOSocket&	io;
 
-	bool	connect(Exception& ex, const SocketAddress& address);
-	bool	connect(Exception& ex, const shared<Socket>& pSocket);
+	operator	bool() const { return _pSocket.operator bool(); }
+	operator	const shared<Socket>&() { return _pSocket; }
+	Socket&		operator*() { return *_pSocket; }
+	Socket*		operator->() { return _pSocket.get(); }
+	
 
-	bool	connecting() const { return _pSocket ? (!_connected && _pSocket->peerAddress()) : false; }
-	bool	connected() const { return _connected; }
-	void	disconnect();
+	bool		connect(Exception& ex, const SocketAddress& address);
+	bool		connect(Exception& ex, const shared<Socket>& pSocket);
+
+	bool		connecting() const { return _pSocket ? (!_connected && _pSocket->peerAddress()) : false; }
+	bool		connected() const { return _connected; }
+	void		disconnect();
+
+	bool		send(Exception& ex, const Packet& packet, int flags = 0);
 
 	/*!
-	Returns true on success, if queueing>0 wait onFlush before to continue to send large data */
-	bool	send(Exception& ex, const Packet& packet) { return send(ex, std::make_shared<Sender>(_pSocket, packet)); }
-	template<typename SenderType>
-	bool	send(Exception& ex, const shared<SenderType>& pSender) {
-		if (!_pSocket || !_pSocket->peerAddress()) {
-			Socket::SetException(ex, NET_ENOTCONN);
-			return false;
-		}
-		return io.threadPool.queue(ex, pSender, _sendingTrack);
-	}
-
-	struct Sender : Runner, Packet {
-		Sender(const shared<Socket>& pSocket, const Packet& packet) : Runner("TCPSender"), _pSocket(pSocket), Packet(std::move(packet)) {}
-		bool run(Exception& ex) { return _pSocket->write(ex, *this) != -1; }
+	Runner example to send data with custom process in parallel thread */
+	struct Sender : Runner {
+		Sender(const shared<Socket>& pSocket, const Packet& packet, int flags = 0) :
+			Runner("TCPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)) { FATAL_CHECK(pSocket); }
 	private:
+		bool run(Exception& ex) { return _pSocket->write(ex, _packet, _flags) != -1; }
 		shared<Socket>	_pSocket;
+		Packet			_packet;
+		int				_flags;
 	};
-
 private:
 	virtual shared<Socket::Decoder> newDecoder() { return nullptr; }
 
@@ -76,9 +74,7 @@ private:
 
 	shared<Socket>		_pSocket;
 	bool				_connected;
-	bool				_subscribed;
 	shared<TLS>			_pTLS;
-	UInt16				_sendingTrack;
 };
 
 

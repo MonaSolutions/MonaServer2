@@ -40,6 +40,7 @@ struct Client : Entity, virtual NullableObject, Net::Stats {
 
 	operator bool() const		{ return connection ? true : false; }
 	const Time					connection;
+	const Time					disconnection;
 
 	 // user data (custom data)
 	template <typename DataType>
@@ -60,7 +61,7 @@ struct Client : Entity, virtual NullableObject, Net::Stats {
 	virtual Writer&				writer() = 0;
 
 protected:
-	Client(const char* protocol) : protocol(protocol), _pData(NULL), connection(0) {}
+	Client(const char* protocol) : protocol(protocol), _pData(NULL), connection(0), disconnection(Time::Now()) {}
 
 private:
 	mutable void*				_pData;

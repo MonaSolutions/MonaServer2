@@ -35,7 +35,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	void			beginRequest(const shared<const HTTP::Header>& pRequest);
 	void			endRequest();
 
-	UInt64			queueing() const { return _session.socket()->queueing(); }
+	UInt64			queueing() const { return _session->queueing(); }
 
 	void			clear() { _pResponse.reset(); _senders.clear();  }
 
@@ -77,7 +77,7 @@ private:
 	shared<SenderType> newSender(bool isResponse, Args&&... args) {
 		if (!*this || !_pRequest) // if closed or has never gotten any request!
 			return NULL;
-		shared<SenderType> pSender(new SenderType(_session.socket(), _pRequest, _pSetCookie, std::forward<Args>(args)...));
+		shared<SenderType> pSender(new SenderType(_session, _pRequest, _pSetCookie, std::forward<Args>(args)...));
 		if(isResponse) {
 			if (_pResponse) {
 				if(_requesting)

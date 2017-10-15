@@ -30,11 +30,11 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _writer(*this),
+HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(new HTTPWriter(*this)),
 	_onRequest([this](HTTP::Request& request) {
 		if (request) { // else progressive! => PUT or POST media!
 
-			_writer.beginRequest(request);
+			_pWriter->beginRequest(request);
 
 			if (!request.ex) {
 				//// Disconnection if requested or query changed (path changed is done in setPath)
@@ -61,7 +61,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 					if (handshake(request))  {
 						// Upgrade to WebSocket
 						if (request->pWSDecoder) {
-							Protocol* pProtocol(this->api.protocols.find(socket()->isSecure() ? "WSS" : "WS"));
+							Protocol* pProtocol(this->api.protocols.find(self->isSecure() ? "WSS" : "WS"));
 							if (pProtocol) {
 								// Close HTTP
 								close();
@@ -69,13 +69,13 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 								// Create WSSession
 								WSSession* pSession = new WSSession(*pProtocol, *this, move(request->pWSDecoder));
 								_pUpgradeSession.reset(pSession);
-								HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
+								HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
 									HTTP_ADD_HEADER("Upgrade", "WebSocket")
 									WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
 								HTTP_END_HEADER
 
 								// SebSocket connection
-								peer.onConnection(ex, pSession->writer, *socket(), parameters); // No response in WebSocket handshake (fail for few clients)
+								peer.onConnection(ex, pSession->writer, *self, parameters); // No response in WebSocket handshake (fail for few clients)
 							} else
 								ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
 						} else
@@ -85,7 +85,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 					// onConnection
 					if (!peer && handshake(request)) {
-						peer.onConnection(ex, _writer, *socket(), parameters);
+						peer.onConnection(ex, *_pWriter, *self, parameters);
 						parameters.reset();
 					}
 
@@ -116,10 +116,10 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 				// Return error but keep connection keepalive if required to avoid multiple reconnection (and because HTTP client is valid contrary to a HTTPDecoder error)
 				if (ex)
-					_writer.writeError(ex);
+					_pWriter->writeError(ex);
 
 			}
-			_writer.endRequest();
+			_pWriter->endRequest();
 		}
 
 		// Invalid packet, answer with the appropriate response and useless to keep the session opened!
@@ -148,7 +148,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 		}
 
 		if (request.flush)
-			_writer.flush();
+			_pWriter->flush();
 	}) {
 	
 	// subscribe to client.properties(...)
@@ -157,7 +157,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 			peer.properties().setString(key, data, size);
 			value.assign(data,size);
 		});
-		return _writer.writeSetCookie(reader, onCookie);
+		return _pWriter->writeSetCookie(reader, onCookie);
 	};
 
 }
@@ -166,7 +166,7 @@ bool HTTPSession::handshake(HTTP::Request& request) {
 	SocketAddress redirection;
 	if (!peer.onHandshake(redirection))
 		return true;
-	HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_307))
+	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_307))
 		HTTP_ADD_HEADER("Location", request->protocol, "://", redirection, request->path, '/', request.file.isFolder() ? "" : request.file.name())
 	HTTP_END_HEADER
 	kill();
@@ -217,7 +217,7 @@ bool HTTPSession::manage() {
 		}
 		if(_pSubscription->ejected()) {
 			if (_pSubscription->ejected() == Subscription::EJECTED_BANDWITDH)
-				_writer.writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
+				_pWriter->writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
 			// else HTTPWriter error, error already written!
 			unsubscribe();
 		}
@@ -231,7 +231,7 @@ void HTTPSession::flush() {
 		return _pUpgradeSession->flush();
 	if (_pPublication)
 		_pPublication->flush();
-	_writer.flush(); // can flush on response while polling!
+	_pWriter->flush(); // can flush on response while polling!
 }
 
 void HTTPSession::close() {
@@ -253,18 +253,22 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	else
 		close();
 
-	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.close() because call onDisconnection and writers can be used here
+	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.close() to allow last message
 	peer.onDisconnection();
 
 	// close writer (flush)
-	_writer.close(error, reason);
-
+	_pWriter->close(error, reason);
+	
+	// in last because will disconnect
 	TCPSession::kill(error, reason);
+
+	// release resources (sockets)
+	_pWriter.reset();
 }
 
-void HTTPSession::subscribe(Exception& ex, const string& stream, HTTPWriter& writer) {
+void HTTPSession::subscribe(Exception& ex, const string& stream) {
 	if(!_pSubscription)
-		_pSubscription = new Subscription(writer);
+		_pSubscription = new Subscription(*_pWriter);
 	if (api.subscribe(ex, stream, peer, *_pSubscription, peer.query.c_str()))
 		return;
 	delete _pSubscription;
@@ -298,7 +302,7 @@ void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 		return;
 	}
 
-	HTTP_BEGIN_HEADER(_writer.writeRaw(HTTP_CODE_200))
+	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_200))
 		HTTP_ADD_HEADER("Access-Control-Allow-Methods", "GET, HEAD, PUT, PATH, POST, OPTIONS")
 		if (request.accessControlRequestHeaders)
 			HTTP_ADD_HEADER("Access-Control-Allow-Headers", request.accessControlRequestHeaders)
@@ -343,16 +347,16 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 						// request publication properties!
 						const auto& it = api.publications.find(file.baseName());
 						if (it == api.publications.end())
-							_writer.writeError(HTTP_CODE_404, "Publication ", file.baseName(), " unfound");
+							_pWriter->writeError(HTTP_CODE_404, "Publication ", file.baseName(), " unfound");
 						else
-							MapReader<Parameters>(it->second).read(_writer.writeResponse("json"));
+							MapReader<Parameters>(it->second).read(_pWriter->writeResponse("json"));
 					} else if (request->type == HTTP::TYPE_HEAD) {
 						// HEAD, want just immediatly the header format of audio/video live streaming!
-						HTTP_BEGIN_HEADER(*_writer.writeResponse())
+						HTTP_BEGIN_HEADER(*_pWriter->writeResponse())
 							HTTP_ADD_HEADER_LINE(HTTP_LIVE_HEADER)
 						HTTP_END_HEADER
 					} else
-						subscribe(ex, file.baseName(), _writer);
+						subscribe(ex, file.baseName());
 					return;
 				default:;
 			}
@@ -360,7 +364,7 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 
 
 		if (!file.isFolder())
-			return _writer.writeFile(file, fileProperties);
+			return _pWriter->writeFile(file, fileProperties);
 	}
 
 
@@ -381,7 +385,7 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 	Parameters fileProperties;
 	MapWriter<Parameters> mapWriter(fileProperties);
 	parameters.read(mapWriter);
-	_writer.writeFile(file, fileProperties); // folder view or index redirection (without pass by onRead because can create a infinite loop)
+	_pWriter->writeFile(file, fileProperties); // folder view or index redirection (without pass by onRead because can create a infinite loop)
 }
 
 void HTTPSession::processPut(Exception& ex, HTTP::Request& request) {

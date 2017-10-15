@@ -25,30 +25,31 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
-class TCPServer : public virtual Object {
-public:
+struct TCPServer : virtual Object {
 	typedef Event<void(const shared<Socket>& pSocket)>  ON(Connection);
 	typedef Socket::OnError								ON(Error);
 
 	TCPServer(IOSocket& io, const shared<TLS>& pTLS=nullptr);
 	virtual ~TCPServer();
 
-	IOSocket&						io;
-	const shared<Socket>&	socket() { return _pSocket; }
-	Socket*							operator->() { return _pSocket.get(); }
+	IOSocket&	io;
+	operator	bool() const { return _pSocket.operator bool(); }
+	operator	const shared<Socket>&() { return _pSocket; }
+	Socket&		operator*() { return *_pSocket; }
+	Socket*		operator->() { return _pSocket.get(); }
 
 
-	bool					start(Exception& ex, const SocketAddress& address);
-	bool					start(Exception& ex, const IPAddress& ip=IPAddress::Wildcard()) { return start(ex, SocketAddress(ip, 0)); }
-	bool					running() const { return _running;  }
-	void					stop();
+	bool		start(Exception& ex, const SocketAddress& address);
+	bool		start(Exception& ex, const IPAddress& ip=IPAddress::Wildcard()) { return start(ex, SocketAddress(ip, 0)); }
+	bool		running() const { return _pSocket.operator bool();  }
+	void		stop();
 
 
 private:
-	Socket::OnAccept		_onAccept;
+	Socket::OnAccept	_onAccept;
 
-	shared<Socket>	_pSocket;
-	bool					_running;
+	shared<Socket>		_pSocket;
+	shared<TLS>			_pTLS;
 };
 
 

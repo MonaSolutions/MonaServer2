@@ -41,7 +41,9 @@ using namespace std;
 
 namespace Mona {
 
-File::File(const Path& path, Mode mode) : _path(path), mode(mode), _decodingTrack(0), _pDevice(NULL), _queueing(0), _loading(0), _loadingTrack(0), _handle(-1) {
+File::File(const Path& path, Mode mode) :
+	_written(0), _readen(0), _path(path), mode(mode), _decodingTrack(0),
+	_pDevice(NULL), _queueing(0), _loading(0), _loadingTrack(0), _handle(-1) {
 }
 
 File::~File() {
@@ -138,6 +140,10 @@ bool File::load(Exception& ex) {
 UInt64 File::size(bool refresh) const {
 	if (_handle==-1)
 		return _path.size(refresh);
+
+	if (!refresh)
+		return _path.size(false); // more faster because already loaded (setAttributes has been called in load)
+
 #if defined(_WIN32)
 	LARGE_INTEGER current;
 	LARGE_INTEGER size;
@@ -163,6 +169,8 @@ UInt64 File::size(bool refresh) const {
 void File::reset() {
 	if(_handle == -1)
 		return;
+	_readen = 0;
+	_written = 0;
 #if defined(_WIN32)
 	SetFilePointer((HANDLE)_handle, 0, NULL, FILE_BEGIN);
 #else
@@ -184,10 +192,12 @@ int File::read(Exception& ex, void* data, UInt32 size) {
 #else
 	ssize_t readen = ::read(_handle, data, size);
 #endif
-	if (readen >= 0)
-		return int(readen);
-	ex.set<Ex::System::File>("Impossible to read ", _path," (size=",size,")");
-	return -1;
+	if (readen < 0) {
+		ex.set<Ex::System::File>("Impossible to read ", _path, " (size=", size, ")");
+		return -1;
+	}
+	_readen += readen;
+	return int(readen);
 }
 
 bool File::write(Exception& ex, const void* data, UInt32 size) {
@@ -204,10 +214,11 @@ bool File::write(Exception& ex, const void* data, UInt32 size) {
 #else
 	ssize_t written = ::write(_handle, data, size);
 #endif
-	if (written == -1) {
+	if (written < 0) {
 		ex.set<Ex::System::File>("Impossible to write ", _path, " (size=", size, ")");
 		return false;
 	}
+	_written += written;
 	if (UInt32(written) < size) {
 		ex.set<Ex::System::File>("No more disk space to write ", _path, " (size=", size, ")");
 		return false;

@@ -29,7 +29,7 @@ namespace Mona {
 struct RTMPWriter : FlashWriter, virtual Object {
 	RTMPWriter(UInt32 channelId, TCPSession& session, const shared<RC4_KEY>& pEncryptKey);
 
-	UInt64			queueing() const { return _session.socket()->queueing(); }
+	UInt64			queueing() const { return _session->queueing(); }
 
 	UInt32			streamId;
 
