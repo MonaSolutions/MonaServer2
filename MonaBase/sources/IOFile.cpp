@@ -203,13 +203,15 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 			bool   _end;
 		};
 		bool run(Exception& ex, const shared<File>& pFile) {
-			shared<Buffer>	pBuffer(new Buffer(_size)); // take the required size just if not exceeds file size to avoid to allocate a too big buffer (expensive)
-			int size = pFile->read(ex, pBuffer->data(), pBuffer->size());
-			if (size < 0)
+			// take the required size just if not exceeds file size to avoid to allocate a too big buffer (expensive)
+			// + use pFile->size() without refreshing to use as same size as caller has gotten it (for example to write a content-length in header)
+			UInt64 available = pFile->size() - pFile->readen();
+			shared<Buffer>	pBuffer(new Buffer(UInt32(min(available, _size))));
+			int readen = pFile->read(ex, pBuffer->data(), pBuffer->size());
+			if (readen < 0)
 				return false;
-			bool end = UInt32(size) < pBuffer->size();
-			if(end)
-				pBuffer->resize(size, true);
+			if ((_size=readen) < pBuffer->size())
+				pBuffer->resize(readen, true);
 			if (pFile->pDecoder) {
 				struct Decoding : Action {
 					Decoding(const Handler& handler, const shared<File>& pFile, const ThreadPool& threadPool, shared<Buffer>& pBuffer, bool end) : _threadPool(threadPool), _end(end), Action("DecodingFile", handler, pFile), _pBuffer(move(pBuffer)) {}
@@ -230,10 +232,10 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 					bool				_end;
 					const ThreadPool&	_threadPool;
 				};
-				if (!_threadPool.queue(ex, make_shared<Decoding>(handler, pFile, _threadPool, pBuffer, end), pFile->_decodingTrack))
+				if (!_threadPool.queue(ex, make_shared<Decoding>(handler, pFile, _threadPool, pBuffer, _size == available), pFile->_decodingTrack))
 					return false;
 			} else
-				handle<Handle>(pBuffer, end);
+				handle<Handle>(pBuffer, _size == available);
 			return true;
 		}
 		UInt32				_size;

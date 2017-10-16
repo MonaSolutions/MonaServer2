@@ -140,7 +140,7 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 	}
 
 	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
-	if (!_properties.count() && request.ifModifiedSince >= (*this)->lastModified()) {
+	if (!_properties.count() && request.ifModifiedSince >= self->lastModified()) {
 		if(send(HTTP_CODE_304) && !_head) // NOT MODIFIED
 			_onEnd();
 		return;
@@ -150,7 +150,7 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 	// - Allow to parse every type of files! same a SVG file!
 	// - Allow to control "304 not modified code" response in checking arguments "If-Modified-Since" and update properties time
 	// - Allow by default to never parsing the document!
-	if (_properties.count() && (*this)->size() > 0xFFFF) {
+	if (_properties.count() && self->size() > 0xFFFF) {
 		ERROR(request.path, '/', _file.name(), " exceeds limit size of 65535 to allow parameter parsing, file parameters ignored");
 		_properties.clear();
 	}
@@ -158,7 +158,7 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 		// parsing file!
 		shared<Buffer> pBuffer(new Buffer(0xFFFF));
 		int readen;
-		AUTO_ERROR(readen = (*this)->read(ex, pBuffer->data(), pBuffer->size()),"HTTP get ", request.path, '/', _file.name());
+		AUTO_ERROR(readen = self->read(ex, pBuffer->data(), pBuffer->size()),"HTTP get ", request.path, '/', _file.name());
 		if (readen < 0) {
 			ERROR(ex);
 			socket()->shutdown(); // can't repair the session (client wait content-length!)
@@ -166,7 +166,7 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 		}
 		if (sendFile(Packet(pBuffer, pBuffer->data(), readen)) && !_head)
 			_onEnd();
-	} else if(sendHeader((*this)->size()) && !_head)
+	} else if(sendHeader(self->size()) && !_head)
 		read();
 }
 
@@ -181,7 +181,7 @@ bool HTTPFileSender::sendHeader(UInt64 fileSize) {
 	shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
 	BinaryWriter writer(*pBuffer);
 	HTTP_BEGIN_HEADER(writer)
-		HTTP_ADD_HEADER("Last-Modified", String::Date(Date((*this)->lastModified()), Date::FORMAT_HTTP));
+		HTTP_ADD_HEADER("Last-Modified", String::Date(Date(self->lastModified()), Date::FORMAT_HTTP));
 	HTTP_END_HEADER
 	return send(HTTP_CODE_200, mime, subMime, Packet(pBuffer), fileSize);
 }

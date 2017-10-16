@@ -28,21 +28,21 @@ namespace StopwatchTest {
 ADD_TEST(All) {
 	
 	Stopwatch sw;
+	
 	sw.start();
 	Thread::Sleep(200);
 	sw.stop();
-	Int64 t = sw.elapsed();
-	CHECK(180 < sw.elapsed() && sw.elapsed() < 220);
+	CHECK(185 <= sw.elapsed() && sw.elapsed() <= 215);
 
 	sw.start();
 	Thread::Sleep(100);
 	sw.stop();
-	CHECK(260 < sw.elapsed() && sw.elapsed() < 340);
-	
+	CHECK(270 <= sw.elapsed() && sw.elapsed() <= 330);
+
 	sw.restart();
 	Thread::Sleep(200);
 	sw.stop();
-	CHECK(180 < sw.elapsed() && sw.elapsed() < 220);
+	CHECK(185 <= sw.elapsed() && sw.elapsed() <= 215);
 }
 
 }

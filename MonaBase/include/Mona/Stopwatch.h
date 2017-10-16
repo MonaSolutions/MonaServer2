@@ -16,25 +16,30 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #pragma once
 
-#include "Mona/Time.h"
+#include "Mona/Mona.h"
+#include <chrono>
 
 namespace Mona {
 
 /// A chrono in microseconds
-class Stopwatch : public virtual Object{
-public:
-	Stopwatch() : _start(0),_elapsed(0) {}
+struct Stopwatch : virtual Object {
+	NULLABLE 
 
-	void start() { _start.update(); }
-	void restart() { _elapsed = 0; start(); }
+	Stopwatch() : _elapsed(0) {}
 
-	void stop() { if (_start) _elapsed += (Time::Now() - _start); _start = 0; }
+	operator bool() const { return _running; }
+	bool running() const { return _running; }
 
-	Int64 elapsed() const { if (!_start) return _elapsed;  return _elapsed + _start.elapsed(); }
+	void start() { _running = true;  _start = std::chrono::steady_clock::now(); }
+	void restart() { _elapsed = 0;  start(); }
+	void stop() { _running = false; _elapsed += std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - _start).count(); }
+
+	Int64 elapsed() const { return _running ? std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - _start).count() : _elapsed; }
 
 private:
-	Time	_start;
-	Int64	_elapsed;
+	std::chrono::time_point<std::chrono::steady_clock>	_start;
+	Int64												_elapsed;
+	bool												_running;
 };
 
 } // namespace Mona

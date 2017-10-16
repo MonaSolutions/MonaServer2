@@ -347,9 +347,9 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	if (client.connect(ex, unknown)) {
 		CHECK(!ex && !client.connected() && client.connecting() && client->address() && client->peerAddress() == unknown);
 		if (Util::Random()) // Random to check that with or without sending, after SocketEngine join we get a client.connected()==false!
-			CHECK((client.send(ex, Packet(EXPAND("salut"))) && !ex) || ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED);
+			CHECK((client.send(ex, Packet(EXPAND("salut"))) && !ex) || ex);
 		CHECK(handler.join([&client]()->bool { return !client.connecting(); }));
-		CHECK((ex && !client.ex) || client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED); // if ex it has been set by random client.send
+		CHECK((ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED && !client.ex) || client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED); // if ex it has been set by random client.send
 	}
 	CHECK(!client.connected() && !client.connecting());
 	
