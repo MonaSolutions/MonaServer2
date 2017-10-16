@@ -56,7 +56,9 @@ private:
 		UInt8   lo;
 	};
 
-	struct Track : virtual NullableObject {
+	struct Track : virtual Object {
+		NULLABLE
+
 		Track() : _flags(FLAG_SKIP) {}
 	
 		UInt8 channel;

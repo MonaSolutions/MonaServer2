@@ -30,26 +30,54 @@ bool ThreadQueue::run(Exception&, const volatile bool& stopping) {
 
 	for (;;) {
 		bool timeout = !wakeUp.wait(120000); // 2 mn of timeout
-		deque<shared<Runner>> runners;
-		{
-			lock_guard<mutex> lock(_mutex);
-			if (_runners.empty()) {
-				if (timeout)
-					stop(); // to set _stop immediatly!
-				if (stopping)
-					return true;
-				continue;
+		for(;;) {
+			deque<shared<Runner>> runners;
+			{
+				lock_guard<mutex> lock(_mutex);
+				if (_runners.empty()) {
+					if (timeout)
+						stop(); // to set _stop immediatly!
+					if (stopping)
+						return true;
+					break;
+				}
+				runners = move(_runners);
 			}
-			runners = move(_runners);
-		}
-		Exception ex;
-		for (shared<Runner>& pRunner : runners) {
-			setName(pRunner->name);
-			AUTO_ERROR(pRunner->run(ex = nullptr), pRunner->name);
-			pRunner.reset(); // release resources
+			Exception ex;
+			for (shared<Runner>& pRunner : runners) {
+				setName(pRunner->name);
+				AUTO_ERROR(pRunner->run(ex = nullptr), pRunner->name);
+				pRunner.reset(); // release resources
+			}
 		}
 	}
-	return true;
+	
+	/*
+	for (;;) {
+
+		bool timeout = !wakeUp.wait(120000); // 2 mn of timeout
+
+		for (;;) {
+			shared<Runner> pRunner;
+			{
+				std::lock_guard<std::mutex> lock(_mutex);
+				if (_runners.empty()) {
+					if (timeout)
+						stop(); // to set _stop immediatly!
+					if (stopping)
+						return true;
+					break;
+				}
+				pRunner = move(_runners.front());
+				_runners.pop_front();
+			}
+
+			Exception ex;
+			setName(pRunner->name);
+			AUTO_ERROR(pRunner->run(ex), pRunner->name);
+		}
+	}
+	*/
 }
 
 } // namespace Mona

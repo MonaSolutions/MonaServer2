@@ -25,7 +25,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct DataWriter : virtual NullableObject {
+struct DataWriter : virtual Object {
+	NULLABLE
 ////  TO DEFINE ////	
 	virtual void   writePropertyName(const char* value)=0;
 

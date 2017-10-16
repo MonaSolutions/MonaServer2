@@ -125,14 +125,15 @@ struct RTMFPMessenger : RTMFPSender, virtual Object {
 	AMFWriter&	newMessage(bool reliable, Media::Data::Type type, const Mona::Packet& packet) { _messages.emplace_back(reliable, type, packet); return _messages.back().writer; }
 
 private:
-	struct Message : private shared<Buffer>, virtual NullableObject {
+	struct Message : private shared<Buffer>, virtual Object {
+		NULLABLE
 		Message(bool reliable, Media::Data::Type type, const Mona::Packet& packet) : type(type), reliable(reliable), packet(std::move(packet)), writer(*new Buffer()) { reset(&writer->buffer()); }
 		bool				reliable;
 		AMFWriter			writer; // data
 		Media::Data::Type	type;
 		Mona::Packet		packet; // footer
 		void				convertToAMF() { type = writer.convert(type, packet); }
-		explicit operator bool() const { return packet || writer ? true : false; }
+		operator bool() const { return packet || writer ? true : false; }
 	};
 	UInt32	headerSize();
 	void	run();

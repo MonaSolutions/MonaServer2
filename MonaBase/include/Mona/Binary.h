@@ -20,7 +20,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct Binary : virtual NullableObject {
+struct Binary : virtual Object {
+	NULLABLE
+
 	virtual const UInt8*	data() const = 0;
 	virtual UInt32			size() const = 0;
 

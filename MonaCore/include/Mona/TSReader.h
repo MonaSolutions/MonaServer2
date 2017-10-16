@@ -36,7 +36,8 @@ struct TSReader : virtual Object, MediaReader {
 	
 private:
 
-	struct Properties : Parameters, virtual NullableObject {
+	struct Properties : Parameters, virtual Object {
+		NULLABLE
 		Properties() : _changed(false) {}
 		operator bool() const { return _changed; }
 	private:
@@ -50,7 +51,8 @@ private:
 	};
 	
 
-	struct Program : virtual NullableObject {
+	struct Program : virtual Object {
+		NULLABLE
 		Program() : type(Media::TYPE_NONE), _pReader(NULL), waitHeader(true), sequence(0xFF) {}
 		~Program() { if (_pReader) delete _pReader; }
 

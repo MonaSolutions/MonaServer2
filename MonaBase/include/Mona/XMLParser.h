@@ -25,7 +25,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
-class XMLParser : public virtual Object {
+struct XMLParser : virtual Object {
 private:
 
 	struct Tag {
@@ -57,8 +57,8 @@ public:
 		RESULT_ERROR
 	};
 
-	struct XMLState : virtual NullableObject {
-		friend class XMLParser;
+	struct XMLState : virtual Object {
+		NULLABLE
 
 		XMLState() : _current(NULL) {}
 		operator bool() const { return _current ? true : false; }
@@ -68,6 +68,8 @@ public:
 		Exception					_ex;
 		const char*					_current;
 		std::vector<Tag>			_tags;
+
+		friend struct XMLParser;
 	};
 
 	void reset();

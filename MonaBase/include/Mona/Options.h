@@ -23,7 +23,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct Options : virtual NullableObject {
+struct Options : virtual Object {
+	NULLABLE
+
 	typedef std::set<Option>::const_iterator const_iterator;
 
 	Options() : _pOption(NULL) {}
@@ -62,7 +64,7 @@ struct Options : virtual NullableObject {
 	typedef std::function<void(const std::string&, const std::string&)> ForEach;
     bool			process(Exception& ex, int argc, const char* argv[], const ForEach& forEach = nullptr);
 
-	explicit operator bool() const { return count() ? true : false; }
+	operator bool() const { return count() ? true : false; }
 
 	static const Options& Null() { static Options Options; return Options; }
 private:

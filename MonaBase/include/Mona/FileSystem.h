@@ -53,7 +53,8 @@ struct FileSystem : virtual Static {
 	};
 
 
-	struct Attributes : virtual NullableObject {
+	struct Attributes : virtual Object {
+		NULLABLE
 		Attributes() : size(0), lastModified(0), device(0) {}
 		Time	lastModified;
 		UInt64	size;
@@ -140,7 +141,8 @@ struct FileSystem : virtual Static {
 	static bool			Find(std::string& path);
 
 private:
-	struct Home : std::string, virtual NullableObject {
+	struct Home : std::string, virtual Object {
+		NULLABLE
 		Home();
 		operator bool() const { return !empty(); }
 	};
@@ -157,7 +159,8 @@ private:
 		CurrentDirs();
 	};
 
-	struct CurrentApp : std::string, virtual NullableObject {
+	struct CurrentApp : std::string, virtual Object {
+		NULLABLE
 		CurrentApp();
 		operator bool() const { return !empty(); }
 	};

@@ -41,7 +41,8 @@ private:
 	mutex			     _mutex;
 } _IODevices;
 
-struct IOFile::Action : Runner, virtual NullableObject {
+struct IOFile::Action : Runner, virtual Object {
+	NULLABLE
 	Action(const char* name, const Handler& handler, const shared<File>& pFile) : loading(false), handler(handler), _weakFile(pFile), Runner(name) {}
 
 	bool loading;
@@ -202,7 +203,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 			bool   _end;
 		};
 		bool run(Exception& ex, const shared<File>& pFile) {
-			shared<Buffer>	pBuffer(new Buffer(_size));
+			shared<Buffer>	pBuffer(new Buffer(_size)); // take the required size just if not exceeds file size to avoid to allocate a too big buffer (expensive)
 			int size = pFile->read(ex, pBuffer->data(), pBuffer->size());
 			if (size < 0)
 				return false;

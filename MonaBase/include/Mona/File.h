@@ -26,10 +26,12 @@ namespace Mona {
 /*!
 File is a Path file with read and write operation 
 /!\ Direct access to disk cache, no buffering */
-struct File : virtual NullableObject {
+struct File : virtual Object {
 	typedef Event<void(shared<Buffer>& pBuffer, bool end)>	OnReaden;
 	typedef Event<void(const Exception&)>					OnError;
 	typedef Event<void()>									OnFlush;
+	NULLABLE
+
 	/*!
 	Decoder offers to decode data in the reception thread when file is used with IOFile
 	decode returns the size of data decoded passing to onReaden,

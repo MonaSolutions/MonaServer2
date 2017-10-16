@@ -24,7 +24,9 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct DataReader : virtual NullableObject {
+struct DataReader : virtual Object {
+	NULLABLE
+
 	enum {
 		END=0, // keep equal to 0!
 		NIL,

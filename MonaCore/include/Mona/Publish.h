@@ -24,7 +24,9 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct Publish : virtual NullableObject {
+struct Publish : virtual Object {
+	NULLABLE
+
 	Publish(ServerAPI& api, const char* name);
 	~Publish();
 
@@ -43,7 +45,8 @@ struct Publish : virtual NullableObject {
 
 
 private:
-	struct Publishing : Runner, virtual NullableObject {
+	struct Publishing : Runner, virtual Object {
+		NULLABLE
 		Publishing(ServerAPI& api, const char* name) : Runner("Publishing"), _name(name), _pPublication(NULL), api(api) {}
 		operator Publication&() { return *_pPublication; }
 		operator bool() const { return _pPublication ? true : false; }

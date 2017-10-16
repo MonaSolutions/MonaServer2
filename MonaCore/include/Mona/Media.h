@@ -132,7 +132,8 @@ struct Media : virtual Static {
 			Frame				 frame;
 			UInt16				 compositionOffset;
 		};
-		struct Config : Tag, Packet, virtual NullableObject {
+		struct Config : Tag, Packet, virtual Object {
+			NULLABLE
 			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
 			explicit Config() { time = 0; }
 			explicit Config(const Tag& tag, const Packet& packet) { time = 0; set(tag, packet); }
@@ -185,7 +186,8 @@ struct Media : virtual Static {
 			UInt8				channels;
 			UInt32				rate;
 		};
-		struct Config : Tag, Packet, virtual NullableObject {
+		struct Config : Tag, Packet, virtual Object {
+			NULLABLE
 			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
 			explicit Config() { time = 0;  }
 			explicit Config(const Tag& tag, const Packet& packet) { time = 0; set(tag, packet); }

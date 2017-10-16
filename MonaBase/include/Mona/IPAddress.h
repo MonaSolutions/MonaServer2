@@ -29,26 +29,26 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
+/*!
+This class represents an internet (IP) host
+address. The address can belong either to the
+IPv4 or the IPv6 address family.
 
-/// This class represents an internet (IP) host
-/// address. The address can belong either to the
-/// IPv4 or the IPv6 address family.
-///
-/// Relational operators (==, !=, <, <=, >, >=) are
-/// supported. However, you must not interpret any
-/// special meaning into the result of these 
-/// operations, other than that the results are
-/// consistent.
-///
-/// Especially, an IPv4 address is never equal to
-/// an IPv6 address, even if the IPv6 address is
-/// IPv4 compatible and the addresses are the same.
-///
-/// IPv6 addresses are supported only if the target platform
-/// supports IPv6.
+Relational operators (==, !=, <, <=, >, >=) are
+supported. However, you must not interpret any
+special meaning into the result of these 
+operations, other than that the results are
+consistent.
 
-struct IPAddress : virtual NullableObject {
+Especially, an IPv4 address is never equal to
+an IPv6 address, even if the IPv6 address is
+IPv4 compatible and the addresses are the same.
+
+IPv6 addresses are supported only if the target platform
+supports IPv6. */
+struct IPAddress : virtual Object {
 	CONST_STRING(toString());
+	NULLABLE
 
 	enum Family {
 		IPv4=AF_INET,

@@ -22,10 +22,11 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct UDPSocket : virtual NullableObject {
+struct UDPSocket : virtual Object {
 	typedef Socket::OnReceived	ON(Packet);
 	typedef Socket::OnFlush		ON(Flush);
 	typedef Socket::OnError		ON(Error);
+	NULLABLE
 
 	UDPSocket(IOSocket& io);
 	virtual ~UDPSocket();

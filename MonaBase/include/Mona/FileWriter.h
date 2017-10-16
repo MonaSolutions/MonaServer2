@@ -21,9 +21,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct FileWriter : virtual NullableObject {
+struct FileWriter : virtual Object {
 	typedef File::OnFlush	 ON(Flush);
 	typedef File::OnError	 ON(Error);
+	NULLABLE
 	
 	FileWriter(IOFile& io) : io(io) {}
 	~FileWriter() { close(); }

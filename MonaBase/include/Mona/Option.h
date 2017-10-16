@@ -23,7 +23,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
-struct Option : virtual NullableObject {
+struct Option : virtual Object {
+	NULLABLE
 
 	Option(const char* fullName, const char* shortName);
 		/// Creates an option with the given properties.
@@ -88,7 +89,7 @@ struct Option : virtual NullableObject {
 	bool operator<(const Option& other) const { return _fullName < other._fullName; }
 	bool operator>(const Option& other) const { return _fullName > other._fullName; }
 
-	explicit operator bool() const { return !_fullName.empty() && !_shortName.empty(); }
+	operator bool() const { return !_fullName.empty() && !_shortName.empty(); }
 
 	static Option& Null() { static Option Option(NULL, NULL); return Option; }
 private:

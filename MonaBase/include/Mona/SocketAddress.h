@@ -26,8 +26,9 @@ namespace Mona {
 /// address. The address can belong either to the
 /// IPv4 or the IPv6 address family and consists of a
 /// host address and a port number.
-struct SocketAddress : private IPAddress, virtual NullableObject {
+struct SocketAddress : private IPAddress, virtual Object {
 	CONST_STRING(addrToString());
+	NULLABLE
 
 	/*!
 	Creates a wildcard (all zero) IPv4/IPv6 SocketAddress */

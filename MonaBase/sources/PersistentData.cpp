@@ -36,27 +36,27 @@ void PersistentData::load(Exception& ex, const string& rootDir, const ForEach& f
 bool PersistentData::run(Exception& ex, const volatile bool& stopping) {
 
 	for (;;) {
-
 		bool timeout(!wakeUp.wait(60000)); // 1 min timeout
-
-		deque<shared<Entry>> entries;
-		{	// stop() must be encapsulated by _mutex!
-			std::lock_guard<std::mutex> lock(_mutex);
-			if (_entries.empty()) {
-				if (timeout)
-					stop();
-				if (stopping)
-					return true;
-				continue;
+		for (;;) {
+			deque<shared<Entry>> entries;
+			{	// stop() must be encapsulated by _mutex!
+				std::lock_guard<std::mutex> lock(_mutex);
+				if (_entries.empty()) {
+					if (timeout)
+						stop();
+					if (stopping)
+						return true;
+					break;
+				}
+				entries = move(_entries);
 			}
-			entries = move(_entries);
-		}
-		for (shared<Entry>& pEntry : entries) {
-			processEntry(ex, *pEntry);
-			if (ex) {
-				// stop to display the error!
-				stop();
-				return false;
+			for (shared<Entry>& pEntry : entries) {
+				processEntry(ex, *pEntry);
+				if (ex) {
+					// stop to display the error!
+					stop();
+					return false;
+				}
 			}
 		}
 	}

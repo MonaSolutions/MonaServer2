@@ -54,12 +54,14 @@ enum {
 
 
 /// Utility class for generation parse of strings
-struct String : std::string, virtual NullableObject {
+struct String : std::string, virtual Object {
+	NULLABLE 
+
 	template <typename ...Args>
 	String(Args&&... args) {
 		Assign<std::string>(*this, std::forward<Args>(args)...);
 	}
-	explicit operator bool() const { return !empty(); }
+	operator bool() const { return !empty(); }
 	std::string& clear() { std::string::clear(); return *this; }
 
 	static const std::string& Empty() { static std::string Empty; return Empty; }

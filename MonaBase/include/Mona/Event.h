@@ -43,7 +43,9 @@ Protect from bad code:
 Finally allows too to return an argument (result, why multiple subscription is forbidden, prefered rather a conception model with a list of subscriber)
 /!\ For performance and design reason it's not thread-safe */
 template<typename Result, typename... Args>
-struct Event<Result(Args ...)> : virtual NullableObject {
+struct Event<Result(Args ...)> : virtual Object {
+	NULLABLE
+
 	Event(std::nullptr_t) {} // Null Event, usefull just for (const Event& event=nullptr) default parameter
 	Event() : _pFunction(new std::function<Result(Args...)>()) {}
 	Event(const Event& event) : _pFunction(new std::function<Result(Args...)>()) { operator=(event); }

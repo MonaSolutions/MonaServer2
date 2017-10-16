@@ -28,8 +28,9 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct Client : Entity, virtual NullableObject, Net::Stats {
+struct Client : Entity, virtual Object, Net::Stats {
 	typedef Event<bool(DataReader& reader, std::string& value)> ON(CallProperties);
+	NULLABLE
 
 	const SocketAddress			address;
 	const SocketAddress			serverAddress;

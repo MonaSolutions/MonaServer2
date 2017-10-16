@@ -21,9 +21,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct FileReader : virtual NullableObject {
+struct FileReader : virtual Object {
 	typedef File::OnReaden	 ON(Readen);
 	typedef File::OnError	 ON(Error);
+	NULLABLE
 
 	FileReader(IOFile& io) : io(io) {}
 	~FileReader() { close(); }

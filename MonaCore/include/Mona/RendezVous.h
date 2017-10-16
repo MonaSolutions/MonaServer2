@@ -46,7 +46,8 @@ struct RendezVous : virtual Object {
 	DataType* meet(const SocketAddress& aAddress, const UInt8* bPeerId, std::map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, std::map<SocketAddress, bool>& bAddresses) { return (DataType*)meetIntern(aAddress, bPeerId, aAddresses, bAddress, bAddresses); }
 
 private:
-	struct Redirection : std::map<SocketAddress, bool>, virtual NullableObject {
+	struct Redirection : std::map<SocketAddress, bool>, virtual Object {
+		NULLABLE
 		Redirection() : timeout(0) {}
 		operator bool() const { return !timeout || !_time.isElapsed(timeout); }
 		UInt32					timeout;

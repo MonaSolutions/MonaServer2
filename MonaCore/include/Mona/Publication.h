@@ -28,7 +28,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct Publication : Media::Source, Media::Properties, virtual NullableObject {
+struct Publication : Media::Source, Media::Properties, virtual Object {
 	typedef Event<void(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet)>	ON(Audio);
 	typedef Event<void(UInt8 track, const Media::Video::Tag& tag, const Packet& packet)>	ON(Video);
 	typedef Event<void(UInt8 track, Media::Data::Type type, const Packet& packet)>			ON(Data);
@@ -36,6 +36,7 @@ struct Publication : Media::Source, Media::Properties, virtual NullableObject {
 	typedef Event<void(const Media::Properties&)>											ON(Properties);
 	typedef Event<void(UInt8 track)>														ON(KeyFrame);
 	typedef Event<void()>																	ON(End);
+	NULLABLE
 
 
 	template<typename TrackType>

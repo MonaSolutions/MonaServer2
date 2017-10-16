@@ -24,11 +24,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct TCPClient : private StreamData<>, virtual NullableObject {
+struct TCPClient : private StreamData<>, virtual Object {
 	typedef Event<UInt32(Packet& buffer)>				ON(Data);
 	typedef Event<void()>								ON(Flush);
 	typedef Event<void(const SocketAddress& address)>	ON(Disconnection);
 	typedef Socket::OnError								ON(Error);
+	NULLABLE
 
 /*!
 	Create a new TCPClient */

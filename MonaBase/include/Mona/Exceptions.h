@@ -23,8 +23,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-	struct Ex : std::string, virtual NullableObject { struct Application; struct Extern; struct Format; struct Intern; struct Net; struct Permission; struct Protocol; struct System; struct Unavailable; struct Unfound; struct Unsupported;
-		explicit operator bool() const { return !empty(); }
+	struct Ex : std::string, virtual Object {
+		NULLABLE
+		struct Application; struct Extern; struct Format; struct Intern; struct Net; struct Permission; struct Protocol; struct System; struct Unavailable; struct Unfound; struct Unsupported;
+		operator bool() const { return !empty(); }
 	};
 	/*!
 	Application exception, error from user side */
@@ -81,6 +83,7 @@ namespace Mona {
 
 
 struct Exception : virtual Object {
+	NULLABLE
 	CONST_STRING(toString());
 
 	Exception() {}

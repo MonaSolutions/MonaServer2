@@ -55,7 +55,9 @@ private:
 
 	UInt8  writeAdaptiveHeader(UInt16 pid, UInt32 time, bool randomAccess, UInt8 fillSize, BinaryWriter& writer);
 
-	struct Track : virtual NullableObject {
+	struct Track : virtual Object {
+		NULLABLE
+
 		Track(MediaTrackWriter* pWriter) : _pWriter(pWriter) { _pWriter->beginMedia();  }
 		~Track() { if (_pWriter) delete _pWriter; }
 
