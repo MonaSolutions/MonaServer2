@@ -22,38 +22,63 @@ using namespace std;
 
 namespace Mona {
 
-struct HeaderWriter : DataWriter, virtual Object {
-	HeaderWriter(BinaryWriter& writer) : _writer(writer), _level(0), _hasContentType(false) {}
+struct RawWriter : DataWriter, Packet, virtual Object {
 
-	operator bool() const { return _level==1; }
-	bool hasContentType() const { return _hasContentType; }
+	RawWriter(Media::Data::Type type, Buffer& buffer) : _level(0), _type(type), DataWriter(buffer), _header(false), _first(true) {}
 
-	UInt64 beginObject(const char* type = NULL) { if(_level<=1) ++_level;  return 0; }
-	void   endObject() {}
-
-	void writePropertyName(const char* value) {
-		if (_level != 1)
+	UInt64 beginObject(const char* type = NULL) {
+		if (_level++ || !_first)
+			return 0;
+		// begin header!
+		writer.buffer().resize(writer.buffer().size() - 2);
+		_header = true;
+		return 0;
+	}
+	void endObject() {
+		if (--_level || !_header)
 			return;
-		if(!_hasContentType)
-			_hasContentType = String::ICompare(value, "Content-Type") == 0;
-		_writer.write(value).write(": ");
+		// end header!
+		if (!_first) { // has no content-type
+			if (_type)
+				writer.write(EXPAND("Content-Type: application/")).write(Media::Data::TypeToSubMime(_type)).write("\r\n");
+			else
+				writer.write(EXPAND("Content-Type: text/html; charset=utf-8\r\n"));
+		}
+		writer.write("\r\n");
+		_first = _header = false;
 	}
 
-	UInt64 beginArray(UInt32 size) { _level = 2; return 0; }
-	void   endArray() {}
+	void writePropertyName(const char* value) {
+		if (!_header)
+			return writeString(value, strlen(value));
+		if(_first)
+			_first = String::ICompare(value, "Content-Type") != 0;
+		writer.write(value).write(": ");
+	}
 
-	void writeNumber(double value) { if (_level == 1) String::Append(_writer, value); }
-	void writeString(const char* value, UInt32 size) { if (_level == 1) String::Append(_writer, value, size); }
-	void writeBoolean(bool value) { if (_level == 1) _writer.write(value ? "true" : "false"); }
-	void writeNull() { if (_level == 1) _writer.write(EXPAND("null")); }
-	UInt64 writeDate(const Date& date) { if (_level == 1) String::Append(_writer, String::Date(date, Date::FORMAT_HTTP));  return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size) { if (_level == 1) _writer.write(STR data, size); return 0; }
+	UInt64 beginArray(UInt32 size) { if(!_level++ && _first) _first=false; return 0; }
+	void   endArray() { --_level; }
 
-	void   clear(UInt32 size = 0) { _hasContentType = false;  _level = 0; _writer.clear(size); }
+	void writeNumber(double value) { append(value); }
+	void writeString(const char* value, UInt32 size) { append(String::Data(value, size)); }
+	void writeBoolean(bool value) { append(value ? "true" : "false"); }
+	void writeNull() { append("null"); }
+	UInt64 writeDate(const Date& date) { append(String::Date(date, Date::FORMAT_HTTP));  return 0; }
+	UInt64 writeBytes(const UInt8* data, UInt32 size) { append(String::Data(STR data, size)); return 0; }
+
+	void   clear() { _header = false; _first = true; _level = 0; DataWriter::clear(); }
 private:
-	UInt8			_level;
-	BinaryWriter&	_writer;
-	bool			_hasContentType;
+	template<typename ValueType>
+	void append(const ValueType& value) {
+		if (!_header && !_level && _first)
+			_first = false;
+		String::Append(writer, value);
+	}
+
+	UInt8				_level;
+	bool				_header;
+	bool				_first;
+	Media::Data::Type	_type;
 };
 
 
@@ -161,20 +186,8 @@ void HTTPWriter::writeRaw(DataReader& reader) {
 	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN);
 	if (!pSender)
 		return;
-	HTTP_BEGIN_HEADER(*pSender->writer())
-		HeaderWriter writer(*pSender->writer());
-		if (!reader.read(writer, 1) || !writer) {
-			writer.clear();
-			ERROR("HTTP content required at less a HTTP header object");
-			_senders.pop_back();
-		} else if (!writer.hasContentType()) {
-			Media::Data::Type type = Media::Data::ToType(reader);
-			if(type)
-				writer->write(EXPAND("Content-Type: application/")).write(Media::Data::TypeToSubMime(type)).write("\r\n");
-			else
-				writer->write(EXPAND("Content-Type: text/html; charset=utf-8\r\n"));
-		}
-	HTTP_END_HEADER
+	RawWriter writer(Media::Data::ToType(reader), pSender->writer()->buffer());
+	reader.read(writer);
 }
 
 BinaryWriter& HTTPWriter::writeRaw(const char* code) {

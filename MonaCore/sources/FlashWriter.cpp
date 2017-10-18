@@ -66,11 +66,11 @@ AMFWriter& FlashWriter::writeMessage() {
 void FlashWriter::writeRaw(DataReader& reader) {
 	UInt8 type;
 	UInt32 time;
-	if (!reader.readNumber(type) || !reader.readNumber(time)) {
-		ERROR("RTMP content required at less a AMF number type and a timestamp number");
+	if (!reader.readNumber(type)) {
+		ERROR("RTMP content required at less a AMF number type (second param can be optionally timestamp number)");
 		return;
 	}
-	StringWriter writer(write(AMF::Type(type), time)->buffer());
+	StringWriter writer(write(AMF::Type(type), reader.readNumber(time) ? time : 0)->buffer());
 	reader.read(writer);
 }
 

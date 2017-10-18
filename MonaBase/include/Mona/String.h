@@ -383,15 +383,15 @@ struct String : std::string, virtual Object {
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
 
-	struct Sub : virtual Object {
-		Sub(const std::string& value, std::size_t size) : value(value.data()), size(size == std::string::npos ? value.size() : size) {}
-		Sub(const char* value,        std::size_t size) : value(value), size(size==std::string::npos ? strlen(value) : size) {}
+	struct Data : virtual Object {
+		Data(const std::string& value, std::size_t size) : value(value.data()), size(size == std::string::npos ? value.size() : size) {}
+		Data(const char* value,        std::size_t size) : value(value), size(size==std::string::npos ? strlen(value) : size) {}
 		const char*	value;
 		std::size_t size;
 	};
 	template <typename OutType, typename ...Args>
-	static OutType& Append(OutType& out, const Sub& sub, Args&&... args) {
-		return Append<OutType>((OutType&)out.append(sub.value, sub.size), std::forward<Args>(args)...);
+	static OutType& Append(OutType& out, const Data& data, Args&&... args) {
+		return Append<OutType>((OutType&)out.append(data.value, data.size), std::forward<Args>(args)...);
 	}
 
 	struct Date : virtual Object {

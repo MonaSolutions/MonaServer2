@@ -83,10 +83,10 @@ private:
 ////  TO DEFINE ////
 	// must return true if something has been written in DataWriter object (so if DataReader has always something to read and write, !=END)
 	virtual bool	readOne(UInt8 type, DataWriter& writer) = 0;
-	virtual UInt8	followingType()=0;
+	virtual UInt8	followingType() = 0;
 ////////////////////
 
-	UInt8						_nextType;
+	UInt8			_nextType;
 	
 	template<typename NumberType>
 	struct NumberWriter : DataWriter {
