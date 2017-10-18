@@ -115,11 +115,12 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 
 				// Return error but keep connection keepalive if required to avoid multiple reconnection (and because HTTP client is valid contrary to a HTTPDecoder error)
-				if (ex)
+				if (ex && !died) // if died _pWriter is null!
 					_pWriter->writeError(ex);
 
 			}
-			_pWriter->endRequest();
+			if(!died) // if died _pWriter is null!
+				_pWriter->endRequest();
 		}
 
 		// Invalid packet, answer with the appropriate response and useless to keep the session opened!
@@ -147,7 +148,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 		}
 
-		if (request.flush)
+		if (request.flush && !died) // if died _pWriter is null!
 			_pWriter->flush();
 	}) {
 	
