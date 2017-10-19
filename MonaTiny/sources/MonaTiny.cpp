@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MonaTiny.h"
 #include "Mona/Logs.h"
 
+
 using namespace std;
 
 namespace Mona {
@@ -58,12 +59,12 @@ SocketAddress& MonaTiny::onHandshake(const string& path, const string& protocol,
 	return it == _applications.end() ? redirection : it->second->onHandshake(protocol, address, properties, redirection);
 }
 
-void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& parameters, DataWriter& response) {
+void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams) {
 	DEBUG(client.protocol, " ", client.address, " connects to ", client.path.empty() ? "/" : client.path)
 	const auto& it(_applications.find(client.path));
 	if (it == _applications.end())
 		return;
-	client.setCustomData<App::Client>(it->second->newClient(ex,client,parameters,response));
+	client.setCustomData<App::Client>(it->second->newClient(ex,client, inParams, outParams));
 }
 
 void MonaTiny::onDisconnection(Client& client) {
@@ -81,7 +82,7 @@ void MonaTiny::onAddressChanged(Client& client, const SocketAddress& oldAddress)
 
 bool MonaTiny::onInvocation(Exception& ex, Client& client, const string& name, DataReader& arguments, UInt8 responseType) {
 	// on client message, returns "false" if "name" message is unknown
-	DEBUG(name," call from ",client.protocol," to ",client.path.empty() ? "/" : client.path)
+	DEBUG(name, " call from ", client.protocol, " to ", client.path.empty() ? "/" : client.path)
 	if (client.hasCustomData())
 		return client.getCustomData<App::Client>()->onInvocation(ex, name, arguments,responseType);
 	return false;

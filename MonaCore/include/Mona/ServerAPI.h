@@ -91,7 +91,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onStop(){}
 
 	virtual SocketAddress& 	onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) { return redirection; }
-	virtual void			onConnection(Exception& ex,Client& client,DataReader& arguments,DataWriter& response) {} // Exception::SOFTWARE, Exception::APPLICATION
+	virtual void			onConnection(Exception& ex,Client& client, DataReader& inParams, DataWriter& outParams) {} // Exception::SOFTWARE, Exception::APPLICATION
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION

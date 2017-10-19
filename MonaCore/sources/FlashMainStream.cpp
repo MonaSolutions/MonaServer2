@@ -78,7 +78,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 		response.amf0 = writer.amf0;
 		Exception ex;
 		(bool&)writer.isMain = true;
-		peer.onConnection(ex, writer, netStats, message,response);
+		peer.onConnection(ex, writer, netStats, message, response);
 		if (ex) {
 			if (ex.cast<Ex::Application::Unfound>())
 				writer.writeAMFMainError("NetConnection.Connect.InvalidApp", ex);

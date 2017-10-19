@@ -316,6 +316,9 @@
     <ClInclude Include="include\Mona\VTTWriter.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\WriterReader.h">
+      <Filter>Serializers\Patterns</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">

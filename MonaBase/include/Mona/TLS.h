@@ -45,8 +45,6 @@ struct TLS : virtual Object {
 
 		UInt32  available() const;
 		UInt64	queueing() const;
-	
-		bool accept(Exception& ex, shared<Mona::Socket>& pSocket);
 
 		bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout = 0);
 

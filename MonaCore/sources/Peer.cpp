@@ -151,7 +151,7 @@ SocketAddress& Peer::onHandshake(SocketAddress& redirection) {
 	return redirection;
 }
 
-void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& arguments,DataWriter& response) {
+void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response) {
 	if(disconnection) {
 		_pWriter = &writer;
 		_pNetStats = &netStats;
@@ -162,11 +162,11 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		string buffer;
 
 		// reset default protocol parameters
-		Parameters parameters;
-		MapWriter<Parameters> parameterWriter(parameters);
+		Parameters outParams;
+		MapWriter<Parameters> parameterWriter(outParams);
 		SplitWriter parameterAndResponse(parameterWriter,response);
 
-		_api.onConnection(ex, *this, arguments, parameterAndResponse);
+		_api.onConnection(ex, *this, parameters, parameterAndResponse);
 		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(*this).second) {
 			ERROR(ex.set<Ex::Protocol>("Client ", String::Hex(id, Entity::SIZE), " exists already"));
 			_api.onDisconnection(*this);
@@ -178,7 +178,7 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		} else {
 			((Time&)connection).update();
 			(Time&)disconnection = 0;
-			onParameters(parameters);
+			onParameters(outParams);
 			DEBUG("Client ",address," connection")
 		}
 		writer.flushable = true; // remove unflushable

@@ -44,7 +44,7 @@ protected:
 
 	//// Client Events /////
 	SocketAddress& onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection);
-	void onConnection(Exception& ex, Client& client, DataReader& parameters, DataWriter& response);
+	void onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams);
 	void onDisconnection(Client& client);
 
 	void onAddressChanged(Client& client, const SocketAddress& oldAddress);

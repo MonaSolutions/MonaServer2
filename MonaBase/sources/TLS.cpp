@@ -100,13 +100,6 @@ Mona::Socket* TLS::Socket::newSocket(Exception& ex, NET_SOCKET sockfd, const soc
 		return NULL;
 	}
 	SSL_set_accept_state(pSocket->_ssl);
-	if (pSocket->catchResult(ex, SSL_do_handshake(pSocket->_ssl), " (peer=", pSocket->peerAddress(), ")") >= 0)
-		return pSocket;
-	if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK) {
-		delete pSocket;
-		return NULL;
-	}
-	ex = nullptr;
 	return pSocket;
 }
 
@@ -115,12 +108,10 @@ bool TLS::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 	if (!pTLS)
 		return result;  // normal socket or already doing SSL negociation!
 
-	bool connected(true);
 	if (!result) {
 		if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 			return false;
 		ex = nullptr;
-		connected = false;
 	}
 
 	lock_guard<mutex> lock(_mutex);
@@ -135,7 +126,8 @@ bool TLS::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 	}
 	
 	SSL_set_connect_state(_ssl);
-	return connected ? catchResult(ex, SSL_do_handshake(_ssl), " (address=", address, ")") >= 0 : true;
+	// do the handshake now to send the client-hello message! (if non-blocking socket it's set before the call to connect)
+	return result ? catchResult(ex, SSL_do_handshake(_ssl), " (address=", address, ")") >= 0 : true;
 }
 
 int TLS::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress) {
@@ -186,8 +178,10 @@ bool TLS::Socket::flush(Exception& ex, bool deleting) {
 		lock.lock();
 	if (!_ssl)
 		return Mona::Socket::flush(ex, deleting);
-	int result(catchResult(ex, SSL_do_handshake(_ssl)));
-	if (result >= 0) // handshake success
+	if (deleting) {
+		if (!SSL_is_init_finished(_ssl))
+			return true;
+	} else if(catchResult(ex, SSL_do_handshake(_ssl))>=0) // handshake success
 		return Mona::Socket::flush(ex, deleting); // try to flush after hanshake
 	if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 		return false;

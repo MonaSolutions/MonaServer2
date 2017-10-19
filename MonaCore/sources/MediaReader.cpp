@@ -106,7 +106,7 @@ void MediaReader::parsePacket(const Packet& packet, Media::Source& source) {
 		return;
 	}
 	if (rest > packet.size()) {
-		WARN(typeof(*this)," indicatse a media rest more greather than data");
+		WARN(typeof(*this)," indicates a media rest more greather than data");
 		rest = packet.size();
 	}
 

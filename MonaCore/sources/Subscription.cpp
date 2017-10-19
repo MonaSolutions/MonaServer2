@@ -28,7 +28,7 @@ namespace Mona {
 
 Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
 	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(0), _startTime(0), _lastTime(0),
-	_waitingFirstVideoSync(0), _pMediaWriter(NULL), _onMediaWrite([&target](const Packet& packet) {
+	_waitingFirstVideoSync(0), _onMediaWrite([&target](const Packet& packet) {
 		target.writeData(0, Media::Data::TYPE_MEDIA, packet);
 	}) {
 }
@@ -389,14 +389,8 @@ void Subscription::setFormat(const char* format) {
 	if (!format && !_pMediaWriter)
 		return;
 	endMedia(); // end in first to finish the previous format streaming => new format = new stream
-	if (_pMediaWriter) {
-		delete _pMediaWriter;
-		_pMediaWriter = NULL;
-	}
-	if (!format)
-		return;
-	_pMediaWriter = MediaWriter::New(format);
-	if (!_pMediaWriter)
+	_pMediaWriter.reset(format ? MediaWriter::New(format) : NULL);
+	if (format && !_pMediaWriter)
 		WARN("Subscription format ", format, " unknown or unsupported");
 }
 

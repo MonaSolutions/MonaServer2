@@ -139,7 +139,7 @@ private:
 
 	// For "format" parameter
 	MediaWriter::OnWrite	_onMediaWrite;
-	MediaWriter*			_pMediaWriter;
+	unique<MediaWriter>		_pMediaWriter;
 };
 
 

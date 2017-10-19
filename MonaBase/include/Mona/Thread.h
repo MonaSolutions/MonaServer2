@@ -31,6 +31,8 @@ struct Thread : virtual Object {
 		PRIORITY_HIGHEST
 	};
 
+	virtual ~Thread();
+
 	bool						start(Exception& ex, Priority priority = PRIORITY_NORMAL);
 	virtual void				stop();
 
@@ -46,8 +48,6 @@ struct Thread : virtual Object {
 	static const std::string&	CurrentName() { return _Name; }
 	static UInt32				CurrentId();
 	static const UInt32			MainId;
-
-	virtual ~Thread();
 
 	struct ChangeName : virtual Object {
 		template <typename ...Args>

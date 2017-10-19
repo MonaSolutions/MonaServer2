@@ -77,27 +77,53 @@ ADD_TEST(UDP_Blocking) {
 }
 
 
-struct Connection : Thread {
-	Connection() : Thread("Connection") {}
-	Socket*	operator->() { if(!_pSocket) stop();  return _pSocket.get(); }
-	Socket&	operator*() { if (!_pSocket) stop(); return *_pSocket; }
+struct Server : private Thread {
+	Server(const shared<TLS>& pTLS) : _signal(false), _server(Socket::TYPE_STREAM, pTLS), Thread("Server") {}
+	~Server() { stop(); }
+	
+	const SocketAddress& bind(const SocketAddress& address) {
+		Exception ex;
+		CHECK(_server.bind(ex, address) && !ex && _server.address() && !_server.address().host());
+		CHECK(_server.listen(ex) && !ex);
+		return _server.address();
+	}
+	bool accept(Exception& ex) {
+		stop();
+		_signal.reset();
+		return Thread::start(ex);
+	}
 
-	bool start(Exception& ex, Socket& server) { _pSocket.reset();  _pServer = &server; return Thread::start(ex); }
+	const Socket& connection() {
+		_signal.wait(); 
+		return *_pConnection;
+	}
+
 private:
-	bool run(Exception& ex, const volatile bool& stopping) { return _pServer->accept(ex, _pSocket) && _pSocket && !ex; }
+	bool run(Exception& ex, const volatile bool& stopping) {
+		CHECK(_server.accept(ex, _pConnection) && _pConnection && !ex);
+		_signal.set();
+		UInt8 buffer[8192];
+		int received(0);
+		Buffer message;
+		while ((received = _pConnection->receive(ex, buffer, sizeof(buffer))) > 0)
+			CHECK(_pConnection->send(ex, buffer, received) == received && !ex);
+		_pConnection->shutdown(Socket::SHUTDOWN_SEND);
+		return true;
+	}
 
-	Socket*			_pServer;
-	shared<Socket>	_pSocket;
+	TLS::Socket		_server;
+	shared<Socket>	_pConnection;
+	Signal			_signal;
 };
 
 
 void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>& pServerTLS = nullptr) {
 	Exception ex;
 
-	unique_ptr<Socket> pServer(new TLS::Socket(Socket::TYPE_STREAM, pServerTLS));
-	unique_ptr<Socket> pClient(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
-	Connection connection;
 	
+	unique_ptr<Socket> pClient(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
+	unique_ptr<Server> pServer(new Server(pServerTLS));
+
 	// Test a connection refused
 	SocketAddress unknown(IPAddress::Loopback(), 62434);
 	CHECK(!pClient->connect(ex, unknown) && ex && !pClient->address() && !pClient->peerAddress());
@@ -105,9 +131,8 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 
 	// Test a IPv4 server
 	SocketAddress address;
-	CHECK(pServer->bind(ex, address) && !ex && pServer->address() && !pServer->address().host());
-	CHECK(pServer->listen(ex) && !ex);
-	UInt16 port = pServer->address().port();
+	UInt16 port = pServer->bind(address).port();
+	CHECK(pServer->accept(ex) && !ex);
 	
 	// Test IPv6 client refused by IPv4 server
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
@@ -117,29 +142,27 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 
 	// Test IPv4 client accepted by IPv4 server
 	address.set(IPAddress::Loopback(), port);
-	CHECK(connection.start(ex, *pServer) && !ex);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
-	CHECK(connection->peerAddress() == pClient->address() && pClient->peerAddress() == connection->address());
+	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
 	pClient.reset(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
-	pServer.reset(new TLS::Socket(Socket::TYPE_STREAM, pServerTLS));
+	pServer.reset(new Server(pServerTLS));
 	
-	// Test a IPv6 server (and test bind overriding)
+	// Test a IPv6 server
 	address.set(IPAddress::Wildcard(IPAddress::IPv6), port);
-	CHECK(pServer->bind(ex, address) && !ex && pServer->address() == address);
-	CHECK(pServer->listen(ex) && !ex);
+	CHECK(pServer->bind(address) == address);
+	CHECK(pServer->accept(ex) && !ex);
 
 	// Test IPv4 client accepted by IPv6 server
 	address.set(IPAddress::Loopback(), port);
-	CHECK(connection.start(ex, *pServer) && !ex);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
-	CHECK(connection->peerAddress() == pClient->address() && pClient->peerAddress() == connection->address());
+	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
 	pClient.reset(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
 
 	// Test IPv6 client accepted by IPv6 server
+	CHECK(pServer->accept(ex) && !ex);
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
-	CHECK(connection.start(ex, *pServer) && !ex);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
-	CHECK(connection->peerAddress() == pClient->address() && pClient->peerAddress() == connection->address());
+	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
 
 	// Test server TCP communication
 	CHECK(pClient->send(ex, EXPAND("hi mathieu and thomas")) == 21 && !ex);
@@ -149,14 +172,8 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 	UInt8 buffer[8192];
 	int received(0);
 	Buffer message;
-	while ((received = connection->receive(ex, buffer, sizeof(buffer))) > 0) {
-		CHECK(connection->send(ex, buffer, received) == received && !ex);
-		CHECK((received = pClient->receive(ex, buffer, sizeof(buffer))) > 0 && !ex);
+	while ((received = pClient->receive(ex, buffer, sizeof(buffer))) > 0)
 		message.append(buffer, received);
-	}
-	CHECK(connection->shutdown(Socket::SHUTDOWN_SEND));
-
-	CHECK(!pClient->receive(ex, buffer, sizeof(buffer)) && !ex)
 
 	CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)
 }

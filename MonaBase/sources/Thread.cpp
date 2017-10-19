@@ -104,6 +104,7 @@ Thread::Thread(const char* name) : _priority(PRIORITY_NORMAL), _stop(true), _nam
 }
 
 Thread::~Thread() {
+	// check not running because if running the children object used in "run" are already deleted!
 	if (!_stop)
 		CRITIC("Thread ",_name," deleting without be stopped before by child class");
 	if (_thread.joinable())

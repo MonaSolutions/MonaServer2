@@ -471,7 +471,7 @@ void MonaServer::onHandshake(const string& protocol,const SocketAddress& address
 }
 
 //// CLIENT_HANDLER /////
-void MonaServer::onConnection(Exception& ex, Client& client,DataReader& parameters,DataWriter& response) {
+void MonaServer::onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams) {
 	Service* pService = _pService->open(ex,client.path);
 	if (!pService) {
 		if (ex)

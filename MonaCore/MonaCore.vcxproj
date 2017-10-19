@@ -288,6 +288,7 @@
     <ClInclude Include="include\Mona\AMF.h" />
     <ClInclude Include="include\Mona\FlashStream.h" />
     <ClInclude Include="include\Mona\FlashWriter.h" />
+    <ClInclude Include="include\Mona\WriterReader.h" />
     <ClInclude Include="include\Mona\WS\WS.h" />
     <ClInclude Include="include\Mona\WS\WSDecoder.h" />
     <ClInclude Include="include\Mona\WS\WSProtocol.h" />
