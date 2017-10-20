@@ -43,7 +43,7 @@ UInt32 Handler::flush() {
 	}
 	Exception ex;
 	for (shared<Runner>& pRunner : runners) {
-		Thread::ChangeName newName(pRunner->name);
+		Thread::ChangeName newName('.',pRunner->name); // '.' to signal that its a sub-runner, wait the name of the thread in htop
 		AUTO_ERROR(pRunner->run(ex=nullptr), newName);
 		pRunner.reset(); // release resources
 	}

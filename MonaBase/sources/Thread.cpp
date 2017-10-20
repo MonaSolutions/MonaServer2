@@ -145,7 +145,7 @@ void Thread::process() {
 #endif
 
 		Exception ex;
-		AUTO_ERROR(run(ex, _stopping), _name);
+		AUTO_ERROR(run(ex, _requestStop), _name);
 #if !defined(_DEBUG)
 	} catch (exception& ex) {
 		CRITIC(_name, ", ", ex.what());
@@ -169,7 +169,7 @@ bool Thread::start(Exception& ex, Priority priority) {
 		_priority = priority;
 		wakeUp.reset();
 		_stop = false;
-		_stopping = false;
+		_requestStop = false;
 		_thread = thread(&Thread::process, this); // start the thread
 	} catch (exception& exc) {
 		_stop = true;
@@ -180,7 +180,7 @@ bool Thread::start(Exception& ex, Priority priority) {
 }
 
 void Thread::stop() {
-	_stopping = true; // advise thread (intern)
+	_requestStop = true; // advise thread (intern)
 	wakeUp.set(); // wakeUp a sleeping thread
 	if (_Me == this) {
 		// In the unique case were the caller is the thread itself, set _stop to true to allow to an extern caller to restart it!

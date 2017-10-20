@@ -25,7 +25,7 @@ namespace Mona {
 
 struct ThreadQueue : Thread, virtual Object {
 	ThreadQueue(const char* name) : Thread(name) {}
-	virtual ~ThreadQueue() { stop();	}
+	virtual ~ThreadQueue() { stop(); }
 
 	static ThreadQueue*	Current() { return _PCurrent; }
 
@@ -40,7 +40,7 @@ struct ThreadQueue : Thread, virtual Object {
 	}
 
 private:
-	bool run(Exception& ex, const volatile bool& stopping);
+	bool run(Exception& ex, const volatile bool& requestStop);
 
 	std::deque<shared<Runner>>			_runners;
 	std::mutex							_mutex;

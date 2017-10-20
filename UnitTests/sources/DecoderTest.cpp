@@ -31,10 +31,7 @@ static struct MainHandler : Handler {
 	MainHandler() : Handler(_signal) {}
 	UInt32 join(UInt32 min) {
 		UInt32 count(0);
-		while((count += Handler::flush())<min) {
-			if (!_signal.wait(14000))
-				return 0;
-		};
+		while ((count += Handler::flush()) < min && _signal.wait(14000));
 		return count;
 	}
 
@@ -138,8 +135,6 @@ ADD_TEST(File) {
 	};
 	struct Decoder : File::Decoder {
 		typedef Event<void(Decoded&)> ON(Decoded);
-		UInt32 count;
-		Decoder() : count(0) {}
 	private:
 		UInt32 decode(shared<Buffer>& pBuffer, bool end) {
 			CHECK(Thread::CurrentId() != Thread::MainId);
@@ -181,7 +176,8 @@ ADD_TEST(File) {
 	reader.read();
 	io.join();
 
-	CHECK(_Handler.join(UInt32(Path::CurrentApp().size() / 0xFFFF)) == reader.count && reader.count);
+	UInt32 min(UInt32(Path::CurrentApp().size() / 0xFFFF));
+	CHECK(_Handler.join(min) == reader.count && reader.count >= min);
 }
 
 }

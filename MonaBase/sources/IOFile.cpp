@@ -225,7 +225,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 							return true;
 						}
 						// here decoded=wantToRead!
-						return !decoded || _end ? true : ((IODevice*)pFile->_pDevice.load())->queue(ex, make_shared<ReadFile>(handler, pFile, _threadPool, decoded));
+						return (!decoded || _end) ? true : ((IODevice*)pFile->_pDevice.load())->queue(ex, make_shared<ReadFile>(handler, pFile, _threadPool, decoded));
 					}
 					shared<Buffer>		_pBuffer;
 					weak<File>			_weakFile;

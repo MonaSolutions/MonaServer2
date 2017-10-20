@@ -25,18 +25,6 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct WriterReader : DataReader, virtual Object {
-	WriterReader() : _rest(true) {}
-
-	void reset() { _rest = true; }
-private:
-	virtual bool write(DataWriter& writer) = 0;
-
-	UInt8 followingType() { return _rest ? OTHER : END; }
-	bool readOne(UInt8 type, DataWriter& writer) { return _rest = write(writer); }
-
-	bool _rest;
-};
 
 
 
