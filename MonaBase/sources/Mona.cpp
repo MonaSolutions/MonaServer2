@@ -295,6 +295,7 @@ struct Init {
 		// In order to have sockets behave the same across platforms, it is
 		// best to just ignore SIGPIPE all together.
 		struct sigaction act;
+		memset(&act, 0, sizeof(struct sigaction));
 		act.sa_handler = SIG_IGN;
 		act.sa_flags = SA_RESTART;
 		sigaction(SIGPIPE, &act, NULL);
