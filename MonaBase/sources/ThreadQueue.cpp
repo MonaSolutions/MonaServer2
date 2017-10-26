@@ -25,9 +25,9 @@ namespace Mona {
 
 thread_local ThreadQueue* ThreadQueue::_PCurrent(NULL);
 
-bool ThreadQueue::run(Exception&, const volatile bool& stopping) {
+bool ThreadQueue::run(Exception&, const volatile bool& requestStop) {
 	_PCurrent = this;
-
+	
 	for (;;) {
 		bool timeout = !wakeUp.wait(120000); // 2 mn of timeout
 		for(;;) {
@@ -35,11 +35,10 @@ bool ThreadQueue::run(Exception&, const volatile bool& stopping) {
 			{
 				lock_guard<mutex> lock(_mutex);
 				if (_runners.empty()) {
-					if (timeout)
-						stop(); // to set _stop immediatly!
-					if (stopping)
-						return true;
-					break;
+					if (!timeout && !requestStop)
+						break; // wait more
+					stop(); // to set _stop immediatly!
+					return true;
 				}
 				runners = move(_runners);
 			}
@@ -51,33 +50,6 @@ bool ThreadQueue::run(Exception&, const volatile bool& stopping) {
 			}
 		}
 	}
-	
-	/*
-	for (;;) {
-
-		bool timeout = !wakeUp.wait(120000); // 2 mn of timeout
-
-		for (;;) {
-			shared<Runner> pRunner;
-			{
-				std::lock_guard<std::mutex> lock(_mutex);
-				if (_runners.empty()) {
-					if (timeout)
-						stop(); // to set _stop immediatly!
-					if (stopping)
-						return true;
-					break;
-				}
-				pRunner = move(_runners.front());
-				_runners.pop_front();
-			}
-
-			Exception ex;
-			setName(pRunner->name);
-			AUTO_ERROR(pRunner->run(ex), pRunner->name);
-		}
-	}
-	*/
 }
 
 } // namespace Mona

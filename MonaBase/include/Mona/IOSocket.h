@@ -67,7 +67,7 @@ private:
 	void			write(const shared<Socket>& pSocket, int error);
 	void			close(const shared<Socket>& pSocket, int error);
 	
-	bool run(Exception& ex, const volatile bool& stopping);
+	bool run(Exception& ex, const volatile bool& requestStop);
 
 #if defined(_WIN32)
 	std::map<NET_SOCKET, weak<Socket>>	_sockets;

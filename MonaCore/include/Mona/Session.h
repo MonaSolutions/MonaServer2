@@ -36,6 +36,7 @@ struct Session : virtual Object {
 		ERROR_UNFOUND = 8,
 		// Int32 Negative => no possible to distribute a message
 		ERROR_SOCKET = -1,
+		ERROR_SHUTDOWN = -1, // no more message exchange acceptation!
 		ERROR_RESOURCE = -2,
 		ERROR_CONGESTED = -3,
 		ERROR_ZOMBIE = -4 // is already died indeed, impossible to send a message!

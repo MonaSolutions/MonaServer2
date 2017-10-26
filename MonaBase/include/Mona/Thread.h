@@ -64,7 +64,7 @@ protected:
 	template <typename ...Args>
 	const std::string& setName(Args&&... args) { SetSystemName(String::Assign(_Name, std::forward<Args>(args)...)); return _Name; }
 private:
-	virtual bool run(Exception& ex, const volatile bool& stopping) = 0;
+	virtual bool run(Exception& ex, const volatile bool& requestStop) = 0;
 	void		 process();
 
 	static void  SetSystemName(const std::string& name);
@@ -74,8 +74,8 @@ private:
 
 	const char*		_name;
 	Priority		_priority;
-	bool			_stop;
-	volatile bool	_stopping;
+	volatile bool	_stop;
+	volatile bool	_requestStop;
 
 	std::mutex		_mutex; // protect _thread
 	std::thread		_thread;

@@ -57,7 +57,7 @@ private:
 	void  loadStreams(std::multimap<std::string, Media::Stream*>& streams);
 	void  startStreams(std::multimap<std::string, Media::Stream*>& streams, std::set<Publication*>& publications, std::set<Subscription*>& subscriptions);
 
-	bool			run(Exception& ex, const volatile bool& stopping);
+	bool			run(Exception& ex, const volatile bool& requestStop);
 
 	Handler			_handler;
 	Timer			_timer;

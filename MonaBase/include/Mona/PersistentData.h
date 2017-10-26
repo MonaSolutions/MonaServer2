@@ -67,7 +67,7 @@ private:
 	}
 
 
-	bool run(Exception& ex, const volatile bool& stopping);
+	bool run(Exception& ex, const volatile bool& requestStop);
 	void processEntry(Exception& ex, Entry& entry);
 	bool loadDirectory(Exception& ex, const std::string& directory, const std::string& path, const ForEach& forEach);
 

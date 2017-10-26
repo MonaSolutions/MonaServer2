@@ -468,7 +468,7 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 }
 
 
-bool IOSocket::run(Exception& ex, const volatile bool& stopping) {
+bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 #if defined(_WIN32)
 	WNDCLASSEX wc;
 	::memset(&wc, 0, sizeof(wc));

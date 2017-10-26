@@ -73,7 +73,7 @@ bool Server::publish(const char* name, shared<Publish>& pPublish) {
 	return true;
 }
 
-bool Server::run(Exception&, const volatile bool& stopping) {
+bool Server::run(Exception&, const volatile bool& requestStop) {
 	BufferPool bufferPool(timer);
 	Buffer::SetAllocator(bufferPool);
 
@@ -133,7 +133,7 @@ bool Server::run(Exception&, const volatile bool& stopping) {
 			return 2000;
 		}); // manage every 2 seconds!
 		_timer.set(onManage, 2000);
-		while (!stopping) {
+		while (!requestStop) {
 			if (wakeUp.wait(_timer.raise()))
 				_handler.flush();
 		}

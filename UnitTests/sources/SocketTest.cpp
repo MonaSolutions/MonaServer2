@@ -99,7 +99,7 @@ struct Server : private Thread {
 	}
 
 private:
-	bool run(Exception& ex, const volatile bool& stopping) {
+	bool run(Exception& ex, const volatile bool& requestStop) {
 		CHECK(_server.accept(ex, _pConnection) && _pConnection && !ex);
 		_signal.set();
 		UInt8 buffer[8192];
