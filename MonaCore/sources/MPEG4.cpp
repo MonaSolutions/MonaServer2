@@ -290,7 +290,7 @@ UInt32 MPEG4::SPSToVideoDimension(const UInt8* data, UInt32 size) {
 	}
 	
 	// return width << 16 | height;
-	return ((picWidth - subWidthC * (bottomOffset + topOffset)) << 16) | (picHeight - subHeightC * (rightOffset + leftOffset));
+	return ((picWidth - subWidthC * (leftOffset + rightOffset)) << 16) | (picHeight - subHeightC * (topOffset + bottomOffset));
 }
 
 
