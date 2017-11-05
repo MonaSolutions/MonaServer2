@@ -39,9 +39,9 @@ TSReader::Program& TSReader::Program::reset(Media::Source& source) {
 }
 
 
-UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
+UInt32 TSReader::parse(Packet& buffer, Media::Source& source) {
 
-	BinaryReader input(packet.data(), packet.size());
+	BinaryReader input(buffer.data(), buffer.size());
 
 	do {
 
@@ -151,7 +151,7 @@ UInt32 TSReader::parse(const Packet& packet, Media::Source& source) {
 			if (it->second.waitHeader)
 				lost += reader.available();
 			else
-				it->second->read(Packet(packet, reader.current(), reader.available()), source);
+				it->second->read(Packet(buffer, reader.current(), reader.available()), source);
 		}
 		
 	} while (input.available());
@@ -377,7 +377,7 @@ void TSReader::readPESHeader(BinaryReader& reader, Program& pProgram) {
 		reader.next(length);
 }
 
-void TSReader::onFlush(const Packet& packet, Media::Source& source) {
+void TSReader::onFlush(Packet& buffer, Media::Source& source) {
 	for (auto& it : _programs) {
 		if (it.second)
 			it.second->flush(source);
@@ -389,7 +389,7 @@ void TSReader::onFlush(const Packet& packet, Media::Source& source) {
 	_syncError = false;
 	_crcPAT = 0;
 	_startTime = -1;
-	MediaReader::onFlush(packet, source);
+	MediaReader::onFlush(buffer, source);
 }
 
 } // namespace Mona

@@ -53,8 +53,8 @@ private:
 	void reset() { receive(_pHeader); }
 	void flush() { receive(_pHeader, !_length); /* flush + end infos*/ }
 
-	UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
-	UInt32 onStreamData(Packet& buffer, Socket& socket);
+	void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
+	UInt32 onStreamData(Packet& buffer, UInt32 limit, Socket& socket);
 
 	template <typename ...Args>
 	void receive(Args&&... args) { _handler.queue(onRequest, std::forward<Args>(args)...); }

@@ -60,7 +60,7 @@ struct DataReader : virtual Object {
 	bool			readDate(Date& date) { DateWriter writer(date); return read(DATE, writer); }
 	bool			readNull() { return read(NIL,DataWriter::Null()); }
 	template <typename BufferType>
-	bool			readBytes(BufferType& buffer) { BufferWriter<BufferType> writer(buffer); return read(BYTES, writer); }
+	bool			readBytes(BufferType& buffer) { BufferWriter<BufferType> writer(buffer); return followingType()==STRING ? read(STRING, writer) : read(BYTES, writer); }
 
 	operator bool() const { return reader.operator bool(); }
 	BinaryReader*		operator->() { return &reader; }

@@ -66,8 +66,8 @@ struct MediaSocket : virtual Static {
 			~Decoder() { _pReader->flush(*this); }
 
 		private:
-			UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
-			UInt32 onStreamData(Packet& buffer, const SocketAddress& address);
+			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
+			UInt32 onStreamData(Packet& buffer, UInt32 limit, const SocketAddress& address);
 	
 			void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { _handler.queue<Media::Audio>(onMedia, tag, packet, track); }
 			void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { _handler.queue<Media::Video>(onMedia, tag, packet, track); }

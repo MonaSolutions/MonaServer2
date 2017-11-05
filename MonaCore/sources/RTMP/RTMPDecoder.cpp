@@ -34,15 +34,14 @@ RTMPDecoder::RTMPDecoder(const Handler& handler) :
 	{
 }
 
-UInt32 RTMPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
-	if (!addStreamData(move(pBuffer), pSocket->recvBufferSize(), *pSocket)) {
+void RTMPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+	if (!addStreamData(Packet(pBuffer), pSocket->recvBufferSize(), *pSocket)) {
 		ERROR("RTMP message exceeds buffer maximum ", pSocket->recvBufferSize(), " size");
 		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception (works for HTTP and Upgrade session as WebSocket)
 	}
-	return 0;
 }
 
-UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
+UInt32 RTMPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 	do {
 		// HANDSHAKE 1
 		if (_handshake == HANDSHAKE_FIRST) {

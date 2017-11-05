@@ -218,13 +218,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 				private:
 					bool run(Exception& ex, const shared<File>& pFile) {
 						UInt32 decoded = pFile->pDecoder->decode(_pBuffer, _end);
-						if(_pBuffer) {
-							if(decoded<_pBuffer->size())
-								_pBuffer->resize(decoded);
-							handle<ReadFile::Handle>(_pBuffer, _end);
-							return true;
-						}
-						// here decoded=wantToRead!
+						// decoded=wantToRead!
 						return (!decoded || _end) ? true : ((IODevice*)pFile->_pDevice.load())->queue(ex, make_shared<ReadFile>(handler, pFile, _threadPool, decoded));
 					}
 					shared<Buffer>		_pBuffer;

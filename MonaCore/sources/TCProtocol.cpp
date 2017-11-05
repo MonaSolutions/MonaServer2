@@ -27,9 +27,6 @@ TCProtocol::TCProtocol(const char* name, ServerAPI& api, Sessions& sessions, con
 	onError(_server.onError), onConnection(_server.onConnection) {
 	onError = [this](const Exception& ex) { WARN("Protocol ", this->name, ", ", ex); }; // onError by default!
 
-	setNumber("bufferSize", 0xFFFF);
-	setNumber("recvBufferSize", 0xFFFF);
-	setNumber("sendBufferSize", 0xFFFF);
 }
 
 

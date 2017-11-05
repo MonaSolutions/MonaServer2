@@ -23,15 +23,14 @@ using namespace std;
 namespace Mona {
 
 
-UInt32 MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+void MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	// Check that it exceeds not socket buffer
-	if (!addStreamData(move(pBuffer), 0x2000, address)) { // HTTP header max = 0x2000
+	if (!addStreamData(Packet(pBuffer), 0x2000, address)) { // HTTP header max = 0x2000
 		_handler.queue(onError, "HTTP header too large (>8KB)");
 		pSocket->shutdown(); // no more reception (and send, uniplex stream)
 	}
-	return 0;
 }
-UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const SocketAddress& address) {
+UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, UInt32 limit, const SocketAddress& address) {
 	DUMP_RESPONSE(_name.c_str(), buffer.data() + _rest, buffer.size() - _rest, address);
 
 	while (_type== TYPE_HTTP) {
@@ -245,18 +244,14 @@ void MediaSocket::Writer::start() {
 }
 
 bool MediaSocket::Writer::beginMedia(const string& name) {
-	if (!_subscribed)
-		return false; // Not started => no Log, just ejects
 	_pName.reset(new string(name));
-	start();
+	start(); // begin media, we can try to start here (just on beginMedia!)
 	return send<Send>();
 }
 
 void MediaSocket::Writer::endMedia(const string& name) {
 	send<EndSend>();
-	// stop and start to signal end of stream
 	stop();
-	start();
 }
 
 void MediaSocket::Writer::stop() {

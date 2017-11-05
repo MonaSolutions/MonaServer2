@@ -230,9 +230,9 @@ MP4Reader::Box& MP4Reader::Box::operator-=(UInt32 readen) {
 }
 
 
-UInt32 MP4Reader::parse(const Packet& packet, Media::Source& source) {
-	UInt32 rest = parseData(packet, source);
-	_position += packet.size() - rest;
+UInt32 MP4Reader::parse(Packet& buffer, Media::Source& source) {
+	UInt32 rest = parseData(buffer, source);
+	_position += buffer.size() - rest;
 	return rest;
 }
 
@@ -830,34 +830,36 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								Media::Video* pLastVideo = NULL;
 								while (frames.available()>4) {
 									UInt8 frameType = frames.current()[4] & 0x1F;
-									if (type.video.frame == Media::Video::FRAME_CONFIG) {
-										// the previous is a CONFIG frame
-										UInt8 prevType = (frame[4] & 0x1F);
-										if (frameType != prevType) {
-											if (frameType == 7 || frameType == 8) {
-												// complete config packet!
-												frameSize += frames.next(frames.read32()) + 4;
-												if(pLastVideo)
-													++_times[time]; // to match with times synchro
-												_medias.emplace(time, pLastVideo=new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
-												frame = NULL;
-												continue;
-											} // else new frame is not a config part
-											if (prevType == 7) { 
-												if (pLastVideo)
-													++_times[time]; // to match with times synchro
-												_medias.emplace(time, pLastVideo = new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
-											} // else ignore 8 alone packet
-										} // else erase duplicate config type
-										frame = NULL;
-									} else if (frame && (frameType == 7 || frameType == 8)) {
-										// flush what before config packet
-										if (pLastVideo)
-											++_times[time]; // to match with times synchro
-										_medias.emplace(time, pLastVideo = new Media::Video(type.video, Packet(packet, frame, frameSize), track));
-										frame = NULL;
+									if(frame) {
+										if (type.video.frame == Media::Video::FRAME_CONFIG) {
+											// the previous is a CONFIG frame
+											UInt8 prevType = (frame[4] & 0x1F);
+											if (frameType != prevType) {
+												if (frameType == 7 || frameType == 8) {
+													// complete config packet!
+													frameSize += frames.next(frames.read32()) + 4;
+													if(pLastVideo)
+														++_times[time]; // to match with times synchro
+													_medias.emplace(time, pLastVideo=new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
+													frame = NULL;
+													continue;
+												} // else new frame is not a config part
+												if (prevType == 7) { 
+													if (pLastVideo)
+														++_times[time]; // to match with times synchro
+													_medias.emplace(time, pLastVideo = new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
+												} // else ignore 8 alone packet
+											} // else erase duplicate config type
+											frame = NULL;
+										} else if (frameType == 7 || frameType == 8) {
+											// flush what before config packet
+											if (pLastVideo)
+												++_times[time]; // to match with times synchro
+											_medias.emplace(time, pLastVideo = new Media::Video(type.video, Packet(packet, frame, frameSize), track));
+											frame = NULL;
+										}
 									}
-									type.video.frame = MPEG4::UpdateFrame(frameType, type.video.frame);
+									type.video.frame = MPEG4::UpdateFrame(frameType, frame ? type.video.frame : Media::Video::FRAME_UNSPECIFIED);
 									if (!frame) {
 										frame = frames.current();
 										frameSize = 0;
@@ -963,7 +965,7 @@ void MP4Reader::flushMedias(Media::Source& source) {
 	_medias.erase(_medias.begin(), it);
 }
 
-void MP4Reader::onFlush(const Packet& packet, Media::Source& source) {
+void MP4Reader::onFlush(Packet& buffer, Media::Source& source) {
 	// release resources
 	_times.clear(); // to force media flush (and clear _medias)
 	flushMedias(source);
@@ -976,7 +978,7 @@ void MP4Reader::onFlush(const Packet& packet, Media::Source& source) {
 	_offset = _position = 0;
 	_firstMoov = true;
 
-	MediaReader::onFlush(packet, source);
+	MediaReader::onFlush(buffer, source);
 }
 
 

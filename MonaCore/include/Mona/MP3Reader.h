@@ -30,8 +30,8 @@ struct MP3Reader : virtual Object, MediaTrackReader {
 	MP3Reader(UInt8 track=1) : _syncError(false), _size(0), MediaTrackReader(track), _tag(Media::Audio::CODEC_MP3) {}
 
 private:
-	UInt32 parse(const Packet& packet, Media::Source& source);
-	void   onFlush(const Packet& packet, Media::Source& source);
+	UInt32 parse(Packet& buffer, Media::Source& source);
+	void   onFlush(Packet& buffer, Media::Source& source);
 
 	UInt16 _size;
 	bool   _syncError;

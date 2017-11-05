@@ -427,12 +427,9 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				pBuffer->resize(received);
 
 				// decode can't happen BEFORE onDisconnection because this call decode + push to _handler in this call!
-				if (pSocket->pDecoder) {
-					UInt32 decoded = pSocket->pDecoder->decode(pBuffer, address, pSocket);
-					if (pBuffer && decoded < pBuffer->size())
-						pBuffer->resize(decoded);
-				}
-				if(pBuffer)
+				if (pSocket->pDecoder)
+					pSocket->pDecoder->decode(pBuffer, address, pSocket);
+				else
 					handle<Handle>(pSocket, pBuffer, address, stop);
 				available = pSocket->available();
 			};

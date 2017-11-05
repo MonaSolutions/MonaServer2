@@ -24,10 +24,9 @@ using namespace std;
 
 namespace Mona {
 
-UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
+UInt32 ADTSReader::parse(Packet& buffer, Media::Source& source) {
 	
-	
-	BinaryReader reader(packet.data(), packet.size());
+	BinaryReader reader(buffer.data(), buffer.size());
 
 	while (reader.available()) {
 
@@ -116,7 +115,7 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 		if(reader.available()<_size)
 			return reader.available();
 	
-		source.writeAudio(track, _tag, Packet(packet, reader.current(), _size));
+		source.writeAudio(track, _tag, Packet(buffer, reader.current(), _size));
 		reader.next(_size);
 		_size = 0;
 	};
@@ -124,13 +123,13 @@ UInt32 ADTSReader::parse(const Packet& packet, Media::Source& source) {
 	return 0;
 }
 
-void ADTSReader::onFlush(const Packet& packet, Media::Source& source) {
+void ADTSReader::onFlush(Packet& buffer, Media::Source& source) {
 	if (_size)
-		source.writeAudio(track, _tag, packet);
+		source.writeAudio(track, _tag, buffer);
 	_size = 0;
 	_infos = 0;
 	_syncError = false;
-	MediaTrackReader::onFlush(packet, source);
+	MediaTrackReader::onFlush(buffer, source);
 }
 
 } // namespace Mona

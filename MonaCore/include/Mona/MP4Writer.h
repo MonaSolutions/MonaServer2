@@ -24,6 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 /*!
+MP4Writer writes a progressive fragmented MP4 compatible with VLC, HTML5 and Media Source Extension
 /!\ No duration-is-empty implementation because it affects Edge (source invalid)
 /!\ No multiple "sample description" because it's not supported by Chrome and Firefox */
 struct MP4Writer : MediaWriter, virtual Object {
@@ -44,42 +45,51 @@ private:
 	void flush(const OnWrite& onWrite);
 
 	struct Frame : virtual Object {
-		Frame(const Media::Video::Tag& tag, const Packet& packet) : _pMedia(new Media::Video(tag, packet)) {}
-		Frame(const Media::Audio::Tag& tag, const Packet& packet) : _pMedia(new Media::Audio(tag, packet)) {}
-		Frame(Frame&& frame) : config(std::move(config)), _pMedia(std::move(frame._pMedia)) {}
-		Frame& operator=(Frame&& frame) { config = std::move(frame.config); _pMedia = std::move(frame._pMedia); return *this; }
+		Frame(const Media::Video::Tag& tag, const Packet& packet) : _pMedia(new Media::Video(tag, packet)), isSync(tag.frame == Media::Video::FRAME_KEY) {}
+		Frame(const Media::Audio::Tag& tag, const Packet& packet) : _pMedia(new Media::Audio(tag, packet)), isSync(true) {}
+		Frame(Frame&& frame) : config(std::move(config)), _pMedia(std::move(frame._pMedia)), isSync(frame.isSync) {}
+		Frame& operator=(Frame&& frame) { (bool&)isSync = frame.isSync; config = std::move(frame.config); _pMedia = std::move(frame._pMedia); return *this; }
 
-		Packet config;
-		const Packet& data() const { return *_pMedia; }
-		UInt32 size() const { return config.size() + _pMedia->size(); }
-		UInt32 time() const { return _pMedia->time(); }
-		UInt32 compositionOffset() const { return _pMedia->compositionOffset(); }
-	
+		Packet				config;
+		const Media::Base&	media() const { return *_pMedia; }
+		const bool			isSync;
+		UInt32				size() const { return config.size() + _pMedia->size(); }
+		UInt32				time() const { return _pMedia->time(); }
+		UInt32				compositionOffset() const { return _pMedia->compositionOffset(); }
 	private:
 		unique<Media::Base> _pMedia;
 		
 	};
 
 	struct Frames : virtual Object, std::deque<Frame> {
-		Frames(Media::Audio::Codec codec) : hasCompositionOffset(false), _firstRate(0), type(Media::TYPE_AUDIO), codec(codec) {}
-		Frames(Media::Video::Codec codec) : hasCompositionOffset(false), _firstRate(0), type(Media::TYPE_VIDEO), codec(codec) {}
+		Frames(Media::Audio::Codec codec) :
+			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec) {}
+		Frames(Media::Video::Codec codec) :
+			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec) {}
 		
-		const Media::Type	type;
-		const UInt8			codec;
+		const UInt8 codec;
 
 		Packet	config;
 		bool	hasCompositionOffset;
+		bool	hasKey;
 		UInt32  sizeTraf;
-		UInt32  firstRate() const { return _firstRate; }
-	
-		void	emplace_back(const Media::Audio::Tag& tag, const Packet& packet);
-		void	emplace_back(const Media::Video::Tag& tag, const Packet& packet);
-		void	clear();
+		UInt32  rate;
+
+		// fix time|duration
+		bool	firstTime;
+		UInt32	lastTime;
+		UInt32  lastDuration;
+
+		void emplace(const Media::Audio::Tag& tag, const Packet& packet);
+		void emplace(const Media::Video::Tag& tag, const Packet& packet);
+		void clear();
 	private:
-		UInt32 _firstRate;
+		void emplace_back() {}
+		void emplaceEnd();
 	};
 
-	void writeTrack(UInt32 track, Frames& frames, UInt32& dataOffset, Buffer& buffer);
+	void   writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset);
+	UInt32 writeFrame(BinaryWriter& writer, Frames& frames, const Frame& frame, UInt32 duration);
 
 	std::deque<Frames>			_audios; // Frames[0] = AAC, Frames[1] == MP3
 	std::deque<Frames>			_videos;
@@ -91,8 +101,6 @@ private:
 	bool						_audioOutOfRange;
 	bool						_videoOutOfRange;
 	UInt8						_errors;
-
-	Media::Audio::Tag			_audioSilence;
 };
 
 

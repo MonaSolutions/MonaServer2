@@ -343,7 +343,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 			while (size-- > 0) {
 				if (ex) {
 					_buffer.clear();
-					StringWriter stringWriter(_buffer);
+					StringWriter<string> stringWriter(_buffer);
 					if (!readNext(stringWriter))
 						continue;
 					writer.writePropertyName(_buffer.c_str());

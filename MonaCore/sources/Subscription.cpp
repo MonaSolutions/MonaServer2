@@ -345,6 +345,7 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 	VideoTrack* pVideo = track ? &_videos[track] : NULL;
 	if (_waitingFirstVideoSync)
 		_waitingFirstVideoSync.update(); // video is coming, wait more time
+
 	bool isConfig(tag.frame == Media::Video::FRAME_CONFIG);
 	if (!isConfig) {
 		if (tag.frame == Media::Video::FRAME_KEY) {

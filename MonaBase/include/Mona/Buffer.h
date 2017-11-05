@@ -55,6 +55,7 @@ struct Buffer : Binary, virtual Object {
 
 private:
 	Buffer(void* buffer, UInt32 size);
+	void computeCapacity(UInt32 size);
 
 	UInt32				_offset;
 	UInt8*				_data;

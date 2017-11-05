@@ -34,9 +34,9 @@ struct RTPReader : MediaReader, virtual Object {
 	RTPReader(ProfileArgs... args) : _first(true), _profile(args ...) {}
 
 private:
-	UInt32	parse(const Packet& packet, Media::Source& source) {
+	UInt32	parse(Packet& buffer, Media::Source& source) {
 
-		BinaryReader reader(packet.data(), packet.size());
+		BinaryReader reader(buffer.data(), buffer.size());
 
 		if (reader.available() < 12) {
 			CRITIC("RTP packet have to be whole, not fragmented");
@@ -46,7 +46,7 @@ private:
 		UInt8 byte(reader.read8());
 		UInt8 padding(0);
 		if (byte & 0x20) // padding, last byte is the padding size
-			 padding = packet.data()[packet.size()-1];
+			 padding = buffer.data()[buffer.size()-1];
 
 		bool extension = byte & 0x10;
 		UInt8 csrcCount = byte & 0x0F; // TODO onLost!!
@@ -73,16 +73,16 @@ private:
 		while (csrcCount--)
 			reader.read32();
 	
-		_profile.parse(time, extension, lost, Packet(packet, reader.current(),reader.available()-padding) , source);
+		_profile.parse(time, extension, lost, Packet(buffer, reader.current(),reader.available()-padding) , source);
 
 		_first = false;
 		return 0;
 	}
-	void onFlush(const Packet& packet, Media::Source& source) {
+	void onFlush(Packet& buffer, Media::Source& source) {
 		_profile.flush(source);
 		_first = true;
 		_time = 0;
-		MediaReader::onFlush(packet, source);
+		MediaReader::onFlush(buffer, source);
 	}
 
 	RTP_ProfileType _profile;

@@ -19,20 +19,14 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MonaTiny.h"
 #include "Mona/Logs.h"
 
-
 using namespace std;
 
 namespace Mona {
 
-
-//// External Publish ////
-
-
-
 //// Server Events /////
 void MonaTiny::onStart() {
 	// create applications
-	// _applications["/multicast"] = new MulticastApp(*this,poolBuffers);
+	//_applications["/test"] = new TestApp(*this);
 }
 
 void MonaTiny::manage() {
@@ -59,6 +53,7 @@ SocketAddress& MonaTiny::onHandshake(const string& path, const string& protocol,
 	return it == _applications.end() ? redirection : it->second->onHandshake(protocol, address, properties, redirection);
 }
 
+
 void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams) {
 	DEBUG(client.protocol, " ", client.address, " connects to ", client.path.empty() ? "/" : client.path)
 	const auto& it(_applications.find(client.path));
@@ -82,7 +77,7 @@ void MonaTiny::onAddressChanged(Client& client, const SocketAddress& oldAddress)
 
 bool MonaTiny::onInvocation(Exception& ex, Client& client, const string& name, DataReader& arguments, UInt8 responseType) {
 	// on client message, returns "false" if "name" message is unknown
-	DEBUG(name, " call from ", client.protocol, " to ", client.path.empty() ? "/" : client.path)
+	DEBUG(name, " call from ", client.protocol, " to ", client.path.empty() ? "/" : client.path);
 	if (client.hasCustomData())
 		return client.getCustomData<App::Client>()->onInvocation(ex, name, arguments,responseType);
 	return false;

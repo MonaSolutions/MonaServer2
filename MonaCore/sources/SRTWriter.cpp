@@ -27,17 +27,14 @@ void SRTWriter::beginMedia(const OnWrite& onWrite) {
 	_time = _index = 0;
 }
 
-void SRTWriter::endMedia(const OnWrite& onWrite) {
-	_pBuffer.reset();
-}
-
 void SRTWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
 	if (Media::Data::TYPE_TEXT != type || !onWrite)
 		return;
-	BinaryWriter writer(BUFFER_RESET(_pBuffer, 0));
+	shared<Buffer>	pBuffer(new Buffer());
+	BinaryWriter writer(*pBuffer);
 	String::Append(writer, ++_index, '\n', String::Date(Date(_time), _timeFormat), " --> ", String::Date(Date(_time + (UInt32)min(max(packet.size() / 20.0, 3) * 1000, 10000)), _timeFormat), '\n');
 	writer.write(packet).write(EXPAND("\n\n"));
-	onWrite(Packet(_pBuffer));
+	onWrite(Packet(pBuffer));
 	DEBUG("cc", track, "(", _time,") => ", string(STR packet.data(), packet.size()));
 }
 

@@ -23,7 +23,7 @@ using namespace std;
 
 namespace Mona {
 
-UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
+UInt32 WSDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 	do {
 
 		BinaryReader reader(buffer.data(), buffer.size());
@@ -32,9 +32,8 @@ UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			if (reader.available()<2)
 				return reader.size();
 
-			_type = reader.read8() & 0x0F;
+			_type = reader.read8();
 			UInt8 lengthByte = reader.read8();
-
 			if ((lengthByte & 0x7f) == 127) {
 				if (reader.available()<8)
 					return reader.size();
@@ -50,8 +49,6 @@ UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				_size += 4;
 				_masked = true;
 			}
-			
-			DUMP_REQUEST_DEBUG(socket.isSecure() ? "WSS" : "WS", reader.data(), reader.current()-reader.data(), socket.peerAddress());
 		}
 
 		if (reader.shrink(_size)<_size)
@@ -63,12 +60,24 @@ UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			WS::Unmask(reader);
 
 		Packet packet(buffer, reader.current(), reader.available());
-		DUMP_REQUEST(socket.isSecure() ? "WSS" : "WS", packet.data(), packet.size(), socket.peerAddress());
 		buffer += reader.size();
-		_handler.queue(onRequest, _type, packet, !buffer);
-
+		_message.addStreamData(packet, limit, _type, !buffer, socket);
 	} while (buffer);
 
+	return 0;
+}
+
+UInt32 WSDecoder::Message::onStreamData(Packet& buffer, UInt32 limit, UInt8 type, bool flush, const Socket& socket) {
+	UInt8 newType = (type & 0x0F);
+	if (newType)
+		_type = newType;
+
+	if (!(type & 0x80))
+		return buffer.size(); // wait next frame!
+
+	DUMP_REQUEST(socket.isSecure() ? "WSS" : "WS", buffer.data(), buffer.size(), socket.peerAddress());
+	_handler.queue(_onRequest, _type, buffer, flush);
+	_type = 0;
 	return 0;
 }
 

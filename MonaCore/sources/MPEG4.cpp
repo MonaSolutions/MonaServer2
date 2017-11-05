@@ -88,7 +88,7 @@ UInt32 MPEG4::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 	return reader.position();
 }
 
-BinaryWriter& MPEG4::WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer) {
+BinaryWriter& MPEG4::WriteVideoConfig(BinaryWriter& writer, const Packet& sps, const Packet& pps) {
 	// SPS + PPS
 	writer.write8(0x01); // avcC version 1
 	writer.write(sps.data() + 1, 3); // profile, compatibility, level
@@ -187,7 +187,7 @@ UInt8 MPEG4::RateToIndex(UInt32 rate) {
 
 static UInt16 ReadExpGolomb(BitReader& reader) {
 	UInt8 i(0);
-	while (!reader.read())
+	while (reader.available() && !reader.read())
 		++i;
 	UInt16 result = reader.read<UInt16>(i);
 	if (i > 15) {
@@ -276,6 +276,7 @@ UInt32 MPEG4::SPSToVideoDimension(const UInt8* data, UInt32 size) {
 	UInt16 picWidth = (ReadExpGolomb(reader) + 1) * 16;
 	UInt16 picHeight = (ReadExpGolomb(reader) + 1) * 16;
 	if (!reader.read()) { // frame_mbs_only_flag
+		picHeight *= 2;
 		subHeightC *= 2;
 		reader.next(); // mb_adaptive_frame_field_flag
 	}

@@ -35,7 +35,7 @@ namespace Mona {
 // An offset with PCR is necessary to make working forward/rewind feature on few player as VLC
 #define PCR_OFFSET			200
 
-static UInt8 _FF[182] = {
+static UInt8 _FF[188] = {
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -47,10 +47,8 @@ static UInt8 _FF[182] = {
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 };
-
-static const Packet _Fill(_FF,sizeof(_FF));
 
 TSWriter::Track& TSWriter::Track::operator=(MediaTrackWriter* pWriter) {
 	if (_pWriter) {
@@ -114,30 +112,30 @@ void TSWriter::writeProperties(const Media::Properties& properties, const OnWrit
 		_changed = true; // update PMT!
 }
 
-void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
+void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
 	// Write just one PAT+PMT table on codec change to save bandwith and because programs can't change during TSWriter session (see http://www.etherguidesystems.com/help/sdos/mpeg/syntax/tablesections/pat.aspx)
 	// Now write inside the both first 188 bytes packet (PAT + PMT) to allow recomposition stream on client side in a easy way (save the packet, and reuse it at stream beginning)
 	// No splitable format for now, so maximum programs (tracks) for PMT is 33!
-
 	if (_changed) {
 		++_version;
 		_changed = false;
 	}
 
+	UInt32 offset = writer.size();
+
 	// PAT => 47 60 00 10   Pointer: 00   TableID: 00   Length: B0 0D   Fix: 00 01 C1 00 00   Program: 00 01 F0 00   CRC: 9D B0 81 9C 
-	BinaryWriter writer(_buffer, 188);
 	const auto& itPAT(_pids.emplace(0, 0).first);
 	writer.write(EXPAND("\x47\x60\x00")).write8(0x10 | (itPAT->second++ % 0x10));
 	writer.write(EXPAND("\x00\x00\xB0\x0D\x00\x01\xC1\x00\x00\x00\x01\xE0\x20"));
 	// Write CRC
-	writer.write32(Crypto::ComputeCRC32(_buffer + 5, writer.size() - 5));
-	onWrite(writer);
+	writer.write32(Crypto::ComputeCRC32(writer.data() + offset + 5, (writer.size() - offset) - 5));
 	// Fill with FF
-	onWrite(Packet(_Fill, _Fill.data(), 188 - writer.size()));
+	writer.write(_FF, 188 - (writer.size() - offset));
 
+
+	offset = writer.size();
 
 	// PMT (PID = 32) => 47 60 20 10   Pointer: 00   TableID: 02
-	writer.clear();
 	writer.write(EXPAND("\x47\x60\x20"));
 
 	const auto& itPMT(_pids.emplace(0x20, 0).first);
@@ -191,14 +189,12 @@ void TSWriter::writePMT(UInt32 time, const OnWrite& onWrite) {
 	}
 
 	// Write len
-	BinaryWriter(_buffer + 6, 2).write16(0xB000 | ((writer.size()-4)&0x3FF));
+	BinaryWriter(writer.buffer().data() + offset + 6, 2).write16(0xB000 | (((writer.size() - offset) -4)&0x3FF));
 
 	// Write CRC
-	writer.write32(Crypto::ComputeCRC32(_buffer + 5, writer.size() - 5));
-
-	onWrite(writer);
+	writer.write32(Crypto::ComputeCRC32(writer.data() + offset + 5, (writer.size() - offset) - 5));
 	// Fill with FF
-	onWrite(Packet(_Fill, _Fill.data(), 188 - writer.size()));
+	writer.write(_FF, 188 - (writer.size() - offset));
 
 	_timePMT = time;
 }
@@ -237,15 +233,19 @@ void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packe
 
 	const auto& itPID(_pids.emplace(FIRST_AUDIO_PID + it->first, 0).first);
 
-	if (!it->second) // MP3
-		return writeES(itPID->first, itPID->second, tag.time, 0, packet, packet.size(), onWrite);
+	shared<Buffer> pBuffer(new Buffer());
+	BinaryWriter writer(*pBuffer);
+	if (it->second) {
+		// AAC
+		UInt32 finalSize;
+		MediaTrackWriter::OnWrite onAudioWrite([this, &itPID, &tag, &writer, &finalSize](const Packet& packet) {
+			writeES(writer, itPID->first, itPID->second, tag.time, 0, packet, finalSize);
+		});
+		it->second->writeAudio(tag, packet, onAudioWrite, finalSize);
+	} else // MP3
+		writeES(writer, itPID->first, itPID->second, tag.time, 0, packet, packet.size());
+	onWrite(Packet(pBuffer));
 
-	// AAC
-	UInt32 finalSize;
-	MediaTrackWriter::OnWrite onAudioWrite([this, &itPID, &tag, &onWrite, &finalSize](const Packet& packet){
-		writeES(itPID->first, itPID->second, tag.time, 0, packet, finalSize, onWrite);
-	});
-	it->second->writeAudio(tag, packet, onAudioWrite, finalSize);
 //	if (_canWrite || _toWrite)
 //		int breakPoint = 0;
 }
@@ -275,64 +275,58 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 	}
 
 	const auto& itPID(_pids.emplace(FIRST_VIDEO_PID + it->first, 0).first);
+
+	shared<Buffer> pBuffer(new Buffer());
+	BinaryWriter writer(*pBuffer);
 	UInt32 finalSize;
-	MediaTrackWriter::OnWrite onVideoWrite([this, &itPID, &tag, &onWrite, &finalSize](const Packet& packet){
-		writeES(itPID->first, itPID->second, tag.time, tag.compositionOffset, packet, finalSize, onWrite, tag.frame==Media::Video::FRAME_KEY);
+	MediaTrackWriter::OnWrite onVideoWrite([this, &itPID, &tag, &writer, &finalSize](const Packet& packet){
+		writeES(writer, itPID->first, itPID->second, tag.time, tag.compositionOffset, packet, finalSize, tag.frame==Media::Video::FRAME_KEY);
 	});
 	it->second->writeVideo(tag, packet, onVideoWrite, finalSize);
-//	if (_canWrite || _toWrite)
-//		int breakPoint = 0;
+	onWrite(Packet(pBuffer));
+	//	if (_canWrite || _toWrite)
+	//		int breakPoint = 0;
 }
 
-void TSWriter::writeES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, const Packet& packet, UInt32 esSize, const OnWrite& onWrite, bool randomAccess) {
-	
-	Packet data(packet);
-
-	while (data) {
+void TSWriter::writeES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, const Packet& packet, UInt32 esSize, bool randomAccess) {
+	Packet playload(packet);
+	while (playload) {
 		if (!_toWrite) {
 			if (_canWrite) {
 				ERROR("TS writer program ", pid, " has miscalculated PES split and fill size");
-				onWrite(Packet(_Fill, _Fill.data(), _canWrite));
+				writer.write(_FF, _canWrite);
 			}
-			_canWrite = writePES(pid, counter, time, compositionOffset, randomAccess, _toWrite = esSize, onWrite);
+			_canWrite = writePES(writer, pid, counter, time, compositionOffset, randomAccess, _toWrite = esSize);
 		} else if (!_canWrite)
-			_canWrite = writePES(pid, counter, time, randomAccess, _toWrite, onWrite);
-		Packet fragment(data, data.data(), data.size() > _canWrite ? _canWrite : data.size());
-		onWrite(fragment);
-		data += fragment.size();
-		_canWrite -= fragment.size();
-		if (fragment.size()>_toWrite) {
+			_canWrite = writePES(writer, pid, counter, time, randomAccess, _toWrite);
+		UInt32 toWrite = playload.size() > _canWrite ? _canWrite : playload.size();
+		writer.write(playload.data(), toWrite);
+		playload += toWrite;
+		_canWrite -= toWrite;
+		if (toWrite>_toWrite) {
 			ERROR("TS writer program ",pid," has miscalculated its finalSize");
 			_toWrite = 0;
 		} else
-			_toWrite -= fragment.size();
+			_toWrite -= toWrite;
 	}
 }
 
-UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt32 time, bool randomAccess, UInt32 size, const OnWrite& onWrite) {
-
-	BinaryWriter writer(_buffer, 13);
+UInt8 TSWriter::writePES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, bool randomAccess, UInt32 size) {
 	writer.write8(0x47).write16(pid);
 	if (size >= 184) {
 		writer.write8(0x10 | (counter++ % 0x10));
-		onWrite(writer);
 		return 184;
 	}
 	// fill
-	UInt8 fillSize(184-size);
 	writer.write8(0x30 | (counter++ % 0x10)); // adaptation flag
-	fillSize -= writeAdaptiveHeader(pid, time, randomAccess, fillSize, writer);
-
-	onWrite(writer);
-	if (fillSize)
-		onWrite(Packet(_Fill, _Fill.data(), fillSize));
+	writeAdaptiveHeader(writer, pid, time, randomAccess, 184 - size);
 	return size;
 }
 
-UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, bool randomAccess, UInt32 size, const OnWrite& onWrite) {
+UInt8 TSWriter::writePES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, bool randomAccess, UInt32 size) {
 
 	if (_changed || abs(Int32(time-_timePMT)) >= PMT_PERIOD)
-		writePMT(time, onWrite); // send periodic PMT infos
+		writePMT(writer, time); // send periodic PMT infos
 	
 	UInt64 pts(0), dts(0);
 	UInt8 flags(0), length(0);
@@ -368,23 +362,21 @@ UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 composi
 			else if (deltaTime >= 500) { // 500ms without PCR track, pulse it now (urgent)
 				// just PCR program (_pidPCR) can deliver the PCR timecode
 				const auto& it(_pids.emplace(_pidPCR, 0).first);
-				onWrite(Packet(_Fill, _Fill.data(), writePES(it->first, it->second, time, compositionOffset, false, 0, onWrite)));
+				writer.write(_FF, writePES(writer, it->first, it->second, time, compositionOffset, false, 0));
 			}
 		}
 	}
 
-	BinaryWriter writer(_buffer,188);
+	UInt32 offset = writer.size();
 	writer.write8(0x47); // syncword
 	writer.write16(0x4000 | pid); // pid
 
-	/// ADATPVIE HEADER ////
+	/// ADAPTIVE HEADER ////
 	if (fillSize) {
 		writer.write8(0x30 | (counter++ % 0x10)); // adaptation field followed by payload
-		fillSize -= writeAdaptiveHeader(pid, time, randomAccess, fillSize, writer);
+		writeAdaptiveHeader(writer, pid, time, randomAccess, fillSize);
 	} else
 		writer.write8(0x10 | (counter++ % 0x10)); // no adaptation field, payload only
-	
-	UInt32 pusiPos(writer.size());
 
 	/// PES HEADER ////
 
@@ -406,16 +398,11 @@ UInt8 TSWriter::writePES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 composi
 	if (dts)
 		writer.write8(((dts>>29)&0x0E) | 0x21).write16(((dts >> 14) & 0xfffe) | 1).write16(((dts << 1) & 0xfffe) | 1);
 
-	if (fillSize) {
-		onWrite(Packet(writer.data(),pusiPos));
-		onWrite(Packet(_Fill, _Fill.data(), fillSize));
-		onWrite(Packet(writer.data()+pusiPos,writer.size()-pusiPos));
-	} else
-		onWrite(writer);
-	return 188 - writer.size()-fillSize;
+	return 188 - (writer.size()-offset);
 }
 
-UInt8 TSWriter::writeAdaptiveHeader(UInt16 pid, UInt32 time, bool randomAccess, UInt8 fillSize, BinaryWriter& writer) {
+void TSWriter::writeAdaptiveHeader(BinaryWriter& writer, UInt16 pid, UInt32 time, bool randomAccess, UInt8 fillSize) {
+	UInt32 offset = writer.size();
 	writer.write8(--fillSize); // size of Adaptive Field
 	if (fillSize >= 7 && pid == _pidPCR && time>_timePCR) {
 		// Add PCR if place available and if monothonic,
@@ -425,9 +412,10 @@ UInt8 TSWriter::writeAdaptiveHeader(UInt16 pid, UInt32 time, bool randomAccess, 
 		writer.write32((pcr>>1) & 0xFFFFFFFF).write16((pcr&0x01)<<15);
 		_timePCR = time;
 		_firstPCR = false;
-	} else if (fillSize)
+	} else if(fillSize)
 		writer.write8(0); // flags
-	return writer.size()-4;
+	// Fill with FF
+	writer.write(_FF, ++fillSize-(writer.size()-offset));
 }
 
 

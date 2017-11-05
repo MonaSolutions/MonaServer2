@@ -29,15 +29,24 @@ namespace Mona {
 struct WSDecoder : StreamData<Socket&>, virtual Object {
 	typedef Event<void(WS::Request&)> ON(Request);
 
-	WSDecoder(const Handler& handler) : _masked(false), _type(0), _size(0), _handler(handler) {}
+	WSDecoder(const Handler& handler) : _masked(false), _type(0), _size(0), _handler(handler), _message(handler, onRequest) {}
 
 private:
-	UInt32 onStreamData(Packet& buffer, Socket& socket);
+	UInt32 onStreamData(Packet& buffer, UInt32 limit, Socket& socket);
 
 	UInt32			_size;
 	UInt8			_type;
 	bool			_masked;
 	const Handler&	_handler;
+
+	struct Message : StreamData<UInt8,bool, const Socket&> {
+		Message(const Handler& handler, const OnRequest& onRequest) : _handler(handler), _onRequest(onRequest) {}
+	private:
+		UInt32 onStreamData(Packet& buffer, UInt32 limit, UInt8 type, bool flush, const Socket& socket);
+		const Handler&		_handler;
+		const OnRequest&	_onRequest;
+		UInt8				_type;
+	} _message;
 };
 
 

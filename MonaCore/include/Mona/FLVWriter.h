@@ -39,15 +39,13 @@ struct FLVWriter : MediaWriter, virtual Object {
 	void		writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_AUDIO, ToCodecs(tag), tag.isConfig, tag.time, 0, packet, onWrite); }
 	void		writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_VIDEO, ToCodecs(tag), tag.frame == Media::Video::FRAME_CONFIG, tag.time, tag.compositionOffset, packet, onWrite); }
 	void		writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_DATA, 0, false, 0, 0, packet, onWrite); }
-	void		endMedia(const OnWrite& onWrite) { _pBuffer.reset(); }
+	void		endMedia(const OnWrite& onWrite) {}
 
 	static UInt8 ToCodecs(const Media::Audio::Tag& tag);
 	static UInt8 ToCodecs(const Media::Video::Tag& tag) { return ((tag.frame== Media::Video::FRAME_CONFIG ? Media::Video::FRAME_KEY : tag.frame) << 4) | tag.codec; }
 
 private:
 	void write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt16 compositionOffset, const Packet& packet, const OnWrite& onWrite);
-	
-	shared<Buffer> _pBuffer;
 };
 
 

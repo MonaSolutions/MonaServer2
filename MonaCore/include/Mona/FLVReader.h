@@ -33,9 +33,9 @@ struct FLVReader : virtual Object, MediaReader {
 	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::Tag& tag, Media::Audio::Config& config);
 	static UInt8  ReadMediaHeader(const UInt8* data, UInt32 size, Media::Video::Tag& tag);
 private:
-	UInt32	parse(const Packet& packet, Media::Source& source);
+	UInt32	parse(Packet& buffer, Media::Source& source);
 
-	void	onFlush(const Packet& packet, Media::Source& source);
+	void	onFlush(Packet& buffer, Media::Source& source);
 
 	// Read/Parse state
 	bool				_begin;

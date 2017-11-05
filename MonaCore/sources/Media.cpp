@@ -331,7 +331,7 @@ DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer) {
 			return new QueryWriter(buffer);
 		case TYPE_MEDIA:
 		case TYPE_TEXT:
-			return new StringWriter(buffer);
+			return new StringWriter<>(buffer);
 		case TYPE_UNKNOWN:
 			break;
 	}

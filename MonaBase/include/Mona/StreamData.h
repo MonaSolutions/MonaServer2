@@ -24,42 +24,46 @@ namespace Mona {
 template<typename ...Args>
 struct StreamData {
 
-	bool addStreamData(shared<Buffer>&& pBuffer, UInt32 limit, Args... args) {
-		if (_pBuffer)
-			_pBuffer->append(pBuffer->data(), pBuffer->size());
-		else
-			_pBuffer = pBuffer;
-		pBuffer = _pBuffer;
-		// Just one time to prefer recursivity rather "while repeat", and allow a "flush" info!
-		Packet packet(_pBuffer);
-		UInt32 rest(onStreamData(packet, std::forward<Args>(args)...));
-		if (!rest) {
-			pBuffer.reset();
-			return true; // no rest, can have deleted this, so return immediatly!
+	bool addStreamData(const Packet& packet, UInt32 limit, Args... args) {
+		// Call onStreamData just one time to prefer recursivity rather "while repeat", and allow a "flush" info!
+		UInt32 rest;
+		if (_pBuffer) {
+			_pBuffer->append(packet.data(), packet.size());
+			shared<Buffer> pBuffer(_pBuffer); // trick to keep reference to _pBuffer!
+			Packet buffer(pBuffer);
+			rest = min(onStreamData(buffer, limit, std::forward<Args>(args)...), _pBuffer->size());
+		} else {
+			Packet buffer(packet);
+			rest = min(onStreamData(buffer, limit, std::forward<Args>(args)...), packet.size());
 		}
-		if (rest > pBuffer->size())
-			rest = pBuffer->size();
+		if (!rest) {
+			// no rest, can have deleted this, so return immediatly!
+			_pBuffer.reset();
+			return true;
+		}
 		if (rest > limit) {
 			// test limit on rest no before to allow a pBuffer in input of limit size + pBuffer stored = limit size too
-			pBuffer.reset();
+			_pBuffer.reset();
 			return false;
 		}
-		if (pBuffer.unique()) {
-			if (rest < pBuffer->size()) {
-				memmove(pBuffer->data(), pBuffer->data() + pBuffer->size() - rest, rest);
-				pBuffer->resize(rest, true);
-			}
-			_pBuffer = std::move(pBuffer);
-		} else {
-			// new buffer because has been captured in a packet by decoding code
-			_pBuffer.reset(new Buffer(rest, pBuffer->data() + pBuffer->size() - rest));
-			pBuffer.reset();
+		if (!_pBuffer) {
+			_pBuffer.reset(new Buffer(rest, packet.data() + packet.size() - rest));
+			return true;
+		}
+		if (!_pBuffer.unique()) { // if not unique => packet hold by user in "parse", buffer immutable now
+			_pBuffer.reset(new Buffer(rest, _pBuffer->data() + _pBuffer->size() - rest));
+			return true;
+		}
+		if (rest < _pBuffer->size()) {
+			memmove(_pBuffer->data(), _pBuffer->data() + _pBuffer->size() - rest, rest);
+			_pBuffer->resize(rest, true);
 		}
 		return true;
 	}
 	void clearStreamData() { _pBuffer.reset(); }
+	shared<Buffer>& clearStreamData(shared<Buffer>& pBuffer) { return pBuffer = std::move(_pBuffer); }
 
-	virtual UInt32 onStreamData(Packet& buffer, Args... args) = 0;
+	virtual UInt32 onStreamData(Packet& buffer, UInt32 limit, Args... args) = 0;
 private:
 	shared<Buffer> _pBuffer;
 };

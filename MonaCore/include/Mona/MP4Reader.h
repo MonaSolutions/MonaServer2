@@ -34,8 +34,8 @@ struct MP4Reader : virtual Object, MediaReader {
 	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _firstMoov(true) {}
 
 private:
-	UInt32  parse(const Packet& packet, Media::Source& source);
-	void	onFlush(const Packet& packet, Media::Source& source);
+	UInt32  parse(Packet& buffer, Media::Source& source);
+	void	onFlush(Packet& buffer, Media::Source& source);
 
 	UInt32  parseData(const Packet& packet, Media::Source& source);
 	void	flushMedias(Media::Source& source);

@@ -264,10 +264,11 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 		INFO("Video frame dropped, ", _name, " waits a key frame");
 		return;
 	}
-	// flush properties before to deliver media packet (to be sync with media content)
-	flushProperties();
 
 	CCaption::OnVideo onVideo([this, &track](const Media::Video::Tag& tag, const Packet& packet) {
+		// flush properties before to deliver media packet (to be sync with media content)
+		flushProperties();
+
 		_byteRate += packet.size() + sizeof(tag);
 		_videos.byteRate += packet.size() + sizeof(tag);
 		_new = true;
@@ -318,9 +319,6 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 		}
 	}
 
-	// flush properties before to deliver media packet (to be sync with media content)
-	flushProperties();
-
 	// create track
 	if(track) {
 		DataTrack& data = _datas[track];
@@ -332,6 +330,9 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 				setString(String(track, ".textLang"), EXPAND("und"));
 		}
 	}
+
+	// flush properties before to deliver media packet (to be sync with media content)
+	flushProperties();
 
 	_byteRate += packet.size();
 	_datas.byteRate += packet.size();

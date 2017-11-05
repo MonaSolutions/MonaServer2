@@ -30,7 +30,7 @@ struct MPEG4 : virtual Static {
 	static bool				ParseVideoConfig(const Packet& packet, Packet& sps, Packet& pps);
 
 	static UInt32			ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer);
-	static BinaryWriter&	WriteVideoConfig(const Packet& sps, const Packet& pps, BinaryWriter& writer);
+	static BinaryWriter&	WriteVideoConfig(BinaryWriter& writer, const Packet& sps, const Packet& pps);
 	static UInt32			SPSToVideoDimension(const UInt8* data, UInt32 size);
 
 

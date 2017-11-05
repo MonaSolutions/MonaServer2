@@ -24,12 +24,14 @@ namespace Mona {
 atomic<Allocator*>	Buffer::_Allocator(&Allocator::Default());
 
 
-Buffer::Buffer(UInt32 size, const void* data) : _offset(0), _size(size), _capacity(size) {
+Buffer::Buffer(UInt32 size, const void* data) : _offset(0), _size(size) {
 	if (!size) {
 		static UInt8 BufferEmpty;
+		_capacity = 0;
 		_data = _buffer = &BufferEmpty;
 		return;
 	}
+	computeCapacity(size);
 	_data = _buffer = _Allocator.load()->allocate(_capacity);
 	if (data)
 		memcpy(_data,data,size);
@@ -40,6 +42,17 @@ Buffer::Buffer(void* buffer, UInt32 size) : _offset(0), _data(BIN buffer), _size
 Buffer::~Buffer() {
 	if (_buffer && (_capacity+=_offset))
 		_Allocator.load()->deallocate(_buffer, _capacity);
+}
+
+void Buffer::computeCapacity(UInt32 size) {
+	_capacity = size - 1;
+	_capacity |= _capacity >> 1;
+	_capacity |= _capacity >> 2;
+	_capacity |= _capacity >> 4;
+	_capacity |= _capacity >> 8;
+	_capacity |= _capacity >> 16;
+	if (!++_capacity)
+		_capacity = size; // to expect the case where size*2 > 0xFFFFFFFF (exceeds maximum size)
 }
 
 Buffer& Buffer::append(const void* data, UInt32 size) {
@@ -95,16 +108,9 @@ Buffer& Buffer::resize(UInt32 size, bool preserveData) {
 	if (!_buffer)
 		FATAL_ERROR("Static buffer exceeds maximum ",_capacity," bytes capacity");
 
+	// fast compute the closer upper power of two for new capacity
 	UInt32 oldCapacity(_capacity);
-	if (!_capacity)
-		_capacity = 32;
-	while (size > _capacity) {
-		if (_capacity >= 0x80000000) { // to expect the case where _capacity*2 > 0xFFFFFFFF (exceeds maximum size)
-			_capacity = size;
-			break;
-		}
-		_capacity *= 2;	
-	}
+	computeCapacity(size);
 
 	// allocate
 	_data = _Allocator.load()->allocate(_capacity);

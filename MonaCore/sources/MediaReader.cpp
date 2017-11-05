@@ -81,47 +81,14 @@ MediaReader* MediaReader::New(const char* subMime) {
 	return NULL;
 }
 
-void MediaReader::read(const Packet& packet, Media::Source& source) {
-	shared<Buffer> pBuffer(_pBuffer);
-	if (pBuffer) {
-		pBuffer->append(packet.data(), packet.size());
-		parsePacket(Packet(pBuffer), source);
-	} else
-		parsePacket(packet, source);
-}
 void MediaReader::flush(Media::Source& source) {
-	if (_pBuffer)
-		onFlush(Packet(_pBuffer), source);
-	else
-		onFlush(Packet::Null(), source);
+	shared<Buffer> pBuffer;
+	Packet buffer(clearStreamData(pBuffer));
+	onFlush(buffer, source);
 }
-void MediaReader::onFlush(const Packet& packet, Media::Source& source) {
+void MediaReader::onFlush(Packet& buffer, Media::Source& source) {
 	source.reset();
 	source.flush(); // flush after reset!
-}
-void MediaReader::parsePacket(const Packet& packet, Media::Source& source) {
-	UInt32 rest = parse(packet, source);
-	if (!rest) {
-		_pBuffer.reset();
-		return;
-	}
-	if (rest > packet.size()) {
-		WARN(typeof(*this)," indicates a media rest more greather than data");
-		rest = packet.size();
-	}
-
-	if (!_pBuffer) {
-		_pBuffer.reset(new Buffer(rest, packet.data() + packet.size() - rest));
-		return;
-	}
-	// here packet encapsulate _pBuffer!
-	if (_pBuffer.unique()) {
-		if (rest < _pBuffer->size()) {
-			memmove(_pBuffer->data(), _pBuffer->data() + _pBuffer->size() - rest, rest);
-			_pBuffer->resize(rest, true);
-		}
-	} else // else new buffer because has been captured in a packet by decoding code
-		_pBuffer.reset(new Buffer(rest, _pBuffer->data() + _pBuffer->size() - rest));
 }
 
 } // namespace Mona

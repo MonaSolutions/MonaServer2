@@ -23,14 +23,14 @@ using namespace std;
 
 namespace Mona {
 
-void MonaReader::onFlush(const Packet& packet, Media::Source& source) {
+void MonaReader::onFlush(Packet& buffer, Media::Source& source) {
 	_size = 0;
-	MediaReader::onFlush(packet, source);
+	MediaReader::onFlush(buffer, source);
 }
 
-UInt32 MonaReader::parse(const Packet& packet, Media::Source& source) {
+UInt32 MonaReader::parse(Packet& buffer, Media::Source& source) {
 
-	BinaryReader reader(packet.data(), packet.size());
+	BinaryReader reader(buffer.data(), buffer.size());
 
 	while (reader.available()) {
 		if (!_size) {
@@ -51,7 +51,7 @@ UInt32 MonaReader::parse(const Packet& packet, Media::Source& source) {
 		Media::Video::Tag video;
 		Media::Data::Type  data;
 		Media::Type type = Media::Unpack(content, audio, video, data, track);
-		Packet media(packet, content.current(), content.available());
+		Packet media(buffer, content.current(), content.available());
 		switch (type) {
 			case Media::TYPE_AUDIO:
 				source.writeAudio(track, audio, media);

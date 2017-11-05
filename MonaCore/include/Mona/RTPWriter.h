@@ -156,7 +156,7 @@ private:
 	}
 
 	RTP_ProfileType			_profile;
-	shared<Buffer> _pBuffer;
+	shared<Buffer>			_pBuffer;
 	UInt32					_bytes;
 	UInt16					_count;
 	UInt32					_ssrc;

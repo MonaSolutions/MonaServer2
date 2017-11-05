@@ -23,25 +23,27 @@ namespace Mona {
 BitReader BitReader::Null(NULL,0);
 
 bool BitReader::read() {
+	if (_current == _end)
+		return false;
+	bool result = (*_current & (0x80 >> _bit++)) ? true : false;
 	if (_bit == 8) {
 		_bit = 0;
 		++_current;
 	}
-	return _current != _end && (*_current & (0x80 >> _bit++));
+	return result;
 }
 
 
 UInt64 BitReader::next(UInt64 count) {
-	UInt32 bytes = UInt32(count / 8);
-	if (bytes > UInt32(_end - _current)) {
-		bytes = _end - _current;
-		_current = _end;
-		_bit = 0;
-		return bytes * 8;
+	UInt64 gotten(0);
+	while (_current != _end && count--) {
+		++gotten;
+		if (++_bit == 8) {
+			_bit = 0;
+			++_current;
+		}
 	}
-	_current += bytes;
-	_bit += count % 8;
-	return count;
+	return gotten;
 }
 
 void BitReader::reset(UInt64 position) {

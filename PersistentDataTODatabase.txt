@@ -1,22 +1,27 @@
-Transformer PersistentData en Database =>
-Les opération de lecture bloquante sont extremement rapide,
-l'idée est donc de garder une représentation objet=>diskfiles MAIS =>
-1 - Sur chargement de la base, ouvrir tous les fichiers existants (créer leur handle) en mode séquentiel,
-    les objets pointent maintenant vers le handle près à être lu
-2 - Sur lecture d'un objet, faire un Readfile(Handle) bloquant et reset sur la position 0
-3 - Sur écriture d'un objet:
-	a - créer un shared_ptr<Buffer> et le mémoriser dans l objet pour retourner ça plutot que la lecture du fichier
-	b - passer le shared_ptr<Buffer> au travers d'un Packet à la nouvelle classe Database, qui elle va ouvrir le fichier
-	    et écrire le fichier en mode non bloquant
-	c - aussi tôt que le shared_ptr<Buffer> is unique, décharger la donnée et lire plutot le fichier comme au début
-4 - Sur écriture d'un objet redondant, créer un simbolink lien plutot qu'un vrai fichier, et lire avec le même Handle que l'original (mode bloquant)
+Coder database en luajit directement, et en utilisant File et FileWriter de MonaBase (pour la lecture synchrone et l'écriture asynchrone).
+Ne pas utiliser Mona::Cache (code le cache en luajit aussi, les opérations de recherche étant plus rapide meme que C++)
 
-
-Utiliser un CACHE!
-Un fichier par entrée!
-Format du fichier:
+Modèle de sérialisation sur le disque dur (naturellement compréhensible):
+- Limiter la taille de l'attribut + la valeur à FFFF octets (autrement il s'agit plus d'un article, préféré une page statique dans www folder + un path vers cette page dans la database)
+- Limiter les attributs à 256 (autrement conseillé de créer des sous object)
+=> max file size = 16Mo
+Format des fichiers:
 name = md5(content)
-attribut1[\n]
-[size=7BitEncoded32]content
-attribut2[\n]
-[size=7BitEncoded32]content
+[size on 2 byte][key1 + value1]
+[size on 2 byte][key2 + value2]
+
+Charger la database:
+- Charger la database sur démarrage de MonaServer et itérer (en vérifier l'intégrité des fichiers) sur les clés pour construire la représentation LUA => ne charger que les clés qui sont des structures complexes, pas les attributs finaux des objets (doit pointer vers __index)
+- Sur premiere lecture de la valeur d'une clé (ex: data.client.name), ouvrir le fichier "client/md5" en entier (permettant d'anticiper TOUS les attributs de clients) le lire et rediriger tous les attributs de type "natif" de client vers la zone mémoire chargé avec leur index de lecture. Enfin ajouter dans une cache mémoire codé en LUAJIT toutes les données de client avec un pointeur vers la table lua "client" (push_back). Eliminer ensuite le début de l'array cache pour qu'il ne dépasse pas la capacité du cache (pop_front) et pour les entrées du cache supprimées réassigner les attributs de toute la table (l'object) à null pour que ça pointe à nouveau vers __index.
+- Sur seconde lecture d'une valeur, soit ça lit les données en mémoire (memcache) + remove du cache et push_back (liste chainé) pour updater le cache ou alors ça rappelle __index et on refait la procédure précédente.
+- Sur écriture d'une propriété, mettre sa valeur a null (pour etre rediriger vers __index), puis construire la représentation du fichier en entier et démarrer une écriture asynchrone (if data represetation = null delete file?), puis rediriger __index vers cette nouvelle représentation pour bloquer le comportement de lecture habituelle le temps de l'écriture asynchrone (le fichier n'étant pas terminer d'écrire). Ca n'impacte pas ainsi la mise en cache éventuelle des autres attributs. Quand l'écriture est terminé (FileWriter::onFlush, vérifier son callback obligatoire coté code C++ de Mona) supprimer le blockage de __index et lui redonner son comportement par défaut.
+- Sur un nouvel objet assigner à un attribut, créer object LUA correspondant puis faire exactement comme une opération d'écriture sauf que l'écriture devra créer le nouveau dossier (client/md5).
+- Quand une object est copié sur une autre branche de l'abre data de lua (donc nouvel object appartenant déja à la database), créer de maniere asynchrone (ou synchrone si rapide?) un symlink sur le disque dur pour avoir cette information sur redémarrage du systeme! Mais garder le comportement inchangé de la table de base.
+- Sur supression d'un object, supprimer simplement l'object complexe LUA de la répresentation LUA et lancer une opération (synchrone/asynchrone? temps de suppression d'un dossier?) de suppression du dossier correspondant
+
+Astuce d'implémentation pour permettre de mettre à jour plusieurs valeurs en même temps d'une structure complexe:
+Crée data.client => data.client = {id=1, firstName="mathieu" } => {id=1, firstName="mathieu" }
+Update id et ajoute name à data.client => data.client = { id=3, name="poux"} => {id=3, firstName="mathieu", name="poux" }
+Remplace completement data.client => data.client = null; data.client = {id=0} => {id=0}
+
+

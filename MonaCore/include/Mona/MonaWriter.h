@@ -36,11 +36,12 @@ private:
 	
 	template<typename TagType>
 	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
-		onWrite(Media::Pack(BinaryWriter(_buffer, sizeof(_buffer)).write32(Media::PackedSize(tag, track) + packet.size()), tag, track));
+		UInt8 buffer[9];
+		onWrite(Media::Pack(BinaryWriter(buffer, sizeof(buffer)).write32(Media::PackedSize(tag, track) + packet.size()), tag, track));
 		onWrite(packet);
 	}
 
-	UInt8 _buffer[9];
+	
 };
 
 

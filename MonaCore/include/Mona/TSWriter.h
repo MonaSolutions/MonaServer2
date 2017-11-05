@@ -46,14 +46,14 @@ struct TSWriter : MediaWriter, virtual Object {
 	void endMedia(const OnWrite& onWrite);
 
 private:
-	void    writePMT(UInt32 time, const OnWrite& onWrite);
+	void    writePMT(BinaryWriter& writer, UInt32 time);
 
-	void   writeES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, const Packet& packet, UInt32 esSize, const OnWrite& onWrite, bool randomAccess=true);
+	void   writeES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, const Packet& packet, UInt32 esSize, bool randomAccess=true);
 	
-	UInt8  writePES(UInt16 pid, UInt8& counter, UInt32 time, bool randomAccess, UInt32 size, const OnWrite& onWrite);
-	UInt8  writePES(UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, bool randomAccess, UInt32 size, const OnWrite& onWrite);
+	UInt8  writePES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, bool randomAccess, UInt32 size);
+	UInt8  writePES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, bool randomAccess, UInt32 size);
 
-	UInt8  writeAdaptiveHeader(UInt16 pid, UInt32 time, bool randomAccess, UInt8 fillSize, BinaryWriter& writer);
+	void  writeAdaptiveHeader(BinaryWriter& writer, UInt16 pid, UInt32 time, bool randomAccess, UInt8 fillSize);
 
 	struct Track : virtual Object {
 		NULLABLE
@@ -81,7 +81,6 @@ private:
 	bool						_firstPCR;
 	UInt32						_timePCR;
 
-	UInt8						_buffer[188];
 	UInt8						_canWrite;
 	UInt32						_toWrite;
 };

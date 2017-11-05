@@ -70,7 +70,7 @@ void FlashWriter::writeRaw(DataReader& reader) {
 		ERROR("RTMP content required at less a AMF number type (second param can be optionally timestamp number)");
 		return;
 	}
-	StringWriter writer(write(AMF::Type(type), reader.readNumber(time) ? time : 0)->buffer());
+	StringWriter<> writer(write(AMF::Type(type), reader.readNumber(time) ? time : 0)->buffer());
 	reader.read(writer);
 }
 
@@ -135,7 +135,7 @@ bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 	if (tag.codec != Media::Video::CODEC_H264)
 		return true;
 	if (isAVCConfig)
-		MPEG4::WriteVideoConfig(_sps, _pps, writer.write8(0).write24(tag.compositionOffset));
+		MPEG4::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _sps, _pps);
 	else
 		writer.write8(1).write24(tag.compositionOffset);
 	return true;

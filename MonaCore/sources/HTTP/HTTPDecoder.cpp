@@ -24,19 +24,18 @@ using namespace std;
 namespace Mona {
 
 
-UInt32 HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+void HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	if (_ex) // a request error is killing the session!
-		return 0;
-	if (!addStreamData(move(pBuffer), pSocket->recvBufferSize(), *pSocket)) {
+		return;
+	if (!addStreamData(Packet(pBuffer), pSocket->recvBufferSize(), *pSocket)) {
 		ERROR(_ex.set<Ex::Protocol>("HTTP message exceeds buffer maximum ", pSocket->recvBufferSize(), " size"));
 		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception (works for HTTP and Upgrade session as WebSocket)
 	}
-	return 0;
 }
 
-UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
+UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 	if (_pUpgradeDecoder)
-		return _pUpgradeDecoder->onStreamData(buffer, socket);
+		return _pUpgradeDecoder->onStreamData(buffer, limit, socket);
 
 	// Dump just one time
 	if (buffer.size() > _decoded) {

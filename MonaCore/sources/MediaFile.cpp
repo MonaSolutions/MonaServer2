@@ -139,7 +139,7 @@ MediaFile::Writer::Write::Write(const shared<string>& pName, IOFile& io, const s
 	}) {
 }
 
-MediaFile::Writer::Writer(const Path& path, MediaWriter* pWriter, IOFile& io) :
+MediaFile::Writer::Writer(const Path& path, MediaWriter* pWriter, IOFile& io) : _append(false),
 	Media::Stream(TYPE_FILE), io(io), _writeTrack(0), _running(false), path(path), _pWriter(pWriter) {
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 }
@@ -153,8 +153,7 @@ void MediaFile::Writer::setMediaParams(const Parameters& parameters) {
 }
 
 bool MediaFile::Writer::beginMedia(const string& name) {
-	if (!_running)
-		return false; // Not started => no Log, just ejects
+	start(); // begin media, we can try to start here (just on beginMedia!)
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
 	io.open(_pFile, path, _onError, _append);
 	INFO(description(), " starts");
@@ -165,7 +164,6 @@ bool MediaFile::Writer::beginMedia(const string& name) {
 void MediaFile::Writer::endMedia(const string& name) {
 	write<EndWrite>();
 	stop();
-	start();
 }
 
 void MediaFile::Writer::stop() {

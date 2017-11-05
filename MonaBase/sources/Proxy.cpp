@@ -25,11 +25,10 @@ using namespace std;
 namespace Mona {
 
 
-UInt32 Proxy::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+void Proxy::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	Exception ex;
 	if (!_pSocket->write(ex, Packet(pBuffer), _address) || ex)
 		_handler.queue(onError, ex);
-	return 0;
 }
 
 Proxy::Proxy(IOSocket& io) : io(io), _connected(false),

@@ -81,7 +81,7 @@ private:
 		MediaTrackReader* _pReader;
 	};
 
-	UInt32  parse(const Packet& packet, Media::Source& source);
+	UInt32  parse(Packet& buffer, Media::Source& source);
 
 	void	parsePAT(const UInt8* data, UInt32 size, Media::Source& source);
 	void	parsePSI(const UInt8* data, UInt32 size, UInt8& version, Media::Source& source);
@@ -90,7 +90,7 @@ private:
 	void	readESI(BinaryReader& reader, Program& program);
 	void	readPESHeader(BinaryReader& reader, Program& pProgram);
 
-	void    onFlush(const Packet& packet, Media::Source& source);
+	void    onFlush(Packet& buffer, Media::Source& source);
 
 	std::map<UInt16, Program>   _programs;
 	std::map<UInt8, Properties> _properties;

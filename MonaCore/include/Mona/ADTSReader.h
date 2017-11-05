@@ -33,8 +33,8 @@ struct ADTSReader : virtual Object, MediaTrackReader {
 	ADTSReader(UInt8 track=1) : _syncError(false), _size(0), MediaTrackReader(track), _infos(0) {}
 
 private:
-	UInt32 parse(const Packet& packet, Media::Source& source);
-	void   onFlush(const Packet& packet, Media::Source& source);
+	UInt32 parse(Packet& buffer, Media::Source& source);
+	void   onFlush(Packet& buffer, Media::Source& source);
 
 	UInt16			  _size;
 	bool			  _syncError;

@@ -291,15 +291,15 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 	return true;
 }
 
-UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+void RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	if (pBuffer->size() <= RTMFP::SIZE_HEADER || (pBuffer->size() > (RTMFP::SIZE_PACKET<<1))) {
 		pBuffer.reset();
 		ERROR("Invalid packet size");
-		return 0;
+		return;
 	}
 	if (*_pReceiving >= pSocket->recvBufferSize()) {
 		DEBUG("Packet ignored because reception is receiving already socket recvBufferSize")
-		return 0; // ignore packet! wait end of receiving process (saturation)
+		return; // ignore packet! wait end of receiving process (saturation)
 	}
 
 	UInt32 id = RTMFP::ReadID(*pBuffer);
@@ -322,7 +322,7 @@ UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& addres
 			if (!finalizeHandshake(id, address, pReceiver)) {
 				WARN("Unknown RTMFP session ", id);
 				pBuffer.reset();
-				return 0;
+				return;
 			}
 			it = _receivers.emplace_hint(it, id, pReceiver);
 		} else if (it->second.unique()) {
@@ -334,7 +334,6 @@ UInt32 RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& addres
 		}
 		receive(it->second, pBuffer, address, pSocket);
 	}
-	return 0;
 }
 
 } // namespace Mona

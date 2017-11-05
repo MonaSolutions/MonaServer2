@@ -34,9 +34,8 @@ struct Socket : virtual Object, Net::Stats {
 
 	/*!
 	Decoder offers to decode data in the reception thread when socket is used with IOSocket
-	decode returns the size of data decoded passing to onReceived, if pBuffer is entierly captured nothing is passing to onReceived
 	/!\ pSocket must never be "attached" to the decoder in a instance variable otherwise a memory leak could happen (however a weak attachment stays acceptable) */
-	struct Decoder { virtual UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) = 0; };
+	struct Decoder { virtual void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) = 0; };
 
 	enum Type {
 		TYPE_STREAM = SOCK_STREAM,

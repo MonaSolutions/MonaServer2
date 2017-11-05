@@ -23,42 +23,28 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-
+template<typename BufferType=Buffer>
 struct StringWriter : DataWriter, virtual Object {
 
-	StringWriter(Buffer& buffer) : _pString(NULL),DataWriter(buffer) {}
-	StringWriter(std::string& buffer) : _pString(&buffer) {}
+	StringWriter(Buffer& buffer) : DataWriter(buffer), _buffer(Buffer::Null()) {}
+	StringWriter(typename std::conditional<std::is_same<BufferType, Buffer>::value, std::nullptr_t, BufferType>::type& buffer) : _buffer(buffer) {}
 
-	void   writePropertyName(const char* name) { append(name);  }
+	void   writePropertyName(const char* name) { append(name, std::strlen(name));  }
 
-	void   writeNumber(double value) { append(value); }
-	void   writeString(const char* value, UInt32 size) { append(value,size); }
-	void   writeBoolean(bool value) { append( value ? "true" : "false"); }
-	void   writeNull() { writer.write("null",4); }
-	UInt64 writeDate(const Date& date) { append(String::Date(date, Date::FORMAT_SORTABLE)); return 0; }
+	void   writeNumber(double value) { String::Append(self, value); }
+	void   writeString(const char* value, UInt32 size) { append(value, size); }
+	void   writeBoolean(bool value) { if (value) append(EXPAND("true")); else append(EXPAND("false")); }
+	void   writeNull() { append(EXPAND("null")); }
+	UInt64 writeDate(const Date& date) { date.format(Date::FORMAT_SORTABLE, self); return 0; }
 	UInt64 writeBytes(const UInt8* data, UInt32 size) { append(data, size); return 0; }
 
-	void   clear() { if (_pString) _pString->clear(); else writer.clear(); }
+	virtual void clear() { _buffer.clear(); writer.clear(); }
+	virtual StringWriter& append(const void* value, UInt32 size) { _buffer.append(STR value, size); writer.append(value, size); return self; }
+
+protected:
+	StringWriter() : _buffer(Buffer::Null()) {}
 private:
-	void append(const void* value, UInt32 size) {
-		if (_pString)
-			_pString->append(STR value, size);
-		else
-			writer.write(value, size);
-	}
-
-	template<typename ValueType>
-	void append(const ValueType& value) {
-		if (_pString)
-			String::Append(*_pString, value);
-		else
-			String::Append(writer, value);
-	}
-
-	std::string* _pString;
-
+	BufferType& _buffer;
 };
-
-
 
 } // namespace Mona

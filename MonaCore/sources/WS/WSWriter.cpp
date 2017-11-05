@@ -19,9 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/WS/WSWriter.h"
 #include "Mona/Logs.h"
 
-
 using namespace std;
-
 
 namespace Mona {
 
@@ -47,7 +45,7 @@ void WSWriter::writeRaw(DataReader& reader) {
 		ERROR("WebSocket content required at less a WS number type");
 		return;
 	}
-	StringWriter writer(write(WS::Type(type))->buffer());
+	StringWriter<> writer(write(WS::Type(type))->buffer());
 	reader.read(writer);
 }
 
@@ -56,7 +54,6 @@ DataWriter& WSWriter::writeInvocation(const char* name) {
 	invocation.writeString(name,strlen(name));
 	return invocation;
 }
-
 
 bool WSWriter::beginMedia(const string& name) {
 	writeJSON().writeString(EXPAND("@publishing"));

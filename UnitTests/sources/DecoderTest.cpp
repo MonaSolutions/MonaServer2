@@ -51,7 +51,7 @@ struct Decoder : virtual Object, Socket::Decoder {
 	Decoder() : count(0) {}
 	UInt8	count;
 
-	UInt32 decode(Packet& packet, const SocketAddress& address) {
+	void decode(Packet& packet, const SocketAddress& address) {
 		CHECK(Thread::CurrentId() != Thread::MainId);
 		CHECK(!count);
 		do {
@@ -60,12 +60,11 @@ struct Decoder : virtual Object, Socket::Decoder {
 			else
 				_Handler.queue(onDecoded, Packet(packet, packet.data(), 5), address);  // first time
 		} while (packet += 5);
-		return 0;
 	}
 private:
-	UInt32 decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 		Packet packet(pBuffer);
-		return decode(packet, address);
+		decode(packet, address);
 	}
 };
 

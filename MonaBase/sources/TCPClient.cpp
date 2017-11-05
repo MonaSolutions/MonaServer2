@@ -27,7 +27,7 @@ TCPClient::TCPClient(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io
 	_onReceived([this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 		_connected = true;
 		// Check that it exceeds not socket buffer
-		if (!addStreamData(move(pBuffer), _pSocket->recvBufferSize())) {
+		if (!addStreamData(Packet(pBuffer), _pSocket->recvBufferSize())) {
 			_pSocket->shutdown(Socket::SHUTDOWN_RECV);
 			Exception ex;
 			ex.set<Ex::Protocol>("Socket ", *_pSocket, " message exceeds buffer maximum ", _pSocket->recvBufferSize(), " size");

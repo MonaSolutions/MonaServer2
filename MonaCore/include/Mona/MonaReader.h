@@ -29,8 +29,8 @@ struct MonaReader : virtual Object, MediaReader {
 	MonaReader() : _size(0)  {}
 
 private:
-	UInt32  parse(const Packet& packet, Media::Source& source);
-	void	onFlush(const Packet& packet, Media::Source& source);
+	UInt32  parse(Packet& buffer, Media::Source& source);
+	void	onFlush(Packet& buffer, Media::Source& source);
 
 	UInt32 _size;
 };

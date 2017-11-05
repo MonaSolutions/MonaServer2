@@ -18,28 +18,50 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Buffer.h"
-#include <map>
 
 namespace Mona {
 
+
 struct Cache : virtual Object {
-	Cache(UInt32 capacity = 0x1FFFFFFF) : _capacity(capacity), _pBufferBack(NULL), _pBufferFront(NULL), _size(0) {}
-	/*!
-	Use a weak<const Buffer> is if expired add to cache */
-	void add(const shared<const Buffer>& pBuffer);
-	void remove(const shared<const Buffer>& pBuffer);
-private:
-	struct BufferPtr {
-		BufferPtr(const shared<const Buffer>& pBuffer) : pNext(NULL), pPrev(NULL), pBuffer(pBuffer) {}
-		shared<const Buffer> pBuffer;
-		BufferPtr*			 pPrev;
-		BufferPtr*			 pNext;
+	NULLABLE
+
+	struct Memory : virtual Object {
+		Memory(UInt32 capacity = 0x1FFFFFFF) : _capacity(capacity), _size(0), _pCacheFront(NULL), _pCacheBack(NULL) {}
+		UInt32 size() const {  return _size; }
+		UInt32 capacity() const { return _capacity; }
+	private:
+		Cache& add(Cache& cache, shared<Buffer>& pBuffer);
+		Cache& remove(Cache& cache);
+
+		Cache*	_pCacheFront;
+		Cache*	_pCacheBack;
+		UInt32	_size;
+		UInt32	_capacity;
+		friend struct Cache;
 	};
-	BufferPtr*							_pBufferFront;
-	BufferPtr*							_pBufferBack;
-	std::map<const Buffer*, BufferPtr>	_buffers;
-	UInt32								_size;
-	UInt32								_capacity;
+
+
+	Cache(Cache::Memory& memory) : memory(memory), _pNext(NULL), _pPrev(NULL) {}
+	~Cache() { reset(); }
+
+	Cache::Memory& memory;
+
+	operator bool() const { return _pBuffer.operator bool(); }
+	operator const shared<const Buffer>&() const { return _pBuffer; }
+	const Buffer* operator->() const { return _pBuffer.get(); }
+	const Buffer& operator*() const { return *_pBuffer; }
+
+	Cache& operator=(shared<Buffer>& pBuffer) { return reset(pBuffer); }
+	Cache& operator=(std::nullptr_t) { return reset(); }
+	
+	Cache& reset(shared<Buffer>& pBuffer) { return memory.add(*this, pBuffer); }
+	Cache& reset() { return memory.remove(*this); }
+	
+private:
+	shared<const Buffer>	_pBuffer;
+	Cache*					_pPrev;
+	Cache*					_pNext;
+	friend struct Memory;
 };
 
 

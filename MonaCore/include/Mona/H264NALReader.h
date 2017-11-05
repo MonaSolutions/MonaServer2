@@ -33,8 +33,8 @@ struct H264NALReader : virtual Object, MediaTrackReader {
 
 private:
 
-	UInt32	parse(const Packet& packet, Media::Source& source);
-	void	onFlush(const Packet& packet, Media::Source& source);
+	UInt32	parse(Packet& buffer, Media::Source& source);
+	void	onFlush(Packet& buffer, Media::Source& source);
 
 	void    writeNal(const UInt8* data, UInt32 size, Media::Source& source, bool eon=false);
 	void	flushNal(Media::Source& source);

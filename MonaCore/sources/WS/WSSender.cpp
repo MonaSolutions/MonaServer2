@@ -24,7 +24,7 @@ using namespace std;
 namespace Mona {
 
 WSSender::WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& packet) : _pSocket(pSocket), _packet(move(packet)), type(!type ? WS::TYPE_TEXT : type), Runner("WSSender"),
-	writer(!type ? (DataWriter&)*new JSONWriter(*new Buffer(10)) : (DataWriter&)*new StringWriter(*new Buffer(10))) { // 10 => expect place for header!
+	writer(!type ? (DataWriter&)*new JSONWriter(*new Buffer(10)) : (DataWriter&)*new StringWriter<>(*new Buffer(10))) { // 10 => expect place for header!
 	_pBuffer.reset(&writer->buffer());
 }
 

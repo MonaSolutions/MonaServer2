@@ -29,15 +29,15 @@ struct BitReader : Binary, virtual Object {
 	bool read();
 
 	template<typename ResultType>
-	ResultType read() { return read<ResultType>(sizeof(ResultType)*8); }
-
-	template<typename ResultType = UInt8>
-	ResultType read(UInt8 count) {
+	ResultType read(UInt8 count = (sizeof(ResultType) * 8)) {
 		ResultType result(0);
-		while (count--) {
+		while (_current != _end && count--) {
 			result <<= 1;
-			if (read())
-				result |= 1;
+			if (!read())
+				continue;
+			if (count >= (sizeof(ResultType) * 8))
+				return std::numeric_limits<ResultType>::max(); // max reachs!
+			result |= 1;
 		}
 		return result;
 	}

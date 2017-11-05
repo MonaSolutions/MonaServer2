@@ -20,14 +20,15 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/Media.h"
+#include "Mona/StreamData.h"
 
 namespace Mona {
 
-struct MediaReader : virtual Object {
+struct MediaReader : virtual Object, private StreamData<Media::Source&> {
 	
 	static MediaReader* New(const char* subMime);
 
-	void		 read(const Packet& packet, Media::Source& source);
+	void		 read(const Packet& packet, Media::Source& source) { addStreamData(packet, 0xFFFFFFFF, source); }
 	virtual void flush(Media::Source& source);
 
 	const char*			format() const;
@@ -38,15 +39,14 @@ struct MediaReader : virtual Object {
 protected:
 	MediaReader() {}
 
-	virtual void	onFlush(const Packet& packet, Media::Source& source);
-	virtual void	parsePacket(const Packet& packet, Media::Source& source);
+	virtual void	onFlush(Packet& buffer, Media::Source& source);
 private:
 	/*!
 	Implements this method, and return rest to wait more data.
 	/!\ Must tolerate data lost, so on error displays a WARN and try to resolve the strem */
-	virtual UInt32	parse(const Packet& packet, Media::Source& source) = 0;
+	virtual UInt32	parse(Packet& buffer, Media::Source& source) = 0;
 
-	shared<Buffer> _pBuffer;
+	UInt32 onStreamData(Packet& buffer, UInt32 limit, Media::Source& source) { return parse(buffer, source); }
 };
 
 struct MediaTrackReader : virtual Object, MediaReader {
@@ -63,7 +63,6 @@ struct MediaTrackReader : virtual Object, MediaReader {
 protected:
 	MediaTrackReader(UInt8 track=1) : track(track), time(0),compositionOffset(0) {}
 
-	void	parsePacket(const Packet& packet, Media::Source& source) { MediaReader::parsePacket(packet, source); }
 	void	onFlush(const Packet& packet, Media::Source& source) {} // no reset and flush for track, container will do it rather
 };
 

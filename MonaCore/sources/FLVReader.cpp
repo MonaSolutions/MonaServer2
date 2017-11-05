@@ -69,9 +69,9 @@ UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Video::T
 	return 1;
 }
 
-UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
+UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 
-	BinaryReader reader(packet.data(), packet.size());
+	BinaryReader reader(buffer.data(), buffer.size());
 
 	if (_begin) {
 		if (!_size) {
@@ -122,7 +122,7 @@ UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
 				_video.time = reader.read24() | (reader.read8() << 24);
 				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
-				Packet content(packet, reader.current(), _size);
+				Packet content(buffer, reader.current(), _size);
 				content += ReadMediaHeader(content.data(), content.size(), _video);
 				if (_video.codec == Media::Video::CODEC_H264 && _video.frame==Media::Video::FRAME_CONFIG) {
 					shared<Buffer> pBuffer(new Buffer());
@@ -137,7 +137,7 @@ UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
 				_audio.time = reader.read24() | (reader.read8() << 24);
 				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
-				Packet content(packet, reader.current(), _size);
+				Packet content(buffer, reader.current(), _size);
 				source.writeAudio(track ? track : 1, _audio, content += ReadMediaHeader(content.data(), content.size(), _audio, _audioConfig));
 				break;
 			}
@@ -150,7 +150,7 @@ UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
 					if(amf.available())
 						source.setProperties(track ? track : 1, amf);
 				} else
-					source.writeData(track, Media::Data::TYPE_AMF, Packet(packet, reader.current(), _size));
+					source.writeData(track, Media::Data::TYPE_AMF, Packet(buffer, reader.current(), _size));
 				break;
 			}
 			default:
@@ -165,13 +165,13 @@ UInt32 FLVReader::parse(const Packet& packet, Media::Source& source) {
 	return 0;
 }
 
-void FLVReader::onFlush(const Packet& packet, Media::Source& source) {
+void FLVReader::onFlush(Packet& buffer, Media::Source& source) {
 	_begin = true;
 	_size = 0;
 	_type = AMF::TYPE_EMPTY;
 	_audioConfig.reset();
 	_syncError = false;
-	MediaReader::onFlush(packet, source);
+	MediaReader::onFlush(buffer, source);
 }
 
 } // namespace Mona

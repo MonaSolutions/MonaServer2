@@ -20,57 +20,54 @@ using namespace std;
 
 namespace Mona {
 
-void Cache::add(const shared<const Buffer>& pBuffer) {
-	const auto& it = _buffers.emplace(pBuffer.get(), pBuffer);
-	BufferPtr* pBufferFront(_pBufferFront);
-	_pBufferFront = &it.first->second;
-	if(pBufferFront && pBufferFront != _pBufferFront) {
-		// repair list chained
-		_pBufferFront->pPrev->pNext = _pBufferFront->pNext;
-		if (_pBufferFront == _pBufferBack)
-			_pBufferBack = _pBufferFront->pPrev;
-		else
-			_pBufferFront->pNext->pPrev = _pBufferFront->pPrev;
-		// new front
-		pBufferFront->pPrev = _pBufferFront;
-		_pBufferFront->pNext = pBufferFront;
-		_pBufferFront->pPrev = NULL;
+Cache& Cache::Memory::add(Cache& cache, shared<Buffer>& pBuffer) {
+	// remove in first
+	if (cache)
+		remove(cache);
+
+	if (pBuffer->size() > _capacity) {
+		// no cache possible!
+		pBuffer.reset();
+		return cache;
 	}
-	if (!it.second)
-		return; // no addition
-	_size += pBuffer->size(); // new addition
-	if (!_pBufferBack) {
-		_pBufferBack = _pBufferFront;
-		return; // contains just the new element
-	}
-	// erase back if exceeds size
+
+	// add
+	_size += pBuffer->size();
+	cache._pBuffer = move(pBuffer);
+	cache._pPrev = _pCacheBack;
+	_pCacheBack = cache._pPrev->_pNext = &cache;
+
+	// remove exceeding
 	while (_size > _capacity) {
-		pBufferFront = _pBufferBack;
-		_pBufferBack = _pBufferBack->pPrev;
-		_pBufferBack->pNext = NULL;
-		_size -= pBufferFront->pBuffer->size();
-		_buffers.erase(pBufferFront->pBuffer.get());
+		_size -= _pCacheFront->_pBuffer->size();
+		_pCacheFront->_pBuffer.reset();
+		_pCacheFront = _pCacheFront->_pNext;
+		_pCacheFront->_pPrev = NULL;
 	}
+	return cache;
 }
 
-void Cache::remove(const shared<const Buffer>& pBuffer) {
-	const auto& it = _buffers.find(pBuffer.get());
-	if (it == _buffers.end())
-		return;
-	BufferPtr* pBufferPtr(&it->second);
-	// repair list chained
-	if (pBufferPtr == _pBufferFront)
-		_pBufferFront = pBufferPtr->pNext;
-	else
-		pBufferPtr->pPrev->pNext = pBufferPtr->pNext;
-	if (pBufferPtr == _pBufferBack)
-		_pBufferBack = pBufferPtr->pPrev;
-	else
-		pBufferPtr->pNext->pPrev = pBufferPtr->pPrev;
-	// remove
-	_size -= pBufferPtr->pBuffer->size();
-	_buffers.erase(it);
-}
+Cache& Cache::Memory::remove(Cache& cache) {
+	if (!cache)
+		return cache;
 
+	_size -= cache._pBuffer->size();
+	cache._pBuffer.reset();
+
+	if (cache._pNext) {
+		if (!cache._pPrev) {
+			// is the first
+			_pCacheFront = cache._pNext; 
+			_pCacheFront->_pPrev = NULL;
+		} else // is in the middle
+			cache._pNext->_pPrev = cache._pPrev->_pNext; 
+	} else if (cache._pPrev) {
+		// is the last
+		_pCacheBack = cache._pPrev;
+		_pCacheBack->_pNext = NULL;
+	} else // is alone
+		_pCacheFront = _pCacheBack = NULL;
+	return cache;
+}
 
 } // namespace Mona

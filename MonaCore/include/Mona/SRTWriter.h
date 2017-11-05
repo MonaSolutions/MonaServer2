@@ -33,10 +33,9 @@ struct SRTWriter : MediaWriter, virtual Object {
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { _time = tag.time; }
 	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { _time = tag.time; }
 	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
-	void endMedia(const OnWrite& onWrite);
+	void endMedia(const OnWrite& onWrite) {}
 
 private:
-	shared<Buffer>	_pBuffer;
 	UInt32			_index;
 	UInt32			_time;
 	const char*		_timeFormat;

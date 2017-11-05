@@ -25,10 +25,10 @@ using namespace std;
 namespace Mona {
 
 
-UInt32 H264NALReader::parse(const Packet& packet, Media::Source& source) {
+UInt32 H264NALReader::parse(Packet& buffer, Media::Source& source) {
 
-	const UInt8* cur(packet.data());
-	const UInt8* end(packet.data() + packet.size());
+	const UInt8* cur(buffer.data());
+	const UInt8* end(buffer.data() + buffer.size());
 	const UInt8* nal(cur);	// assume that the copy will be from start-of-data
 
 
@@ -74,10 +74,10 @@ UInt32 H264NALReader::parse(const Packet& packet, Media::Source& source) {
 void H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& source, bool eon) {
 	// flush just if:
 	// - config packet complete (7 & 8)
-	// - unit delimiter (9)
+	// - unit delimiter (9) or something ignored more greater than 8
 	// - times change
-	// - three 00 prefix (_state = 3) excepting for config packet!
-	bool flush = eon && _state > 2;
+	// /!\ Ignore many VLC frames are in the same NAL unit, it can be redundant coded picture
+	bool flush = false;
 	if (_type==0xFF) {
 		// Nal begin!
 		_type = *data & 0x1f;
@@ -87,8 +87,7 @@ void H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& sour
 		if (_tag.frame == Media::Video::FRAME_CONFIG) {
 			UInt8 prevType = (_pNal->data()[4] & 0x1F);
 			if (_type == prevType) {
-				_pNal.reset();  // erase repeated config type!
-				flush = false; // wait the other config type!
+				_pNal.reset();  // erase repeated config type and wait the other config type!
 			} else if (_type != 7 && _type != 8) {
 				if (prevType == 7)
 					flushNal(source); // flush alone 7 config (valid)
@@ -99,10 +98,9 @@ void H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& sour
 				flush = true;
 		} else {
 			_tag.frame = MPEG4::UpdateFrame(_type, _tag.frame);
-			if (_tag.frame == Media::Video::FRAME_CONFIG) {
-				flushNal(source); // flush if time change
-				flush = false; // wait the other config type!
-			} else if (_tag.time != time || _tag.compositionOffset != compositionOffset)
+			if (_tag.frame == Media::Video::FRAME_CONFIG)
+				flushNal(source); // flush everything and wait the other config type
+			else if (_tag.time != time || _tag.compositionOffset != compositionOffset)
 				flushNal(source); // flush if time change
 		}
 		if (_pNal) { // append to current NAL
@@ -145,11 +143,11 @@ void H264NALReader::flushNal(Media::Source& source) {
 	_tag.frame = Media::Video::FRAME_UNSPECIFIED;
 }
 
-void H264NALReader::onFlush(const Packet& packet, Media::Source& source) {
+void H264NALReader::onFlush(Packet& buffer, Media::Source& source) {
 	flushNal(source);
 	_type = 0xFF;
 	_state = 0;
-	MediaTrackReader::onFlush(packet, source);
+	MediaTrackReader::onFlush(buffer, source);
 }
 
 
