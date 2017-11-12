@@ -31,125 +31,121 @@ namespace Mona {
 
 
 HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(new HTTPWriter(*this)),
+	_onResponse([this](HTTP::Response& response) {
+		kill(ERROR_PROTOCOL, "A HTTP response has been received instead of request");
+	}),
 	_onRequest([this](HTTP::Request& request) {
-		if (request) { // else progressive! => PUT or POST media!
-
-			_pWriter->beginRequest(request);
-
-			if (!request.ex) {
-				//// Disconnection if requested or query changed (path changed is done in setPath)
-				if (request->connection&HTTP::CONNECTION_UPGRADE || String::ICompare(peer.query, request->query) != 0) {
-					unpublish();
-					unsubscribe();
-					peer.onDisconnection();
-				}
-
-				////  Fill peers infos
-				peer.setPath(request->path);
-				peer.setQuery(request->query);
-				peer.setServerAddress(request->host);
-				// properties = version + headers + cookies
-				peer.properties() = move(request);
-
-				// Create parameters for onConnection or a GET onRead/onWrite/onInvocation
-				QueryReader parameters(peer.query.data(), peer.query.size());
-
-				Exception ex;
-
-				// Upgrade protocol
-				if (request->connection&HTTP::CONNECTION_UPGRADE) {
-					if (handshake(request))  {
-						// Upgrade to WebSocket
-						if (request->pWSDecoder) {
-							Protocol* pProtocol(this->api.protocols.find(self->isSecure() ? "WSS" : "WS"));
-							if (pProtocol) {
-								// Close HTTP
-								close();
-		
-								// Create WSSession
-								WSSession* pSession = new WSSession(*pProtocol, *this, move(request->pWSDecoder));
-								_pUpgradeSession.reset(pSession);
-								HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
-									HTTP_ADD_HEADER("Upgrade", "WebSocket")
-									WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
-								HTTP_END_HEADER
-
-								// SebSocket connection
-								peer.onConnection(ex, pSession->writer, *self, parameters); // No response in WebSocket handshake (fail for few clients)
-							} else
-								ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
-						} else
-							ex.set<Ex::Unsupported>("Unsupported ", request->upgrade, " upgrade");
-					}
-				} else {
-
-					// onConnection
-					if (!peer && handshake(request)) {
-						peer.onConnection(ex, *_pWriter, *self, parameters);
-						parameters.reset();
-					}
-
-					// onInvocation/<method>/onRead
-					if (!ex && peer) {
-
-						/// HTTP GET & HEAD
-						switch (request->type) {
-							case HTTP::TYPE_HEAD:
-							case HTTP::TYPE_GET:
-								processGet(ex, request, parameters);
-								break;
-							case HTTP::TYPE_POST:
-								processPost(ex, request);
-								break;
-							case HTTP::TYPE_OPTIONS: // happen when Move Redirection is sent
-								processOptions(ex, *request);
-								break;
-							case HTTP::TYPE_PUT:
-								processPut(ex, request);
-								break;
-							default:
-								ex.set<Ex::Protocol>(name(), ", unsupported command");
-						}
-					}
-				}
-
-
-				// Return error but keep connection keepalive if required to avoid multiple reconnection (and because HTTP client is valid contrary to a HTTPDecoder error)
-				if (ex && !died) // if died _pWriter is null!
-					_pWriter->writeError(ex);
-
-			}
-			if(!died) // if died _pWriter is null!
-				_pWriter->endRequest();
-		}
-
 		// Invalid packet, answer with the appropriate response and useless to keep the session opened!
 		// Do it after beginRequest/endRequest to get permission to write error response
 		if (request.ex)
 			return kill(ToError(request.ex), request.ex.c_str());
 
-		if (_pPublication) {
-			// Something to post!
-			// POST partial data => push to publication
-			if (request.pMedia) {
-				if (request.lost)
-					_pPublication->reportLost(request.pMedia->type, request.lost, request.pMedia->track);
-				else
-					_pPublication->writeMedia(*request.pMedia);
-			} else if (request.lost) {
-				if (request.flush)
-					unpublish();
-				else
-					_pPublication->reset();
+		if (request) { // else progressive! => PUT or POST media!
+
+			_pWriter->beginRequest(request);
+
+			//// Disconnection if requested or query changed (path changed is done in setPath)
+			if (request->connection&HTTP::CONNECTION_UPGRADE || String::ICompare(peer.query, request->query) != 0) {
+				unpublish();
+				unsubscribe();
+				peer.onDisconnection();
 			}
 
-		} else {
-			// PUT partial data => write file
+			////  Fill peers infos
+			peer.setPath(request->path);
+			peer.setQuery(request->query);
+			peer.setServerAddress(request->host);
+			// properties = version + headers + cookies
+			peer.properties() = move(request);
 
-		}
+			// Create parameters for onConnection or a GET onRead/onWrite/onInvocation
+			QueryReader parameters(peer.query.data(), peer.query.size());
 
-		if (request.flush && !died) // if died _pWriter is null!
-			_pWriter->flush();
+			Exception ex;
+
+			// Upgrade protocol
+			if (request->connection&HTTP::CONNECTION_UPGRADE) {
+				if (handshake(request))  {
+					// Upgrade to WebSocket
+					if (request->pWSDecoder) {
+						Protocol* pProtocol(this->api.protocols.find(self->isSecure() ? "WSS" : "WS"));
+						if (pProtocol) {
+							// Close HTTP
+							close();
+		
+							// Create WSSession
+							WSSession* pSession = new WSSession(*pProtocol, *this, move(request->pWSDecoder));
+							_pUpgradeSession.reset(pSession);
+							HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
+								HTTP_ADD_HEADER("Upgrade", "WebSocket")
+								WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
+							HTTP_END_HEADER
+
+							// SebSocket connection
+							peer.onConnection(ex, pSession->writer, *self, parameters); // No response in WebSocket handshake (fail for few clients)
+						} else
+							ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
+					} else
+						ex.set<Ex::Unsupported>("Unsupported ", request->upgrade, " upgrade");
+				}
+			} else {
+
+				// onConnection
+				if (!peer && handshake(request)) {
+					peer.onConnection(ex, *_pWriter, *self, parameters);
+					parameters.reset();
+				}
+
+				// onInvocation/<method>/onRead
+				if (!ex && peer) {
+
+					/// HTTP GET & HEAD
+					switch (request->type) {
+						case HTTP::TYPE_HEAD:
+						case HTTP::TYPE_GET:
+							processGet(ex, request, parameters);
+							break;
+						case HTTP::TYPE_POST:
+							processPost(ex, request);
+							break;
+						case HTTP::TYPE_OPTIONS: // happen when Move Redirection is sent
+							processOptions(ex, *request);
+							break;
+						case HTTP::TYPE_PUT:
+							processPut(ex, request);
+							break;
+						default:
+							ex.set<Ex::Protocol>(name(), ", unsupported command");
+					}
+				}
+			}
+	
+			if (!died) { // if died _pWriter is null!
+				if (ex) // Return error but keep connection keepalive if required to avoid multiple reconnection (and because HTTP client is valid contrary to a HTTPDecoder error)
+					_pWriter->writeError(ex);
+				_pWriter->endRequest();
+			}
+		} else if(request.size()) // can happen on chunked request unwanted (what to do with that?)
+			return kill(Session::ERROR_UNSUPPORTED, "None media chunked request unsupported");
+
+
+		if (request.pMedia) {
+			// Something to post!
+			// POST partial data => push to publication
+			if (!_pPublication)
+				return kill(Session::ERROR_REJECTED, "Publication rejected");
+			if (request.lost)
+				_pPublication->reportLost(request.pMedia->type, request.lost, request.pMedia->track);
+			else if (request.pMedia->type)
+				_pPublication->writeMedia(*request.pMedia);
+			else if(!request.flush)
+				_pPublication->reset();
+		} else if(_pPublication)
+			unpublish();
+
+
+		if (request.flush && !died) // if died _pWriter is null and useless to flush!
+			flush();
 	}) {
 	
 	// subscribe to client.properties(...)
@@ -168,15 +164,16 @@ bool HTTPSession::handshake(HTTP::Request& request) {
 	if (!peer.onHandshake(redirection))
 		return true;
 	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_307))
-		HTTP_ADD_HEADER("Location", request->protocol, "://", redirection, request->path, '/', request.file.isFolder() ? "" : request.file.name())
+		HTTP_ADD_HEADER("Location", request->protocol, "://", redirection, request->path, '/', request.path.isFolder() ? "" : request.path.name())
 	HTTP_END_HEADER
 	kill();
 	return false;
 }
 
 shared<Socket::Decoder> HTTPSession::newDecoder() {
-	shared<HTTPDecoder> pDecoder(new HTTPDecoder(api));
+	shared<HTTPDecoder> pDecoder(new HTTPDecoder(api.handler, api.www));
 	pDecoder->onRequest = _onRequest;
+	pDecoder->onResponse = _onResponse;
 	return pDecoder;
 }
 
@@ -228,11 +225,11 @@ bool HTTPSession::manage() {
 }
 
 void HTTPSession::flush() {
+	_pWriter->flush(); // before upgradeSession because something wrotten on HTTP master session has to be sent (make working HTTP upgrade response)
 	if (_pUpgradeSession)
 		return _pUpgradeSession->flush();
 	if (_pPublication)
 		_pPublication->flush();
-	_pWriter->flush(); // can flush on response while polling!
 }
 
 void HTTPSession::close() {
@@ -246,8 +243,9 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	if(died)
 		return;
 
-	// Stop reception
+	// Stop decoding
 	_onRequest = nullptr;
+	_onResponse = nullptr;
 
 	if(_pUpgradeSession)
 		_pUpgradeSession->kill(error, reason);
@@ -314,7 +312,7 @@ void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
 	// use index http option in the case of GET request on a directory
 	
-	Path& file(request.file);
+	Path& file(request.path);
 	if (!file.isFolder()) {
 		// FILE //
 
@@ -399,8 +397,8 @@ void HTTPSession::processPut(Exception& ex, HTTP::Request& request) {
 
 void HTTPSession::processPost(Exception& ex, HTTP::Request& request) {
 	
-	if (request->mime == MIME::TYPE_VIDEO || request->mime == MIME::TYPE_AUDIO)
-		return publish(ex, request.file); // Publish
+	if (request.pMedia)
+		return publish(ex, request.path); // Publish
 	
 	// Else data
 	unique_ptr<DataReader> pReader(Media::Data::NewReader(Media::Data::ToType(request->subMime), request));

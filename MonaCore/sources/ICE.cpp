@@ -148,7 +148,7 @@ void ICE::fromSDPCandidate(const string& candidate,SDPCandidate& publicCandidate
 		// informations usefull just for relay line!
 		
 		UInt16 value;
-		if (!String::ToNumber<UInt16>(port, value)) {
+		if (!String::ToNumber(port, value)) {
 			WARN("Invalid candidate ", port , " port");
 			return;
 		}

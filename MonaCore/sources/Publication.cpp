@@ -84,10 +84,10 @@ void Publication::startRecording(MediaFile::Writer& recorder, bool append) {
 void Publication::stopRecording() {
 	if (!_pRecording)
 		return;
-	NOTE("Stop ", _name, "=>", ((MediaFile::Writer&)_pRecording->target).path.name(), " recording");
+	NOTE("Stop ", _name, "=>", _pRecording->target<MediaFile::Writer>().path.name(), " recording");
 	((set<Subscription*>&)subscriptions).erase(_pRecording.get());
 	_pRecording->pPublication = NULL;
-	delete &_pRecording->target;
+	delete &_pRecording->target<MediaFile::Writer>();
 	_pRecording.reset();
 }
 
@@ -96,7 +96,7 @@ MediaFile::Writer* Publication::recorder() {
 		return NULL;
 	if (_pRecording->ejected())
 		_pRecording->reset();// to reset ejected and allow a MediaFile::Writer::start() manual to retry recording!
-	return (MediaFile::Writer*)&_pRecording->target;
+	return &_pRecording->target<MediaFile::Writer>();
 }
 
 void Publication::start(MediaFile::Writer* pRecorder, bool append) {
@@ -247,59 +247,71 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 	VideoTrack* pVideo = track ? &_videos[track] : NULL;
 	if (_waitingFirstVideoSync)
 		_waitingFirstVideoSync.update(); // video is coming, wait more time
-	// save video codec packet for future listeners
-	if (tag.frame == Media::Video::FRAME_KEY) {
-		if(pVideo) {
-			pVideo->waitKeyFrame = false;
-			if (pVideo->keyFrameTime &&  tag.time > pVideo->keyFrameTime)
-				pVideo->keyFrameInterval = tag.time - pVideo->keyFrameTime;
-			pVideo->keyFrameTime = tag.time;
+	
+	UInt32 offsetCC = 0;
+
+	switch (tag.frame) {
+		case Media::Video::FRAME_KEY:
+			if (pVideo) {
+				pVideo->waitKeyFrame = false;
+				if (pVideo->keyFrameTime &&  tag.time > pVideo->keyFrameTime)
+					pVideo->keyFrameInterval = tag.time - pVideo->keyFrameTime;
+				pVideo->keyFrameTime = tag.time;
+			}
+			_waitingFirstVideoSync = 0;
+			onKeyFrame(track); // can add a new subscription for this publication!
+		default: {
+			if (!pVideo)
+				break;
+			if(pVideo->waitKeyFrame) {
+				// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
+				INFO("Video frame dropped, ", _name, " waits a key frame");
+				return;
+			}
+			CCaption::OnText onText([this, &tag, track](UInt8 channel, const Packet& packet) {
+				DEBUG("cc", channel, " => ", string(STR packet.data(), packet.size()));
+				writeData((track - 1) * 4 + channel, Media::Data::TYPE_TEXT, packet);
+			});
+			CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {
+				if (lang) {
+					DEBUG("Subtitle lang ", lang);
+					setString(String((track - 1) * 4 + channel, ".textLang"), lang);
+				} else
+					erase(String((track - 1) * 4 + channel, ".textLang"));
+			});
+			offsetCC = pVideo->cc.extract(tag, packet, onText, onLang);
+			break;
 		}
-		_waitingFirstVideoSync = 0;
-		onKeyFrame(track); // can add a new subscription for this publication!
-	} else if (tag.frame == Media::Video::FRAME_CONFIG) {
-		DEBUG("Video configuration received on publication ", _name, " (size=", packet.size(), ")");
-	} else if (pVideo && pVideo->waitKeyFrame) {
-		// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
-		INFO("Video frame dropped, ", _name, " waits a key frame");
-		return;
+		case Media::Video::FRAME_CONFIG:
+			DEBUG("Video configuration received on publication ", _name, " (size=", packet.size(), ")");
 	}
 
-	CCaption::OnVideo onVideo([this, &track](const Media::Video::Tag& tag, const Packet& packet) {
-		// flush properties before to deliver media packet (to be sync with media content)
-		flushProperties();
+	// flush properties before to deliver media packet (to be sync with media content)
+	flushProperties();
 
-		_byteRate += packet.size() + sizeof(tag);
-		_videos.byteRate += packet.size() + sizeof(tag);
-		_new = true;
-		// INFO("Video ", tag.time, " (", tag.compositionOffset, ")");
-		for (auto& it : subscriptions) {
-			if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-				it->writeVideo(track, tag, packet);
-		}
-		this->onVideo(track, tag, packet);
-	});
-	if (tag.frame == Media::Video::FRAME_CONFIG) {
-		// If config keep the packet as given, without extract CC and video frame (should not contains them!)
-		onVideo(tag, packet);
-		// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
-		if(pVideo)
-			pVideo->config.set(tag, packet);
-	} else if(pVideo) {
-		CCaption::OnText onText([this, &tag, track](UInt8 channel, const Packet& packet) {
-			DEBUG("cc",channel, " => ",string(STR packet.data(), packet.size()));
-			writeData((track - 1) * 4 + channel, Media::Data::TYPE_TEXT, packet);
-		});
-		CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {
-			if(lang) {
-				DEBUG("Subtitle lang ", lang);
-				setString(String((track - 1) * 4 + channel, ".textLang"), lang);
-			} else
-				erase(String((track - 1) * 4 + channel, ".textLang"));
-		});
-		pVideo->cc.extract(tag, packet, onVideo, onText, onLang);
+	_byteRate += packet.size() + sizeof(tag);
+	_videos.byteRate += packet.size() + sizeof(tag);
+	_new = true;
+	// INFO("Video ", tag.time, " (", tag.compositionOffset, ")");
+
+	for (auto& it : subscriptions) {
+		if (it->pPublication != this && it->pPublication)
+			continue; // subscriber not yet subscribed
+		if (offsetCC && it->datas.pSelection) {
+			if (offsetCC<packet.size())
+				it->writeVideo(track, tag, packet + offsetCC); // without CC
+		} else
+			it->writeVideo(track, tag, packet); // with CC
+	}
+	if (offsetCC && onData) {
+		if(offsetCC<packet.size())
+			this->onVideo(track, tag, packet + offsetCC); // without CC
 	} else
-		onVideo(tag, packet);
+		this->onVideo(track, tag, packet); // with CC
+
+	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
+	if (pVideo && tag.frame == Media::Video::FRAME_CONFIG)
+		pVideo->config.set(tag, packet);
 }
 
 void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {

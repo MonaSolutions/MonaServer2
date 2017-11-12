@@ -34,10 +34,8 @@ struct CCaption : virtual Object {
 
 	typedef std::function<void(UInt8 channel, const Packet& packet)>				OnText;
 	typedef std::function<void(UInt8 channel, const char* lang)>					OnLang;
-	typedef std::function<void(const Media::Video::Tag& tag, const Packet& packet)> OnVideo;
 
-	UInt32 extract(const Media::Video::Tag& tag, const Packet& packet, const CCaption::OnVideo& onVideo,
-				   const CCaption::OnText& onText, const CCaption::OnLang& onLang);
+	UInt32 extract(const Media::Video::Tag& tag, const Packet& packet, const CCaption::OnText& onText, const CCaption::OnLang& onLang);
 	void   flush(const CCaption::OnText& onText = nullptr);
 
 private:

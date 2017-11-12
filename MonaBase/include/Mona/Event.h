@@ -59,8 +59,8 @@ struct Event<Result(Args ...)> : virtual Object {
 	Result operator()(Args... args) const { return _pFunction && *_pFunction ? (*_pFunction)(std::forward<Args>(args)...) : Result();}
 
 	/*!
-	Return 'true' if has a lambda function */
-	explicit operator bool() const { return _pFunction ? _pFunction->operator bool() : false; }
+	Return 'true' if is subscribed */
+	explicit operator bool() const { return _pFunction && _pFunction->operator bool(); }
 
 	/*!
 	Assign lambda function */

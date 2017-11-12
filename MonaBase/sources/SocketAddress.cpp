@@ -51,7 +51,7 @@ bool SocketAddress::setIntern(Exception& ex, const char* hostAndPort, bool resol
 
 UInt16 SocketAddress::resolveService(Exception& ex,const char* service) {
 	UInt16 port=0;
-	if (String::ToNumber<UInt16>(service,port))
+	if (String::ToNumber(service,port))
 		return port;
 	struct servent* se = getservbyname(service, NULL);
 	if (se)

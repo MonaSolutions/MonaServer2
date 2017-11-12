@@ -26,7 +26,7 @@ namespace Mona {
 
 struct UDProtocol : Protocol, private UDPSocket, virtual Object {
 	UDPSocket::OnPacket& onPacket;
-	UDPSocket::OnError&  onError;
+	UDPSocket::OnError   onError;
 
 	bool load(Exception& ex) { return Protocol::load(ex) ? bind(ex, address) : true; }
 
@@ -34,7 +34,6 @@ struct UDProtocol : Protocol, private UDPSocket, virtual Object {
 
 protected:
 	UDProtocol(const char* name, ServerAPI& api, Sessions& sessions);
-	virtual ~UDProtocol();
 };
 
 

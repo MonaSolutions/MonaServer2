@@ -54,7 +54,7 @@ private:
 		HANDSHAKE_DONE
 	};
 	void	decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
-	UInt32	onStreamData(Packet& buffer, UInt32 limit, Socket& socket);
+	UInt32	onStreamData(Packet& buffer, Socket& socket);
 
 	const Handler&				_handler;
 	UInt32						_decoded;

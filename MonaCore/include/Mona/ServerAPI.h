@@ -126,7 +126,7 @@ private:
 			publication.onKeyFrame = [this](UInt8 track) {
 				auto it = subscriptions.begin();
 				while (it != subscriptions.end()) {
-					if (it->first->target.videoSelected(track)) {
+					if (it->first->videos.selected(track)) {
 						raise(*it->first, it->second);
 						it = subscriptions.erase(it);
 					} else

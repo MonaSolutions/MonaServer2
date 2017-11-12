@@ -23,10 +23,53 @@ using namespace std;
 
 namespace Mona {
 
+/*
+#include "Mona/TCPClient.h"
+#include "Mona/HTTP/HTTPDecoder.h"
+// A appli FFMPEG to allow to stream from HTTP listen ffmpeg to WebSocket 
+struct FFMPEG : App {
+	FFMPEG(ServerAPI& api) : App(api), _api(api)  {}
+private:
+	struct Client : App::Client {
+		Client(Mona::Client& client, ServerAPI& api) : App::Client(client), _http(client, api) {
+			Exception ex;
+			SocketAddress address(IPAddress::Loopback(), 8080);
+			_http.connect(ex, address);
+			shared<Buffer> pBuffer(new Buffer());
+			BinaryWriter writer(*pBuffer);
+			writer.write(EXPAND("GET ")).write("/test");
+			writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
+			writer.write(address).write(EXPAND("\r\n\r\n"));
+			_http.send(ex, Packet(pBuffer));
+		}
+		struct HTTPClient : TCPClient {
+			HTTPClient(Mona::Client& client, ServerAPI& api) : _api(api), TCPClient(api.ioSocket),
+				_onResponse([this, &client](HTTP::Response& response) {
+					client.writer().writeResponse(2).writeBytes(response.data(), response.size());
+					client.writer().flush();
+				}) {
+			}
+		private:
+			shared<Socket::Decoder> newDecoder() {
+				shared<HTTPDecoder> pDecoder(new HTTPDecoder(_api.handler, _api.www));
+				pDecoder->onResponse = _onResponse;
+				return pDecoder;
+			}
+			ServerAPI& _api;
+			HTTPDecoder::OnResponse _onResponse;
+		} _http;
+	};
+	App::Client* newClient(Exception& ex, Mona::Client& client, DataReader& parameters, DataWriter& response) {
+		return new Client(client, _api);
+	}
+	ServerAPI& _api;
+};
+*/
+
 //// Server Events /////
 void MonaTiny::onStart() {
 	// create applications
-	//_applications["/test"] = new TestApp(*this);
+	//_applications["/ffmpeg"] = new FFMPEG(*this);
 }
 
 void MonaTiny::manage() {

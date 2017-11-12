@@ -293,7 +293,6 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 
 void RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	if (pBuffer->size() <= RTMFP::SIZE_HEADER || (pBuffer->size() > (RTMFP::SIZE_PACKET<<1))) {
-		pBuffer.reset();
 		ERROR("Invalid packet size");
 		return;
 	}
@@ -321,7 +320,6 @@ void RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address,
 			shared<RTMFPReceiver> pReceiver;
 			if (!finalizeHandshake(id, address, pReceiver)) {
 				WARN("Unknown RTMFP session ", id);
-				pBuffer.reset();
 				return;
 			}
 			it = _receivers.emplace_hint(it, id, pReceiver);

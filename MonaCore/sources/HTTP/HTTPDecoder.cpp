@@ -24,25 +24,35 @@ using namespace std;
 namespace Mona {
 
 
+HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const string& name) :
+	_name(name), _pReader(NULL), _www(path), _stage(CMD), _handler(handler), _code(0) {
+	FileSystem::MakeFile(_www);
+}
+
 void HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+	// Dump just one time
+	DUMP_REQUEST(_name.empty() ? (pSocket->isSecure() ? "HTTPS" : "HTTP") : _name.c_str(), pBuffer->data(), pBuffer->size(), address);
+
 	if (_ex) // a request error is killing the session!
 		return;
+
+	if (_stage < BODY && _pUpgradeDecoder) {
+		if (_pUpgradeDecoder.unique()) {
+			ERROR(_ex.set<Ex::Protocol>("HTTP upgrade rejected"));
+			pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
+			return;
+		}
+		return _pUpgradeDecoder->decode(pBuffer, address, pSocket);
+	}
+
 	if (!addStreamData(Packet(pBuffer), pSocket->recvBufferSize(), *pSocket)) {
 		ERROR(_ex.set<Ex::Protocol>("HTTP message exceeds buffer maximum ", pSocket->recvBufferSize(), " size"));
-		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception (works for HTTP and Upgrade session as WebSocket)
+		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
 	}
 }
 
-UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
-	if (_pUpgradeDecoder)
-		return _pUpgradeDecoder->onStreamData(buffer, limit, socket);
-
-	// Dump just one time
-	if (buffer.size() > _decoded) {
-		DUMP_REQUEST(socket.isSecure() ? "HTTPS" : "HTTP", buffer.data()+ _decoded, buffer.size()- _decoded, socket.peerAddress());
-		_decoded = buffer.size();
-	}
-
+UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
+	
 	do {
 		/// read data
 		char* signifiant(STR buffer.data());
@@ -53,16 +63,17 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 			if (buffer.size() < 2) {
 				// useless to parse if we have not at less one line which  to carry \r\n\r\n!
 				UInt32 rest(key ? (STR buffer.data() - key) : (STR buffer.data() - signifiant));
-				_decoded += rest;
-				if (rest > 0x2000) {
-					_ex.set<Ex::Protocol>("HTTP header too large (>8KB)");
-					break;
-				}
-				return rest;
+				if (rest <= 0x2000)
+					return rest;
+				_ex.set<Ex::Protocol>("HTTP header too large (>8KB)");
+				break;	
 			}
 
-			if (!_pHeader)
+			if (!_pHeader) {
+				_path.reset();
+				_code = 0;
 				_pHeader.reset(new HTTP::Header(socket.isSecure() ? "https" : "http", socket.address()));
+			}
 	
 			// if == '\r\n' (or '\0\n' since that it can have been modified for key/value parsing)
 			if (*buffer.data()=='\r' && *(buffer.data()+1) == '\n') {
@@ -70,11 +81,10 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 				if (_stage == LEFT) {
 					// \r\n\r\n!
 					buffer += 2;
-					_decoded -= 2;
 
 					// Try to fix mime if no content-type with file extension!
 					if (!_pHeader->mime)
-						_pHeader->mime = MIME::Read(_file, _pHeader->subMime);
+						_pHeader->mime = MIME::Read(_path, _pHeader->subMime);
 	
 					_pHeader->getNumber("content-length", _length = -1);
 
@@ -84,11 +94,17 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 						_pUpgradeDecoder = _pHeader->pWSDecoder;
 					}
 
-					_stage = BODY;
+					if (_pHeader->encoding == HTTP::ENCODING_CHUNKED) {
+						_length = 0; // ignore content-length
+						_stage = CHUNKED;
+					} else
+						_stage = BODY;
 					switch (_pHeader->type) {
 						case HTTP::TYPE_UNKNOWN:
-							_ex.set<Ex::Protocol>("No HTTP type");
-							break;
+							if(!_code) {
+								_ex.set<Ex::Protocol>("No HTTP type");
+								break;
+							} // else is response!
 						case HTTP::TYPE_POST:
 							if (_pHeader->mime != MIME::TYPE_VIDEO && _pHeader->mime != MIME::TYPE_AUDIO) {
 								if(_length<0)
@@ -98,13 +114,14 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 							// Publish = POST + VIDEO/AUDIO
 							_pReader = MediaReader::New(_pHeader->subMime);
 							if (!_pReader)
-								_ex.set<Ex::Unsupported>("HTTP ", _pHeader->subMime, " publication unsupported");
+								_ex.set<Ex::Unsupported>("HTTP ", _pHeader->subMime, " media unsupported");
 						case HTTP::TYPE_PUT:
-							_stage = PROGRESSIVE;
+							if(_stage==BODY)
+								_stage = PROGRESSIVE;
 							break;
 						case HTTP::TYPE_GET:
 							if (_pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO)
-								_file.exists(); // preload disk attributes now in the thread!
+								_path.exists(); // preload disk attributes now in the thread!
 						default:
 							_length = 0;
 					}
@@ -116,9 +133,13 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 				while (isblank(*--endValue));
 
 				String::Scoped scoped(++endValue);
-				if (!key) { // version case!
-					String::ToNumber(signifiant + 5, _pHeader->version);
-					_pHeader->setNumber("version", _pHeader->version);
+				if (!key) { // version case!		
+					if (!_code) {
+						// Set request version!
+						String::ToNumber(signifiant + 5, _pHeader->version);
+						_pHeader->setNumber("version", _pHeader->version);
+					} else // Set response code!
+						_pHeader->code = _pHeader->setString("code", signifiant).c_str();
 				} else {
 					char* endValue(signifiant-1);
 					while (isblank(*--endValue)); // after the :
@@ -130,12 +151,11 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 		
 				_stage = LEFT;
 				buffer += 2;
-				_decoded -= 2;
 				signifiant = STR buffer.data();
 				continue;
 			}
 
-			if ((_stage == LEFT || _stage == CMD || _stage == PATH) && isspace(*buffer.data())) {
+			if (isspace(*buffer.data())) {
 				if (_stage == CMD) {
 					// by default command == GET
 					size_t size(STR buffer.data() - signifiant);
@@ -143,58 +163,93 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 						_ex.set<Ex::Protocol>("No HTTP command");
 						break;
 					}
-					if (!(_pHeader->type = HTTP::ParseType(signifiant, size))) {
+					if (size > 8) {
+						_ex.set<Ex::Protocol>("Invalid HTTP packet");
+						break;
+					}
+					String::Scoped scoped(STR buffer.data());
+					if (!String::ICompare(signifiant, EXPAND("HTTP")) == 0 && !(_pHeader->type = HTTP::ParseType(signifiant))) {
 						_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
 						break;
 					}
-					signifiant = STR buffer.data();
+					signifiant = STR buffer.data() + 1;
 					_stage = PATH;
 				} else if (_stage == PATH) {
 					// parse query
 					String::Scoped scoped(STR buffer.data());
-					size_t filePos = Util::UnpackUrl(signifiant, _pHeader->path, _pHeader->query);
-					if (filePos != string::npos) {
-						// is file!
-						_file.set(_www, _pHeader->path);
-						_pHeader->path.erase(filePos - 1);
-					} else
-						_file.set(_www, _pHeader->path, '/');
-					signifiant = STR buffer.data();
+					if (_pHeader->type) {
+						// Request
+						size_t filePos = Util::UnpackUrl(signifiant, _pHeader->path, _pHeader->query);
+						if (filePos != string::npos) {
+							// is file!
+							_path.set(_www, _pHeader->path);
+							_pHeader->path.erase(filePos - 1);
+						} else
+							_path.set(_www, _pHeader->path, '/');
+						signifiant = STR buffer.data() + 1;
+					} else {
+						// Response!
+						size_t size = strlen(signifiant);
+						if (size != 3 || !isdigit(signifiant[0]) || !isdigit(signifiant[1]) || !isdigit(signifiant[2])) {
+							_ex.set<Ex::Protocol>("Invalid HTTP code ", string(signifiant, min(size, 3u)));
+							break;
+						}
+						_code = (signifiant[0] - '0') * 100 + (signifiant[1] - '0') * 10 + (signifiant[2] - '0');
+					}
 					_stage = VERSION;
-				}
-				// We are on a space char, so trim it
-				++signifiant;
+				} else if(signifiant == STR buffer.data())
+					++signifiant; // We are on a space char, so trim it
 			} else if (_stage <= VERSION) {
 				if (_stage == CMD && (STR buffer.data() - signifiant) > 7) { // not a HTTP valid packet, consumes all
 					_ex.set<Ex::Protocol>("Invalid HTTP packet");
 					break;
 				}
-			} else if (!key && *buffer.data() == ':') {
-				// KEY
-				key = signifiant;
-				_stage = LEFT;
-				signifiant = STR buffer.data() + 1;
-			} else
+			} else {
+				if (!key && *buffer.data() == ':') {
+					// KEY
+					key = signifiant;
+					signifiant = STR buffer.data() + 1;
+				}
 				_stage = RIGHT;
+			}
 
-			--_decoded;
 			++buffer;
 		}; // WHILE < BODY
 
 
 		// RECEPTION
 
-		if (_ex) {
-			socket.shutdown(Socket::SHUTDOWN_RECV); // no more reception!
-			// receive exception to warn the client
-			ERROR(_ex)
-			receive(_pHeader, _ex);
-			return 0;
-		}
-
-
 		Packet packet(buffer);
 
+		if (!_length && !_ex && _stage == CHUNKED) {
+			for (;;) {
+				if (packet.size() < 2)
+					return buffer.size();
+				if (memcmp(packet.data(), EXPAND("\r\n")) != 0) {
+					++packet;
+					continue;
+				}
+				if(buffer.data()!=packet.data())
+					break; // at less one char gotten (to accept double \r\n\r\n and \r\n after playload data!)
+				packet += 2;
+				buffer += 2;
+			}
+			if (String::ToNumber(STR buffer.data(), packet.data() - buffer.data(), _length, Base(16))) {
+				if (_length == 0) // end of chunked transfer-encoding
+					_stage = CMD; // to parse Header next time!
+			} else
+				_ex.set<Ex::Protocol>("Invalid HTTP transfer-encoding chunked size ", String::Data(STR buffer.data(), packet.data() - buffer.data()));
+			buffer = (packet += 2); // skip chunked size and \r\n
+		}
+
+		if (_ex) {
+			// No more message if was a response, otherwise no more reception (allow a error response)
+			socket.shutdown(_pHeader && _pHeader->type ? Socket::SHUTDOWN_RECV : Socket::SHUTDOWN_BOTH);
+			// receive exception to warn the client
+			ERROR(_ex)
+			receive(_ex);
+			return 0;
+		}
 		if(_length>=0) {
 			if (_length > packet.size()) {
 				if (_stage == BODY)
@@ -203,10 +258,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 				packet.shrink(UInt32(_length));
 			_length -= packet.size();
 		}
-		if(!_length)
-			_stage = CMD;
-	
-		_decoded -= packet.size();
+
 		buffer += packet.size();
 
 		if (_pReader) { // POST media streaming (publish)
@@ -216,8 +268,12 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 				delete _pReader;
 				_pReader = NULL;
 			}
-		} else
-			receive(_pHeader, _file, packet, !buffer); // flush if no more data buffered
+		}
+		if(_pHeader || _stage != CMD) // can be CMD on end of chunked transfer-encoding
+			receive(packet, !buffer); // !buffer => flush if no more data buffered
+
+		if (_stage!=CHUNKED && !_length)
+			_stage = CMD; // to parse Header next time!
 
 	} while (buffer);
 

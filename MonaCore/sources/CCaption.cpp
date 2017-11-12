@@ -123,23 +123,19 @@ CCaption::CCaption() {
 	}
 }
 
-UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, const OnVideo& onVideo, const CCaption::OnText& onText, const CCaption::OnLang& onLang) {
+UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, const CCaption::OnText& onText, const CCaption::OnLang& onLang) {
 	// flush what is possible now (tag.time has certainly progressed)
 	for (Channel& channel : _channels)
 		channel.flush(onText, &tag);
 
 	// Search SEI frame to parse!
-	UInt32 count(0);
 	BinaryReader reader(packet.data(), packet.size());
-	const UInt8* begin = NULL;
+	UInt32 offset = 0;
 	switch (tag.codec) {
 		case Media::Video::CODEC_H264: {	
 			while (reader.available()>=4) {
-				if (!begin)
-					begin = reader.current();
-				BinaryReader cc(reader.current(), reader.available());
-				cc.shrink(reader.next(reader.read32())+4);
-				cc.next(4); // skip size header
+				BinaryReader cc(reader.current()+4, reader.available()-4);
+				cc.shrink(reader.next(reader.read32()));
 				if ((cc.read8() & 0x1f)!=6 || cc.read8() != 4)
 					continue;
 				// SEI - user data registered
@@ -151,33 +147,25 @@ UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, con
 				cc.next(2); // skip terminate provider code
 				if (cc.available() < 10 || memcmp(cc.current(), EXPAND("GA94")) != 0)
 					continue;
-				if (begin != cc.data()) // give the before video part
-					onVideo(tag, Packet(packet, begin, cc.current() - begin));
-				begin = NULL;
-				Media::Video::Tag ccTag(tag);
-				ccTag.frame = Media::Video::FRAME_CC;
 				// Caption closed!
 				cc.next(4); // GA94
-				if (cc.read8() == 3) {
-					UInt8 value = cc.read8();
-					if (value & 0x40) {
-						++count;
-						cc.read8(); // reserved
-						value = (value & 0x1F) * 3;
-						while (cc.available() < value)
-							value -= 3;
-						decode(tag, Packet(packet, cc.current(), value), onLang);
-					}
+				if (cc.read8() != 3)
+					continue;
+				UInt8 value = cc.read8();
+				if (value & 0x40) {
+					offset = reader.position();
+					cc.read8(); // reserved
+					value = (value & 0x1F) * 3;
+					while (cc.available() < value)
+						value -= 3;
+					decode(tag, Packet(packet, cc.current(), value), onLang);
 				}
-				onVideo(ccTag, Packet(packet, cc.data(), cc.size()));
 			}
 			break;
 		}
 		default:;
 	}
-	if(begin)
-		onVideo(tag, packet + (begin-packet.data()));
-	return count;
+	return offset;
 }
 
 void CCaption::decode(const Media::Video::Tag& tag, const Packet& packet, const OnLang& onLang) {

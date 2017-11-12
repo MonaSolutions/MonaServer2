@@ -198,15 +198,15 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, 
 		// subscribed?
 		if (subscription.pNextPublication) {
 			if (subscription.pNextPublication == &publication)
-				return true; // already subscribed => just a parameters change!
+				return true; // already subscribed = just a parameters change => useless to recall subscribe/unsubscribe (performance reason and no security issue because the first subscription has been accepted)
 			unsubscribe(subscription, *subscription.pNextPublication, pClient); // unsubscribe previous MBR switching
 		} else if (subscription.pPublication == &publication)
-			return true; // already subscribed => just a parameters change!
+			return true; // already subscribed = just a parameters change => useless to recall subscribe/unsubscribe (performance reason and no security issue because the first subscription has been accepted)
 		// MBR switch
 	} // else no subscription yet
 
 	if (!onSubscribe(ex, subscription, publication, pClient)) {
-		// if ex, error has already been displayed as logby onSubscribe
+		// if ex, error has already been displayed as log by onSubscribe
 		// no unsubscribption to keep a possible previous subscription (MBR switch fails)
 		if (!publication)
 			_publications.erase(it);
@@ -220,7 +220,7 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, 
 	if (subscription.pPublication) {
 		// publication switch (MBR)
 		for (UInt8 i = 1; i <= publication.videos.size();++i) {
-			if (subscription.target.videoSelected(i)) {
+			if (subscription.videos.selected(i)) {
 				subscription.pNextPublication = &publication;
 				_waitingKeys.emplace(piecewise_construct, forward_as_tuple(&publication), forward_as_tuple(*this, publication)).first->second
 					.subscriptions.emplace(piecewise_construct, forward_as_tuple(&subscription), forward_as_tuple(pClient));

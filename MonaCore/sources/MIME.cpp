@@ -73,16 +73,16 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 }
 
 
-MIME::Type MIME::Read(const char* value, string& subType) {
+MIME::Type MIME::Read(const char* value, const char*& subType) {
 	// subtype
 	const char* comma = strchr(value, ';');
 	const char* slash = (const char*)memchr(value, '/', comma ? comma - value : strlen(value));
 	if (slash)
-		subType.assign(slash + 1);
+		subType = slash + 1;
 	else if (comma)
-		subType.assign(comma);
+		subType = comma;
 	else
-		subType.assign(EXPAND("html; charset=utf-8"));
+		subType = "html; charset=utf-8";
 
 	// type
 	if (String::ICompare(value,EXPAND("text"))==0)

@@ -169,13 +169,13 @@
     <ClCompile Include="sources\Logger.cpp">
       <Filter>Application</Filter>
     </ClCompile>
-    <ClCompile Include="sources\Cache.cpp">
-      <Filter>Memory</Filter>
-    </ClCompile>
     <ClCompile Include="sources\Proxy.cpp">
       <Filter>Net</Filter>
     </ClCompile>
     <ClCompile Include="sources\BitReader.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\Cache.cpp">
       <Filter>Memory</Filter>
     </ClCompile>
   </ItemGroup>
@@ -361,17 +361,17 @@
     <ClInclude Include="include\Mona\Logger.h">
       <Filter>Application</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\StreamData.h">
-      <Filter>Memory</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\Cache.h">
-      <Filter>Memory</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\Proxy.h">
       <Filter>Net</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\BitReader.h">
       <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Cache.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\StreamData.h">
+      <Filter>Net</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

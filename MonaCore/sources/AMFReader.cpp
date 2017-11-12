@@ -446,7 +446,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 					while (size--) {
 						text = readText(sizeText);
 						if (text) {
-							String::ToNumber<UInt32>(text, sizeText, sizeText);
+							String::ToNumber(text, sizeText, sizeText);
 							while (sizeText > i++)
 								writer.writeNull();
 							if (readNext(writer))

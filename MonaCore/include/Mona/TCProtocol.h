@@ -26,7 +26,7 @@ namespace Mona {
 
 struct TCProtocol : Protocol , virtual Object {
 	TCPServer::OnConnection& onConnection;
-	TCPServer::OnError&		 onError;
+	TCPServer::OnError		 onError;
 
 	const shared<Socket>&	socket() { return _server; }
 
@@ -34,7 +34,6 @@ struct TCProtocol : Protocol , virtual Object {
 
 protected:
 	TCProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS = nullptr);
-	virtual ~TCProtocol();
 
 private:
 	TCPServer _server;

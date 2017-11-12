@@ -47,7 +47,9 @@ HTTP::Header::Header(const char* protocol, const SocketAddress& serverAddress) :
 	secWebsocketAccept(NULL),
 	accessControlRequestHeaders(NULL),
 	host(serverAddress),
-	range(NULL) {
+	range(NULL),
+	encoding(ENCODING_IDENTITY),
+	code(NULL) {
 }
 
 void HTTP::Header::set(const char* key, const char* value) {
@@ -73,6 +75,8 @@ void HTTP::Header::set(const char* key, const char* value) {
 		secWebsocketKey = value;
 	} else if (String::ICompare(key, "sec-webSocket-accept") == 0) {
 		secWebsocketAccept = value;
+	} else if (String::ICompare(key, "transfer-encoding") == 0) {
+		encoding = ParseEncoding(value);
 	} else if (String::ICompare(key, "if-modified-since") == 0) {
 		Exception ex;
 		AUTO_ERROR(ifModifiedSince.update(ex, value, Date::FORMAT_HTTP), "HTTP header")
@@ -81,10 +85,9 @@ void HTTP::Header::set(const char* key, const char* value) {
 	} else if (String::ICompare(key, "access-control-request-method") == 0) {
 
 		String::ForEach forEach([this](UInt32 index, const char* value) {
-			size_t size(strlen(value));
-			Type type(ParseType(value, size));
+			Type type(ParseType(value));
 			if (!type)
-				WARN("Access-control-request-method, unknown ", string(value, size>4 ? 4 : size), " type")
+				WARN("Access-control-request-method, unknown ", value, " type")
 			else
 				accessControlRequestMethod |= type;
 			return true;
@@ -136,20 +139,39 @@ const char* HTTP::ErrorToCode(Int32 error) {
 	}
 }
 
-HTTP::Type HTTP::ParseType(const char* value, size_t size) {
-	if (size == 3 && String::ICompare(value,EXPAND("GET"))==0)
-		return TYPE_GET;
-	if (size == 4) {
-		if (String::ICompare(value, EXPAND("PUT")) == 0)
-			return TYPE_PUT;
-		if (String::ICompare(value, EXPAND("HEAD")) == 0)
-			return TYPE_HEAD;
-		if (String::ICompare(value, EXPAND("POST")) == 0)
-			return TYPE_POST;
+HTTP::Type HTTP::ParseType(const char* value) {
+	switch (strlen(value)) {
+		case 3:
+			if(String::ICompare(value, EXPAND("GET")) == 0)
+				return TYPE_GET;
+			break;
+		case 4:
+			if (String::ICompare(value, EXPAND("PUT")) == 0)
+				return TYPE_PUT;
+			if (String::ICompare(value, EXPAND("HEAD")) == 0)
+				return TYPE_HEAD;
+			if (String::ICompare(value, EXPAND("POST")) == 0)
+				return TYPE_POST;
+			break;
+		case 7:
+			if (String::ICompare(value, EXPAND("OPTIONS")) == 0)
+				return TYPE_OPTIONS;
+			break;
+		default:break;
 	}
-	if (size == 7 && String::ICompare(value, EXPAND("OPTIONS")) == 0)
-		return TYPE_OPTIONS;
 	return TYPE_UNKNOWN;
+}
+
+HTTP::Encoding HTTP::ParseEncoding(const char* value) {
+	if (String::ICompare(value, EXPAND("chunked")) == 0)
+		return ENCODING_CHUNKED;
+	if (String::ICompare(value, EXPAND("compress")) == 0)
+		return ENCODING_COMPRESS;
+	if (String::ICompare(value, EXPAND("deflate")) == 0)
+		return ENCODING_DEFLATE;
+	if (String::ICompare(value, EXPAND("gzip")) == 0)
+		return ENCODING_GZIP;
+	return ENCODING_IDENTITY;
 }
 
 UInt8 HTTP::ParseConnection(const char* value) {

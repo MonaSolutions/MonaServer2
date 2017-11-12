@@ -19,7 +19,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/String.h"
 #include "assert.h"
-#include <memory>
 
 namespace Mona {
 
@@ -123,6 +122,9 @@ private:
 	shared<Ex>	_pEx;
 };
 
+
+#define		FATAL_ASSERT(ASSERT)			static_assert(ASSERT, #ASSERT)
+
 #if defined(_DEBUG)
 
 #if defined(_WIN32)
@@ -147,5 +149,6 @@ private:
 #define		FATAL_ERROR(...)			{ throw std::runtime_error(Mona::String(__VA_ARGS__,", " __FILE__ "[" LINE_STRING "]"));}
 
 #endif
+
 
 } // namespace Mona

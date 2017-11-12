@@ -15,8 +15,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Parameters.h"
-#include "Mona/String.h"
-#include "Mona/Exceptions.h"
 
 using namespace std;
 

@@ -41,7 +41,7 @@ void FlashStream::flush() {
 	if (_pPublication)
 		_pPublication->flush(peer.ping());
 	if (_pSubscription && _pSubscription->ejected())
-		disengage((FlashWriter*)&_pSubscription->target);
+		disengage(&_pSubscription->target<FlashWriter>());
 }
 
 void FlashStream::disengage(FlashWriter* pWriter) {
@@ -222,20 +222,16 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 	if (_pSubscription) {
 
 		if(name == "receiveAudio") {
-			bool enable;
-			if (message.readBoolean(enable) && !enable)
-				_pSubscription->target.audioTrack = 0;
-			else if (!_pSubscription->target.audioTrack)  // change just if no audioTrack has been explictly selected
-				_pSubscription->target.audioTrack = 1;
+			bool enable(true);
+			message.readBoolean(enable);
+			_pSubscription->setBoolean("audio", enable);
 			return;
 		}
 		
 		if (name == "receiveVideo") {
-			bool enable;
-			if (message.readBoolean(enable) && !enable)
-				_pSubscription->target.videoTrack = 0;
-			else if (!_pSubscription->target.videoTrack) // change just if no videoTrack has been explictly selected
-				_pSubscription->target.videoTrack = 1;
+			bool enable(true);
+			message.readBoolean(enable);
+			_pSubscription->setBoolean("video", enable);
 			return;
 		}
 		

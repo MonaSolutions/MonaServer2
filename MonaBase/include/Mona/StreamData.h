@@ -17,7 +17,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Buffer.h"
+#include "Mona/Packet.h"
 
 namespace Mona {
 
@@ -31,10 +31,10 @@ struct StreamData {
 			_pBuffer->append(packet.data(), packet.size());
 			shared<Buffer> pBuffer(_pBuffer); // trick to keep reference to _pBuffer!
 			Packet buffer(pBuffer);
-			rest = min(onStreamData(buffer, limit, std::forward<Args>(args)...), _pBuffer->size());
+			rest = min(onStreamData(buffer, std::forward<Args>(args)...), _pBuffer->size());
 		} else {
 			Packet buffer(packet);
-			rest = min(onStreamData(buffer, limit, std::forward<Args>(args)...), packet.size());
+			rest = min(onStreamData(buffer, std::forward<Args>(args)...), packet.size());
 		}
 		if (!rest) {
 			// no rest, can have deleted this, so return immediatly!
@@ -63,8 +63,9 @@ struct StreamData {
 	void clearStreamData() { _pBuffer.reset(); }
 	shared<Buffer>& clearStreamData(shared<Buffer>& pBuffer) { return pBuffer = std::move(_pBuffer); }
 
-	virtual UInt32 onStreamData(Packet& buffer, UInt32 limit, Args... args) = 0;
 private:
+	virtual UInt32 onStreamData(Packet& buffer, Args... args) = 0;
+
 	shared<Buffer> _pBuffer;
 };
 

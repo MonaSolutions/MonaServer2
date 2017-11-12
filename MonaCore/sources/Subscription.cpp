@@ -26,10 +26,19 @@ using namespace std;
 
 namespace Mona {
 
-Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), target(target), _ejected(EJECTED_NONE),
-	audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(0), _startTime(0), _lastTime(0),
-	_waitingFirstVideoSync(0), _onMediaWrite([&target](const Packet& packet) {
-		target.writeData(0, Media::Data::TYPE_MEDIA, packet);
+Subscription::Subscription(Media::Target& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
+	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(0), _startTime(0), _lastTime(0),
+	_audios(true), _videos(true), _datas(true),
+	_waitingFirstVideoSync(0), _onMediaWrite([this](const Packet& packet) {
+		writeToTarget(_datas, 0, Media::Data::TYPE_MEDIA, packet);
+	}) {
+}
+
+Subscription::Subscription(Media::TrackTarget& target) : pPublication(NULL), _congested(0), pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
+	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _seekTime(0), _timeout(0), _startTime(0), _lastTime(0),
+	_audios(false), _videos(false), _datas(false),
+	_waitingFirstVideoSync(0), _onMediaWrite([this](const Packet& packet) {
+		writeToTarget(_datas, 0, Media::Data::TYPE_MEDIA, packet);
 	}) {
 }
 
@@ -46,15 +55,15 @@ void Subscription::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
 		return;
 	if (!track) {
 		for (VideoTrack& video : _videos)
-			video.waitKeyFrame = true;
+			video.waitKeyFrame = 1;
 		return;
 	}
 	if (track <= _videos.size())
-		_videos[track].waitKeyFrame = true;
+		_videos[track].waitKeyFrame = 1;
 }
 
 const string& Subscription::name() const {
-	return pPublication ? pPublication->name() : typeof(target);
+	return pPublication ? pPublication->name() : typeof(_target);
 }
 
 Subscription::EJECTED Subscription::ejected() const {
@@ -69,11 +78,11 @@ Subscription::EJECTED Subscription::ejected() const {
 
 void Subscription::onParamChange(const string& key, const string* pValue) {
 	if (String::ICompare(key, EXPAND("audioReliable")) == 0)
-		target.audioReliable = pValue && String::IsFalse(*pValue) ? false : true;
+		_audios.reliable = pValue && String::IsFalse(*pValue) ? false : true;
 	else if (String::ICompare(key, EXPAND("videoReliable")) == 0)
-		target.videoReliable = pValue && String::IsFalse(*pValue) ? false : true;
+		_videos.reliable = pValue && String::IsFalse(*pValue) ? false : true;
 	else if (String::ICompare(key, EXPAND("dataReliable")) == 0)
-		target.dataReliable = pValue && String::IsFalse(*pValue) ? false : true;
+		_datas.reliable = pValue && String::IsFalse(*pValue) ? false : true;
 	else if (String::ICompare(key, EXPAND("format")) == 0)
 		setFormat(pValue ? pValue->data() : NULL);
 	else if (String::ICompare(key, EXPAND("timeout")) == 0) {
@@ -104,63 +113,37 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 			}
 		} // not change on remove to keep time progressive
 	} else {
-		Int16 track = -1;
-		if (String::ICompare(key, EXPAND("audio")) == 0) {
-			setAudioTrack((!pValue || String::ToNumber(*pValue, track) || !String::IsFalse(*pValue)) ? track : 0);
-		} else if (String::ICompare(key, EXPAND("video")) == 0)
-			setVideoTrack((!pValue || String::ToNumber(*pValue, track) || !String::IsFalse(*pValue)) ? track : 0);
-		else if (String::ICompare(key, EXPAND("data")) == 0)
-			target.dataTrack = (!pValue || String::ToNumber(*pValue, track) || !String::IsFalse(*pValue)) ? track : 0;
+		// audio/video/data = true => receives everything!
+		// audio/video/data = false or 0 => receives just track 0!
+		// audio/video/data = # => receives track #!
+		if (String::ICompare(key, EXPAND("data")) == 0) {
+			UInt8 track = 0;
+			if (!pValue || (!String::ToNumber(*pValue, track) && !String::IsFalse(*pValue)))
+				_datas.pSelection.reset();
+			else
+				_datas.pSelection.reset(new UInt8(track));
+		} else if (String::ICompare(key, EXPAND("audio")) == 0)
+			setMediaSelection(pPublication ? &pPublication->audios : NULL, pValue, _audios);
+		else if (String::ICompare(key, EXPAND("video")) == 0)
+			setMediaSelection(pPublication ? &pPublication->videos : NULL, pValue, _videos);
 	}
 	Media::Properties::onParamChange(key, pValue);
 	if(_streaming)
-		target.setMediaParams(*this);
+		_target.setMediaParams(self);
+
+	DEBUG(name(), " subscription parameters ", self);
 }
 void Subscription::onParamClear() {
-	target.audioReliable = target.videoReliable = target.dataReliable = true;
+	_audios.reliable = _videos.reliable = _datas.reliable = true;
 	_timeout = 0;
-	setAudioTrack(-1);
-	setVideoTrack(-1);
-	target.dataTrack = -1;
+	setMediaSelection(pPublication ? &pPublication->audios : NULL, NULL, _audios);
+	setMediaSelection(pPublication ? &pPublication->videos : NULL, NULL, _videos);
+	_datas.pSelection.reset();
 	setFormat(NULL);
 	Media::Properties::onParamClear();
 	if (_streaming)
-		target.setMediaParams(*this);
+		_target.setMediaParams(*this);
 }
-
-void Subscription::setAudioTrack(Int16 track) {
-	if (track == target.audioTrack)
-		return;
-	target.audioTrack = track;
-	if (!track || !_streaming || _ejected)
-		return;
-	track = 1;
-	for (const Publication::AudioTrack& audio : pPublication->audios) {
-		if (!audio.config)
-			continue;
-		writeAudio(UInt8(track), audio.config, audio.config);
-		if (_ejected)
-			return;
-		++track;
-	}
-}
-void Subscription::setVideoTrack(Int16 track) {
-	if (track == target.videoTrack)
-		return;
-	target.videoTrack = track;
-	if (!track || !_streaming || _ejected)
-		return;
-	track = 1;
-	for (const Publication::VideoTrack& video : pPublication->videos) {
-		if (!video.config)
-			continue;
-		writeVideo(UInt8(track), video.config, video.config);
-		if (_ejected)
-			return;
-		++track;
-	}
-}
-
 
 void Subscription::beginMedia() {
 	if (_streaming)
@@ -169,9 +152,9 @@ void Subscription::beginMedia() {
 	if (pPublication && !pPublication->publishing())
 		return; // wait publication running to start subscription
 
-	target.setMediaParams(*this); // begin with media params!
+	_target.setMediaParams(*this); // begin with media params!
 	
-	if (!target.beginMedia(name())) {
+	if (!_target.beginMedia(name())) {
 		_ejected = EJECTED_ERROR;
 		return;
 	}
@@ -218,8 +201,8 @@ void Subscription::endMedia() {
 
 	if(_pMediaWriter)
 		_pMediaWriter->endMedia(_onMediaWrite);
-	target.endMedia(name());
-	target.flush();
+	_target.endMedia(name());
+	_target.flush();
 
 	_waitingFirstVideoSync = 0;
 	_streaming = 0;
@@ -242,7 +225,7 @@ void Subscription::writeProperties(const Media::Properties& properties) {
 	if (_ejected)
 		return;
 	INFO("Properties sent to one ",name()," subscription")
-	if(target.writeProperties(properties)) {
+	if(_target.writeProperties(properties)) {
 		if (_pMediaWriter)
 			_pMediaWriter->writeProperties(properties, _onMediaWrite);
 	} else
@@ -256,7 +239,7 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 		_streaming.update();
 	if (_ejected)
 		return;
-	if (!target.dataSelected(track))
+	if (!_datas.selected(track))
 		return;
 
 	// Create track!
@@ -264,7 +247,7 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 		_datas[track];
 
 	if (congested()) {
-		if (target.dataReliable || _congestion(target.queueing(), Net::RTO_MAX)) {
+		if (_datas.reliable || _congestion(_target.queueing(), Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Data timeout, insufficient bandwidth to play ", name());
 			return;
@@ -277,7 +260,7 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 
 	if (_pMediaWriter)
 		_pMediaWriter->writeData(track, type, packet, _onMediaWrite);
-	else if(!target.writeData(track, type, packet))
+	else if(!writeToTarget(_datas, track, type, packet))
 		_ejected = EJECTED_ERROR;
 }
 
@@ -288,7 +271,7 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 		_streaming.update();
 	if (_ejected)
 		return;
-	if (!target.audioSelected(track))
+	if (!_audios.selected(track))
 		return;
 
 	// Create track!
@@ -302,7 +285,7 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 	}
 
 	if (congested()) {
-		if (target.audioReliable || _congestion(target.queueing(), Net::RTO_MAX)) {
+		if (_audios.reliable || _congestion(_target.queueing(), Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Audio timeout, insufficient bandwidth to play ", name());
 			return;
@@ -323,7 +306,7 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 	// DEBUG("Audio time => ", audio.time);
 	if (_pMediaWriter)
 		_pMediaWriter->writeAudio(track, audio, packet, _onMediaWrite);
-	else if(!target.writeAudio(track, audio, packet))
+	else if(!writeToTarget(_audios, track, audio, packet, tag.isConfig))
 		_ejected = EJECTED_ERROR;
 }
 
@@ -335,9 +318,9 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 	if (_ejected)
 		return;
 	
-	if (!target.videoSelected(track)) {
+	if (!_videos.selected(track)) {
 		if (track && track <= _videos.size())
-			_videos[track].waitKeyFrame = true;
+			_videos[track].waitKeyFrame = 1;
 		return;
 	}
 
@@ -350,17 +333,22 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 	if (!isConfig) {
 		if (tag.frame == Media::Video::FRAME_KEY) {
 			_waitingFirstVideoSync = 0;
-			if(pVideo)
-				pVideo->waitKeyFrame = false;
+			if (pVideo && pVideo->waitKeyFrame) {
+				DEBUG("Video key frame gotten from ", name());
+				pVideo->waitKeyFrame = 0;
+			}
 		} else if(pVideo && pVideo->waitKeyFrame) {
 			++_videos.dropped;
-			DEBUG("Video frame dropped, waits a key frame from ", name());
+			if (pVideo->waitKeyFrame > 1)
+				return;
+			pVideo->waitKeyFrame = 2;
+			DEBUG("Video key frame waiting from ", name());
 			return;
 		}
 	}
 
 	if (congested()) {
-		if (target.videoTrack || _congestion(target.queueing(), Net::RTO_MAX)) {
+		if (_videos.reliable || _congestion(_target.queueing(), Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Video timeout, insufficient bandwidth to play ", name());
 			return;
@@ -370,7 +358,7 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 			++_videos.dropped;
 			WARN("Video frame dropped, insufficient bandwidth to play ", name());
 			if(pVideo)
-				pVideo->waitKeyFrame = true;
+				pVideo->waitKeyFrame = 1;
 			return;
 		}
 	}
@@ -381,7 +369,7 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 	fixTag(isConfig, tag, video);
 	if (_pMediaWriter)
 		_pMediaWriter->writeVideo(track, video, packet, _onMediaWrite);
-	else if (!target.writeVideo(track, video, packet))
+	else if (!writeToTarget(_videos, track, video, packet, isConfig))
 		_ejected = EJECTED_ERROR;
 	// DEBUG("Video time => ", video.time, " (", video.frame,")");
 }
@@ -397,17 +385,18 @@ void Subscription::setFormat(const char* format) {
 
 bool Subscription::congested() {
 	if (!_congested)
-		_congested = 0xF0 | (_congestion(target.queueing()) ? 1 : 0);
+		_congested = 0xF0 | (_congestion(_target.queueing()) ? 1 : 0);
 	return _congested & 1;
 }
 
 void Subscription::flush() {
 	if (_ejected)
 		return;
-	target.flush();
+	_flushable = 0;
+	_target.flush();
 	// update congestion status
 	_congested = 0;
-	_congestion(target.queueing());
+	_congestion(_target.queueing());
 }
 
 

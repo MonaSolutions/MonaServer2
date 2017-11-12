@@ -24,15 +24,13 @@ using namespace std;
 namespace Mona {
 
 TCProtocol::TCProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS) : _server(api.ioSocket, pTLS), Protocol(name, api, sessions),
-	onError(_server.onError), onConnection(_server.onConnection) {
-	onError = [this](const Exception& ex) { WARN("Protocol ", this->name, ", ", ex); }; // onError by default!
+	onConnection(_server.onConnection) {
+	_server.onError = [this](const Exception& ex) {
+		if (onError)
+			return onError(ex);
+		WARN("Protocol ", this->name, ", ", ex); // onError by default!
+	};
 
-}
-
-
-TCProtocol::~TCProtocol() {
-	onError = nullptr;
-	onConnection = nullptr;
 }
 
 bool TCProtocol::load(Exception& ex) {

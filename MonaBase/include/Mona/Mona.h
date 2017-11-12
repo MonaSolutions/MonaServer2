@@ -42,8 +42,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
 
-#define NUMNAME(NAME) typename = typename std::enable_if<std::is_arithmetic<NAME>::value, NAME>::type
-
 #if defined(_WIN32)
 #define _WINSOCKAPI_    // stops windows.h including winsock.h
 #define NOMINMAX
@@ -72,17 +70,17 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #endif
 #endif
 
-//
-// Memory Leak
-//
-
-#if defined(_DEBUG) && defined(_WIN32)
-	#define new new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#endif
 
 namespace Mona {
 
+
+#if defined(_DEBUG) && defined(_WIN32)
+#define new new(_NORMAL_BLOCK, __FILE__, __LINE__)
 void DetectMemoryLeak();
+#else
+void DetectMemoryLeak();
+#endif
+
 
 
 ///// TYPES /////
@@ -103,6 +101,15 @@ typedef uint32_t        UInt32;
 typedef int64_t			Int64;
 typedef uint64_t		UInt64;
 
+
+struct Base {
+	Base(UInt8 value) : _value(value) {}
+	Base(std::nullptr_t) : _value(10) {}
+	operator UInt8() const { return _value; }
+	static const Base& Null() { static Base Null(10); return Null; }
+private:
+	UInt8 _value;
+};
 
 //////  No copy, no move, objet nullable  //////
 

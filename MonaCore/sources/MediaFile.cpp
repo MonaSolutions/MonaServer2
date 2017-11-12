@@ -39,7 +39,7 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 }
 
 MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io) :
-	Media::Stream(TYPE_FILE), io(io), path(path), _pReader(pReader), timer(timer), _pMedias(new deque<unique<Media::Base>>()),
+	Media::Stream(TYPE_FILE, path), io(io), _pReader(pReader), timer(timer), _pMedias(new deque<unique<Media::Base>>()),
 		_onTimer([this](UInt32 delay) {
 			unique<Media::Base> pMedia;
 			while (!_pMedias->empty()) {
@@ -139,8 +139,8 @@ MediaFile::Writer::Write::Write(const shared<string>& pName, IOFile& io, const s
 	}) {
 }
 
-MediaFile::Writer::Writer(const Path& path, MediaWriter* pWriter, IOFile& io) : _append(false),
-	Media::Stream(TYPE_FILE), io(io), _writeTrack(0), _running(false), path(path), _pWriter(pWriter) {
+MediaFile::Writer::Writer(const Path& path, MediaWriter* pWriter, IOFile& io) :
+	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _running(false), _pWriter(pWriter) {
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 }
  

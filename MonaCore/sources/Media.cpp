@@ -367,39 +367,6 @@ Media::Source& Media::Source::Null() {
 	return Null;
 }
 
-bool Media::Target::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
-	if (!audioSelected(track))
-		return true;
-	bool flush = _queueing >= Net::MTU_RELIABLE_SIZE;
-	writeAudio(track, tag, packet, audioReliable || tag.isConfig);
-	if (flush)
-		this->flush();
-	_queueing += packet.size();
-	return true;
-}
-bool Media::Target::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
-	if (tag.frame == Media::Video::FRAME_CC && dataTrack > 0 && track == dataTrack)
-		return true; // Remove CaptionClosed frame if data track explicitly selected is equals to video CC track!
-	if (!videoSelected(track))
-		return true;
-	bool flush = _queueing >= Net::MTU_RELIABLE_SIZE;
-	writeVideo(track, tag, packet, videoReliable || tag.frame == Media::Video::FRAME_CONFIG);
-	if (flush)
-		this->flush();
-	_queueing += packet.size();
-	return true;
-}
-bool Media::Target::writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {
-	if (!dataSelected(track))
-		return true;
-	bool flush = _queueing >= Net::MTU_RELIABLE_SIZE;
-	writeData(track, type, packet, dataReliable);
-	if (flush)
-		this->flush();
-	_queueing += packet.size();
-	return true;
-}
-
 bool Media::Target::beginMedia(const string& name) {
 	ERROR(typeof(*this), " doesn't support media streaming");
 	return false;
@@ -434,7 +401,6 @@ void Media::Stream::start(Source& source) {
 	WARN(typeof(*this), " is a target stream, call start(Exception& ex) rather");
 	return start();
 }
-
 void Media::Stream::stop(const Exception& ex) {
 	stop(); 
 	onError(ex);
@@ -444,7 +410,7 @@ UInt32	Media::Stream::RecvBufferSize(0);
 UInt32	Media::Stream::SendBufferSize(0);
 
 Media::Stream* Media::Stream::New(Exception& ex, const char* description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
-	// Net => [@][address] [type/TLS][/MediaFormat] [parameter MediaFormat]
+	// Net => [@][address] [type/TLS][/MediaFormat] [parameter]
 	// File = > @file[.format][MediaFormat][parameter]
 	
 	description = String::TrimLeft(description);
@@ -559,8 +525,6 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 				}
 				isFile = true;
 				type = TYPE_FILE;
-				if (format.empty())
-					format = path.extension();
 			}
 		}
 	}
@@ -581,16 +545,22 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 				// UDP and No Format => TS by default to catch with VLC => UDP = TS
 				format = "mp2t";
 				break;
-			case TYPE_HTTP: {
+			case TYPE_HTTP:
+				if (path.isFolder()) {
+					ex.set<Ex::Format>("A HTTP source or target stream can't be a folder");
+					return NULL;
+				}
+			default: {
 				const char* subMime;
 				if (MIME::Read(path, subMime)) {
 					format = subMime;
 					break;
 				}
-			}
-			default:
-				ex.set<Ex::Format>("Stream description have to indicate a media format");
+				if (!isTarget && type == TYPE_HTTP)
+					break; // HTTP source allow empty format (will be determinate with content-type)
+				ex.set<Ex::Format>(TypeToString(type), " stream description have to indicate a media format");
 				return NULL;
+			}
 		}
 	}
 	
@@ -607,11 +577,15 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 	if(!type)
 		type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
 
+	// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
 	if (isTarget) {
 		if (MediaWriter* pWriter = MediaWriter::New(format.c_str()))
 			return new MediaSocket::Writer(type, path, pWriter, address, ioSocket, isSecure ? pTLS : nullptr);
-	} else if (MediaReader* pReader = MediaReader::New(format.c_str()))
-		return new MediaSocket::Reader(type, path, pReader, address, ioSocket, isSecure ? pTLS : nullptr);
+	} else {
+		MediaReader* pReader = NULL;
+		if(format.empty() || (pReader = MediaReader::New(format.c_str()))) // Format can be empty with HTTP source stream for example
+			return new MediaSocket::Reader(type, path, pReader, address, ioSocket, isSecure ? pTLS : nullptr);
+	}
 	ex.set<Ex::Unsupported>("Stream ", TypeToString(type), " format ",format, " not supported");
 	return NULL;
 }

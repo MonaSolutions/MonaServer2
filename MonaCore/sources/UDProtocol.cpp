@@ -24,11 +24,12 @@ using namespace std;
 namespace Mona {
 
 UDProtocol::UDProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDPSocket(api.ioSocket), Protocol(name, api, sessions),
-	onPacket(UDPSocket::onPacket), onError(UDPSocket::onError) {
-	onError = [this](const Exception& ex) { DEBUG("Protocol ", this->name, ", ", ex); }; // onError by default!
-}
-UDProtocol::~UDProtocol() {
-	onError = nullptr;
+	onPacket(UDPSocket::onPacket) {
+	UDPSocket::onError = [this](const Exception& ex) {
+		if (onError)
+			return onError(ex);
+		DEBUG("Protocol ", this->name, ", ", ex); // onError by default!
+	};
 }
 
 

@@ -31,6 +31,7 @@ struct HTTPSession : virtual Object, TCPSession {
 private:
 	shared<Socket::Decoder> newDecoder();
 	HTTPDecoder::OnRequest	_onRequest;
+	HTTPDecoder::OnResponse	_onResponse;
 
 	void			onParameters(const Parameters& parameters);
 	bool			manage();

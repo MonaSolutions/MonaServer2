@@ -41,7 +41,7 @@ struct MIME : virtual Static {
 	};
 
 	static Type				Read(const Path& file, const char*& subType);
-	static Type				Read(const char* value, std::string& subType);
+	static Type				Read(const char* value, const char*& subType);
 	static BinaryWriter&	Write(BinaryWriter& writer, Type type, const char* subType=NULL);
 };
 

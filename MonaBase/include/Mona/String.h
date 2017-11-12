@@ -57,6 +57,15 @@ enum {
 struct String : std::string, virtual Object {
 	NULLABLE 
 
+	/*!
+	Object formatable, must be iterable with key/value convertible in string */
+	template<typename Type>
+	struct Object : virtual Mona::Object {
+		operator const Type&() const { return (const Type&)self; }
+	protected:
+		Object() { return; for (const auto& it : (const Type&)self) String(it.first, it.second); }; // to detect string iterability on build
+	};
+
 	template <typename ...Args>
 	String(Args&&... args) {
 		Assign<std::string>(*this, std::forward<Args>(args)...);
@@ -106,14 +115,14 @@ struct String : std::string, virtual Object {
 	static std::vector<std::string>& Split(const char* value, std::size_t size, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0);
 	static std::vector<std::string>& Split(const std::string& value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0) { return Split(value.c_str(),separators,values,options); }
 
-	template<typename Type, NUMNAME(Type)>
-	static const char*	TrimLeft(const char* value, Type& size) { if (size == std::string::npos) size = (Type)strlen(value);  while (size && isspace(*value)) { ++value; --size; } return value; }
+	template<typename Type>
+	static const char*	TrimLeft(const char* value, Type& size) { static_assert(std::is_arithmetic<Type>::value, "size must be a numeric value"); if (size == std::string::npos) size = (Type)strlen(value);  while (size && isspace(*value)) { ++value; --size; } return value; }
 	static const char*	TrimLeft(const char* value, std::size_t size = std::string::npos);
-	template<typename Type, NUMNAME(Type)>
-	static char*		TrimRight(char* value, Type& size) { char* begin(value); if (size == std::string::npos) size = (Type)strlen(begin); value += size; while (value != begin && isspace(*--value)) --size; return begin; }
+	template<typename Type>
+	static char*		TrimRight(char* value, Type& size) { static_assert(std::is_arithmetic<Type>::value, "size must be a numeric value"); char* begin(value); if (size == std::string::npos) size = (Type)strlen(begin); value += size; while (value != begin && isspace(*--value)) --size; return begin; }
 	static char*		TrimRight(char* value) { std::size_t size(strlen(value)); return TrimRight<std::size_t>(value, size); }
 	static std::size_t	TrimRight(const char* value, std::size_t size = std::string::npos);
-	template<typename Type, NUMNAME(Type)>
+	template<typename Type>
 	static char*		Trim(char* value, Type& size) { TrimLeft<Type>(value, size); return TrimRight<Type>(value, size); }
 	static char*		Trim(char* value) { TrimLeft(value); return TrimRight(value); }
 	static std::size_t	Trim(const char* value, std::size_t size = std::string::npos) { TrimLeft(value, size); return TrimRight(value, size); }
@@ -130,27 +139,31 @@ struct String : std::string, virtual Object {
 	static int ICompare(const std::string& value1, const char* value2,  std::size_t size = std::string::npos) { return ICompare(value1.empty() ? NULL : value1.c_str(), value2, size); }
 	static int ICompare(const char* value1, const std::string& value2,  std::size_t size = std::string::npos) { return ICompare(value1, value2.empty() ? NULL : value2.c_str(), size); }
 
-	template<typename Type, NUMNAME(Type)>
-	static bool ToNumber(const std::string& value, Type& result) { return ToNumber(value.data(), value.size(), result); }
-	template<typename Type, NUMNAME(Type)>
-	static bool ToNumber(const char* value, Type& result) { return ToNumber(value, std::string::npos, result); }
-	template<typename Type, NUMNAME(Type)>
-	static bool ToNumber(const char* value, std::size_t size, Type& result);
-	template<typename Type, long long defaultValue, NUMNAME(Type)>
-	static Type ToNumber(const std::string& value) { Type result; return ToNumber(value.data(), value.size(), result) ? result : defaultValue; }
-	template<typename Type, long long defaultValue, NUMNAME(Type)>
-	static Type ToNumber(const char* value, std::size_t size = std::string::npos) { Type result; return ToNumber(value, size, result) ? result : defaultValue; }
+	template<typename Type>
+	static bool ToNumber(const std::string& value, Type& result, Base base = 10) { return ToNumber(value.data(), value.size(), result, base); }
+	template<typename Type>
+	static bool ToNumber(const char* value, Type& result, Base base = 10) { return ToNumber(value, std::string::npos, result, base); }
+	template<typename Type>
+	static bool ToNumber(const char* value, std::size_t size, Type& result, Base base = 10);
+	template<typename Type, long long defaultValue>
+	static Type ToNumber(const std::string& value, Base base = 10) { Type result; return ToNumber(value.data(), value.size(), result, base) ? result : defaultValue; }
+	template<typename Type, long long defaultValue>
+	static Type ToNumber(const char* value, Base base = 10) { Type result; return ToNumber(value, std::string::npos, result, base) ? result : defaultValue; }
+	template<typename Type, long long defaultValue>
+	static Type ToNumber(const char* value, std::size_t size, Base base = 10) { Type result; return ToNumber(value, size, result, base) ? result : defaultValue; }
 
-	template<typename Type, NUMNAME(Type)>
-	static bool ToNumber(Exception& ex, const std::string& value, Type& result) { return ToNumber<Type>(ex, value.data(), value.size(), result); }
-	template<typename Type, NUMNAME(Type)>
-	static bool ToNumber(Exception& ex, const char* value, Type& result) { return ToNumber<Type>(ex, value, std::string::npos, result); }
-	template<typename Type, NUMNAME(Type)>
-	static bool ToNumber(Exception& ex, const char* value, std::size_t size, Type& result);
-	template<typename Type, long long defaultValue, NUMNAME(Type)>
-	static Type ToNumber(Exception& ex, const std::string& value) { Type result;  return ToNumber(ex, value.data(), value.size(), result) ? result : defaultValue; }
-	template<typename Type, long long defaultValue, NUMNAME(Type)>
-	static Type ToNumber(Exception& ex, const char* value, std::size_t size = std::string::npos) { Type result; return ToNumber(ex, value, size, result) ? result : defaultValue; }
+	template<typename Type>
+	static bool ToNumber(Exception& ex, const std::string& value, Type& result, Base base = 10) { return ToNumber<Type>(ex, value.data(), value.size(), result, base); }
+	template<typename Type>
+	static bool ToNumber(Exception& ex, const char* value, Type& result, Base base = 10) { return ToNumber<Type>(ex, value, std::string::npos, result, base); }
+	template<typename Type>
+	static bool ToNumber(Exception& ex, const char* value, std::size_t size, Type& result, Base base = 10);
+	template<typename Type, long long defaultValue>
+	static Type ToNumber(Exception& ex, const std::string& value, Base base = 10) { Type result;  return ToNumber(ex, value.data(), value.size(), result, base) ? result : defaultValue; }
+	template<typename Type, long long defaultValue>
+	static Type ToNumber(Exception& ex, const char* value, Base base = 10) { Type result; return ToNumber(ex, value, std::string::npos, result, base) ? result : defaultValue; }
+	template<typename Type, long long defaultValue>
+	static Type ToNumber(Exception& ex, const char* value, std::size_t size, Base base = 10) { Type result; return ToNumber(ex, value, size, result, base) ? result : defaultValue; }
 	
 
 	static bool IsTrue(const std::string& value) { return IsTrue(value.data(),value.size()); }
@@ -172,7 +185,7 @@ struct String : std::string, virtual Object {
 	}
 
 	template<typename ValueType>
-	struct Format : virtual Object {
+	struct Format : virtual Mona::Object {
 		Format(const char* format, const ValueType& value) : value(value), format(format) {}
 		const ValueType&	value;
 		const char*			format;
@@ -207,7 +220,7 @@ struct String : std::string, virtual Object {
 		return Append<std::string>(out, std::forward<Args>(args)...);
 	}
 
-	struct Lower : virtual Object {
+	struct Lower : virtual Mona::Object {
 		Lower(const char* data, std::size_t size=std::string::npos) : data(data), size(size== std::string::npos ? std::strlen(data) : size) {}
 		Lower(const std::string& data) : data(data.data()), size(data.size()) {}
 		const char*			data;
@@ -383,7 +396,7 @@ struct String : std::string, virtual Object {
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
 
-	struct Data : virtual Object {
+	struct Data : virtual Mona::Object {
 		Data(const std::string& value, std::size_t size) : value(value.data()), size(size == std::string::npos ? value.size() : size) {}
 		Data(const char* value,        std::size_t size) : value(value), size(size==std::string::npos ? strlen(value) : size) {}
 		const char*	value;
@@ -394,7 +407,7 @@ struct String : std::string, virtual Object {
 		return Append<OutType>((OutType&)out.append(data.value, data.size), std::forward<Args>(args)...);
 	}
 
-	struct Date : virtual Object {
+	struct Date : virtual Mona::Object {
 		Date(const Mona::Date& date, const char* format) : format(format), _pDate(&date) {}
 		Date(const char* format) : format(format), _pDate(NULL) {}
 		const Mona::Date*	operator->() const { return _pDate; }
@@ -411,7 +424,7 @@ struct String : std::string, virtual Object {
 	}
 
 
-	struct Hex : virtual Object {
+	struct Hex : virtual Mona::Object {
 		Hex(const UInt8* data, UInt32 size, HEX_OPTIONS options = 0) : data(data), size(size), options(options) {}
 		const UInt8*		data;
 		const UInt32		size;
@@ -447,6 +460,20 @@ struct String : std::string, virtual Object {
 			value += value > 9 ? ref : '0';
 			out.append(STR &value, 1);
 		}
+		return Append<OutType>(out, std::forward<Args>(args)...);
+	}
+	template <typename OutType, typename Type, typename ...Args>
+	static OutType& Append(OutType& out, const Object<Type>& object, Args&&... args) {
+		bool first = true;
+		out.append(EXPAND("{"));
+		for (const auto& it : (const Type&)object) {
+			if (!first)
+				out.append(EXPAND(", "));
+			else
+				first = false;
+			Append<OutType>(out, it.first, ':', it.second);
+		}
+		out.append(EXPAND("}"));
 		return Append<OutType>(out, std::forward<Args>(args)...);
 	}
 

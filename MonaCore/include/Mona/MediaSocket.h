@@ -19,10 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/MediaReader.h"
-#include "Mona/MediaWriter.h"
-#include "Mona/Socket.h"
-#include "Mona/StreamData.h"
+#include "Mona/HTTP/HTTPDecoder.h"
 #include "Mona/Logs.h"
 
 namespace Mona {
@@ -39,58 +36,32 @@ struct MediaSocket : virtual Static {
 		bool running() const { return _subscribed; }
 		void stop();
 
-		const Path					path;
 		const SocketAddress			address;
 		IOSocket&					io;
 		const shared<Socket>&		socket();
 		Socket*						operator->() { return socket().get(); }
 
 	private:
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', _pReader->format()); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', (_pReader ? _pReader->format() : "AUTO")); }
 
-		struct Lost : Media::Base, virtual Object {
-			Lost(Media::Type type, UInt32 lost, UInt8 track) : Media::Base(type, Packet::Null(), track), _lost(lost) {} // lost
-			operator const UInt32&() { return _lost; }
-		private:
-			UInt32 _lost;
-		};
-		struct Decoder : Socket::Decoder, private Media::Source, private StreamData<const SocketAddress&>, virtual Object {
-			typedef Event<void(Media::Base&)>				ON(Media);
-			typedef Event<void(Lost& lost)>					ON(Lost);
-			typedef Event<void()>							ON(Flush);
-			typedef Event<void()>							ON(Reset);
-			typedef Event<void(const std::string& error)>	ON(Error);
-
+		struct Decoder : HTTPDecoder, virtual Object {
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
-				_name(name), _type(type), _rest(0), _handler(handler), _pReader(pReader) {}
-			~Decoder() { _pReader->flush(*this); }
+				_type(type), _rest(0), _pReader(pReader), HTTPDecoder(handler, Path::Null(), name) {}
+			~Decoder() { _pReader->flush(self); }
 
 		private:
 			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
-			UInt32 onStreamData(Packet& buffer, UInt32 limit, const SocketAddress& address);
-	
-			void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { _handler.queue<Media::Audio>(onMedia, tag, packet, track); }
-			void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { _handler.queue<Media::Video>(onMedia, tag, packet, track); }
-			void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { _handler.queue<Media::Data>(onMedia, type, packet, track); }
-			void setProperties(UInt8 track, DataReader& reader) { _handler.queue<Media::Data>(onMedia, reader, track); }
-			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { _handler.queue(onLost, type, lost, track); }
-			void flush() { _handler.queue(onFlush); }
-			void reset() { _handler.queue(onReset); }
-	
+			UInt32 onStreamData(Packet& buffer, Socket& socket);
+
 			shared<MediaReader>		_pReader;
 			Type					_type;
-			UInt8					_rest;
-			std::string				_name;
-			const Handler&			_handler;
 			SocketAddress			_address;
+			UInt32					_rest;
 		};
 
-		Decoder::OnError			_onError;
-		Decoder::OnLost				_onLost;
-		Decoder::OnFlush			_onFlush;
-		Decoder::OnReset			_onReset;
-		Decoder::OnMedia			_onMedia;
-
+		HTTPDecoder::OnRequest	_onRequest;
+		HTTPDecoder::OnResponse _onResponse;
+	
 		Socket::OnDisconnection	_onSocketDisconnection;
 		Socket::OnFlush			_onSocketFlush;
 		Socket::OnError			_onSocketError;
@@ -114,7 +85,6 @@ struct MediaSocket : virtual Static {
 
 		const SocketAddress		address;
 		IOSocket&				io;
-		const Path				path;
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
 		const shared<Socket>&	socket();
 		Socket*					operator->() { return socket().get(); }

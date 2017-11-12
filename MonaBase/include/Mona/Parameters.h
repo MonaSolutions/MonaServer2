@@ -21,7 +21,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct Parameters : virtual Object {
+struct Parameters : String::Object<Parameters> {
 
 	typedef Event<void(const std::string& key, const std::string* pValue)> ON(Change);
 	typedef Event<void()>												   ON(Clear);
@@ -49,8 +49,8 @@ public:
 	ForEach			from(const std::string& prefix) const { return _pMap ? ForEach(_pMap->lower_bound(prefix), _pMap->end()) : ForEach(); }
 	ForEach			range(const std::string& prefix) const;
 	UInt32			count() const { return _pMap ? _pMap->size() : 0; }
-	
-	Parameters&		clear(const std::string& prefix=String::Empty());
+
+	Parameters&		clear(const std::string& prefix = String::Empty());
 
 	/*!
 	Return false if key doesn't exist (and don't change 'value'), otherwise return true and assign string 'value' */
@@ -61,12 +61,12 @@ public:
 
 	/*!
 	Return false if key doesn't exist or if it's not a numeric type, otherwise return true and assign numeric 'value' */
-	template<typename NumberType>
-	bool getNumber(const std::string& key, NumberType& value) const { const char* temp = getParameter(key); return temp && String::ToNumber<NumberType>(temp, value); }
+	template<typename Type>
+	bool getNumber(const std::string& key, Type& value) const { FATAL_ASSERT(std::is_arithmetic<Type>::value); const char* temp = getParameter(key); return temp && String::ToNumber(temp, value); }
 	/*!
 	A short version of getNumber with template default argument to get value by returned result */
-	template<typename NumberType = double, int defaultValue = 0>
-	NumberType getNumber(const std::string& key) const { NumberType result((NumberType)defaultValue); getNumber(key, result); return result; }
+	template<typename Type = double, int defaultValue = 0>
+	Type getNumber(const std::string& key) const { FATAL_ASSERT(std::is_arithmetic<Type>::value); Type result((Type)defaultValue); getNumber(key, result); return result; }
 
 	/*!
 	Return false if key doesn't exist or if it's not a boolean type, otherwise return true and assign boolean 'value' */
@@ -82,8 +82,8 @@ public:
 	const std::string& setString(const std::string& key, const std::string& value) { return setParameter(key, value); }
 	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) { return setParameter(key, value, size == std::string::npos ? strlen(value) : size); }
 
-	template<typename NumberType>
-	NumberType setNumber(const std::string& key, NumberType value) { setParameter(key, String(value)); return value; }
+	template<typename Type>
+	Type setNumber(const std::string& key, Type value) { FATAL_ASSERT(std::is_arithmetic<Type>::value); setParameter(key, String(value)); return value; }
 
 	bool setBoolean(const std::string& key, bool value) { setParameter(key, value ? "true" : "false");  return value; }
 

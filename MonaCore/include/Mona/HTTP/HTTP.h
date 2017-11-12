@@ -118,6 +118,10 @@ struct HTTP : virtual Static {
 		TYPE_POST = 16,
 		TYPE_DELETE = 32
 	};
+	static const char* TypeToString(Type type) {
+		static const char* Strings[] = { "UNKNOWN", "HEAD", "GET", "PUT", "OPTIONS", "POST", "DELETE" };
+		return Strings[UInt8(type)];
+	}
 
 	enum Connection {
 		CONNECTION_CLOSE = 0, // close by default, other values requires a connection staying opened (upgrade or keepalive)
@@ -136,12 +140,21 @@ struct HTTP : virtual Static {
 		SORTBY_SIZE
 	};
 
+	enum Encoding {
+		ENCODING_IDENTITY=0,
+		ENCODING_CHUNKED,
+		ENCODING_COMPRESS,
+		ENCODING_DEFLATE,
+		ENCODING_GZIP
+	};
+
 	static const char*	 ErrorToCode(Int32 error);
 
 	static bool Send(Socket& socket, const Packet& packet);
 
-	static Type			 ParseType(const char* value, std::size_t size);
+	static Type			 ParseType(const char* value);
 	static UInt8		 ParseConnection(const char* value);
+	static Encoding		 ParseEncoding(const char* value);
 
 	static bool			 WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const std::string& fullPath, const std::string& path, SortBy sortBy = SORTBY_NAME, Sort sort = SORT_ASC);
 
@@ -151,7 +164,7 @@ struct HTTP : virtual Static {
 	struct Header : Parameters, virtual Object {
 		Header(const char* protocol, const SocketAddress& serverAddress);
 
-		const char* protocol;
+		const char*		protocol;
 
 		MIME::Type		mime;
 		const char*		subMime;
@@ -164,9 +177,11 @@ struct HTTP : virtual Static {
 		const char*		origin;
 		const char*		range; // TODO supports it?
 
+		const char*		code;
 		UInt8			connection;
 		const char*		upgrade;
 		UInt8			cacheControl;
+		Encoding		encoding;
 
 		Date			ifModifiedSince;
 
@@ -182,42 +197,72 @@ struct HTTP : virtual Static {
 	};
 
 	
-	struct Request : Packet, Parameters, virtual Object {
-		Request(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true), _pHeader(std::move(pHeader)) {}
-		Request(shared<Header>& pHeader, const Path& file, const Packet& packet, bool flush) : file(std::move(file)), lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
-		/*!
-		Post media packet */
-		Request(shared<Header>& pHeader, UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Audio(tag, packet, track)), _pHeader(std::move(pHeader)), flush(false) {}
-		Request(shared<Header>& pHeader, UInt8 track, const Media::Video::Tag& tag, const Packet& packet) : lost(0), pMedia(new Media::Video(tag, packet, track)), _pHeader(std::move(pHeader)), flush(false) {}
-		Request(shared<Header>& pHeader, UInt8 track, Media::Data::Type type, const Packet& packet) : lost(0), pMedia(new Media::Data(type, packet, track)), _pHeader(std::move(pHeader)), flush(false) {}
-		Request(shared<Header>& pHeader, UInt8 track, DataReader& reader) : lost(0), pMedia(new Media::Data(reader, track)), _pHeader(std::move(pHeader)), flush(false) {}
-		/*!
-		Post media lost infos */
-		Request(shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : lost(lost), pMedia(new Media::Base(type, Packet::Null(), track)), _pHeader(std::move(pHeader)), flush(false) {}
-		/*!
-		Post reset */
-		Request(shared<Header>& pHeader) : lost(1), pMedia(NULL), _pHeader(std::move(pHeader)), flush(false) {}
-		/*!
-		Post flush or publish end */
-		Request(shared<Header>& pHeader, bool end) : lost(end ? 1 : 0), pMedia(NULL), _pHeader(std::move(pHeader)), flush(true) {}
-		/*!
-		Put */
-		Request(shared<Header>& pHeader, const Packet& packet) : lost(0), pMedia(NULL), _pHeader(std::move(pHeader)), flush(true), Packet(std::move(packet)) {}
-
-		~Request() { if (pMedia) delete pMedia; }
+	struct Message : Packet, Parameters, virtual Object {
+		NULLABLE
 
 		const Exception			ex;
 		Media::Base*			pMedia;
 		UInt32					lost;
 		const bool				flush;
-		Path					file;
-
+	
 		const Header* operator->() const { return _pHeader.get(); }
 		const Header& operator*() const { return *_pHeader; }
 		operator const shared<const Header>&() const { return _pHeader; }
 		operator bool() const { return _pHeader.operator bool(); }
+	protected:
+		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
+		/*!
+		exception */
+		Message(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true) { pHeader.reset(); }
+		/*!
+		media packet */
+		Message(shared<Header>& pHeader, Media::Base* pMedia) : lost(0), pMedia(pMedia), _pHeader(std::move(pHeader)), flush(false) {}
+		/*!
+		media lost infos */
+		Message(shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : lost(lost), pMedia(new Media::Base(type, Packet::Null(), track)), _pHeader(std::move(pHeader)), flush(false) {}
+		/*!
+		media reset, flush or publish end */
+		Message(shared<Header>& pHeader, bool endMedia, bool flush) : lost(0), pMedia(endMedia ? NULL : new Media::Base()), _pHeader(std::move(pHeader)), flush(flush) {}
+
+		~Message() { if (pMedia) delete pMedia; }
 	private:
 		shared<const Header> _pHeader;
+	};
+
+	struct Request : Message, virtual Object {
+		Request(const Path& path, shared<Header>& pHeader, const Packet& packet, bool flush) : path(path), Message(pHeader, packet, flush) {}
+		/*!
+		exception */
+		Request(const Path& path, shared<Header>& pHeader, const Exception& ex) : path(path), Message(pHeader, ex) {}
+		/*!
+		media packet */
+		Request(const Path& path, shared<Header>& pHeader, Media::Base* pMedia) : path(path), Message(pHeader, pMedia) {}
+		/*!
+		media lost infos */
+		Request(const Path& path, shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : path(path), Message(pHeader, type, lost, track) {}
+		/*!
+		media reset, flush or publish end */
+		Request(const Path& path, shared<Header>& pHeader, bool endMedia, bool flush) : path(path), Message(pHeader, endMedia, flush) {}
+		
+		Path	path;
+	};
+
+	struct Response : Message, virtual Object {
+		Response(UInt16 code, shared<Header>& pHeader, const Packet& packet, bool flush) : code(code), Message(pHeader, packet, flush) {}
+		/*!
+		exception */
+		Response(UInt16 code, shared<Header>& pHeader, const Exception& ex) : code(code), Message(pHeader, ex) {}
+		/*!
+		media packet */
+		Response(UInt16 code, shared<Header>& pHeader, Media::Base* pMedia) : code(code), Message(pHeader, pMedia) {}
+		/*!
+		media lost infos */
+		Response(UInt16 code, shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : code(code), Message(pHeader, type, lost, track) {}
+		/*!
+		media reset, flush or publish end */
+		Response(UInt16 code, shared<Header>& pHeader, bool endMedia, bool flush) : code(code), Message(pHeader, endMedia, flush) {}
+
+		UInt16 code;
 	};
 };
 

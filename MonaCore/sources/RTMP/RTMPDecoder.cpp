@@ -41,7 +41,7 @@ void RTMPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, 
 	}
 }
 
-UInt32 RTMPDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
+UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 	do {
 		// HANDSHAKE 1
 		if (_handshake == HANDSHAKE_FIRST) {

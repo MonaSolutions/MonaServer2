@@ -46,7 +46,7 @@ private:
 	/!\ Must tolerate data lost, so on error displays a WARN and try to resolve the strem */
 	virtual UInt32	parse(Packet& buffer, Media::Source& source) = 0;
 
-	UInt32 onStreamData(Packet& buffer, UInt32 limit, Media::Source& source) { return parse(buffer, source); }
+	UInt32 onStreamData(Packet& buffer, Media::Source& source) { return parse(buffer, source); }
 };
 
 struct MediaTrackReader : virtual Object, MediaReader {

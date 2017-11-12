@@ -39,9 +39,8 @@ struct MediaFile : virtual Static {
 		bool running() const { return _pFile.operator bool(); }
 		void stop();
 
-		const Path					path;
-		IOFile&						io;
-		const Timer&				timer;
+		IOFile&			io;
+		const Timer&	timer;
 
 	private:
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pReader->format()); }
@@ -104,7 +103,6 @@ struct MediaFile : virtual Static {
 		void stop();
 
 		IOFile&		io;
-		const Path	path;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 	
 		void setMediaParams(const Parameters& parameters);
@@ -120,8 +118,8 @@ struct MediaFile : virtual Static {
 
 		template<typename WriteType, typename ...Args>
 		bool write(Args&&... args) {
-			if (!_running || !_pFile)
-				return false; // Stream not started or has failed!
+			if (!_pFile)
+				return false; // Stream not begin or has failed!
 			Exception ex;
 			bool success;
 			AUTO_ERROR(success = io.threadPool.queue(ex, std::make_shared<WriteType>(_pName, io, _pFile, _pWriter, args ...), _writeTrack), description());

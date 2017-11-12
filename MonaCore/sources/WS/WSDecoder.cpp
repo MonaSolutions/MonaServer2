@@ -23,7 +23,15 @@ using namespace std;
 
 namespace Mona {
 
-UInt32 WSDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
+void WSDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+	_limit = pSocket->recvBufferSize();
+	if (!addStreamData(Packet(pBuffer), _limit, *pSocket)) {
+		ERROR("WS message exceeds buffer maximum ", pSocket->recvBufferSize(), " size");
+		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
+	}
+}
+
+UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
 	do {
 
 		BinaryReader reader(buffer.data(), buffer.size());
@@ -61,13 +69,13 @@ UInt32 WSDecoder::onStreamData(Packet& buffer, UInt32 limit, Socket& socket) {
 
 		Packet packet(buffer, reader.current(), reader.available());
 		buffer += reader.size();
-		_message.addStreamData(packet, limit, _type, !buffer, socket);
+		_message.addStreamData(packet, _limit, _type, !buffer, socket);
 	} while (buffer);
 
 	return 0;
 }
 
-UInt32 WSDecoder::Message::onStreamData(Packet& buffer, UInt32 limit, UInt8 type, bool flush, const Socket& socket) {
+UInt32 WSDecoder::Message::onStreamData(Packet& buffer, UInt8 type, bool flush, const Socket& socket) {
 	UInt8 newType = (type & 0x0F);
 	if (newType)
 		_type = newType;
