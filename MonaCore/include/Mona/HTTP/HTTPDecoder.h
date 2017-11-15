@@ -50,6 +50,10 @@ private:
 		CHUNKED
 	};
 
+	/// \brief Read header part
+	/// \return The size to buffer if we didn't reach \r\n\r\n
+	UInt32 parseHeader(Packet& buffer, Socket& socket);
+
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { receive(new Media::Audio(tag, packet, track)); }
 	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { receive(new Media::Video(tag, packet, track)); }
 	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { receive(new Media::Data(type, packet, track)); }

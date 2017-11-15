@@ -44,9 +44,7 @@ struct TCPServer : virtual Object {
 	bool		running() const { return _pSocket.operator bool();  }
 	void		stop();
 
-
 private:
-	Socket::OnAccept	_onAccept;
 
 	shared<Socket>		_pSocket;
 	shared<TLS>			_pTLS;
