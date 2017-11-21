@@ -395,7 +395,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 						reset = reader.position();
 						text = readText(sizeText);
 						if (text) {
-							if (!String::ToNumber(text, sizeText, sizeText)) {
+							if (!String::ToNumber(text, (size_t)sizeText, sizeText)) {
 								reader.reset(reset);
 								size = i; // end of array (can be size=3 with just index 0!)
 								break;
@@ -446,7 +446,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 					while (size--) {
 						text = readText(sizeText);
 						if (text) {
-							String::ToNumber(text, sizeText, sizeText);
+							String::ToNumber(text, (size_t)sizeText, sizeText);
 							while (sizeText > i++)
 								writer.writeNull();
 							if (readNext(writer))

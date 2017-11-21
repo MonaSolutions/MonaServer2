@@ -100,7 +100,7 @@ private:
 
 		UInt64	writeDate(const Date& date) { _value = (NumberType)date.time(); return 0; }
 		void	writeNumber(double value) { _value = (NumberType)value; }
-		void	writeString(const char* value, UInt32 size) { String::ToNumber(value, size, _value); }
+		void	writeString(const char* value, UInt32 size) { String::ToNumber(value, (size_t)size, _value); }
 		void	writeBoolean(bool value) { _value = (value ? 1 : 0); }
 		void	writeNull() { _value = 0; }
 		UInt64	writeBytes(const UInt8* data, UInt32 size) { writeString(STR data,size); return 0; }

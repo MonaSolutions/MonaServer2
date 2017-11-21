@@ -273,7 +273,7 @@ bool XMLRPCReader::readOne(UInt8 type, DataWriter& writer) {
 			return true;
 		case NUMBER: {
 			double number(0);
-			AUTO_ERROR(String::ToNumber(ex, _data, _size, number),"Number parsing");
+			AUTO_ERROR(String::ToNumber(ex, _data, (size_t)_size, number),"Number parsing");
 			writer.writeNumber(number);	
 			return true;
 		}
@@ -303,7 +303,7 @@ bool XMLRPCReader::readOne(UInt8 type, DataWriter& writer) {
 
 		case ARRAY: {
 			UInt32 count(0);
-			if (_attribute.empty() || !String::ToNumber(_attribute, count)) {
+			if (_attribute.empty() || !String::ToNumber<UInt32>(_attribute, count)) {
 				// count ARRAY element
 				XMLState state;
 				save(state);
