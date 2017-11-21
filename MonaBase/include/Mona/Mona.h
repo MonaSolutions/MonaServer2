@@ -103,10 +103,8 @@ typedef uint64_t		UInt64;
 
 
 struct Base {
-	Base(UInt8 value) : _value(value) {}
-	Base(std::nullptr_t) : _value(10) {}
+	explicit Base(UInt8 value) : _value(value) {}
 	operator UInt8() const { return _value; }
-	static const Base& Null() { static Base Null(10); return Null; }
 private:
 	UInt8 _value;
 };
