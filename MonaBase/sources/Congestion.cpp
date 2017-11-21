@@ -21,7 +21,7 @@ using namespace std;
 namespace Mona {
 
 bool Congestion::operator()(UInt64 queueing, UInt32 duration) {
-	bool congested(queueing>_lastQueueing);
+	bool congested(queueing && queueing>=_lastQueueing); // > or = because control a state, so a double call to Congestion(queueing) is accepted and must not cancel current congestion
 	_lastQueueing = queueing;
 	if (congested) {
 		// congestion

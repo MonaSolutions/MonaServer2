@@ -115,14 +115,13 @@ ADD_TEST(Socket) {
 		UInt8			_count;
 		shared<Decoder> _pDecoder;
 		Decoder::OnDecoded _onDecoded;
-	};
+	} receiver(io);
 
-	UDPReceiver receiver(io);
 	CHECK(receiver.bind(ex, SocketAddress::Wildcard()) && !ex);
 
 	CHECK(sender.sendTo(ex, EXPAND("hello10msg"), SocketAddress(IPAddress::Loopback(), receiver->address().port())) == 10 && !ex)
 
-	CHECK(_Handler.join(3)==3); // 3 with SocketSend (udp writable!)
+	CHECK(_Handler.join(3)==3); // 3 with IOSocket::Write of UDPReceiver
 }
 
 

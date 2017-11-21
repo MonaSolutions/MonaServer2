@@ -203,7 +203,7 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 	return Media::TYPE_DATA;
 }
 
-Media::Data::Data(DataReader& properties, UInt8 track) : Base(TYPE_NONE, *properties, track), tag(ToType(properties)) {
+Media::Data::Data(DataReader& properties, UInt8 track) : Base(TYPE_DATA, *properties, track), isProperties(true), tag(ToType(properties)) {
 	if (tag)
 		return;
 	(Media::Data::Type&)tag = TYPE_AMF;
@@ -344,13 +344,15 @@ void Media::Source::writeMedia(const Media::Base& media) {
 			return writeAudio(media.track, ((const Media::Audio&)media).tag, media);
 		case Media::TYPE_VIDEO:
 			return writeVideo(media.track, ((const Media::Video&)media).tag, media);
-		case Media::TYPE_DATA:
-			return writeData(media.track, ((const Media::Data&)media).tag, media);
-		default: {
+		case Media::TYPE_DATA: {
 			const Media::Data& data = (const Media::Data&)media;
+			if (!data.isProperties)
+				return writeData(media.track, ((const Media::Data&)media).tag, media);
 			unique_ptr<DataReader> pReader(Media::Data::NewReader(data.tag, data));
-			setProperties(media.track, *pReader);
+			return setProperties(media.track, *pReader);
 		}
+		default:
+			WARN(typeof(self), " write a unknown media");
 	}
 }
 

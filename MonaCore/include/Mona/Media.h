@@ -85,13 +85,13 @@ struct Media : virtual Static {
 		static DataReader* NewReader(Type type, const Packet& packet);
 		static DataWriter* NewWriter(Type type, Buffer& buffer);
 
-		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0) : Base(TYPE_DATA, packet, track), tag(type) {}
+		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0) : Base(TYPE_DATA, packet, track), isProperties(false), tag(type) {}
 		/*!
 		Properties usage! */
 		Data(DataReader& properties, UInt8 track = 1);
 
 		Media::Data::Type	tag;
-
+		bool				isProperties;
 	private:
 		static Type ToType(const std::type_info& info);
 	};

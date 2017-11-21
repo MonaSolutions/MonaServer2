@@ -27,7 +27,7 @@ namespace Mona {
 
 Socket::Socket(Type type) :
 #if !defined(_WIN32)
-	_pWeakThis(NULL),
+	_pWeakThis(NULL), _firstWritable(true),
 #endif
 	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
 
@@ -37,7 +37,7 @@ Socket::Socket(Type type) :
 // private constructor used just by Socket::accept, TCP initialized and connected socket
 Socket::Socket(NET_SOCKET id, const sockaddr& addr) : _peerAddress(addr), _address(IPAddress::Loopback(),0), // computable!
 #if !defined(_WIN32)
-	_pWeakThis(NULL),
+	_pWeakThis(NULL), _firstWritable(true),
 #endif
 	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
 
@@ -48,7 +48,7 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr) : _peerAddress(addr), _addre
 Socket::~Socket() {
 	if (_id == NET_INVALID_SOCKET)
 		return;
-	//::printf("DELETE socket %d\n", _id);
+	// ::printf("DELETE socket %d\n", _id);
 	// gracefull disconnection => flush + shutdown + close
 	/// shutdown + flush
 	Exception ignore;

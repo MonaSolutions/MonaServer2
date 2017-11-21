@@ -46,8 +46,6 @@ struct TCPServer : virtual Object {
 
 
 private:
-	Socket::OnAccept	_onAccept;
-
 	shared<Socket>		_pSocket;
 	shared<TLS>			_pTLS;
 };

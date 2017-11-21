@@ -223,6 +223,7 @@ private:
 
 #if !defined(_WIN32)
 	weak<Socket>*				_pWeakThis;
+	bool						_firstWritable;
 #endif
 
 	friend struct IOSocket;

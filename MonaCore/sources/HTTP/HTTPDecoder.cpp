@@ -54,12 +54,12 @@ void HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, 
 UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 	
 	do {
-		/// read data
+/////////////////////////////////////////////////////////////////
+///////////////////// PARSE HEADER //////////////////////////////
 		char* signifiant(STR buffer.data());
 		char* key(NULL);
 
 		while (_stage<BODY) {
-
 			if (buffer.size() < 2) {
 				// useless to parse if we have not at less one line which  to carry \r\n\r\n!
 				UInt32 rest(key ? (STR buffer.data() - key) : (STR buffer.data() - signifiant));
@@ -133,7 +133,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				while (isblank(*--endValue));
 
 				String::Scoped scoped(++endValue);
-				if (!key) { // version case!		
+				if (_stage==VERSION) {
 					if (!_code) {
 						// Set request version!
 						String::ToNumber(signifiant + 5, _pHeader->version);
@@ -141,14 +141,17 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 					} else // Set response code!
 						_pHeader->code = _pHeader->setString("code", signifiant).c_str();
 				} else {
-					char* endValue(signifiant-1);
+					char* endValue(signifiant);
 					while (isblank(*--endValue)); // after the :
 					while (isblank(*--endValue)); // before the :
 					String::Scoped scoped(++endValue);
-					_pHeader->set(key, signifiant);
+					if(key)
+						_pHeader->set(key, signifiant);
+					else
+						_pHeader->set(signifiant, "");
 					key = NULL;
 				}
-		
+
 				_stage = LEFT;
 				buffer += 2;
 				signifiant = STR buffer.data();
@@ -216,8 +219,11 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			++buffer;
 		}; // WHILE < BODY
 
+///////////////////// PARSE HEADER //////////////////////////////
+/////////////////////////////////////////////////////////////////
 
-		// RECEPTION
+/////////////////////////////////////////////////////////////////
+//////////////////// BODY RECEPTION /////////////////////////////
 
 		Packet packet(buffer);
 
@@ -263,17 +269,23 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 
 		if (_pReader) { // POST media streaming (publish)
 			_pReader->read(packet, *this);
-			if (!_length) {
-				_pReader->flush(*this);
+			packet = nullptr;
+			if (_length) {
+				if(_pHeader)
+					receive(false, false); // "publish" command if _pReader->read has not already done it (same as reset, but reset is impossible at the beginning)
+			} else if(_pHeader) { // else publication has not begun!
+				_pReader->flush(*this); // send end info!
 				delete _pReader;
 				_pReader = NULL;
 			}
-		}
-		if(_pHeader || _stage != CMD) // can be CMD on end of chunked transfer-encoding
+		} else if(_stage != CMD) // can be CMD on end of chunked transfer-encoding
 			receive(packet, !buffer); // !buffer => flush if no more data buffered
 
 		if (_stage!=CHUNKED && !_length)
 			_stage = CMD; // to parse Header next time!
+
+//////////////////// BODY RECEPTION /////////////////////////////
+/////////////////////////////////////////////////////////////////
 
 	} while (buffer);
 

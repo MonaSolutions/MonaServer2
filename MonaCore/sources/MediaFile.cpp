@@ -46,7 +46,7 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 				pMedia = move(_pMedias->front());
 				_pMedias->pop_front();
 				if (pMedia) {
-					if (*pMedia || typeid(pMedia) != typeid(Lost)) {
+					if (*pMedia || typeid(*pMedia) != typeid(Lost)) {
 						_pSource->writeMedia(*pMedia);
 						UInt32 time;
 						switch (pMedia->type) {

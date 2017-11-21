@@ -69,7 +69,15 @@ UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
 
 		Packet packet(buffer, reader.current(), reader.available());
 		buffer += reader.size();
-		_message.addStreamData(packet, _limit, _type, !buffer, socket);
+		if (_type & 0x08) { // => control frame (most signifiant bit of opcode = 1)
+			// https://tools.ietf.org/html/rfc6455#section-5.4
+			// Control frames(see Section 5.5) MAY be injected in the middle of
+			// a fragmented message.Control frames themselves MUST NOT be
+			// fragmented.
+			DUMP_REQUEST(socket.isSecure() ? "WSS" : "WS", packet.data(), packet.size(), socket.peerAddress());
+			_handler.queue(onRequest, _type&0x0F, packet, !buffer);
+		} else
+			_message.addStreamData(packet, _limit, _type, !buffer, socket);
 	} while (buffer);
 
 	return 0;

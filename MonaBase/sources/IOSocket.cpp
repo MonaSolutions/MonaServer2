@@ -289,6 +289,10 @@ private:
 
 void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	// ::printf("WRITE(%d) socket %d\n", error, pSocket->id());
+#if !defined(_WIN32)
+	if (pSocket->_firstWritable)
+		pSocket->_firstWritable = false;
+#endif
 	Action::Run(threadPool, make_shared<Send>(error, pSocket));
 }
 
@@ -662,7 +666,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 			if(!pSocket)
 				continue; // socket error
 			// EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP
-			//printf("%u\n", event.events);
+			// printf("%d => %u\n", pSocket->id(), event.events);
 			int error = 0;
 			if(event.events&EPOLLERR) {
 				socklen_t len(sizeof(error));
@@ -676,6 +680,10 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 			}
 			if (!(event.events&EPOLLHUP)) { // if socket unexpected close no more read or write!
 				if (event.events&EPOLLIN) {
+					/* even in EPOLLET we can miss the first WRITE event, for example with an UDP socket, its creation makes it writable quickly,
+					so the IOSocket subscribe happens after its WRITABLE state event and we miss its WRITE change state */
+					if (event.events&EPOLLOUT && !error && pSocket->_firstWritable) // for first Flush requirement!
+						write(pSocket, 0); // before read! Connection!
 					read(pSocket, error);
 					error = 0;
 				} else if (event.events&EPOLLOUT) { // else if because EPOLLET!

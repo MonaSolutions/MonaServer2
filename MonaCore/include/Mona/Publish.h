@@ -68,19 +68,17 @@ private:
 	};
 
 	template<typename MediaType>
-	struct Write : Action, MediaType, virtual Object {
+	struct Write : Action, private MediaType, virtual Object {
 		template<typename ...Args>
 		Write(const shared<Publishing>& pPublishing, Args&&... args) : Action(typeof<Write<MediaType>>().c_str(), pPublishing), MediaType(args ...) {}
 	private:
 		void run(Publication& publication) { publication.writeMedia(*this); }
 	};
 
-	struct Lost : Action, virtual Object {
-		Lost(const shared<Publishing>& pPublishing, Media::Type type, UInt32 lost, UInt8 track = 0) : Action("Publish::Lost", pPublishing), _type(type), _lost(lost), _track(track) {}
+	struct Lost : Action, private Media::Base, virtual Object {
+		Lost(const shared<Publishing>& pPublishing, Media::Type type, UInt32 lost, UInt8 track = 0) : Action("Publish::Lost", pPublishing), Media::Base(type, Packet::Null(), track), _lost(lost)  {}
 	private:
-		void run(Publication& publication) { publication.reportLost(_type, _lost, _track); }
-		Media::Type		_type;
-		UInt8			_track;
+		void run(Publication& publication) { publication.reportLost(type, _lost, track); }
 		UInt32			_lost;
 	};
 

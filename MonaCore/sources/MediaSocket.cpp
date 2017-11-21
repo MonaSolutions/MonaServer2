@@ -82,8 +82,8 @@ void MediaSocket::Reader::start() {
 				_pSource->reportLost(response.pMedia->type, response.lost, response.pMedia->track);
 			else if (response.pMedia->type)
 				_pSource->writeMedia(*response.pMedia);
-			else if (!response.flush)
-				_pSource->reset();
+			else if(!response.flush && !response) // !response => if header it's the first "publish" command
+				return _pSource->reset();
 			if(response.flush)
 				_pSource->flush();
 		};

@@ -138,11 +138,10 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 				_pPublication->reportLost(request.pMedia->type, request.lost, request.pMedia->track);
 			else if (request.pMedia->type)
 				_pPublication->writeMedia(*request.pMedia);
-			else if(!request.flush)
-				_pPublication->reset();
+			else if(!request.flush && !request) // !request => if header it's the first "publish" command!
+				return _pPublication->reset();
 		} else if(_pPublication)
 			unpublish();
-
 
 		if (request.flush && !died) // if died _pWriter is null and useless to flush!
 			flush();
