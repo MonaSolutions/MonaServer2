@@ -140,30 +140,30 @@ struct String : std::string, virtual Object {
 	static int ICompare(const char* value1, const std::string& value2,  std::size_t size = std::string::npos) { return ICompare(value1, value2.empty() ? NULL : value2.c_str(), size); }
 
 	template<typename Type>
-	static bool ToNumber(const std::string& value, Type& result, Base base = Base(10)) { return ToNumber(value.data(), value.size(), result, base); }
+	static bool ToNumber(const std::string& value, Type& result, Mod base = MOD_10) { return ToNumber(value.data(), value.size(), result, base); }
 	template<typename Type>
-	static bool ToNumber(const char* value, Type& result, Base base = Base(10)) { return ToNumber(value, std::string::npos, result, base); }
+	static bool ToNumber(const char* value, Type& result, Mod base = MOD_10) { return ToNumber(value, std::string::npos, result, base); }
 	template<typename Type>
-	static bool ToNumber(const char* value, std::size_t size, Type& result, Base base = Base(10));
+	static bool ToNumber(const char* value, std::size_t size, Type& result, Mod base = MOD_10);
 	template<typename Type, long long defaultValue>
-	static Type ToNumber(const std::string& value, Base base = Base(10)) { Type result; return ToNumber(value.data(), value.size(), result, base) ? result : defaultValue; }
+	static Type ToNumber(const std::string& value, Mod base = MOD_10) { Type result; return ToNumber(value.data(), value.size(), result, base) ? result : defaultValue; }
 	template<typename Type, long long defaultValue>
-	static Type ToNumber(const char* value, Base base = Base(10)) { Type result; return ToNumber(value, std::string::npos, result, base) ? result : defaultValue; }
+	static Type ToNumber(const char* value, Mod base = MOD_10) { Type result; return ToNumber(value, std::string::npos, result, base) ? result : defaultValue; }
 	template<typename Type, long long defaultValue>
-	static Type ToNumber(const char* value, std::size_t size, Base base = Base(10)) { Type result; return ToNumber(value, size, result, base) ? result : defaultValue; }
+	static Type ToNumber(const char* value, std::size_t size, Mod base = MOD_10) { Type result; return ToNumber(value, size, result, base) ? result : defaultValue; }
 
 	template<typename Type>
-	static bool ToNumber(Exception& ex, const std::string& value, Type& result, Base base = Base(10)) { return ToNumber<Type>(ex, value.data(), value.size(), result, base); }
+	static bool ToNumber(Exception& ex, const std::string& value, Type& result, Mod base = MOD_10) { return ToNumber<Type>(ex, value.data(), value.size(), result, base); }
 	template<typename Type>
-	static bool ToNumber(Exception& ex, const char* value, Type& result, Base base = Base(10)) { return ToNumber<Type>(ex, value, std::string::npos, result, base); }
+	static bool ToNumber(Exception& ex, const char* value, Type& result, Mod base = MOD_10) { return ToNumber<Type>(ex, value, std::string::npos, result, base); }
 	template<typename Type>
-	static bool ToNumber(Exception& ex, const char* value, std::size_t size, Type& result, Base base = Base(10));
+	static bool ToNumber(Exception& ex, const char* value, std::size_t size, Type& result, Mod base = MOD_10);
 	template<typename Type, long long defaultValue>
-	static Type ToNumber(Exception& ex, const std::string& value, Base base = Base(10)) { Type result;  return ToNumber(ex, value.data(), value.size(), result, base) ? result : defaultValue; }
+	static Type ToNumber(Exception& ex, const std::string& value, Mod base = MOD_10) { Type result;  return ToNumber(ex, value.data(), value.size(), result, base) ? result : defaultValue; }
 	template<typename Type, long long defaultValue>
-	static Type ToNumber(Exception& ex, const char* value, Base base = Base(10)) { Type result; return ToNumber(ex, value, std::string::npos, result, base) ? result : defaultValue; }
+	static Type ToNumber(Exception& ex, const char* value, Mod base = MOD_10) { Type result; return ToNumber(ex, value, std::string::npos, result, base) ? result : defaultValue; }
 	template<typename Type, long long defaultValue>
-	static Type ToNumber(Exception& ex, const char* value, std::size_t size, Base base = Base(10)) { Type result; return ToNumber(ex, value, size, result, base) ? result : defaultValue; }
+	static Type ToNumber(Exception& ex, const char* value, std::size_t size, Mod base = MOD_10) { Type result; return ToNumber(ex, value, size, result, base) ? result : defaultValue; }
 	
 
 	static bool IsTrue(const std::string& value) { return IsTrue(value.data(),value.size()); }

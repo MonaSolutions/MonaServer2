@@ -102,12 +102,6 @@ typedef int64_t			Int64;
 typedef uint64_t		UInt64;
 
 
-struct Base {
-	explicit Base(UInt8 value) : _value(value) {}
-	operator UInt8() const { return _value; }
-private:
-	UInt8 _value;
-};
 
 //////  No copy, no move, objet nullable  //////
 
@@ -240,6 +234,73 @@ inline typename MapType::iterator lower_bound(MapType& map, const typename MapTy
 	}
 	return result;
 }
+
+enum Mod {
+	MOD_1 = 1,
+	MOD_2 = 2,
+	MOD_3 = 3,
+	MOD_4 = 4,
+	MOD_5 = 5,
+	MOD_6 = 6,
+	MOD_7 = 7,
+	MOD_8 = 8,
+	MOD_9 = 9,
+	MOD_10 = 10,
+	MOD_11 = 11,
+	MOD_12 = 12,
+	MOD_13 = 13,
+	MOD_14 = 14,
+	MOD_15 = 15,
+	MOD_16 = 16,
+	MOD_17 = 17,
+	MOD_18 = 18,
+	MOD_19 = 19,
+	MOD_20 = 20,
+	MOD_21 = 21,
+	MOD_22 = 22,
+	MOD_23 = 23,
+	MOD_24 = 24,
+	MOD_25 = 25,
+	MOD_26 = 26,
+	MOD_27 = 27,
+	MOD_28 = 28,
+	MOD_29 = 29,
+	MOD_30 = 30,
+	MOD_31 = 31,
+	MOD_32 = 32,
+	MOD_33 = 33,
+	MOD_34 = 34,
+	MOD_35 = 35,
+	MOD_36 = 36,
+	MOD_37 = 37,
+	MOD_38 = 38,
+	MOD_39 = 39,
+	MOD_40 = 40,
+	MOD_41 = 41,
+	MOD_42 = 42,
+	MOD_43 = 43,
+	MOD_44 = 44,
+	MOD_45 = 45,
+	MOD_46 = 46,
+	MOD_47 = 47,
+	MOD_48 = 48,
+	MOD_49 = 49,
+	MOD_50 = 50,
+	MOD_51 = 51,
+	MOD_52 = 52,
+	MOD_53 = 53,
+	MOD_54 = 54,
+	MOD_55 = 55,
+	MOD_56 = 56,
+	MOD_57 = 57,
+	MOD_58 = 58,
+	MOD_59 = 59,
+	MOD_60 = 60,
+	MOD_61 = 61,
+	MOD_62 = 62,
+	MOD_63 = 63,
+	MOD_64 = 64,
+};
 
 
 

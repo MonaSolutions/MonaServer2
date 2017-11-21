@@ -240,7 +240,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				packet += 2;
 				buffer += 2;
 			}
-			if (String::ToNumber(STR buffer.data(), packet.data() - buffer.data(), _length, Base(16))) {
+			if (String::ToNumber(STR buffer.data(), packet.data() - buffer.data(), _length, MOD_16)) {
 				if (_length == 0) // end of chunked transfer-encoding
 					_stage = CMD; // to parse Header next time!
 			} else
