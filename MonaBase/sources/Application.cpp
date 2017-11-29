@@ -249,7 +249,7 @@ void Application::dump(const string& header, const UInt8* data, UInt32 size) {
 }
 
 void Application::manageLogFiles() {
-	if (_logSizeByFile == 0 || _pLogFile->size() <= _logSizeByFile)
+	if (_logSizeByFile == 0 || _pLogFile->size(true) <= _logSizeByFile)
 		return; // _logSizeByFile==0 => inifinite log file! (user choice..)
 
 	_pLogFile.reset(new File(_logRotation>0 ? (_logPath + '0') : _logPath, File::MODE_APPEND)); // close old handle!
