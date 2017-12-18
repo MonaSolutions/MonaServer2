@@ -39,11 +39,12 @@ const FileSystem::Attributes& Path::Impl::attributes(bool refresh) const {
 	return _attributes;
 }
 
-void Path::Impl::setAttributes(UInt64 size, Int64 lastModified, UInt8 device) {
+void Path::Impl::setAttributes(UInt64 size, Int64 lastAccess, Int64 lastChange, UInt8 device) {
 	lock_guard<mutex> lock(_mutex);
 	_attributesLoaded = true;
 	_attributes.size = size;
-	_attributes.lastModified = lastModified;
+	_attributes.lastChange = lastChange;
+	_attributes.lastAccess = lastAccess;
 	_attributes.device = device;
 }
 

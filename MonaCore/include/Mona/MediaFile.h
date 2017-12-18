@@ -28,11 +28,14 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct MediaFile : virtual Static {
+struct MediaFile : virtual Static  {
 
 	struct Reader : Media::Stream, virtual Object {
 		Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io);
 		virtual ~Reader() { stop(); }
+
+		static MediaFile::Reader* New(const Path& path, const char* subMime, const Timer& timer, IOFile& io);
+		static MediaFile::Reader* New(const Path& path, const Timer& timer, IOFile& io) { return New(path, path.extension().c_str(), timer, io); }
 
 		void start();
 		void start(Media::Source& source) { _pSource = &source; return start(); }
@@ -98,6 +101,9 @@ struct MediaFile : virtual Static {
 		Writer(const Path& path, MediaWriter* pWriter, IOFile& io);
 		virtual ~Writer() { stop(); }
 
+		static MediaFile::Writer* New(const Path& path, const char* subMime, IOFile& io);
+		static MediaFile::Writer* New(const Path& path, IOFile& io) { return New(path, path.extension().c_str(), io); }
+
 		void start();
 		bool running() const { return _running; }
 		void stop();
@@ -111,7 +117,7 @@ struct MediaFile : virtual Static {
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(track, tag, packet); }
 		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Video>>(track, tag, packet); }
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Data>>(track, type, packet); }
-		void endMedia(const std::string& name);
+		void endMedia();
 
 	private:
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pWriter->format()); }

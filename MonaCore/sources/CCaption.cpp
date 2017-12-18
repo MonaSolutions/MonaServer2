@@ -403,10 +403,8 @@ void CCaption::Channel::flush(const CCaption::OnText& onText, const Media::Video
 	if (pTag)
 		return;
 	// is reseting!
-	for (Track& track : tracks) {
-		track.flush(onText);
-		track = FLAG_SKIP; // by default the mode is TEXT (wait first DIRECT or LOAD caption mode!)
-	}
+	for (Track& track : tracks)
+		track.flush(onText) = nullptr;
 	_pTrack = NULL;
 }
 
@@ -417,11 +415,11 @@ CCaption::Track& CCaption::Track::append(const char* text) {
 	size_t size = strlen(text);
 	if (!size)
 		return *this;
-	if (!_pBuffer) {
+	if (!self) {
 		text = String::TrimLeft(text, size);
 		if (!size)
 			return *this;
-		_pBuffer.reset(new Buffer());
+		BUFFER_RESET(_pBuffer,0);
 		if (_flags & FLAG_UNDERLINE)
 			_pBuffer->append(EXPAND("<u>"));
 		if (_flags & FLAG_ITALIC)
@@ -432,16 +430,12 @@ CCaption::Track& CCaption::Track::append(const char* text) {
 }
 
 CCaption::Track& CCaption::Track::erase(UInt32 count) {
-	if (!_pBuffer)
-		return *this;
-	if (!count || count > _pBuffer->size())
-		count = _pBuffer->size();
-	if (_pBuffer->resize(_pBuffer->size() - count).empty())
-		_pBuffer.reset();
-	return *this;
+	if (_pBuffer)
+		_pBuffer->resize(min(count, _pBuffer->size()), true);
+	return self;
 }
 
-void CCaption::Track::flush(const CCaption::OnText& onText) {
+CCaption::Track& CCaption::Track::flush(const CCaption::OnText& onText) {
 	// end of row => clear style and flush buffer
 	if (_pBuffer)
 		_pBuffer->resize(String::TrimRight(STR _pBuffer->data(), _pBuffer->size()));
@@ -455,9 +449,9 @@ void CCaption::Track::flush(const CCaption::OnText& onText) {
 			_pBuffer->append(EXPAND("</i>"));
 		_flags &= ~FLAG_ITALIC;
 	}
-	Packet text(_pBuffer);
-	if(text && onText)
-		onText(channel, text);
+	if(onText && self)
+		onText(channel, _pBuffer);
+	return self;
 }
 
 

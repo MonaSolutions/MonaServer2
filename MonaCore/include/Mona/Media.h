@@ -42,18 +42,26 @@ struct Media : virtual Static {
 		TYPE_VIDEO = 3, // => 11, to have the first bit to 1 and be compatible with Media::Pack
 		// these values allow to write media type on 2 bits!
 	};
+	static const char* TypeToString(Type type) {
+		static const char* Strings[] = { "none", "data", "audio", "video"};
+		return Strings[UInt8(type)];
+	}
 
 	struct Base : Packet, virtual Object {
 		Base() : type(TYPE_NONE), track(0) {}
 		Base(Media::Type type, const Packet& packet, UInt8 track) : type(type), track(track), Packet(std::move(packet)) {}
 
+		bool   hasTime() const { return type>TYPE_DATA; }
 		UInt32 time() const;
+		void   setTime(UInt32 time);
+
 		UInt32 compositionOffset() const { return type == TYPE_VIDEO ? ((Media::Video*)this)->tag.compositionOffset : 0; }
 		bool   isConfig() const;
 		Media::Type type;
 		UInt8		track;
 	};
 
+	struct Properties;
 	struct Data : Base, virtual Object {
 		enum Type {
 			TYPE_UNKNOWN = 0,
@@ -89,6 +97,7 @@ struct Media : virtual Static {
 		/*!
 		Properties usage! */
 		Data(DataReader& properties, UInt8 track = 1);
+		Data(const Media::Properties& properties);
 
 		Media::Data::Type	tag;
 		bool				isProperties;
@@ -265,14 +274,16 @@ struct Media : virtual Static {
 		Properties(const Media::Data& data);
 
 	protected:
-		Properties() {}
+		Properties() : _newProperties(false) {}
 
-		virtual void onParamChange(const std::string& key, const std::string* pValue) { _packets.clear(); Parameters::onParamChange(key, pValue); }
-		virtual void onParamClear() { _packets.clear(); Parameters::onParamClear(); }
+		virtual void onParamChange(const std::string& key, const std::string* pValue);
+		virtual void onParamClear();
 
 		void setProperties(UInt8 track, DataReader& reader);
+		bool flushProperties();
 	private:
 		mutable std::vector<Packet>	_packets;
+		bool						_newProperties;
 	};
 
 
@@ -303,14 +314,17 @@ struct Media : virtual Static {
 		/*!
 		If Target is sending queueable (bufferize), returns queueing size to allow to detect congestion */
 		virtual UInt64 queueing() const { return 0; }
-
+		/*!
+		Is called one time before beginMedia, and on params change */
 		virtual void setMediaParams(const Parameters& parameters) {}
+		/*!
+		/!\ can be called multiple times (without one call to endMedia) when media change (MBR switch for example) */
 		virtual bool beginMedia(const std::string& name);
 		virtual bool writeProperties(const Media::Properties& properties) { return true; }
 		virtual bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
 		virtual bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
 		virtual bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
-		virtual void endMedia(const std::string& name) {}
+		virtual void endMedia() {}
 	
 		/*!
 		Overload just if target bufferizes data before to send it*/
@@ -354,6 +368,7 @@ struct Media : virtual Static {
 
 		const Type			type;
 		const Path			path;
+		const std::string	query;
 		const std::string&	description() const { return _description.empty() ? ((Stream*)this)->buildDescription(_description) : _description; }
 		
 		/*!

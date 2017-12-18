@@ -55,7 +55,9 @@ private:
 			MINF,
 			STBL,
 			DINF,
+			EDTS,
 
+			ELST,
 			MDHD,
 			TKHD,
 			TFHD,
@@ -73,7 +75,7 @@ private:
 		};
 		Box() { operator=(nullptr); }
 		const char* name() {
-			static const char* Names[] = {"UNDEFINED", "MOOV", "MOOF", "MVEX", "TRAK", "TRAF", "TREX", "MDIA", "MINF", "STBL", "DINF", "MDHD", "TKHD", "TFHD", "STSC", "ELNG", "STSD", "STSZ", "STCO", "CO64", "STTS", "CTTS", "TRUN", "MDAT" };
+			static const char* Names[] = {"UNDEFINED", "MOOV", "MOOF", "MVEX", "TRAK", "TRAF", "TREX", "MDIA", "MINF", "STBL", "DINF", "EDTS", "ELST", "MDHD", "TKHD", "TFHD", "STSC", "ELNG", "STSD", "STSZ", "STCO", "CO64", "STTS", "CTTS", "TRUN", "MDAT" };
 			return Names[UInt8(_type)];
 		}
 

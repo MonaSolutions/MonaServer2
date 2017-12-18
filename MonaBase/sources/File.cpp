@@ -92,12 +92,16 @@ bool File::load(Exception& ex) {
 			SetFilePointer((HANDLE)_handle, 0, NULL, FILE_END);
 		LARGE_INTEGER size;
 		GetFileSizeEx((HANDLE)_handle, &size);
-		FILETIME time;
-		GetFileTime((HANDLE)_handle, NULL, NULL, &time);
-		ULARGE_INTEGER ull;
-		ull.LowPart = time.dwLowDateTime;
-		ull.HighPart = time.dwHighDateTime;
-		_path._pImpl->setAttributes(size.QuadPart, ull.QuadPart / 10000000ULL - 11644473600ULL, _path.isAbsolute() ? _path[0] : Path::CurrentDir()[0]);
+		FILETIME access;
+		FILETIME change;
+		GetFileTime((HANDLE)_handle, NULL, &access, &change);
+		ULARGE_INTEGER ulAccess;
+		ulAccess.LowPart = access.dwLowDateTime;
+		ulAccess.HighPart = access.dwHighDateTime;
+		ULARGE_INTEGER ulChange;
+		ulChange.LowPart = change.dwLowDateTime;
+		ulChange.HighPart = change.dwHighDateTime;
+		_path._pImpl->setAttributes(size.QuadPart, ulAccess.QuadPart / 10000000ULL - 11644473600ULL, ulChange.QuadPart / 10000000ULL - 11644473600ULL, _path.isAbsolute() ? _path[0] : Path::CurrentDir()[0]);
 		return true;
 	}
 		
@@ -119,7 +123,7 @@ bool File::load(Exception& ex) {
 #endif
 		struct stat status;
 		::fstat(_handle, &status);
-		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_mtime * 1000ll, UInt8(major(status.st_dev)));
+		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_atime * 1000ll, status.st_mtime * 1000ll, UInt8(major(status.st_dev)));
 		return true;
 	}
 #endif

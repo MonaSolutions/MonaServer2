@@ -32,28 +32,6 @@ ServerAPI::ServerAPI(const Path& application, const Path& www, const Handler& ha
 	threadPool(cores * 2), application(application), www(www), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool), publications(_publications), clients() {
 }
 
-void ServerAPI::manage() {
-	auto it = _waitingKeys.begin();
-	while (it != _waitingKeys.end()) {
-		auto itSubscription = it->second.subscriptions.begin();
-		while (itSubscription != it->second.subscriptions.end()) {
-			if (itSubscription->first->ejected()) {
-				// congested/error (ejected) => switch immediatly!
-				it->second.raise(*itSubscription->first, itSubscription->second);
-				itSubscription = it->second.subscriptions.erase(itSubscription);
-				continue;
-			}
-			++itSubscription;
-		}
-		// remove empty WaitingKeys
-		if (it->second.subscriptions.empty()) {
-			it = _waitingKeys.erase(it);
-			continue;
-		}
-		++it;
-	}
-}
-
 Publication* ServerAPI::publish(Exception& ex, string& stream, Client* pClient) {
 	size_t found = stream.find('?');
 	const char* query(NULL);
@@ -102,22 +80,21 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	if (onPublish(ex, publication, pClient)) {
 		if(ext) {
 			// RECORD!
-			MediaWriter* pWriter = MediaWriter::New(ext);
-			if (pWriter) {
-				Path path(MAKE_FILE(www), pClient ? pClient->path : "", "/", stream,'.', ext);
-				bool append(false);
-				publication.getBoolean("append", append);
-				MapReader<Parameters> arguments(publication);
-				Parameters parameters;
-				MapWriter<Parameters> properties(parameters);
-				if (onFileAccess(ex, append ? File::MODE_APPEND : File::MODE_WRITE, path, arguments, properties, pClient)) {
+			Path path(MAKE_FILE(www), pClient ? pClient->path : "", "/", stream,'.', ext);
+			bool append(false);
+			publication.getBoolean("append", append);
+			MapReader<Parameters> arguments(publication);
+			Parameters parameters;
+			MapWriter<Parameters> properties(parameters);
+			if (onFileAccess(ex, append ? File::MODE_APPEND : File::MODE_WRITE, path, arguments, properties, pClient)) {
+				MediaFile::Writer* pFileWriter = MediaFile::Writer::New(path, ioFile);
+				if (pFileWriter) {
 					parameters.getBoolean("append", append);
-					publication.start(new MediaFile::Writer(path, pWriter, ioFile), append);
+					publication.start(pFileWriter, append);
 					return &publication;
 				}
-				delete pWriter;
-			} else
-				WARN(ex.set<Ex::Unsupported>(stream, " recording format ", ext, " not supported"));
+				WARN(ex.set<Ex::Unsupported>(stream, " recording format ", path.extension(), " not supported"));
+			}
 		}
 		publication.start();
 		return &publication;
@@ -167,100 +144,122 @@ bool ServerAPI::subscribe(Exception& ex, string& stream, Subscription& subscript
 }
 
 bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, Subscription& subscription, const char* queryParameters, Client* pClient) {
+	// check that client is connected before!
 	if (pClient && !pClient->connection) {
-		ERROR(ex.set<Ex::Intern>("Client must be connected before ",stream," publication subscription"))
+		ERROR(ex.set<Ex::Intern>("Client must be connected before ", stream, " publication subscription"))
 		return false;
 	}
 
+	// update parameters
 	Parameters parameters;
 	if (queryParameters)
 		Util::UnpackQuery(queryParameters, parameters);
 	if (ext)
 		parameters.setString("format", ext);
+	const char* mbr = parameters.getString("mbr");
+	if (mbr) // add "this" mbr if mbr param!
+		parameters.emplace("mbr", mbr, "|", stream);
+
+	// Change parameters with just one call to limit change event propagation to Target
+	subscription.setParams(move(parameters));
+
+	// check if subscription has already subscribed for one of theses stream (more faster than _publication.find(...))
+	if (subscription.subscribed(stream))
+		return true; // already subscribed = just a parameters change => useless to recall subscribe/unsubscribe (performance reason and no security issue because subscription has been accepted before)
 
 	auto it = _publications.lower_bound(stream);
 	if (it == _publications.end() || it->first != stream) {
 		// is a new unfound publication => request failed, but keep possibly already subscription (MBR fails! stays on current subscription!)
 		UInt32 timeout;
-		if (parameters.getNumber("timeout", timeout) && !timeout) {
+		if (subscription.getNumber("timeout", timeout) && !timeout) {
 			WARN(ex.set<Ex::Unfound>("Publication ", stream, " unfound"));
 			return false;
 		}
 		it = _publications.emplace_hint(it, piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
-	} 
+	}
 
-	Publication& publication(it->second);
-	
-	// Change parameters just now to limit change event propagation to Target
-	(Parameters&)subscription = move(parameters);
-
-	if(subscription.pPublication) {
-		// subscribed?
-		if (subscription.pNextPublication) {
-			if (subscription.pNextPublication == &publication)
-				return true; // already subscribed = just a parameters change => useless to recall subscribe/unsubscribe (performance reason and no security issue because the first subscription has been accepted)
-			unsubscribe(subscription, *subscription.pNextPublication, pClient); // unsubscribe previous MBR switching
-		} else if (subscription.pPublication == &publication)
-			return true; // already subscribed = just a parameters change => useless to recall subscribe/unsubscribe (performance reason and no security issue because the first subscription has been accepted)
-		// MBR switch
-	} // else no subscription yet
-
-	if (!onSubscribe(ex, subscription, publication, pClient)) {
-		// if ex, error has already been displayed as log by onSubscribe
-		// no unsubscribption to keep a possible previous subscription (MBR switch fails)
-		if (!publication)
+	if (!subscribe(ex, it->second, subscription, pClient)) {
+		if (!it->second)
 			_publications.erase(it);
-		if (!ex)
-			WARN(ex.set<Ex::Permission>("Not authorized to play ", stream));
 		return false;
 	}
 
+	// update onMBR and onNext with new pClient value!
+	subscription.onMBR = nullptr;
+	subscription.onMBR = [this, &subscription, pClient](const set<string>& streams, bool down) {
+		struct Comparator { bool operator()(const Publication* pA, const Publication* pB) const { return pA->byteRate()<pB->byteRate(); } };
+		set<Publication*, Comparator> publications;
+		// sort publication by ByteRate
+		for (const string& stream : streams) {
+			if (stream == subscription.pPublication->name())
+				continue; // itself!
+			const auto& it = _publications.find(stream);
+			if (it != _publications.end())
+				publications.emplace(&it->second);
+		}
+		auto it = publications.lower_bound(subscription.pPublication);
+		if (down) {
+			while (it != publications.begin()) {
+				Exception ex;
+				if (subscription.subscribed(**--it) || subscribe(ex, **it, subscription, pClient))
+					return;
+			}
+		} else while (it != publications.end()) {
+			Exception ex;
+			if (subscription.subscribed(**it) || subscribe(ex, **it, subscription, pClient))
+				return;
+			++it;
+		}
+		// if "down" and no more down possible, cancel a possible pNextPublication "up" (return to publication)
+		// if "ûp" and no more up possible, cancel a possible pNextPublication "down" (return to publication)
+		unsubscribe(subscription, subscription.setNext(NULL), pClient);
+	};
+	subscription.onNext = nullptr;
+	subscription.onNext = [this, &subscription, pClient](Publication& publication) {
+		unsubscribe(subscription, subscription.pPublication, pClient);
+		subscription.pPublication = &publication; // do next!
+	};
+	return true;
+}
+
+
+bool ServerAPI::subscribe(Exception& ex, Publication& publication, Subscription& subscription, Client* pClient) {
+	// intern call, no need to check subscription.pPublication (alreay checked)
+	if (!onSubscribe(ex, subscription, publication, pClient)) {
+		// if ex, error has already been displayed as log by onSubscribe
+		// no unsubscribption to keep a possible previous subscription (MBR switch fails)
+		if (!ex)
+			WARN(ex.set<Ex::Permission>("Not authorized to play ", publication.name()));
+		return false;
+	}
 	((set<Subscription*>&)publication.subscriptions).emplace(&subscription);
 
-	if (subscription.pPublication) {
-		// publication switch (MBR)
-		for (UInt8 i = 1; i <= publication.videos.size();++i) {
-			if (subscription.videos.selected(i)) {
-				subscription.pNextPublication = &publication;
-				_waitingKeys.emplace(piecewise_construct, forward_as_tuple(&publication), forward_as_tuple(*this, publication)).first->second
-					.subscriptions.emplace(piecewise_construct, forward_as_tuple(&subscription), forward_as_tuple(pClient));
-				return true;
-			}
-		}
-		// no videos track matching => switch immediatly
-		subscription.pNextPublication = NULL;
-		unsubscribe(subscription, *subscription.pPublication, pClient);
-		subscription.pPublication = &publication;
-		subscription.reset(); // to get properties(metadata) and new state of new publication...
-	} else
+	if (subscription.pPublication)
+		unsubscribe(subscription, subscription.setNext(&publication), pClient); // publication switch (MBR) + cancel possible previous next!
+	else
 		subscription.pPublication = &publication;
 	return true;
 }
 
 
 void ServerAPI::unsubscribe(Subscription& subscription, Client* pClient) {
-	if (subscription.pNextPublication)
-		unsubscribe(subscription, *subscription.pNextPublication, pClient);
-	if (subscription.pPublication)
-		unsubscribe(subscription, *subscription.pPublication, pClient);
-	subscription.pPublication = subscription.pNextPublication = NULL;
+	subscription.onMBR = nullptr; // public unsubscribe, remove possible onMBR!
+	unsubscribe(subscription, subscription.setNext(NULL), pClient);
+	unsubscribe(subscription, subscription.pPublication, pClient);
+	subscription.pPublication = NULL;
 }
 
-void ServerAPI::unsubscribe(Subscription& subscription, Publication& publication, Client* pClient) {
-	if (!((set<Subscription*>&)publication.subscriptions).erase(&subscription))
+void ServerAPI::unsubscribe(Subscription& subscription, Publication* pPublication, Client* pClient) {
+	if (!pPublication)
+		return;
+	if (!((set<Subscription*>&)pPublication->subscriptions).erase(&subscription))
 		return; // no subscription
 	if (pClient && !pClient->connection)
-		ERROR(publication.name()," unsubscription before client connection")
+		ERROR(pPublication->name()," unsubscription before client connection")
 	else
-		onUnsubscribe(subscription, publication, pClient);
-	if (subscription.pNextPublication == &publication) {
-		const auto& itWaitingKey(_waitingKeys.find(&publication));
-		itWaitingKey->second.subscriptions.erase(&subscription);
-		if (itWaitingKey->second.subscriptions.empty())
-			_waitingKeys.erase(itWaitingKey);
-	}
-	if (!publication)
-		_publications.erase(publication.name());
+		onUnsubscribe(subscription, *pPublication, pClient);
+	if (!*pPublication)
+		_publications.erase(pPublication->name());
 }
 
 

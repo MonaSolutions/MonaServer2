@@ -56,7 +56,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 			peer.setQuery(request->query);
 			peer.setServerAddress(request->host);
 			// properties = version + headers + cookies
-			peer.properties() = move(request);
+			peer.properties().setParams(move(request));
 
 			// Create parameters for onConnection or a GET onRead/onWrite/onInvocation
 			QueryReader parameters(peer.query.data(), peer.query.size());

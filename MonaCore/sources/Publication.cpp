@@ -26,7 +26,7 @@ namespace Mona {
 
 Publication::Publication(const string& name): _latency(0),
 	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate),
-	_waitingFirstVideoSync(0), _publishing(false),_new(false), _newProperties(false), _newLost(false), _name(name) {
+	_publishing(false),_new(false), _newLost(false), _name(name) {
 	DEBUG("New publication ",name);
 }
 
@@ -103,7 +103,7 @@ void Publication::start(MediaFile::Writer* pRecorder, bool append) {
 	if (!_publishing) {
 		_publishing = true;
 		INFO("Publication ", _name, " started");
-		_waitingFirstVideoSync.update();
+		Media::Properties::flushProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	}
 	if(pRecorder)
 		startRecording(*pRecorder, append);
@@ -118,7 +118,6 @@ void Publication::reset() {
 	_audios.clear();
 	_videos.clear();
 	_datas.clear();
-	_waitingFirstVideoSync.update();
 
 	// Erase track metadata just!
 	auto it = begin();
@@ -129,11 +128,13 @@ void Publication::reset() {
 		else
 			++it;
 	}
-	_newProperties = false;
+	Media::Properties::flushProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 
-	for (auto& it : subscriptions) {
-		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-			it->reset();
+	for (Subscription* pSubscription : subscriptions) {
+		if (pSubscription->pPublication != this && pSubscription->pPublication)
+			continue; // subscriber not yet subscribed
+		pSubscription->pPublication = this;
+		pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 	}
 	
 	onEnd();
@@ -146,7 +147,6 @@ void Publication::stop() {
 	stopRecording();
 
 	_publishing =false;
-	_waitingFirstVideoSync = 0;
 
 	// release resources!
 	_audios.clear();
@@ -155,13 +155,15 @@ void Publication::stop() {
 	Media::Properties::clear();
 
 	_latency = 0;
-	_new = _newProperties = false;
-
+	_new = false;
 
 	INFO("Publication ", _name, " stopped")
-	for(auto& it : subscriptions) {
-		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-			it->reset(); // call writer.endMedia on subscriber side and do the flush!
+
+	auto it = subscriptions.begin();
+	while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
+		Subscription* pSubscription(*it++);
+		if (pSubscription->pPublication == this || !pSubscription->pPublication)
+			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 	}
 
 	onFlush();
@@ -179,6 +181,7 @@ void Publication::flush() {
 		ERROR("Publication flush called on publication ", _name, " stopped");
 		return;
 	}
+	flushProperties(); // to send metadata if need!
 	if (!_new)
 		return;
 	_new = false;
@@ -194,9 +197,11 @@ void Publication::flush() {
 		_newLost = false;
 	}
 
-	for (auto& it : subscriptions) {
-		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed OR is a target (pPublication==NULL)
-			it->flush();
+	auto it = subscriptions.begin();
+	while (it!=subscriptions.end()) { // using "while" rather "for each" because "flush" can remove an element of "subscriptions"!
+		Subscription* pSubscription(*it++);
+		if (pSubscription->pPublication == this || !pSubscription->pPublication)
+			pSubscription->flush();
 	}
 	onFlush();
 }
@@ -207,28 +212,24 @@ void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pa
 		ERROR("Audio packet on publication ", _name, " stopped");
 		return;
 	}
+	_audios.lastTime = tag.time;
+
+	// create track
+	AudioTrack* pAudio = track ? &_audios[track] : NULL;
 
 	// flush properties before to deliver media packet (to be sync with media content)
 	flushProperties();
 
-	// create track
-	AudioTrack* pAudio = track ? &_audios[track] : NULL;
 	// save audio codec packet for future listeners
-	if (!tag.isConfig) {
-		if (_waitingFirstVideoSync) {
-			if(!_waitingFirstVideoSync.isElapsed(1000))
-				return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
-			_waitingFirstVideoSync = 0;
-		}
-	} else
+	if (tag.isConfig)
 		DEBUG("Audio configuration received on publication ", _name, " (size=", packet.size(), ")");
 	_byteRate += packet.size() + sizeof(tag);
 	_audios.byteRate += packet.size() + sizeof(tag);
 	_new = true;
-	// DEBUG("Audio ",tag.time);
-	for (auto& it : subscriptions) {
-		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-			it->writeAudio(track, tag, packet);
+	//	DEBUG(name()," audio ",tag.time);
+	for (Subscription* pSubscription : subscriptions) {
+		if (pSubscription->pPublication == this || !pSubscription->pPublication)
+			pSubscription->writeAudio(track, tag, packet);
 	}
 	onAudio(track, tag, packet);
 	
@@ -242,35 +243,26 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 		ERROR("Video packet on stopped ", _name, " publication");
 		return;
 	}
+	_videos.lastTime = tag.time;
 
 	// create track
 	VideoTrack* pVideo = track ? &_videos[track] : NULL;
-	if (_waitingFirstVideoSync)
-		_waitingFirstVideoSync.update(); // video is coming, wait more time
-	
+
 	UInt32 offsetCC = 0;
 
-	switch (tag.frame) {
-		case Media::Video::FRAME_KEY:
-			if (pVideo) {
+	if (tag.frame != Media::Video::FRAME_CONFIG) {
+		if (pVideo) {
+			if (pVideo->waitKeyFrame) {
+				if (tag.frame != Media::Video::FRAME_KEY) {
+					// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
+					INFO("Video frame dropped, ", _name, " waits a key frame");
+					return;
+				}
 				pVideo->waitKeyFrame = false;
-				if (pVideo->keyFrameTime &&  tag.time > pVideo->keyFrameTime)
-					pVideo->keyFrameInterval = tag.time - pVideo->keyFrameTime;
-				pVideo->keyFrameTime = tag.time;
 			}
-			_waitingFirstVideoSync = 0;
-			onKeyFrame(track); // can add a new subscription for this publication!
-		default: {
-			if (!pVideo)
-				break;
-			if(pVideo->waitKeyFrame) {
-				// wait one key frame (allow to rebuild the stream and saves bandwith without useless transfer
-				INFO("Video frame dropped, ", _name, " waits a key frame");
-				return;
-			}
-			CCaption::OnText onText([this, &tag, track](UInt8 channel, const Packet& packet) {
-				DEBUG("cc", channel, " => ", string(STR packet.data(), packet.size()));
-				writeData((track - 1) * 4 + channel, Media::Data::TYPE_TEXT, packet);
+			CCaption::OnText onText([this, track](UInt8 channel, shared<Buffer>& pBuffer) {
+			//	DEBUG("cc", channel, " => ", String::Data(pBuffer->data(), pBuffer->size()));
+				writeData((track - 1) * 4 + channel, Media::Data::TYPE_TEXT, Packet(pBuffer));
 			});
 			CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {
 				if (lang) {
@@ -280,11 +272,10 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 					erase(String((track - 1) * 4 + channel, ".textLang"));
 			});
 			offsetCC = pVideo->cc.extract(tag, packet, onText, onLang);
-			break;
 		}
-		case Media::Video::FRAME_CONFIG:
-			DEBUG("Video configuration received on publication ", _name, " (size=", packet.size(), ")");
-	}
+	} else
+		DEBUG("Video configuration received on publication ", _name, " (size=", packet.size(), ")");
+
 
 	// flush properties before to deliver media packet (to be sync with media content)
 	flushProperties();
@@ -292,16 +283,16 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 	_byteRate += packet.size() + sizeof(tag);
 	_videos.byteRate += packet.size() + sizeof(tag);
 	_new = true;
-	// INFO("Video ", tag.time, " (", tag.compositionOffset, ")");
+	//	INFO(name(), " video ", tag.time, " (", tag.frame, ")");
 
-	for (auto& it : subscriptions) {
-		if (it->pPublication != this && it->pPublication)
+	for (Subscription* pSubscription : subscriptions) {
+		if (pSubscription->pPublication != this && pSubscription->pPublication)
 			continue; // subscriber not yet subscribed
-		if (offsetCC && it->datas.pSelection) {
+		if (offsetCC && (pSubscription->datas.pSelection || pSubscription->datas.multiTracks)) { // if a data track is selected (or data track is disabled when track data=0) => send without CC!
 			if (offsetCC<packet.size())
-				it->writeVideo(track, tag, packet + offsetCC); // without CC
+				pSubscription->writeVideo(track, tag, packet + offsetCC); // without CC
 		} else
-			it->writeVideo(track, tag, packet); // with CC
+			pSubscription->writeVideo(track, tag, packet); // with CC
 	}
 	if (offsetCC && onData) {
 		if(offsetCC<packet.size())
@@ -349,16 +340,14 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 	_byteRate += packet.size();
 	_datas.byteRate += packet.size();
 	_new = true;
-	for (auto& it : subscriptions) {
-		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-			it->writeData(track, type, packet);
+	for (Subscription* pSubscription : subscriptions) {
+		if (pSubscription->pPublication == this || !pSubscription->pPublication)
+			pSubscription->writeData(track, type, packet);
 	}
 	onData(track, type, packet);
 }
 
 void Publication::onParamChange(const string& key, const string* pValue) {
-	_newProperties = true;
-
 	size_t found = key.find('.');
 	if (found == string::npos)
 		return;
@@ -375,8 +364,6 @@ void Publication::onParamChange(const string& key, const string* pValue) {
 
 }
 void Publication::onParamClear() {
-	_newProperties = true;
-
 	for (AudioTrack& track : _audios)
 		track.lang = NULL;
 	for (DataTrack& track : _datas)
@@ -385,17 +372,16 @@ void Publication::onParamClear() {
 }
 
 void Publication::flushProperties() {
-	if (!_newProperties)
+	if (!Media::Properties::flushProperties())
 		return;
-	_newProperties = false;
 	// Logs before subscription logs!
-	if (*this)
-		INFO("Write ", _name, " publication properties")
+	if (self)
+		INFO("Write ", _name, " publication properties ", self)
 	else
 		INFO("Clear ", _name, " publication properties");
-	for (auto& it : subscriptions) {
-		if (it->pPublication == this || !it->pPublication) // If subscriber is subscribed
-			it->writeProperties(*this);
+	for (Subscription* pSubscription : subscriptions) {
+		if (pSubscription->pPublication == this || !pSubscription->pPublication)
+			pSubscription->writeProperties(*this);
 	}
 	onProperties(*this);
 }

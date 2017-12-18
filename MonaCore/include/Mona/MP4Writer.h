@@ -47,15 +47,10 @@ private:
 	struct Frame : virtual Object {
 		Frame(const Media::Video::Tag& tag, const Packet& packet) : _pMedia(new Media::Video(tag, packet)), isSync(tag.frame == Media::Video::FRAME_KEY) {}
 		Frame(const Media::Audio::Tag& tag, const Packet& packet) : _pMedia(new Media::Audio(tag, packet)), isSync(true) {}
-		Frame(Frame&& frame) : config(std::move(config)), _pMedia(std::move(frame._pMedia)), isSync(frame.isSync) {}
-		Frame& operator=(Frame&& frame) { (bool&)isSync = frame.isSync; config = std::move(frame.config); _pMedia = std::move(frame._pMedia); return *this; }
 
-		Packet				config;
-		const Media::Base&	media() const { return *_pMedia; }
 		const bool			isSync;
-		UInt32				size() const { return config.size() + _pMedia->size(); }
-		UInt32				time() const { return _pMedia->time(); }
-		UInt32				compositionOffset() const { return _pMedia->compositionOffset(); }
+		const Media::Base*	operator->() const { return _pMedia.get(); }
+		const Media::Base&	operator*() const { return *_pMedia; }
 	private:
 		unique<Media::Base> _pMedia;
 		
@@ -63,33 +58,39 @@ private:
 
 	struct Frames : virtual Object, std::deque<Frame> {
 		Frames(Media::Audio::Codec codec) :
-			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec) {}
+			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec), writeConfig(false) {}
 		Frames(Media::Video::Codec codec) :
-			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec) {}
+			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec), writeConfig(true) {}
 		
-		const UInt8 codec;
+		UInt8	codec;
 
 		Packet	config;
+
+		bool	writeConfig;
 		bool	hasCompositionOffset;
 		bool	hasKey;
 		UInt32  sizeTraf;
 		UInt32  rate;
 
-		// fix time|duration
+		// fix time|duration + tfdt
 		bool	firstTime;
 		UInt32	lastTime;
 		UInt32  lastDuration;
 
-		void emplace(const Media::Audio::Tag& tag, const Packet& packet);
-		void emplace(const Media::Video::Tag& tag, const Packet& packet);
-		void clear();
-	private:
-		void emplace_back() {}
-		void emplaceEnd();
+		template<typename TagType>
+		void push(const TagType& tag, const Packet& packet) {
+			emplace_back(tag, packet);
+			if (firstTime) {
+				// get delta = lastDuration - (front().time() - lastTime) = 0
+				firstTime = false;
+				lastTime = front()->time();
+			}
+		}
+		void flush(const OnWrite& onWrite);
 	};
 
-	void   writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset);
-	UInt32 writeFrame(BinaryWriter& writer, Frames& frames, const Frame& frame, UInt32 duration);
+	void	writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset);
+	Int32	writeFrame(BinaryWriter& writer, Frames& frames, UInt32 size, bool isSync, UInt32 duration, UInt32 compositionOffset, Int32 delta);
 
 	std::deque<Frames>			_audios; // Frames[0] = AAC, Frames[1] == MP3
 	std::deque<Frames>			_videos;
@@ -97,9 +98,9 @@ private:
 	UInt32						_timeFront;
 	UInt32						_timeBack;
 	bool						_firstTime;
+	bool						_buffering;
 
-	bool						_audioOutOfRange;
-	bool						_videoOutOfRange;
+	bool						_reset;
 	UInt8						_errors;
 };
 

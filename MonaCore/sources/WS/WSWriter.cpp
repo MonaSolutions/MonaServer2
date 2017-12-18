@@ -56,7 +56,9 @@ DataWriter& WSWriter::writeInvocation(const char* name) {
 }
 
 bool WSWriter::beginMedia(const string& name) {
-	writeJSON().writeString(EXPAND("@publishing"));
+	DataWriter& writer = writeJSON();
+	writer.writeString(EXPAND("@media"));
+	writer.writeString(name.data(), name.size());
 	return true;
 }
 
@@ -94,8 +96,8 @@ bool WSWriter::writeProperties(const Media::Properties& properties) {
 	return true;
 }
 
-void WSWriter::endMedia(const string& name) {
-	writeJSON().writeString(EXPAND("@unpublishing"));
+void WSWriter::endMedia() {
+	writeJSON().writeString(EXPAND("@end"));
 }
 
 

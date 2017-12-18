@@ -22,15 +22,15 @@ using namespace std;
 
 
 bool FileWatcher::watchFile() {
-	Time lastModified(file.lastModified(true));
-	if (lastModified != _lastModified) { // if path doesn't exist filePath.lastModified()==0
-		if (_lastModified)
+	Time lastChange(file.lastChange(true));
+	if (lastChange != _lastChange) { // if path doesn't exist filePath.lastChange()==0
+		if (_lastChange)
 			clearFile();
-		_lastModified.update(lastModified);
-		if (lastModified)
+		_lastChange.update(lastChange);
+		if (lastChange)
 			loadFile();
 	}
-	return lastModified ? true : false;
+	return lastChange ? true : false;
 }
 
 } // namespace Mona

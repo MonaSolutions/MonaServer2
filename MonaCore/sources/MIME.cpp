@@ -48,6 +48,7 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		{ "mp4",{ TYPE_VIDEO, "mp4" } },
 		{ "264", { TYPE_VIDEO, "h264" } },
 		{ "mp3",{ TYPE_AUDIO, "mp3" } },
+		{ "m3u8",{ TYPE_APPLICATION, "x-mpegURL" } },
 		{ "aac",{ TYPE_AUDIO, "aac" } },
 		{ "svg", { TYPE_APPLICATION, "svg+xml"} },
 		{ "m3u", { TYPE_AUDIO, "m3u"} },

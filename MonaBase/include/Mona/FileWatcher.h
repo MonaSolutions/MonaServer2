@@ -23,7 +23,7 @@ namespace Mona {
 
 struct FileWatcher : virtual Object {
 	template <typename ...Args>
-	FileWatcher(Args&&... args) : file(std::forward<Args>(args)...), _lastModified(0) {}
+	FileWatcher(Args&&... args) : file(std::forward<Args>(args)...), _lastChange(0) {}
 	
 
 	/// look if the file has changed, call clearFile if doesn't exist anymore, or call clearFile and loadFile if file has change
@@ -36,7 +36,7 @@ private:
 	virtual void loadFile() = 0;
 	virtual void clearFile() = 0;
 
-	Time		_lastModified;
+	Time		_lastChange;
 };
 
 } // namespace Mona

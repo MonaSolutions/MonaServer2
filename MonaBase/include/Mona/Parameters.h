@@ -41,8 +41,8 @@ private:
 public:
 
 	Parameters() {}
-	Parameters(Parameters&& other) { operator=(std::move(other));  }
-	Parameters& operator=(Parameters&& other);
+	Parameters(Parameters&& other) { setParams(std::move(other));  }
+	Parameters& setParams(Parameters&& other);
 
 	const_iterator	begin() const { return _pMap ? _pMap->begin() : Null().begin(); }
 	const_iterator	end() const { return _pMap ? _pMap->end() : Null().end(); }
@@ -88,10 +88,7 @@ public:
 	bool setBoolean(const std::string& key, bool value) { setParameter(key, value ? "true" : "false");  return value; }
 
 	template<typename ...Args>
-	const std::string& emplace(Args&& ...args) {
-		std::pair<std::string, std::string> item(std::forward<Args>(args)...);
-		return setParameter(item.first, std::move(item.second));
-	}
+	const std::string& emplace(const std::string& key, Args&& ...args) { return setParameter(key, String(std::forward<Args>(args)...)); }
 
 	static const Parameters& Null() { static Parameters Null(nullptr); return Null; }
 

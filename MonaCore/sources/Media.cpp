@@ -33,7 +33,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MediaSocket.h"
 #include "Mona/MediaFile.h"
 
-
 using namespace std;
 
 
@@ -48,6 +47,17 @@ UInt32 Media::Base::time() const {
 		default:;
 	}
 	return 0;
+}
+void Media::Base::setTime(UInt32 time) {
+	switch (type) {
+		case TYPE_AUDIO:
+			((Media::Audio*)this)->tag.time = time;
+			break;
+		case TYPE_VIDEO:
+			((Media::Video*)this)->tag.time = time;
+			break;
+		default:;
+	}
 }
 bool Media::Base::isConfig() const {
 	switch (type) {
@@ -212,11 +222,30 @@ Media::Data::Data(DataReader& properties, UInt8 track) : Base(TYPE_DATA, *proper
 	properties.read(writer);
 	set(pBuffer);
 }
+Media::Data::Data(const Properties& properties) : Base(TYPE_DATA, properties((Media::Data::Type&)tag), 0), isProperties(true) {
+}
 
-Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)) {
+Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)), _newProperties(false) {
 	unique_ptr<DataReader> pReader(Data::NewReader(data.tag, data));
-	MapWriter<Parameters> writer(*this);
+	MapWriter<Parameters> writer(self);
 	pReader->read(writer);
+}
+
+void Media::Properties::onParamChange(const std::string& key, const std::string* pValue) {
+	_newProperties = true;
+	_packets.clear();
+	Parameters::onParamChange(key, pValue);
+}
+void Media::Properties::onParamClear() {
+	_newProperties = true; 
+	_packets.clear();
+	Parameters::onParamClear();
+}
+bool Media::Properties::flushProperties() {
+	if (!_newProperties)
+		return false;
+	_newProperties = false;
+	return true;
 }
 
 const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
@@ -421,6 +450,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 	if ((isTarget = (*description == '@')))
 		++description;
 
+	// remove "" or ''
 	string first;
 	if (*description == '"' || *description=='\'') {
 		const char* end = strchr(description +1, *description);
@@ -431,6 +461,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 		}
 	}
 
+	// isolate first (and remove blank)
 	size_t size = 0;
 	for(;;) {
 		switch (description[size]) {
@@ -445,7 +476,14 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 		description += size;
 		break;
 	}
-	
+
+	// query => parameters
+	string query;
+	size_t queryPos = first.find('?');
+	if (queryPos != string::npos) {
+		query.assign(first.c_str()+queryPos, first.size() - queryPos);
+		first.resize(queryPos);
+	}
 
 	Type type(TYPE_FILE);
 	bool isSecure(false);
@@ -566,30 +604,43 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 		}
 	}
 	
+	Stream* pStream;
 	if (isFile) {
 		if (isTarget) {
-			if (MediaWriter* pWriter = MediaWriter::New(format.c_str()))
-				return new MediaFile::Writer(path, pWriter, ioFile);
-		} else if (MediaReader* pReader = MediaReader::New(format.c_str()))
-			return new MediaFile::Reader(path, pReader, timer, ioFile);
-		ex.set<Ex::Unsupported>("Stream file format ", format, " not supported");
-		return NULL;
+			pStream = MediaFile::Writer::New(path, format.c_str(), ioFile);
+			if (!pStream) {
+				ex.set<Ex::Unsupported>("Target stream file format ", format, " not supported");
+				return NULL;
+			}
+		} else {
+			pStream = MediaFile::Reader::New(path, format.c_str(), timer, ioFile);
+			if (!pStream) {
+				ex.set<Ex::Unsupported>("Source stream file format ", format, " not supported");
+				return NULL;
+			}
+		}
+	} else {
+		if (!type)
+			type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
+
+		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
+		if (isTarget) {
+			pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+			if(!pStream) {
+				ex.set<Ex::Unsupported>("Target stream ", TypeToString(type), " format ", format, " not supported");
+				return NULL;
+			}
+		} else {
+			pStream = MediaSocket::Reader::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+			if (!pStream) {
+				ex.set<Ex::Unsupported>("Source stream ", TypeToString(type), " format ", format, " not supported");
+				return NULL;
+			}
+		}
 	}
 	
-	if(!type)
-		type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
-
-	// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-	if (isTarget) {
-		if (MediaWriter* pWriter = MediaWriter::New(format.c_str()))
-			return new MediaSocket::Writer(type, path, pWriter, address, ioSocket, isSecure ? pTLS : nullptr);
-	} else {
-		MediaReader* pReader = NULL;
-		if(format.empty() || (pReader = MediaReader::New(format.c_str()))) // Format can be empty with HTTP source stream for example
-			return new MediaSocket::Reader(type, path, pReader, address, ioSocket, isSecure ? pTLS : nullptr);
-	}
-	ex.set<Ex::Unsupported>("Stream ", TypeToString(type), " format ",format, " not supported");
-	return NULL;
+	(string&)pStream->query = move(query);
+	return pStream;
 }
 
 } // namespace Mona

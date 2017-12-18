@@ -180,7 +180,8 @@ FileSystem::Attributes& FileSystem::GetAttributes(const char* path, size_t size,
 	Status status;
 	if (Stat(path, size, status) <= 0)
 		return attributes.reset();
-	attributes.lastModified = status.st_mtime*1000ll;
+	attributes.lastChange = status.st_mtime * 1000ll;
+	attributes.lastAccess = status.st_atime *1000ll;
 	attributes.size = status.st_mode&S_IFDIR ? 0 : status.st_size;
 #if defined (_WIN32)
 	while (*path == '/') ++path;

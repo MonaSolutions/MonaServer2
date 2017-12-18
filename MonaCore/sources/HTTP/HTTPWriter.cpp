@@ -197,10 +197,12 @@ BinaryWriter& HTTPWriter::writeRaw(const char* code) {
 
 bool HTTPWriter::beginMedia(const string& name) {
 	// _pMediaWriter->begin(...)
+	if (_pMediaWriter)
+		return true; // MBR switch!
 	if (!newSender<HTTPMediaSender>(_pMediaWriter))
 		return false; // writer closed!
 	if (_pMediaWriter)
-		return true;
+		return true; // started!
 	// 415 Unsupported media type
 	_senders.pop_back();
 	String error("Can't play ", name, ", HTTP streaming doesn't support ", _pRequest->subMime, " media");
@@ -209,7 +211,7 @@ bool HTTPWriter::beginMedia(const string& name) {
 	return false;
 }
 
-void HTTPWriter::endMedia(const string& name) {
+void HTTPWriter::endMedia() {
 	if (_pMediaWriter)
 		newSender<HTTPMediaSender>(_pMediaWriter); // End media => Close socket
 }

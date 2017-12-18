@@ -111,9 +111,19 @@ struct String : std::string, virtual Object {
 	static std::size_t Split(const std::string& value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0) { return Split(value.data(), value.size(), separators, forEach, options); }
 	static std::size_t Split(const char* value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0) { return Split(value, std::string::npos, separators, forEach, options); }
 	static std::size_t Split(const char* value, std::size_t size, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0);
-	static std::vector<std::string>& Split(const char* value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0) { return Split(value, std::string::npos, separators, values, options); }
-	static std::vector<std::string>& Split(const char* value, std::size_t size, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0);
-	static std::vector<std::string>& Split(const std::string& value, const char* separators, std::vector<std::string>& values, SPLIT_OPTIONS options = 0) { return Split(value.c_str(),separators,values,options); }
+	template<typename ListType, typename = typename std::enable_if<is_container<ListType>::value, ListType>::type>
+	static ListType& Split(const char* value, const char* separators, ListType& values, SPLIT_OPTIONS options = 0) { return Split(value, std::string::npos, separators, values, options); }
+	template<typename ListType, typename = typename std::enable_if<is_container<ListType>::value, ListType>::type>
+	static ListType& Split(const std::string& value, const char* separators, ListType& values, SPLIT_OPTIONS options = 0) { return Split(value.data(), value.size(), separators,values,options); }
+	template<typename ListType, typename = typename std::enable_if<is_container<ListType>::value, ListType>::type>
+	static ListType& Split(const char* value, std::size_t size, const char* separators, ListType& values, SPLIT_OPTIONS options = 0) {
+		ForEach forEach([&values](UInt32 index, const char* value) {
+			values.insert(values.end(), value);
+			return true;
+		});
+		Split(value, size, separators, forEach, options);
+		return values;
+	}
 
 	template<typename Type>
 	static const char*	TrimLeft(const char* value, Type& size) { static_assert(std::is_arithmetic<Type>::value, "size must be a numeric value"); if (size == std::string::npos) size = (Type)strlen(value);  while (size && isspace(*value)) { ++value; --size; } return value; }
@@ -399,8 +409,9 @@ struct String : std::string, virtual Object {
 	struct Data : virtual Mona::Object {
 		Data(const std::string& value, std::size_t size) : value(value.data()), size(size == std::string::npos ? value.size() : size) {}
 		Data(const char* value,        std::size_t size) : value(value), size(size==std::string::npos ? strlen(value) : size) {}
+		Data(const UInt8* value, UInt32 size) : value(STR value), size(size) {}
 		const char*	value;
-		std::size_t size;
+		UInt32 size;
 	};
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, const Data& data, Args&&... args) {
@@ -471,7 +482,7 @@ struct String : std::string, virtual Object {
 				out.append(EXPAND(", "));
 			else
 				first = false;
-			Append<OutType>(out, it.first, ':', it.second);
+			Append<OutType>(out, it.first, ": ", it.second);
 		}
 		out.append(EXPAND("}"));
 		return Append<OutType>(out, std::forward<Args>(args)...);

@@ -61,7 +61,8 @@ struct File : virtual Object {
 
 	bool		exists(bool refresh = false) const { return _path.exists(refresh); }
 	UInt64		size(bool refresh = false) const;
-	Int64		lastModified(bool refresh = false) const { return _path.size(refresh); }
+	Int64		lastAccess(bool refresh = false) const { return _path.lastAccess(refresh); }
+	Int64		lastChange(bool refresh = false) const { return _path.lastChange(refresh); }
 	UInt8		device() const { return _path.device(); }
 
 	bool		loaded() const { return _handle != -1; }

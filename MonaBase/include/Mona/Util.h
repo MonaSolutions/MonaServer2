@@ -18,13 +18,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Parameters.h"
-#include "Mona/Time.h"
-#include "Mona/Exceptions.h"
-#include "Mona/Buffer.h"
 #include "Mona/Process.h"
-#include "math.h"
-#include <limits>
-#include <mutex>
+#include "Mona/Path.h"
 
 namespace Mona {
 
@@ -33,6 +28,10 @@ struct Util : virtual Static {
 
 	static const Parameters& Environment();
 	 
+	static UInt64	Random();
+	template<typename Type>
+	static Type		Random() { return Type(Random()); } // cast gives the modulo!
+	static void		Random(UInt8* data, UInt32 size) { for (UInt32 i = 0; i < size; ++i) data[i] = UInt8(Random()); }
 
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
 
@@ -83,17 +82,6 @@ struct Util : virtual Static {
 		}
 		return buffer;
 	}
-
-	template<typename Type=bool>
-	static Type Random() {
-		static UInt32 x = (UInt32)Time::Now() * Process::Id();
-		static UInt32 y = 362436069, z = 521288629, w = 88675123;
-		UInt32 t = x ^ (x << 11);
-		x = y; y = z; z = w;
-		return (w = w ^ (w >> 19) ^ (t ^ (t >> 8))) % std::numeric_limits<Type>::max();
-	}
-	static void Random(UInt8* data, UInt32 size) {for (UInt32 i = 0; i < size; ++i) data[i] = Random<UInt8>();}
-
 	
 	template <typename BufferType>
 	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer,bool append=false) {
@@ -177,8 +165,5 @@ private:
 	static const char						_B64Table[65];
 	static const char						_ReverseB64Table[128];
 };
-
-
-template<> inline bool Util::Random() { return Random<UInt8>() % 2 ? true : false; }
 
 } // namespace Mona

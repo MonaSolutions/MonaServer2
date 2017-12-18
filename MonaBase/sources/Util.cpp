@@ -15,14 +15,13 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Util.h"
-#include "Mona/Timezone.h"
 #include <fstream>
 #if !defined(_WIN32)
+#include <sys/times.h>
 	#include <unistd.h>
 	#include <sys/syscall.h>
 	extern "C" char **environ;
 #endif
-
 
 using namespace std;
 
@@ -58,6 +57,28 @@ const Parameters& Util::Environment() {
 		}
 	} Environment;
 	return Environment;
+}
+
+UInt64 Util::Random() {
+	// flip+process Id to make variate most signifiant bit on different computer AND on same machine
+	static UInt64 A = Byte::Flip64(Process::Id()) | Byte::Flip64(Time::Now());
+#if defined(_WIN32)
+#if (_WIN32_WINNT >= 0x0600)
+	static UInt64 B = Byte::Flip64(Process::Id()) | Byte::Flip64(GetTickCount64());
+#else
+	static UInt64 B = Byte::Flip64(Process::Id()) | Byte::Flip32(GetTickCount());
+#endif
+#else
+	static tms TMS;
+	static UInt64 B = Byte::Flip64(Process::Id()) | Byte::Flip32(times(&TMS));
+#endif
+	// xorshift128plus = faster algo able to pass BigCrush test
+	UInt64 x = A;
+	UInt64 const y = B;
+	A = y; // not protect A and B to go more faster (and useless on random value...)
+	x ^= x << 23; // a
+	B = x ^ y ^ (x >> 17) ^ (y >> 26); // b, c
+	return B + y; // cast gives modulo here!
 }
 
 size_t Util::UnpackUrl(const char* url, string& address, string& path, string& query) {
@@ -334,9 +355,22 @@ bool Util::ReadIniFile(const string& path, Parameters& parameters) {
 		key = cur;
 		value = NULL;
 		size_t vSize(0), kSize(0);
+		const char* quote=NULL;
 		do {
 			if (*cur == '\n')
 				break;
+			if (*cur == '\'' || *cur == '"') {
+				if (quote) {
+					if(*quote == *cur && quote < value) {
+						// fix value!
+						kSize += vSize + 1;
+						value = NULL;
+						vSize = 0;
+					} // else was not a quote!
+					quote = NULL;
+				} else
+					quote = cur;
+			}
 			if (value)
 				++vSize;
 			else if (*cur == '=')
@@ -345,10 +379,22 @@ bool Util::ReadIniFile(const string& path, Parameters& parameters) {
 				++kSize;
 		} while (++cur < end);
 
-		if (vSize)
+		if (vSize) {
 			vSize = String::Trim(value, vSize);
-		if(kSize)
+			// remove quote on value
+			if (vSize > 1 && value[0] == value[vSize - 1] && (value[0] == '"' || value[0] == '\'')) {
+				vSize-=2;
+				++value;
+			}
+		}
+		if (kSize) {
 			kSize = String::TrimRight(key, kSize);
+			// remove quote on key
+			if (kSize > 1 && key[0] == key[kSize - 1] && (key[0] == '"' || key[0] == '\'')) {
+				kSize-=2;
+				++key;
+			}
+		}
 
 		if (*key=='[' && ((value && value[vSize-1] == ']') || (!value && key[kSize-1]==']'))) {
 			// section

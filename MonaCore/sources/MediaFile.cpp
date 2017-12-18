@@ -23,6 +23,11 @@ using namespace std;
 
 namespace Mona {
 
+MediaFile::Reader* MediaFile::Reader::New(const Path& path, const char* subMime, const Timer& timer, IOFile& io) {
+	MediaReader* pReader = MediaReader::New(subMime);
+	return pReader ? new MediaFile::Reader(path, pReader, timer, io) : NULL;
+}
+
 UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	DUMP_RESPONSE(_name.c_str(), pBuffer->data(), pBuffer->size(), _path);
 	Packet packet(pBuffer); // to capture pBuffer!
@@ -77,7 +82,7 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 							_realTime.update(Time::Now() - time);
 							continue;
 						}
-						if (delta < 20) // 20 ms to get at less one frame in advance (20ms = 50fps), not more otherwise not progressive (and player loading wave)
+						if (delta<20) // 20 ms for timer performance reason (to limit timer raising), not more otherwise not progressive (and player load data by wave)
 							continue;
 						_pSource->flush();
 						this->timer.set(_onTimer, delta);
@@ -132,10 +137,22 @@ void MediaFile::Reader::stop() {
 }
 
 
+
+
+
+MediaFile::Writer* MediaFile::Writer::New(const Path& path, const char* subMime, IOFile& io) {
+	//if (String::ICompare(subMime, EXPAND("m3u8")) == 0 || String::ICompare(subMime, EXPAND("x-mpegURL")) == 0)
+	//	return new MediaHLS::Writer(path, io);
+	MediaWriter* pWriter = MediaWriter::New(subMime);
+	return pWriter ? new MediaFile::Writer(path, pWriter, io) : NULL;
+}
+
 MediaFile::Writer::Write::Write(const shared<string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter) : Runner("MediaFileWrite"), _io(io), _pFile(pFile), pWriter(pWriter), _pName(pName),
 	onWrite([this](const Packet& packet) {
 		DUMP_REQUEST(_pName->c_str(), packet.data(), packet.size(), _pFile->path());
 		_io.write(_pFile, packet);
+		//Exception ex;
+		//_pFile->write(ex, packet.data(), packet.size());
 	}) {
 }
 
@@ -155,13 +172,15 @@ void MediaFile::Writer::setMediaParams(const Parameters& parameters) {
 bool MediaFile::Writer::beginMedia(const string& name) {
 	start(); // begin media, we can try to start here (just on beginMedia!)
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
+	if (_pFile)
+		return true; // already running (MBR switch)
 	io.open(_pFile, path, _onError, _append);
 	INFO(description(), " starts");
 	_pName.reset(new string(name));
 	return write<Write>();
 }
 
-void MediaFile::Writer::endMedia(const string& name) {
+void MediaFile::Writer::endMedia() {
 	write<EndWrite>();
 	stop();
 }

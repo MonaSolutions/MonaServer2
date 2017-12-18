@@ -32,7 +32,7 @@ namespace Mona {
 struct CCaption : virtual Object {
 	CCaption();
 
-	typedef std::function<void(UInt8 channel, const Packet& packet)>				OnText;
+	typedef std::function<void(UInt8 channel, shared<Buffer>& pBuffer)>				OnText;
 	typedef std::function<void(UInt8 channel, const char* lang)>					OnLang;
 
 	UInt32 extract(const Media::Video::Tag& tag, const Packet& packet, const CCaption::OnText& onText, const CCaption::OnLang& onLang);
@@ -57,23 +57,24 @@ private:
 	struct Track : virtual Object {
 		NULLABLE
 
-		Track() : _flags(FLAG_SKIP) {}
+		Track() : _flags(FLAG_SKIP) {} // by default the mode is TEXT (wait first DIRECT or LOAD caption mode!)
 	
 		UInt8 channel;
 
-		explicit operator bool() const { return _pBuffer.operator bool(); }
+		explicit operator bool() const { return _pBuffer.operator bool() && !_pBuffer->empty(); }
 		Buffer* operator->() { return _pBuffer.get(); }
 
-		Track& operator=(FLAGS flags) { _flags = flags; return *this; }
-		Track& operator&=(FLAGS flags) { _flags &= flags; return *this; }
-		Track& operator|=(FLAGS flags) { _flags |= flags; return *this; }
+		Track& operator=(nullptr_t) { _flags = FLAG_SKIP; _pBuffer.reset();  return self; }
+		Track& operator=(FLAGS flags) { _flags = flags; return self; }
+		Track& operator&=(FLAGS flags) { _flags &= flags; return self; }
+		Track& operator|=(FLAGS flags) { _flags |= flags; return self; }
 		FLAGS operator&(FLAGS flags) const { return _flags & flags; }
 		FLAGS operator|(FLAGS flags) const { return _flags | flags; }
 	
 		Track& append(const char* text);
 		Track& erase(UInt32 count=0);
 
-		void   flush(const CCaption::OnText& onText);
+		Track& flush(const CCaption::OnText& onText);
 	private:
 		shared<Buffer>  _pBuffer;
 		FLAGS			_flags;

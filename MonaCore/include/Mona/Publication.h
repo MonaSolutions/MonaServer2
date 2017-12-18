@@ -34,7 +34,6 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	typedef Event<void(UInt8 track, Media::Data::Type type, const Packet& packet)>			ON(Data);
 	typedef Event<void()>																	ON(Flush);
 	typedef Event<void(const Media::Properties&)>											ON(Properties);
-	typedef Event<void(UInt8 track)>														ON(KeyFrame);
 	typedef Event<void()>																	ON(End);
 	NULLABLE
 
@@ -48,6 +47,11 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 		TrackType& operator[](UInt8 track) { if (track > std::deque<TrackType>::size()) std::deque<TrackType>::resize(track); return std::deque<TrackType>::operator[](track - 1); }
 		const TrackType& operator[](UInt8 track) const { return std::deque<TrackType>::operator[](track - 1); }
 	};
+	template<typename TrackType>
+	struct MediaTracks : Tracks<TrackType>, virtual Object {
+		MediaTracks() : lastTime(0) {}
+		UInt32		lastTime;
+	};
 
 	struct Track : virtual Object {};
 	struct DataTrack : Track, virtual Object {
@@ -58,14 +62,13 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 		AudioTrack() : lang(NULL) {}
 		Media::Audio::Config	config;
 		const char*				lang;
+		
 	};
 	struct VideoTrack : Track, virtual Object {
-		VideoTrack() : keyFrameTime(0), keyFrameInterval(0), waitKeyFrame(true) {}
+		VideoTrack() : waitKeyFrame(true) {}
 		Media::Video::Config	config;
 		CCaption				cc;
 		bool					waitKeyFrame;
-		UInt32					keyFrameTime;
-		UInt32					keyFrameInterval;
 	};
 
 
@@ -76,8 +79,8 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 	const std::string&				name() const { return _name; }
 
-	const Tracks<AudioTrack>&		audios;
-	const Tracks<VideoTrack>&		videos;
+	const MediaTracks<AudioTrack>&	audios;
+	const MediaTracks<VideoTrack>&  videos;
 	const Tracks<DataTrack>&		datas;
 
 	UInt16							latency() const { return _latency; }
@@ -123,6 +126,7 @@ private:
 	void startRecording(MediaFile::Writer& recorder, bool append);
 	void stopRecording();
 
+	// Media::Properties overrides
 	void setProperties(UInt8 track, DataReader& reader) { Properties::setProperties(track, reader); }
 	void onParamChange(const std::string& key, const std::string* pValue);
 	void onParamClear();
@@ -130,19 +134,17 @@ private:
 	ByteRate						_byteRate;
 	LostRate						_lostRate;
 
-	Tracks<AudioTrack>				_audios;
-	Tracks<VideoTrack>				_videos;
+	MediaTracks<AudioTrack>			_audios;
+	MediaTracks<VideoTrack>			_videos;
 	Tracks<DataTrack>				_datas;
 
 	UInt16							_latency;
 
 	bool							_publishing;
-	Time							_waitingFirstVideoSync;
 	std::string						_name;
 
 	bool							_new;
 	bool							_newLost;
-	bool							_newProperties;
 
 	std::unique_ptr<Subscription>   _pRecording;
 };

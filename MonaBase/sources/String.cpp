@@ -67,15 +67,6 @@ size_t String::Split(const char* value, size_t size, const char* separators, con
 	return count;
 }
 
-vector<string>& String::Split(const char* value, size_t size, const char* separators, vector<string>& values, SPLIT_OPTIONS options) {
-	ForEach forEach([&values](UInt32 index,const char* value){
-		values.emplace_back(value);
-		return true;
-	});
-	Split(value, size, separators, forEach, options);
-	return values;
-}
-
 int String::ICompare(const char* value1, const char* value2,  size_t size) {
 	if (value1 == value2)
 		return 0;

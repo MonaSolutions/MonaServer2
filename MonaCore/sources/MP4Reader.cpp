@@ -182,6 +182,10 @@ MP4Reader::Box& MP4Reader::Box::operator=(BinaryReader& reader) {
 		_type = TREX;
 	} else if (memcmp(reader.current(), EXPAND("stsc")) == 0) {
 		_type = STSC;
+	} else if (memcmp(reader.current(), EXPAND("edts")) == 0) {
+		_type = EDTS;
+	} else if (memcmp(reader.current(), EXPAND("elst")) == 0) {
+		_type = ELST;
 	} else if (memcmp(reader.current(), EXPAND("mdhd")) == 0) {
 		_type = MDHD;
 	} else if (memcmp(reader.current(), EXPAND("tkhd")) == 0) {
@@ -259,6 +263,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 			case Box::MINF:
 			case Box::STBL:
 			case Box::DINF:
+			case Box::EDTS:
 				_boxes.emplace_back();
 				continue;
 			case Box::MOOV:
@@ -518,6 +523,40 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				UInt32 count = stsz.read32();
 				while (count-- && stsz.available() >= 4)
 					track.sizes.emplace_back(stsz.read32());
+				break;
+			}
+			case Box::ELST: {
+				// Edit list box
+				if (_tracks.empty()) {
+					ERROR("Edit list box not through a Track box");
+					break;
+				}
+				if (reader.available()<_boxes.back())
+					return reader.available();
+				Track& track = _tracks.back();
+				BinaryReader elst(reader.current(), _boxes.back());
+				UInt8 version = elst.read8();
+				elst.next(3); // flags
+				UInt32 count = elst.read32();
+				
+				track.durations.time = track.time = 0;
+
+				while (count--) {
+					UInt64 duration;
+					if (version) {
+						duration = elst.read64();
+						if ((elst.read64() & 0x80000000)==0) // if postive value
+							break;
+					} else {
+						duration = elst.read32();
+						if ((elst.read32() & 0x80000000)==0)  // if postive value
+							break;
+					}
+					// add silence on beginning!
+					track.durations.time += duration;
+					track.time += duration;
+					elst.next(4); // media_rate_integer + media_rate_fraction
+				}
 				break;
 			}
 			case Box::STTS: {
@@ -786,7 +825,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 										track = 0;
 									}
 								}
-							//	DEBUG("Audio ", type.audio.time);
+						  //	DEBUG("Audio ", type.audio.time);
 								if (track && size) // if size == 0 => silence!
 									_medias.emplace(time, new Media::Audio(type.audio, Packet(packet, reader.current(), size), track));
 								break;
@@ -819,7 +858,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								} else
 									type.video.compositionOffset = 0;
 
-								//DEBUG("Video ", time);
+								//	DEBUG("Video ", time);
 								
 								// Get the correct video.frame type!
 								// + support SPS and PPS inner samples (required by specification)

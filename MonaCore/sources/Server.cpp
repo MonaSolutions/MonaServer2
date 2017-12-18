@@ -113,7 +113,6 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 		startStreams(streams, publications, subscriptions);
 
 		onManage = ([&](UInt32) {
-			ServerAPI::manage(); // in first to mark obsolete publication/subscription
 			sessions.manage(); // in first to detect session useless died
 			_protocols.manage(); // manage custom protocol manage (resource protocols)
 
@@ -237,7 +236,7 @@ void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publica
 			INFO(pStream->description(), " loaded on publication ", it->first);
 			Subscription* pSubscription(new Subscription(*pTarget));
 			pStream->start(); // Start stream before subscription to call Stream::start before Target::beginMedia
-			if (!subscribe(ex, name.assign(it->first), *pSubscription)) {  // logs already displaid by subscribe
+			if (!subscribe(ex, name.assign(it->first), *pSubscription, pStream->query.c_str())) {  // logs already displaid by subscribe
 				delete pSubscription;
 				streams.erase(it++);
 				delete pStream;

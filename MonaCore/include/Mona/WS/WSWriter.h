@@ -46,7 +46,7 @@ struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable);
 	bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable);
 	bool			writeProperties(const Media::Properties& properties);
-	void			endMedia(const std::string& name);
+	void			endMedia();
 
 	void			flush() { Writer::flush(); }
 private:

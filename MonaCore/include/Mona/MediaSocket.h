@@ -31,6 +31,9 @@ struct MediaSocket : virtual Static {
 		Reader(Media::Stream::Type type, const Path& path, MediaReader* pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		virtual ~Reader() { stop(); }
 
+		static MediaSocket::Reader* New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static MediaSocket::Reader* New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+
 		void start();
 		void start(Media::Source& source) { _pSource = &source; return start(); }
 		bool running() const { return _subscribed; }
@@ -47,7 +50,7 @@ struct MediaSocket : virtual Static {
 		struct Decoder : HTTPDecoder, virtual Object {
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
 				_type(type), _rest(0), _pReader(pReader), HTTPDecoder(handler, Path::Null(), name) {}
-			~Decoder() { _pReader->flush(self); }
+			~Decoder() { if (_pReader.unique()) _pReader->flush(self); }
 
 		private:
 			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
@@ -79,6 +82,9 @@ struct MediaSocket : virtual Static {
 		Writer(Media::Stream::Type type, const Path& path, MediaWriter* pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		virtual ~Writer() { stop(); }
 
+		static MediaSocket::Writer* New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static MediaSocket::Writer* New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+
 		void start();
 		bool running() const { return _subscribed; }
 		void stop();
@@ -95,7 +101,7 @@ struct MediaSocket : virtual Static {
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Audio>>(track, tag, packet); }
 		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Video>>(track, tag, packet); }
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return send<MediaSend<Media::Data>>(track, type, packet); }
-		void endMedia(const std::string& name);
+		void endMedia();
 		
 	private:
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', _pWriter->format()); }

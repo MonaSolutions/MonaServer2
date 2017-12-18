@@ -30,7 +30,7 @@ using namespace std;
 namespace Mona {
 
 
-FlashWriter::FlashWriter() : _callbackHandleOnAbort(0),_callbackHandle(0), amf0(false), isMain(false) {
+FlashWriter::FlashWriter() : _callbackHandleOnAbort(0),_callbackHandle(0), amf0(false), isMain(false), _lastTime(0) {
 }
 
 void FlashWriter::closing(Int32 error, const char* reason) {
@@ -107,14 +107,16 @@ AMFWriter& FlashWriter::writeAMFData(const string& name) {
 }
 
 bool FlashWriter::beginMedia(const string& name) {
+	_pPublicationName = &name;
 	writeAMFStatus("NetStream.Play.PublishNotify", name + " is now published");
 	_firstAV = true;
 	return true;
 }
 
 bool FlashWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
+	_time = tag.time + _lastTime;
 	_firstAV = false;
-	BinaryWriter& writer(*write(AMF::TYPE_AUDIO, tag.time, packet, reliable));
+	BinaryWriter& writer(*write(AMF::TYPE_AUDIO, _time, packet, reliable));
 	if (!packet)
 		return true; // "end audio signal" => detected by FP and works just if no packet content!
 	writer.write8(FLVWriter::ToCodecs(tag));
@@ -124,13 +126,14 @@ bool FlashWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet,
 }
 
 bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
+	_time = tag.time + _lastTime;
 	if (_firstAV) {
 		_firstAV = false;
 		// patch for flash, to avoid to wait audio, an empty audio packet has to be sent ( = "end audio signal")
-		write(AMF::TYPE_AUDIO, tag.time, reliable);
+		write(AMF::TYPE_AUDIO, _time, reliable);
 	}
 	bool isAVCConfig(tag.codec == Media::Video::CODEC_H264 && tag.frame == Media::Video::FRAME_CONFIG && MPEG4::ParseVideoConfig(packet, _sps, _pps));
-	BinaryWriter& writer(*write(AMF::TYPE_VIDEO, tag.time, isAVCConfig ? Packet::Null() : packet, reliable));
+	BinaryWriter& writer(*write(AMF::TYPE_VIDEO, _time, isAVCConfig ? Packet::Null() : packet, reliable));
 	writer.write8(FLVWriter::ToCodecs(tag));
 	if (tag.codec != Media::Video::CODEC_H264)
 		return true;
@@ -171,8 +174,9 @@ bool FlashWriter::writeProperties(const Media::Properties& properties) {
 	return true;
 }
 
-void FlashWriter::endMedia(const string& name) {
-	writeAMFStatus("NetStream.Play.UnpublishNotify", name + " is now unpublished");
+void FlashWriter::endMedia() {
+	_lastTime = _time;
+	writeAMFStatus("NetStream.Play.UnpublishNotify", *_pPublicationName + " is now unpublished");
 }
 
 

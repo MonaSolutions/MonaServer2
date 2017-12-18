@@ -199,8 +199,8 @@ struct EntriesComparator {
 			if (pPath1->size() != pPath2->size())
 				return _sort ==HTTP::SORT_ASC ? pPath1->size() < pPath2->size() : pPath2->size() < pPath1->size();
 		} else if (_sortBy == HTTP::SORTBY_MODIFIED) {
-			if (pPath1->lastModified() != pPath2->lastModified())
-				return _sort ==HTTP::SORT_ASC ? pPath1->lastModified() < pPath2->lastModified() : pPath2->lastModified() < pPath1->lastModified();
+			if (pPath1->lastChange() != pPath2->lastChange())
+				return _sort ==HTTP::SORT_ASC ? pPath1->lastChange() < pPath2->lastChange() : pPath2->lastChange() < pPath1->lastChange();
 		}
 		
 		// NAME case
@@ -233,7 +233,7 @@ static void WriteDirectoryEntry(BinaryWriter& writer, const Path& entry) {
 	writer.write(EXPAND("<tr><td><a href=\""))
 		.write(entry.name()).write(entry.isFolder() ? "/\">" : "\">")
 		.write(entry.name()).write(entry.isFolder() ? "/" : "").write(EXPAND("</a></td><td>&nbsp;"));
-	String::Append(writer, String::Date(Date(entry.lastModified()), "%d-%b-%Y %H:%M"))
+	String::Append(writer, String::Date(Date(entry.lastChange()), "%d-%b-%Y %H:%M"))
 		.write(EXPAND("</td><td align=right>&nbsp;&nbsp;"))
 		.write(size).write(EXPAND("</td></tr>\n"));
 }

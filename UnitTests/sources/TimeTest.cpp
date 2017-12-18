@@ -90,7 +90,7 @@ ADD_TEST(DateConversion) {
 					if (d == 29 && !Date::IsLeapYear(i))
 						continue;
 				}
-				UInt16 random(Util::Random<UInt16>());
+				UInt16 random = Util::Random<UInt16>();
 				date.update(i, m, d,random%23,  random%59, random%59, random%1000);
 				date2.update(date.time());
 				CHECK(date == date2);

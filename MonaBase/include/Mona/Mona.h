@@ -151,21 +151,17 @@ private:
 	static const UInt16 _CharacterTypes[128];
 };
 
-inline UInt64 abs(double value) { return (UInt64)std::abs((long long int)value); }
-inline UInt64 abs(float value) { return (UInt64)std::abs((long long int)value); }
+inline UInt64 abs(double value) { return (UInt64)std::abs(value); }
+inline UInt64 abs(float value) { return (UInt64)std::abs(value); }
 inline UInt64 abs(Int64 value) { return (UInt64)std::abs(value); }
 inline UInt32 abs(Int32 value) { return (UInt32)std::abs(value); }
 inline UInt16 abs(Int16 value) { return (UInt16)std::abs(value); }
 inline UInt8 abs(Int8 value) { return (UInt8)std::abs(value); }
 
-template<typename Type>
-inline Type abs(Type a,Type b) {
-	Type result(b - a);
-	return  unsigned(result) > (std::numeric_limits<Type>::max()>>1) ? (a - b) : (b - a);
-}
-template<typename Type1, typename Type2>
-inline Type2 abs(Type1 a,Type2 b) {
-	return std::numeric_limits<Type1>::max()<=std::numeric_limits<Type2>::max() ? abs(Type2(a), b) : abs(b,a);
+template<typename Type1, typename Type2, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
+inline ResultType distance(Type1 value1, Type2 value2) {
+	ResultType result(value2 - value1);
+	return abs(result) > (std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max() >> 1) ? (value1 - value2) : result;
 }
 
 inline bool isalnum(char value) { return ASCII::Is(value, ASCII::ALPHA | ASCII::DIGIT); }
@@ -184,23 +180,24 @@ inline bool isxml(char value) { return ASCII::Is(value,ASCII::XML); }
 inline char tolower(char value) { return ASCII::ToLower(value); }
 inline char toupper(char value) { return ASCII::ToUpper(value); }
 
+
 const char* strrpbrk(const char* value, const char* markers);
 const char *strrstr(const char* where, const char* what);
 
-template<typename NumberType>
-inline NumberType min(NumberType value) { return value; }
-template<typename NumberType1, typename NumberType2, typename ...Args>
-inline typename std::conditional<std::numeric_limits<NumberType1>::max() >= std::numeric_limits<NumberType2>::max(), NumberType1, NumberType2>::type
-min(NumberType1 value1, NumberType2 value2, Args&&... args) { return value1 < value2 ? min(value1, args ...) : min(value2, args ...); }
+template<typename Type>
+inline Type min(Type value) { return value; }
+template<typename Type1, typename Type2, typename ...Args>
+inline typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type
+				  min(Type1 value1, Type2 value2, Args&&... args) { return value1 < value2 ? min(value1, args ...) : min(value2, args ...); }
 
-template<typename NumberType>
-inline NumberType max(NumberType value) { return value; }
-template<typename NumberType1, typename NumberType2, typename ...Args>
-inline typename std::conditional<std::numeric_limits<NumberType1>::max() >= std::numeric_limits<NumberType2>::max(), NumberType1, NumberType2>::type
-				  max(NumberType1 value1, NumberType2 value2, Args&&... args) { return value1 > value2 ? max(value1, args ...) : max(value2, args ...); }
+template<typename Type>
+inline Type max(Type value) { return value; }
+template<typename Type1, typename Type2, typename ...Args>
+inline typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type
+				  max(Type1 value1, Type2 value2, Args&&... args) { return value1 > value2 ? max(value1, args ...) : max(value2, args ...); }
 
-template<typename RangeType, typename NumberType>
-inline RangeType range(NumberType value) { return value > std::numeric_limits<RangeType>::max() ? std::numeric_limits<RangeType>::max() : ((std::is_signed<NumberType>::value && value < std::numeric_limits<RangeType>::min()) ? std::numeric_limits<RangeType>::min() : (RangeType)value); }
+template<typename RangeType, typename Type>
+inline RangeType range(Type value) { return value > std::numeric_limits<RangeType>::max() ? std::numeric_limits<RangeType>::max() : ((std::is_signed<Type>::value && value < std::numeric_limits<RangeType>::min()) ? std::numeric_limits<RangeType>::min() : (RangeType)value); }
 
 const std::string& typeof(const std::type_info& info);
 template<typename ObjectType>
@@ -234,6 +231,29 @@ inline typename MapType::iterator lower_bound(MapType& map, const typename MapTy
 	}
 	return result;
 }
+
+template <typename Type>
+class is_container : virtual Static {
+	template<typename C> static char(&B(typename std::enable_if<
+		std::is_same<decltype(static_cast<typename C::const_iterator(C::*)() const>(&C::begin)), typename C::const_iterator(C::*)() const>::value,
+		void
+	>::type*))[1];
+	template<typename C> static char(&B(...))[2];
+
+	template<typename C> static char(&E(typename std::enable_if<
+		std::is_same<decltype(static_cast<typename C::const_iterator(C::*)() const>(&C::end)), typename C::const_iterator(C::*)() const>::value,
+		void
+	>::type*))[1];
+	template<typename C> static char(&E(...))[2];
+
+	template<typename C> static char(&I(typename std::enable_if<
+		std::is_same<decltype(static_cast<typename C::iterator(C::*)(typename C::const_iterator, typename C::value_type&&)>(&C::insert)), typename C::iterator(C::*)(typename C::const_iterator, typename C::value_type&&)>::value,
+		void
+	>::type*))[1];
+	template<typename C> static char(&I(...))[2];
+public:
+	static bool const value = sizeof(B<Type>(0)) == 1 && sizeof(E<Type>(0)) == 1 && sizeof(I<Type>(0)) == 1;
+};
 
 /*!
 enum mathematics constant (base and others) */

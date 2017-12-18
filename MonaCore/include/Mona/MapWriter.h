@@ -74,7 +74,7 @@ private:
 	void set(Args&&... args) {
 		if (!_isProperty)
 			String::Append(_property, _layers.back().second++);
-		_map.emplace(std::piecewise_construct, std::forward_as_tuple(_property), std::forward_as_tuple(std::forward<Args>(args)...));
+		_map.emplace(_property, std::forward<Args>(args)...);
 		_isProperty = false;
 		_property = _key;
 	}

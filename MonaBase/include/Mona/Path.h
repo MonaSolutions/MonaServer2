@@ -56,7 +56,8 @@ struct Path : virtual Object {
 	// physical disk file
 	bool		exists(bool refresh = false) const { return _pImpl ? _pImpl->exists(refresh) : false; }
 	UInt64		size(bool refresh = false) const { return _pImpl ? _pImpl->size(refresh) : 0; }
-	Int64		lastModified(bool refresh = false) const { return _pImpl ? _pImpl->lastModified(refresh) : 0; }
+	Int64		lastChange(bool refresh = false) const { return _pImpl ? _pImpl->lastChange(refresh) : 0; }
+	Int64		lastAccess(bool refresh = false) const { return _pImpl ? _pImpl->lastAccess(refresh) : 0; }
 	UInt8		device() const { return _pImpl ? _pImpl->device() : 0; }
 
 	// setters
@@ -98,10 +99,11 @@ private:
 
 		bool	exists(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh); }
 		UInt64	size(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).size; }
-		Int64	lastModified(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).lastModified; }
+		Int64	lastChange(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).lastChange; }
+		Int64	lastAccess(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).lastAccess; }
 		UInt8	device() const { std::lock_guard<std::mutex> lock(_mutex); return attributes(false).device; }
 
-		void setAttributes(UInt64 size, Int64 lastModified, UInt8 device);
+		void setAttributes(UInt64 size, Int64 lastAccess, Int64 lastChange, UInt8 device);
 	private:
 		void init();
 		const FileSystem::Attributes& attributes(bool refresh) const;

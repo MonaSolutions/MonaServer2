@@ -105,14 +105,13 @@ struct ServerAPI : virtual Object, Parameters {
 
 protected:
 	ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
-	
-	void					manage();
-private:
 
+private:
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription, Client* pClient);
 	bool					subscribe(Exception& ex, const std::string& stream, const char* ext, Subscription& subscription, const char* query, Client* pClient);
+	bool					subscribe(Exception& ex, Publication& publication, Subscription& subscription, Client* pClient);
 	void					unsubscribe(Subscription& subscription, Client* pClient);
-	void					unsubscribe(Subscription& subscription, Publication& publication, Client* pClient);
+	void					unsubscribe(Subscription& subscription, Publication* pPublication, Client* pClient);
 
 	Publication*			publish(Exception& ex, std::string& stream, Client* pClient);
 	Publication*			publish(Exception& ex, const std::string& stream, const char* ext, const char* query, Client* pClient);
@@ -120,37 +119,6 @@ private:
 
 
 	std::map<std::string,Publication>	_publications;
-
-	struct WaitingKey : virtual Object {
-		WaitingKey(ServerAPI& api, Publication& publication) : _api(api), publication(publication) {
-			publication.onKeyFrame = [this](UInt8 track) {
-				auto it = subscriptions.begin();
-				while (it != subscriptions.end()) {
-					if (it->first->videos.selected(track)) {
-						raise(*it->first, it->second);
-						it = subscriptions.erase(it);
-					} else
-						++it;
-				}
-			};
-		}
-		~WaitingKey() {
-			publication.onKeyFrame = nullptr;
-		}
-		void raise(Subscription& subscription, Client* pClient) {
-			_api.unsubscribe(subscription, *subscription.pPublication, pClient);
-			subscription.pNextPublication = NULL;
-			subscription.pPublication = &publication;
-			subscription.reset(); // to get properties(metadata) and new state of new publication...
-		}
-		Publication&						publication;
-		std::map<Subscription*, Client*>	subscriptions;
-	private:
-		ServerAPI&					  _api;
-	};
-
-	std::map<Publication*, WaitingKey>	_waitingKeys;
-	
 };
 
 

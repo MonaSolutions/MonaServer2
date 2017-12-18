@@ -71,7 +71,7 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 			shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
 			BinaryWriter writer(*pBuffer);
 			HTTP_BEGIN_HEADER(writer)
-				HTTP_ADD_HEADER("Last-Modified", String::Date(Date(_file.lastModified()), Date::FORMAT_HTTP));
+				HTTP_ADD_HEADER("Last-Modified", String::Date(Date(_file.lastChange()), Date::FORMAT_HTTP));
 			HTTP_END_HEADER
 
 			HTTP::Sort		sort(HTTP::SORT_ASC);
@@ -140,7 +140,7 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 	}
 
 	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
-	if (!_properties.count() && request.ifModifiedSince >= self->lastModified()) {
+	if (!_properties.count() && request.ifModifiedSince >= self->lastChange()) {
 		if(send(HTTP_CODE_304) && !_head) // NOT MODIFIED
 			_onEnd();
 		return;
@@ -156,7 +156,7 @@ void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
 	}
 	if(_properties.count()) {
 		// parsing file!
-		shared<Buffer> pBuffer(new Buffer(0xFFFF));
+		shared<Buffer> pBuffer(new Buffer(UInt32(self->size())));
 		int readen;
 		AUTO_ERROR(readen = self->read(ex, pBuffer->data(), pBuffer->size()),"HTTP get ", request.path, '/', _file.name());
 		if (readen < 0) {
@@ -181,7 +181,7 @@ bool HTTPFileSender::sendHeader(UInt64 fileSize) {
 	shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
 	BinaryWriter writer(*pBuffer);
 	HTTP_BEGIN_HEADER(writer)
-		HTTP_ADD_HEADER("Last-Modified", String::Date(Date(self->lastModified()), Date::FORMAT_HTTP));
+		HTTP_ADD_HEADER("Last-Modified", String::Date(Date(self->lastChange()), Date::FORMAT_HTTP));
 	HTTP_END_HEADER
 	return send(HTTP_CODE_200, mime, subMime, Packet(pBuffer), fileSize);
 }

@@ -22,6 +22,12 @@ using namespace std;
 
 namespace Mona {
 
+MediaSocket::Reader* MediaSocket::Reader::New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
+	if (!*subMime && type == Media::Stream::TYPE_HTTP ) // Format can be empty with HTTP source
+		return new MediaSocket::Reader(type, path, NULL, address, io, pTLS);
+	MediaReader* pReader = MediaReader::New(subMime);
+	return pReader ? new MediaSocket::Reader(type, path, pReader, address, io, pTLS) : NULL;
+}
 
 void MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	if (_pReader.unique()) // Work too for HTTP (if _pReader == NULL then _pReader.unique() == false)
@@ -165,6 +171,11 @@ const shared<Socket>& MediaSocket::Reader::socket() {
 
 
 
+MediaSocket::Writer* MediaSocket::Writer::New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
+	MediaWriter* pWriter = MediaWriter::New(subMime);
+	return pWriter ? new MediaSocket::Writer(type, path, pWriter, address, io, pTLS) : NULL;
+}
+
 MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming) : Runner("MediaSocketSend"), _pSocket(pSocket), pWriter(pWriter),
 	_pStreaming(pStreaming), _pName(pName),
 	onWrite([this, type](const Packet& packet) {
@@ -243,12 +254,13 @@ void MediaSocket::Writer::start() {
 }
 
 bool MediaSocket::Writer::beginMedia(const string& name) {
+	bool running = self.running(); // can be already running (MBR switch)
 	_pName.reset(new string(name));
 	start(); // begin media, we can try to start here (just on beginMedia!)
-	return send<Send>();
+	return running ? true : send<Send>();
 }
 
-void MediaSocket::Writer::endMedia(const string& name) {
+void MediaSocket::Writer::endMedia() {
 	send<EndSend>();
 	stop();
 }
