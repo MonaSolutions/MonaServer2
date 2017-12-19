@@ -120,7 +120,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 								_stage = PROGRESSIVE;
 							break;
 						case HTTP::TYPE_GET:
-							if (_pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO)
+							if (_pHeader->mime == MIME::TYPE_TEXT || _pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO)
 								_path.exists(); // preload disk attributes now in the thread!
 						default:
 							_length = 0;

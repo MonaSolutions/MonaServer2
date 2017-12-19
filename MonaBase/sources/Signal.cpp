@@ -48,14 +48,14 @@ bool Signal::wait(UInt32 millisec) {
 }
 
 void Signal::set() {
-	unique_lock<mutex> lock(_mutex);
+	lock_guard<mutex> lock(_mutex);
 	_set = true;
 	_condition.notify_all();
 }
 
 
 void Signal::reset() {
-	unique_lock<mutex> lock(_mutex);
+	lock_guard<mutex> lock(_mutex);
 	_set = false;
 }
 

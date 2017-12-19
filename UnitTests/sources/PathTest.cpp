@@ -67,13 +67,13 @@ ADD_TEST(Attributes) {
 	Path path("temp.mona");
 	CHECK(File(path, File::MODE_WRITE).write(ex, EXPAND("t")) && !ex);
 	CHECK(path.exists(true));
-	CHECK(path.lastModified());
+	CHECK(path.lastChange());
 	CHECK(path.size()==1);
 	CHECK(FileSystem::Delete(ex, path) && !ex);
 	CHECK(path.exists());
-	CHECK(path.lastModified());
+	CHECK(path.lastChange());
 	CHECK(!path.exists(true));
-	CHECK(!path.lastModified());
+	CHECK(!path.lastChange());
 
 }
 

@@ -361,8 +361,8 @@ ADD_TEST(Creation) {
 
 ADD_TEST(Attributes) {
 	FileSystem::Attributes attributes;
-	CHECK(!FileSystem::GetAttributes(Path1.assign(Home).append(".MonaFileSystemTests"), attributes) && !attributes && !attributes.lastModified);
-	CHECK(FileSystem::GetAttributes(Path1.append("/"), attributes) && attributes && attributes.lastModified);
+	CHECK(!FileSystem::GetAttributes(Path1.assign(Home).append(".MonaFileSystemTests"), attributes) && !attributes && !attributes.lastChange);
+	CHECK(FileSystem::GetAttributes(Path1.append("/"), attributes) && attributes && attributes.lastChange);
 
 	Exception ex;
 #if defined(_WIN32)

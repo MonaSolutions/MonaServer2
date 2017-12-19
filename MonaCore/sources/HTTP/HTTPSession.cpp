@@ -331,9 +331,9 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 				ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path,"/",file.name());
 			return;
 		}
-		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD, filePath.lastModified()==0 means "doesn't exists")
+		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD)
 		// Subscribe for a live stream with the basename file as stream name
-		if (!file.exists()) {
+		if (!file.isFolder()) {
 			switch (request->mime) {
 				case MIME::TYPE_TEXT:
 					// subtitle?
@@ -341,6 +341,8 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 						break;
 				case MIME::TYPE_VIDEO:
 				case MIME::TYPE_AUDIO:
+					if (file.exists())
+						break; // VOD!
 					if (request->query == "?") {
 						// request publication properties!
 						const auto& it = api.publications.find(file.baseName());
@@ -356,13 +358,10 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 					} else
 						subscribe(ex, file.baseName());
 					return;
-				default:;
+				default:
+					return _pWriter->writeFile(file, fileProperties);
 			}
 		}
-
-
-		if (!file.isFolder())
-			return _pWriter->writeFile(file, fileProperties);
 	}
 
 
