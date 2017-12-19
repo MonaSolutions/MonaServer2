@@ -9,3 +9,10 @@
 /MonaTiny/logs
 /MonaTiny/MonaTiny
 /UnitTests/Debug
+/MonaBase/tmp64
+/MonaCore/tmp64
+/MonaTiny/release
+/MonaTiny/tmp64
+/UnitTests/tmp64
+/UnitTests/release
+/MonaTiny/www

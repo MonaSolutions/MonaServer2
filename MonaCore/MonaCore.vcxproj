@@ -210,6 +210,13 @@
     <ClInclude Include="include\Mona\FLVReader.h" />
     <ClInclude Include="include\Mona\H264NALReader.h" />
     <ClInclude Include="include\Mona\H264NALWriter.h" />
+    <ClInclude Include="include\Mona\HEVC.h" />
+    <ClInclude Include="include\Mona\HEVCNALReader.h" />
+    <ClInclude Include="include\Mona\HEVCNALWriter.h" />
+    <ClInclude Include="include\Mona\HLSWriter.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="include\Mona\HTTP\HTTPDataSender.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPDecoder.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPFileSender.h" />
@@ -306,6 +313,13 @@
     <ClCompile Include="sources\FLVReader.cpp" />
     <ClCompile Include="sources\H264NALReader.cpp" />
     <ClCompile Include="sources\H264NALWriter.cpp" />
+    <ClCompile Include="sources\HEVC.cpp" />
+    <ClCompile Include="sources\HEVCNALReader.cpp" />
+    <ClCompile Include="sources\HEVCNALWriter.cpp" />
+    <ClCompile Include="sources\HLSWriter.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="sources\HTTP\HTTPDecoder.cpp" />
     <ClCompile Include="sources\HTTP\HTTPFileSender.cpp" />
     <ClCompile Include="sources\HTTP\HTTPMediaSender.cpp" />

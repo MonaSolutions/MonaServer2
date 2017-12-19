@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/TSReader.h"
 #include "Mona/H264NALReader.h"
+#include "Mona/HEVCNALReader.h"
 #include "Mona/ADTSReader.h"
 #include "Mona/MP3Reader.h"
 #include "Mona/MapReader.h"
@@ -247,6 +248,10 @@ void TSReader::parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::S
 		switch(value) {
 			case 0x1b: { // H.264 video
 				program.set<H264NALReader>(Media::TYPE_VIDEO, source);
+				break;
+			}
+			case 0x24: { // H.265 video
+				program.set<HEVCNALReader>(Media::TYPE_VIDEO, source);
 				break;
 			}
 			case 0x0f: { // AAC Audio / ADTS

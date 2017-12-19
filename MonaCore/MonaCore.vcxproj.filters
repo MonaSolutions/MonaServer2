@@ -319,6 +319,18 @@
     <ClInclude Include="include\Mona\WriterReader.h">
       <Filter>Serializers\Patterns</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\HEVCNALReader.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\HEVCNALWriter.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\HEVC.h">
+      <Filter>Multimedia</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\HLSWriter.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -540,6 +552,18 @@
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
     <ClCompile Include="sources\SRTWriter.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HEVCNALReader.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HEVCNALWriter.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HEVC.cpp">
+      <Filter>Multimedia</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HLSWriter.cpp">
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
   </ItemGroup>

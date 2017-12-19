@@ -22,6 +22,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/TSWriter.h"
 #include "Mona/MP4Writer.h"
 #include "Mona/H264NALWriter.h"
+#include "Mona/HEVCNALWriter.h"
 #include "Mona/ADTSWriter.h"
 //#include "Mona/MP3Writer.h"
 #include "Mona/SRTWriter.h"
@@ -50,6 +51,7 @@ static const map<size_t, Format> _Formats({
 	{ typeid(TSWriter).hash_code(), Format("TS", MIME::TYPE_VIDEO, "mp2t") },
 	{ typeid(MP4Writer).hash_code(), Format("MP4", MIME::TYPE_VIDEO, "mp4") },
 	{ typeid(H264NALWriter).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
+	{ typeid(HEVCNALWriter).hash_code(), Format("HEVC", MIME::TYPE_VIDEO, "hevc") },
 	{ typeid(ADTSWriter).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	// { typeid(MP3Writer).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
 	{ typeid(SRTWriter).hash_code(), Format("SRT", MIME::TYPE_TEXT, "plain; charset=utf-8") },
@@ -77,6 +79,8 @@ MediaWriter* MediaWriter::New(const char* subMime) {
 		return new MP4Writer();
 	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
 		return new H264NALWriter();
+	if (String::ICompare(subMime, EXPAND("hevc")) == 0 || String::ICompare(subMime, EXPAND("265")) == 0)
+		return new HEVCNALWriter();
 	if (String::ICompare(subMime, EXPAND("aac")) == 0)
 		return new ADTSWriter();
 //	if (String::ICompare(subMime, EXPAND("mp3")) == 0)

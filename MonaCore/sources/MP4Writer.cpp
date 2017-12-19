@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/MP4Writer.h"
 #include "Mona/MPEG4.h"
+#include "Mona/HEVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -108,7 +109,7 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 }
 
 void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
-	if (tag.codec != Media::Video::CODEC_H264) {
+	if (tag.codec != Media::Video::CODEC_H264 && tag.codec != Media::Video::CODEC_HEVC) {
 		if (!(_errors & 2)) {
 			_errors |= 2;
 			WARN("Video codec ", Media::Video::CodecToString(tag.codec), " ignored, Web MP4 supports just H264 codec");
@@ -191,10 +192,10 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 			writer.next(4); // skip size!
 			writer.write(EXPAND("trak"));
 
-			Packet sps, pps;
+			Packet sps, pps, vps;
 			UInt32 dimension = 0;
-			if (videos.config && MPEG4::ParseVideoConfig(videos.config, sps, pps))
-				dimension = MPEG4::SPSToVideoDimension(sps.data(), sps.size());
+			if (videos.config && ((videos.codec == Media::Video::CODEC_H264 && MPEG4::ParseVideoConfig(videos.config, sps, pps)) || (videos.codec == Media::Video::CODEC_HEVC && HEVC::ParseVideoConfig(videos.config, vps, sps, pps))))
+				dimension = (videos.codec == Media::Video::CODEC_H264)? MPEG4::SPSToVideoDimension(sps.data(), sps.size()) : HEVC::SPSToVideoDimension(sps.data(), sps.size());
 			else
 				WARN("No avcC configuration");
 
@@ -240,14 +241,17 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 							{ // avc1 TODO => switch to avc3 when players are ready? (test video config packet inband!)	
 								UInt32 sizePos = writer.size();
 								writer.next(4); // skip size!
-								// avc1
+								// hev1/avc1
 								// 00 00 00 00 00 00	reserved (6 bytes)
 								// 00 01				data reference index (2 bytes)
 								// 00 00 00 00			version + revision level
 								// 00 00 00 00			vendor
 								// 00 00 00 00			temporal quality
 								// 00 00 00 00			spatial quality
-								writer.write(EXPAND("avc1\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+								if (vps)
+									writer.write(EXPAND("hev1\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+								else
+									writer.write(EXPAND("avc1\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
 								// 05 00 02 20			width + height
 								writer.write32(dimension); // width + height	
 								// 00 00 00 00			horizontal resolution
@@ -261,7 +265,11 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 								// FF FF				default color table
 								writer.write(EXPAND("\x00\x18\xFF\xFF"));
 
-								if (sps) {
+								if (vps) {
+									UInt32 sizePos = writer.size();
+									BinaryWriter(pBuffer->data() + sizePos, 4).write32(HEVC::WriteVideoConfig(writer.next(4).write(EXPAND("hvcC")), vps, sps, pps).size() - sizePos);
+								}
+								else if (sps) {
 									// file:///C:/Users/mathieu/Downloads/standard8978%20(1).pdf => 5.2.1.1
 									UInt32 sizePos = writer.size();
 									BinaryWriter(pBuffer->data() + sizePos, 4).write32(MPEG4::WriteVideoConfig(writer.next(4).write(EXPAND("avcC")), sps, pps).size() - sizePos);

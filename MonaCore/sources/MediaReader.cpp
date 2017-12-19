@@ -22,6 +22,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/TSReader.h"
 #include "Mona/MP4Reader.h"
 #include "Mona/H264NALReader.h"
+#include "Mona/HEVCNALReader.h"
 #include "Mona/ADTSReader.h"
 #include "Mona/MP3Reader.h"
 #include "Mona/MonaReader.h"
@@ -47,6 +48,7 @@ static const map<size_t, Format> _Formats({
 	{ typeid(TSReader).hash_code(), Format("TS", MIME::TYPE_VIDEO, "mp2t") },
 	{ typeid(MP4Reader).hash_code(), Format("MP4", MIME::TYPE_VIDEO, "mp4") },
 	{ typeid(H264NALReader).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
+	{ typeid(HEVCNALReader).hash_code(), Format("HEVC", MIME::TYPE_VIDEO, "hevc") },
 	{ typeid(ADTSReader).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	{ typeid(MP3Reader).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
 	{ typeid(MonaReader).hash_code(), Format("MONA", MIME::TYPE_VIDEO, "mona") },
@@ -72,6 +74,8 @@ MediaReader* MediaReader::New(const char* subMime) {
 		return new MP4Reader();
 	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
 		return new H264NALReader();
+	if (String::ICompare(subMime, EXPAND("hevc")) == 0 || String::ICompare(subMime, EXPAND("265")) == 0)
+		return new HEVCNALReader();
 	if (String::ICompare(subMime, EXPAND("aac")) == 0)
 		return new ADTSReader();
 	if (String::ICompare(subMime, EXPAND("mp3")) == 0)
