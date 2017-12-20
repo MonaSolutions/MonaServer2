@@ -358,9 +358,9 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 					} else
 						subscribe(ex, file.baseName());
 					return;
-				default:
-					return _pWriter->writeFile(file, fileProperties);
+				default:;
 			}
+			return _pWriter->writeFile(file, fileProperties);
 		}
 	}
 

@@ -158,7 +158,7 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, 
 		parameters.setString("format", ext);
 	const char* mbr = parameters.getString("mbr");
 	if (mbr) // add "this" mbr if mbr param!
-		parameters.emplace("mbr", mbr, "|", stream);
+		parameters.emplace("mbr", String(mbr, "|", stream));
 
 	// Change parameters with just one call to limit change event propagation to Target
 	subscription.setParams(move(parameters));
