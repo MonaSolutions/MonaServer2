@@ -145,13 +145,14 @@ private:
 				tagOut.time = _seekTime;
 			} else
 				tagOut.time = 0; // wrong but allow to play immediatly the config packet!
+		} else {
 #if defined(_DEBUG) // allow to debug a no monotonic time in debug, in release we have to accept "cyclic" time value (live of more than 49 days),
 			// also for container like TS with AV offset it can be a SECOND packet just after the FIRST which can be just before, not an error
-		} else if (_startTime > _lastTime) {
-			WARN(typeid(TagType) == typeid(Media::Audio::Tag) ? "Audio" : "Video", " time too late on ", name());
+			if (_startTime > _lastTime)
+				WARN(typeid(TagType) == typeid(Media::Audio::Tag) ? "Audio" : "Video", " time too late on ", name());
 #endif
-		} else
 			tagOut.time = _lastTime - _startTime + _seekTime;
+		}
 		tagOut.codec = tagIn.codec;
 		return tagOut;
 	}

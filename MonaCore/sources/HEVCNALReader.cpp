@@ -84,12 +84,12 @@ void HEVCNALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& sour
 		if (_type > 34)
 			return flushNal(source); // flush possible NAL waiting and ignore current NAL (_pNal is reseted)
 		
-		INFO("Nal type : ", _type, " : current frame : ", _tag.frame, " ; time : ", time, " ; last time : ", _tag.time, " ; size : ", size)
+		//INFO("Nal type : ", _type, " : current frame : ", _tag.frame, " ; time : ", time, " ; last time : ", _tag.time, " ; size : ", size)
 
 		if (_tag.frame == Media::Video::FRAME_CONFIG) {
 			UInt8 prevType = ((_pNal->data()[4] & 0x7f) >> 1);
 
-			INFO("Nal config previous type : ", prevType)
+			//INFO("Nal config previous type : ", prevType)
 
 			if (_type == prevType)
 				_pNal.reset();  // erase repeated config type and wait the other config type!
