@@ -19,30 +19,32 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/MediaReader.h"
+#include "Mona/MediaWriter.h"
 
 namespace Mona {
 
-/*!
-Transform a 00 00 01 NAL format to a AVC NAL format */
-struct HEVCNALReader : virtual Object, MediaTrackReader {
-	// NAL types => https://www.codeproject.com/Tips/896030/The-Structure-of-HEVC-Video
+template <class VideoType>
+struct NALNetWriter : MediaTrackWriter, virtual Object {
+	// https://tools.ietf.org/html/rfc6184
+	// http://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/
 
-	HEVCNALReader(UInt8 track=1) : MediaTrackReader(track), _tag(Media::Video::CODEC_HEVC), _state(0), _type(0xFF) {}
+	NALNetWriter();
+
+	void beginMedia() { _nal = NAL_START; _time = 0; }
+	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
+	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
 
 private:
-
-	UInt32	parse(Packet& buffer, Media::Source& source);
-	void	onFlush(Packet& buffer, Media::Source& source);
-
-	void    writeNal(const UInt8* data, UInt32 size, Media::Source& source, bool eon=false);
-	void	flushNal(Media::Source& source);
-
-	UInt8					_type;
-	Media::Video::Tag		_tag;
-	UInt8					_state;
-	UInt32					_position;
-	shared<Buffer>			_pNal;
+	UInt8	_buffer[VideoType::AUD_SIZE];
+	UInt32  _time;
+	enum Nal {
+		NAL_UNDEFINED=0,
+		NAL_VCL,
+		NAL_CONFIG,
+		NAL_START
+	} _nal;
 };
+
+
 
 } // namespace Mona

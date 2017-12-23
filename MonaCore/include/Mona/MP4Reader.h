@@ -40,7 +40,6 @@ private:
 	UInt32  parseData(const Packet& packet, Media::Source& source);
 	void	flushMedias(Media::Source& source);
 
-
 	struct Box : virtual Object {
 		enum Type {
 			UNDEFINED = 0,
@@ -153,6 +152,8 @@ private:
 		UInt8 _id;
 	};
 
+	template <class VideoType>
+	void	buildConfig(const UInt8* data, UInt32 size, const Packet& packet, UInt8 track, Track::Type& type, UInt32 time);
 
 	UInt32								_position;
 	UInt64								_offset;

@@ -16,7 +16,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "Mona/HEVCNALWriter.h"
+#include "Mona/NALNetWriter.h"
+#include "Mona/AVC.h"
 #include "Mona/HEVC.h"
 #include "Mona/Logs.h"
 
@@ -24,30 +25,36 @@ using namespace std;
 
 namespace Mona {
 
+template <> 
+NALNetWriter<AVC>::NALNetWriter() {
+	// Unit Access demilited requires by some plugins like HLSFlash!
+	memcpy(_buffer, EXPAND("\x00\x00\x00\x01\x09\xF0\x00\x00\x00\x01"));
+}
 
-HEVCNALWriter::HEVCNALWriter() {
+template <>
+NALNetWriter<HEVC>::NALNetWriter() {
 	// Unit Access demilited requires by some plugins like HLSFlash!
 	memcpy(_buffer, EXPAND("\x00\x00\x00\x01\x46\x01\x50\x00\x00\x00\x01"));
 }
 
-void HEVCNALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
-	//INFO("writeVideo frame : ", tag.frame, " ; time : ", tag.time, " ; ", packet.size())
+template <class VideoType>
+void NALNetWriter<VideoType>::writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
 	if (!onWrite)
 		return;
-	if (tag.codec != Media::Video::CODEC_HEVC) {
-		ERROR("HEVCNAL format supports only HEVC video codec");
+	if (tag.codec != VideoType::CODEC) {
+		ERROR("NALNetWriter format supports only H264 and HEVC video codec");
 		return;
 	}
-	// 35 => Access unit delimiter required in TS container (MPEG2) => https://mailman.videolan.org/pipermail/x264-devel/2005-April/000469.html
+	// Access time unit required in TS container (MPEG2) => https://mailman.videolan.org/pipermail/x264-devel/2005-April/000469.html
 
-	// NAL UNIT delimiter at the beginning + on time change + when NAL type change (group config packet (32, 33 or 34) in different NAL access unit than other frames)
+	 // NAL UNIT delimiter at the beginning + on time change + when NAL type change (group config packet in different NAL access unit than other frames)
 	// (NOTE 2 – Sequence parameter set NAL units or picture parameter set NAL units may be present in an access unit,
 	// but cannot follow the last VCL NAL unit of the primary coded picture within the access unit,
 	// as this condition would specify the start of a new access unit.)
 	// + on time change!
 
 	// About 00 00 01 and 00 00 00 01 difference => http://stackoverflow.com/questions/23516805/h264-nal-unit-prefixes
-	// 00 00 00 01 for NAL Type 32,33,34 (config) and after NAL UNIT delimiter
+	// 00 00 00 01 for NAL VPS, SPS & PPS and after NAL UNIT delimiter
 
 	finalSize = 0;
 	
@@ -65,12 +72,12 @@ void HEVCNALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packe
 			size = reader.available();
 		if (!size)
 			continue;
-		UInt8 type((*reader.current() & 0x7f) >> 1);
-		if(type!=35) {
-			Media::Video::Frame frame = HEVC::Frames[type];
+		UInt8 type(VideoType::NalType(*reader.current()));
+		if(type != VideoType::NAL_AUD) {
+			Media::Video::Frame frame = VideoType::Frames[type];
 			Nal newNal = (frame == Media::Video::FRAME_INTER || frame == Media::Video::FRAME_KEY) ? NAL_VCL : ((frame == Media::Video::FRAME_CONFIG) ? NAL_CONFIG : NAL_UNDEFINED);
 			if (nal == NAL_START || (nal && newNal != nal))
-				finalSize += 11;  // NAL unit delimiter + 00 00 00 01 prefix
+				finalSize += VideoType::AUD_SIZE;  // NAL unit delimiter + 00 00 00 01 prefix
 			else if (newNal == NAL_CONFIG)
 				finalSize += 4; // 00 00 00 01 prefix
 			else
@@ -89,16 +96,16 @@ void HEVCNALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packe
 			size = reader.available();
 		if (!size)
 			continue;
-		UInt8 type((*reader.current() & 0x7f) >> 1);
-		if (type != 35) {
-			Media::Video::Frame frame = HEVC::Frames[type];
+		UInt8 type(VideoType::NalType(*reader.current()));
+		if (type != VideoType::NAL_AUD) {
+			Media::Video::Frame frame = VideoType::Frames[type];
 			Nal newNal = (frame == Media::Video::FRAME_INTER || frame == Media::Video::FRAME_KEY) ? NAL_VCL : ((frame == Media::Video::FRAME_CONFIG) ? NAL_CONFIG : NAL_UNDEFINED);
 			if (_nal == NAL_START || (_nal && newNal != _nal))
-				onWrite(Packet(_buffer, 11));  // NAL unit delimiter + 00 00 00 01 prefix
+				onWrite(Packet(_buffer, VideoType::AUD_SIZE));  // NAL unit delimiter + 00 00 00 01 prefix
 			else if (newNal == NAL_CONFIG)
 				onWrite(Packet(_buffer, 4)); // 00 00 00 01 prefix
 			else
-				onWrite(Packet(_buffer+1, 3)); // 00 00 01 prefix
+				onWrite(Packet(_buffer+1, 3)); // 00 00 00 01 prefix
 			onWrite(Packet(packet, reader.current(), size));
 			_nal = newNal;
 		} else
@@ -107,9 +114,9 @@ void HEVCNALWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packe
 	}
 }
 
-
-void HEVCNALWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
-	ERROR("HEVCNAL is a video container and can't write any audio frame")
+template <class VideoType>
+void NALNetWriter<VideoType>::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
+	ERROR("NALNetWriter is a video container and can't write any audio frame")
 }
 
 

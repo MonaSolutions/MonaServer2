@@ -15,7 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/HEVC.h"
-#include "Mona/BitReader.h"
+#include "Mona/MPEG4.h"
 
 using namespace std;
 
@@ -198,19 +198,6 @@ BinaryWriter& HEVC::WriteVideoConfig(BinaryWriter& writer, const Packet& vps, co
 	return writer;
 }
 
-
-UInt16 HEVC::ReadExpGolomb(BitstreamReader& reader) {
-	UInt8 i(0);
-	while (reader.available() && !reader.read())
-		++i;
-	UInt16 result = reader.BitReader::read<UInt16>(i);
-	if (i > 15) {
-		WARN("Exponential-Golomb code exceeding unsigned 16 bits");
-		return 0;
-	}
-	return result + (1 << i) - 1;
-}
-
 bool HEVC::ProcessProfileTierLevel(UInt8 max_sub_layers_minus1, BitstreamReader& reader) {
 
 	reader.next(8); // general_profile_space, general_tier_flag, general_profile_idc
@@ -267,15 +254,15 @@ UInt32 HEVC::SPSToVideoDimension(const UInt8* data, UInt32 size) {
 
 	ProcessProfileTierLevel(max_sub_layers_minus1, reader);
 
-	ReadExpGolomb(reader); // sps_seq_parameter_set_id
+	MPEG4::ReadExpGolomb(reader); // sps_seq_parameter_set_id
 	//  psps -> sps_seq_parameter_set_id = 0;
-	UInt16 chroma_format_idc = ReadExpGolomb(reader);
+	UInt16 chroma_format_idc = MPEG4::ReadExpGolomb(reader);
 
 	if (chroma_format_idc == 3)
 		reader.next(); // separate_colour_plane_flag
 
-	UInt16 pic_width_in_luma_samples = ReadExpGolomb(reader);
-	UInt16 pic_height_in_luma_samples = ReadExpGolomb(reader);
+	UInt16 pic_width_in_luma_samples = MPEG4::ReadExpGolomb(reader);
+	UInt16 pic_height_in_luma_samples = MPEG4::ReadExpGolomb(reader);
 	
 	// we ignore the rest of sps, not useful here
 

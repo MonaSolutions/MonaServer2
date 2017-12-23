@@ -16,16 +16,24 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "Mona/H264NALReader.h"
+#include "Mona/NALNetReader.h"
 #include "Mona/MPEG4.h"
+#include "Mona/HEVC.h"
+#include "Mona/AVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
 
 namespace Mona {
 
+template <>
+NALNetReader<AVC>::NALNetReader(UInt8 track) : MediaTrackReader(track), _tag(Media::Video::CODEC_H264), _state(0), _type(0xFF) {}
 
-UInt32 H264NALReader::parse(Packet& buffer, Media::Source& source) {
+template <>
+NALNetReader<HEVC>::NALNetReader(UInt8 track) : MediaTrackReader(track), _tag(Media::Video::CODEC_HEVC), _state(0), _type(0xFF) {}
+
+template <class VideoType>
+UInt32 NALNetReader<VideoType>::parse(Packet& buffer, Media::Source& source) {
 
 	const UInt8* cur(buffer.data());
 	const UInt8* end(buffer.data() + buffer.size());
@@ -71,33 +79,34 @@ UInt32 H264NALReader::parse(Packet& buffer, Media::Source& source) {
 	return 0;
 }
 
-void H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& source, bool eon) {
+template <class VideoType>
+void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::Source& source, bool eon) {
 	// flush just if:
-	// - config packet complete (7 & 8)
-	// - unit delimiter (9) or something ignored more greater than 8
+	// - config packet complete (VPS, SPS & PPS)
+	// - unit delimiter or nal type greater
 	// - times change
 	// /!\ Ignore many VLC frames are in the same NAL unit, it can be redundant coded picture
-	bool flush = false;
+	//bool flush = false;
 	if (_type==0xFF) {
 		// Nal begin!
-		_type = *data & 0x1f;
-		if (_type > 8)
+		_type = VideoType::NalType(*data);
+		if (_type >= VideoType::NAL_AUD)
 			return flushNal(source); // flush possible NAL waiting and ignore current NAL (_pNal is reseted)
 		
 		if (_tag.frame == Media::Video::FRAME_CONFIG) {
-			UInt8 prevType = (_pNal->data()[4] & 0x1F);
+			UInt8 prevType = VideoType::NalType(_pNal->data()[4]);
 			if (_type == prevType) {
 				_pNal.reset();  // erase repeated config type and wait the other config type!
-			} else if (_type != 7 && _type != 8) {
-				if (prevType == 7)
-					flushNal(source); // flush alone 7 config (valid)
+			} else if (VideoType::Frames[_type] != Media::Video::FRAME_CONFIG) {
+				if (prevType == VideoType::NAL_SPS)
+					flushNal(source); // flush alone SPS config (valid)
 				else
-					_pNal.reset();  // erase alone 8 config (invalid)
-				_tag.frame = MPEG4::UpdateFrame(_type);
-			} else
-				flush = true;
+					_pNal.reset();  // erase alone VPS or PPS config (invalid)
+				_tag.frame = VideoType::UpdateFrame(_type);
+			} /*else
+				flush = true;*/
 		} else {
-			_tag.frame = MPEG4::UpdateFrame(_type, _tag.frame);
+			_tag.frame = VideoType::UpdateFrame(_type, _tag.frame);
 			if (_tag.frame == Media::Video::FRAME_CONFIG)
 				flushNal(source); // flush everything and wait the other config type
 			else if (_tag.time != time || _tag.compositionOffset != compositionOffset)
@@ -119,19 +128,20 @@ void H264NALReader::writeNal(const UInt8* data, UInt32 size, Media::Source& sour
 		if (!_pNal)
 			return; // ignore current NAL!
 		if ((_pNal->size() + size) > 0xA00000) {
-			// Max H264 slice size (0x900000 + 4 + some SEI)
-			WARN("H264NALReader buffer exceeds maximum slice size");
+			// Max slice size (0x900000 + 4 + some SEI)
+			WARN("NALNetReader buffer exceeds maximum slice size");
 			return _pNal.reset(); // release huge buffer! (and allow to wait next 0000001)
 		}
 	}
 	_pNal->append(data, size);
 	if (eon)
 		_pNal->resize(_pNal->size() - _state - 1, true); // trim off the [0] 0 0 1
-	if(flush)
-		flushNal(source);
+	/*if(flush)
+		flushNal(source);*/ // TODO: is it necessary? does not work with hevc
 }
 
-void H264NALReader::flushNal(Media::Source& source) {
+template <class VideoType>
+void NALNetReader<VideoType>::flushNal(Media::Source& source) {
 	if (!_pNal)
 		return;
 	// write NAL size
@@ -143,7 +153,8 @@ void H264NALReader::flushNal(Media::Source& source) {
 	_tag.frame = Media::Video::FRAME_UNSPECIFIED;
 }
 
-void H264NALReader::onFlush(Packet& buffer, Media::Source& source) {
+template <class VideoType>
+void NALNetReader<VideoType>::onFlush(Packet& buffer, Media::Source& source) {
 	flushNal(source);
 	_type = 0xFF;
 	_state = 0;

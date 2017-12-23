@@ -17,7 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MP4Writer.h"
-#include "Mona/MPEG4.h"
+#include "Mona/AVC.h"
 #include "Mona/HEVC.h"
 #include "Mona/Logs.h"
 
@@ -194,8 +194,8 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 
 			Packet sps, pps, vps;
 			UInt32 dimension = 0;
-			if (videos.config && ((videos.codec == Media::Video::CODEC_H264 && MPEG4::ParseVideoConfig(videos.config, sps, pps)) || (videos.codec == Media::Video::CODEC_HEVC && HEVC::ParseVideoConfig(videos.config, vps, sps, pps))))
-				dimension = (videos.codec == Media::Video::CODEC_H264)? MPEG4::SPSToVideoDimension(sps.data(), sps.size()) : HEVC::SPSToVideoDimension(sps.data(), sps.size());
+			if (videos.config && ((videos.codec == Media::Video::CODEC_H264 && AVC::ParseVideoConfig(videos.config, sps, pps)) || (videos.codec == Media::Video::CODEC_HEVC && HEVC::ParseVideoConfig(videos.config, vps, sps, pps))))
+				dimension = (videos.codec == Media::Video::CODEC_H264)? AVC::SPSToVideoDimension(sps.data(), sps.size()) : HEVC::SPSToVideoDimension(sps.data(), sps.size());
 			else
 				WARN("No avcC configuration");
 
@@ -272,7 +272,7 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 								else if (sps) {
 									// file:///C:/Users/mathieu/Downloads/standard8978%20(1).pdf => 5.2.1.1
 									UInt32 sizePos = writer.size();
-									BinaryWriter(pBuffer->data() + sizePos, 4).write32(MPEG4::WriteVideoConfig(writer.next(4).write(EXPAND("avcC")), sps, pps).size() - sizePos);
+									BinaryWriter(pBuffer->data() + sizePos, 4).write32(AVC::WriteVideoConfig(writer.next(4).write(EXPAND("avcC")), sps, pps).size() - sizePos);
 								}
 								BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 							} // avc1

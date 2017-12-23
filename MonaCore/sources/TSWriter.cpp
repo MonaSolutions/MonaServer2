@@ -19,8 +19,9 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/TSWriter.h"
 #include "Mona/Crypto.h"
 #include "Mona/ADTSWriter.h"
-#include "Mona/H264NALWriter.h"
-#include "Mona/HEVCNALWriter.h"
+#include "Mona/NALNetWriter.h"
+#include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -272,7 +273,7 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 		}
 		
 		// add the new track
-		it = _videos.emplace_hint(it, piecewise_construct, forward_as_tuple(track),forward_as_tuple(((tag.codec == Media::Video::CODEC_H264)? (MediaTrackWriter*)new H264NALWriter() : (MediaTrackWriter*)new HEVCNALWriter())));
+		it = _videos.emplace_hint(it, piecewise_construct, forward_as_tuple(track),forward_as_tuple(((tag.codec == Media::Video::CODEC_H264)? (MediaTrackWriter*)new NALNetWriter<AVC>() : (MediaTrackWriter*)new NALNetWriter<HEVC>())));
 		_changed = true;
 	}
 

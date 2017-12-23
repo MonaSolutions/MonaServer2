@@ -19,7 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FlashWriter.h"
 #include "Mona/Util.h"
 #include "Mona/Session.h"
-#include "Mona/MPEG4.h"
+#include "Mona/AVC.h"
 #include "Mona/FLVWriter.h"
 #include "Mona/StringWriter.h"
 
@@ -132,13 +132,13 @@ bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		// patch for flash, to avoid to wait audio, an empty audio packet has to be sent ( = "end audio signal")
 		write(AMF::TYPE_AUDIO, _time, reliable);
 	}
-	bool isAVCConfig(tag.codec == Media::Video::CODEC_H264 && tag.frame == Media::Video::FRAME_CONFIG && MPEG4::ParseVideoConfig(packet, _sps, _pps));
+	bool isAVCConfig(tag.codec == Media::Video::CODEC_H264 && tag.frame == Media::Video::FRAME_CONFIG && AVC::ParseVideoConfig(packet, _sps, _pps));
 	BinaryWriter& writer(*write(AMF::TYPE_VIDEO, _time, isAVCConfig ? Packet::Null() : packet, reliable));
 	writer.write8(FLVWriter::ToCodecs(tag));
 	if (tag.codec != Media::Video::CODEC_H264)
 		return true;
 	if (isAVCConfig)
-		MPEG4::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _sps, _pps);
+		AVC::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _sps, _pps);
 	else
 		writer.write8(1).write24(tag.compositionOffset);
 	return true;

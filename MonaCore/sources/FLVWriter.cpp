@@ -17,7 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/FLVWriter.h"
-#include "Mona/MPEG4.h"
+#include "Mona/AVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -85,7 +85,7 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 				if (isConfig) {
 					// find just sps and pps data, ignore the rest
 					size -= packet.size();
-					if (!MPEG4::ParseVideoConfig(packet, sps, pps))
+					if (!AVC::ParseVideoConfig(packet, sps, pps))
 						return;
 					size += sps.size() + pps.size() + 11;
 				}
@@ -133,7 +133,7 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 		if (packet)
 			onWrite(packet);
 	} else
-		MPEG4::WriteVideoConfig(writer, sps, pps); // write sps + pps
+		AVC::WriteVideoConfig(writer, sps, pps); // write sps + pps
 
 	BinaryWriter(*pBuffer).write32(11 + size); // footer
 	onWrite(Packet(pBuffer));
