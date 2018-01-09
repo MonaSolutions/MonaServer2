@@ -179,16 +179,21 @@ MediaSocket::Writer* MediaSocket::Writer::New(Media::Stream::Type type, const Pa
 MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming) : Runner("MediaSocketSend"), _pSocket(pSocket), pWriter(pWriter),
 	_pStreaming(pStreaming), _pName(pName),
 	onWrite([this, type](const Packet& packet) {
-		DUMP_REQUEST(_pName->c_str(), packet.data(), packet.size(), _pSocket->peerAddress());
-		Exception ex;
-		UInt64 byteRate = _pSocket->sendByteRate(); // Get byteRate before write to start computing cycle on 0!
-		int result = _pSocket->write(ex, packet);
-		if (result && !*_pStreaming && byteRate) {
-			INFO("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', this->pWriter->format(), " starts");
-			*_pStreaming = true;
-		}
-		if (ex || result<0)
-			WARN("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', this->pWriter->format(), ", ", ex);
+		Packet chunk(packet, packet.data(), 0);
+		while (chunk.set(packet, chunk.data() + chunk.size())) {
+			if (type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE)
+				chunk.shrink(Net::MTU_RELIABLE_SIZE);
+			DUMP_RESPONSE(_pName->c_str(), chunk.data(), chunk.size(), _pSocket->peerAddress());
+			Exception ex;
+			UInt64 byteRate = _pSocket->sendByteRate(); // Get byteRate before write to start computing cycle on 0!
+			int result = _pSocket->write(ex, chunk);
+			if (result && !*_pStreaming && byteRate) {
+				INFO("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', this->pWriter->format(), " starts");
+				*_pStreaming = true;
+			}
+			if (ex || result<0)
+				WARN("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', this->pWriter->format(), ", ", ex);
+		};
 	}) {
 }
 
@@ -254,10 +259,10 @@ void MediaSocket::Writer::start() {
 }
 
 bool MediaSocket::Writer::beginMedia(const string& name) {
-	bool running = self.running(); // can be already running (MBR switch)
+	bool streaming = _pName.operator bool();
 	_pName.reset(new string(name));
 	start(); // begin media, we can try to start here (just on beginMedia!)
-	return running ? true : send<Send>();
+	return streaming ? true : send<Send>();
 }
 
 void MediaSocket::Writer::endMedia() {

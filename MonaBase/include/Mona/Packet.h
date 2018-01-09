@@ -167,6 +167,7 @@ struct Packet: Binary, virtual Object {
 	Packet& set(const Packet& packet);
 	/*!
 	Create a copy from packet and move area of data referenced, area have to be include inside */
+	Packet& set(const Packet& packet, const UInt8* data) { return set(packet).setArea(data, packet.size() - (data - packet.data())); }
 	Packet& set(const Packet& packet, const UInt8* data, UInt32 size) { return set(packet).setArea(data, size); }
 	/*!
 	Bufferize packet */
