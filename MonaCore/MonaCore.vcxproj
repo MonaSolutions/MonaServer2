@@ -213,6 +213,8 @@
     <ClInclude Include="include\Mona\HLSWriter.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="include\Mona\HTTP\HTTPDataSender.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPDecoder.h" />
@@ -315,6 +317,8 @@
     <ClCompile Include="sources\HLSWriter.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\HTTP\HTTPDecoder.cpp" />
     <ClCompile Include="sources\HTTP\HTTPFileSender.cpp" />
