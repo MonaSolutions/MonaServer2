@@ -45,10 +45,10 @@ ADD_TEST(Load) {
 
 ADD_TEST(Add) {
 	Exception ex;
-	CHECK(_Data.add(ex, "", Packet(EXPAND("salut"))) && !ex);
-	CHECK(_Data.add(ex, "Test", Packet(EXPAND("aurevoir"))) && !ex);
-	CHECK(_Data.add(ex, "Test", Packet(EXPAND("aur\0voir"))) && !ex);
-	CHECK(_Data.add(ex, "/Test/../Sub", Packet(EXPAND("val"))) && !ex);
+	_Data.add("", Packet(EXPAND("salut")));
+	_Data.add("Test", Packet(EXPAND("aurevoir")));
+	_Data.add("Test", Packet(EXPAND("aur\0voir")));
+	_Data.add("/Test/../Sub", Packet(EXPAND("val")));
 
 	_Data.flush();
 	CHECK(FileSystem::Exists(_Path));
@@ -66,15 +66,15 @@ ADD_TEST(Reload) {
 ADD_TEST(Remove) {
 	// create base of test
 	Exception ex;
-	CHECK(_Data.remove(ex, "/Test/NoExists") && !ex);
-	CHECK(_Data.remove(ex, "/Sub") && !ex);
-	CHECK(_Data.remove(ex, "") && !ex);
+	_Data.remove("/Test/NoExists");
+	_Data.remove("/Sub");
+	_Data.remove("");
 	_Data.flush();
 
 	CHECK(!FileSystem::Exists(_Path + "Sub/"));
 
-	CHECK(_Data.remove(ex, "Test") && !ex);
-	CHECK(_Data.remove(ex, "") && !ex);
+	_Data.remove("Test");
+	_Data.remove("");
 	_Data.flush();
 
 	CHECK(!FileSystem::Exists(_Path));;

@@ -110,16 +110,24 @@ ADD_TEST(FileWriter) {
 	writer.onError = [](const Exception& ex) {
 		FATAL_ERROR("FileWriter, ", ex);
 	};
+	bool onFlush = false;
+	writer.onFlush = [&onFlush]() {
+		onFlush = true;
+	};
 	writer.open(name).write(salut);
 	io.join();
+	CHECK(onFlush); // onFlush!
 	CHECK(writer->written() == 5 && writer->size(true) == 5);
 	writer.write(salut);
 	io.join();
 	CHECK(writer->written() == 10 && writer->size(true) == 10);
 	writer.close();
+	
 
+	onFlush = false;
 	writer.open(name, true).write(salut);
 	io.join();
+	CHECK(onFlush); // onFlush!
 	CHECK(writer->written()==5 && writer->size(true) == 15);
 	writer.close();
 

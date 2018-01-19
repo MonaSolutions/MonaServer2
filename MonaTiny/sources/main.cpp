@@ -18,17 +18,17 @@ struct ServerApp : ServerApplication  {
 		// starts the server
 		MonaTiny server(file().parent()+"www", getNumber<UInt32>("cores"), terminateSignal);
 
-		if (server.start(*this)) {
+		server.start(*this);
 
-		//	Sleep(20000);
+	//	Sleep(20000);
 
-		//	string data("onTextData&text=Doremi&lang=eng&trackid=1");
-		//	server.publish(KBBridge::DATA, 0, data.data(), data.size());
+	//	string data("onTextData&text=Doremi&lang=eng&trackid=1");
+	//	server.publish(KBBridge::DATA, 0, data.data(), data.size());
 
-			terminateSignal.wait();
-			// Stop the server
-			server.stop();
-		}
+		terminateSignal.wait();
+		// Stop the server
+		server.stop();
+
 		return Application::EXIT_OK;
 	}
 

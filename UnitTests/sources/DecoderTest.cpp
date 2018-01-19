@@ -106,14 +106,12 @@ ADD_TEST(Socket) {
 		}
 		~UDPReceiver() { _onDecoded = nullptr; }
 	private:
-		shared<Socket::Decoder> newDecoder() {
-			CHECK(!_pDecoder);
-			_pDecoder.reset(new Decoder());
-			_pDecoder->onDecoded = _onDecoded;
-			return _pDecoder;
+		Socket::Decoder* newDecoder() {
+			Decoder* pDecoder = new Decoder();
+			pDecoder->onDecoded = _onDecoded;
+			return pDecoder;
 		}
 		UInt8			_count;
-		shared<Decoder> _pDecoder;
 		Decoder::OnDecoded _onDecoded;
 	} receiver(io);
 
@@ -157,8 +155,8 @@ ADD_TEST(File) {
 		UInt8	count;
 
 	private:
-		shared<File::Decoder> newDecoder() {
-			shared<Decoder> pDecoder(new Decoder());
+		File::Decoder* newDecoder() {
+			Decoder* pDecoder = new Decoder();
 			pDecoder->onDecoded = _onDecoded;
 			return pDecoder;
 		}

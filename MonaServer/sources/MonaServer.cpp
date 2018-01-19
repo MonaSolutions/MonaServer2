@@ -187,15 +187,6 @@ MonaServer::~MonaServer() {
 	servers.OnDisconnection::unsubscribe(onServerDisconnection);
 }
 
-
-bool MonaServer::start(const Parameters& configs) {
-	if(Server::running()) {
-		ERROR("Server is already running, call stop method before");
-		return false;
-	}
-	return Server::start(configs);
-}
-
 void MonaServer::startService(Service& service) {
 	_servicesRunning.insert(&service);
 

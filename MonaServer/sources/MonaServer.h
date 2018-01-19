@@ -32,8 +32,6 @@ public:
 
 	Servers					servers;
 
-	bool					start(const Mona::Parameters& configs);
-
 private:
 	void					manage();
 
