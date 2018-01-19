@@ -25,47 +25,48 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 /*!
-IOFile performs asynchrone writing and reading operation */
+IOFile performs asynchrone writing and reading operation,
+It uses a Thread::ProcessorCount() threads with low priority to load/read/write files
+Indeed even if SSD drive allows parallel reading and writing operation every operation sollicate too the CPU,
+so it's useless to try to exceeds number of CPU core (Thread::ProcessorCount() has been tested and approved with file load) */
 struct IOFile : virtual Object {
 
-	IOFile(const Handler& handler, ThreadPool& threadPool) : handler(handler), threadPool(threadPool) {}
-	~IOFile() { join(); }
+	IOFile(const Handler& handler, const ThreadPool& threadPool);
+	~IOFile();
 
-	const Handler&		handler;
-	const ThreadPool&	threadPool;
-
-	/*!
-	Async open file to read */
-	void open(shared<File>& pFile, const Path& path, const File::OnReaden& onReaden, const File::OnError& onError) { shared<File::Decoder> pDecoder;  open(pFile, path, std::move(pDecoder), onReaden, onError); }
-	void open(shared<File>& pFile, const Path& path, shared<File::Decoder>&& pDecoder, const File::OnReaden& onReaden, const File::OnError& onError);
-	/*!
-	Sync open file to read, usefull when call from Thread (already threaded) */
-	bool open(Exception& ex, shared<File>& pFile, const Path& path, const File::OnReaden& onReaden, const File::OnError& onError) { shared<File::Decoder> pDecoder; return open(ex, pFile, path, std::move(pDecoder), onReaden, onError); }
-	bool open(Exception& ex, shared<File>& pFile, const Path& path, shared<File::Decoder>&& pDecoder, const File::OnReaden& onReaden, const File::OnError& onError);
-	
-	/*!
-	Async open file to write */
-	void open(shared<File>& pFile, const Path& path, const File::OnError& onError, bool append = false) { open(pFile, path, nullptr, onError, append); }
-	void open(shared<File>& pFile, const Path& path, const File::OnFlush& onFlush, const File::OnError& onError, bool append = false);
-	/*!
-	Sync open file to write, usefull when call from Thread (already threaded) */
-	bool open(Exception& ex, shared<File>& pFile, const Path& path, const File::OnError& onError, bool append = false) { return open(ex, pFile, path, nullptr, onError, append); }
-	bool open(Exception& ex, shared<File>& pFile, const Path& path, const File::OnFlush& onFlush, const File::OnError& onError, bool append = false);
+	const Handler&	  handler;
+	const ThreadPool& threadPool;
 
 	/*!
+	Subscribe */
+	template<typename FileType>
+	void subscribe(const shared<FileType>& pFile, const File::OnReaden& onReaden, const File::OnError& onError) {
+		pFile->onError = onError;
+		pFile->onReaden = onReaden;
+	}
+	template<typename FileType>
+	void subscribe(const shared<FileType>& pFile, File::Decoder* pDecoder, const File::OnReaden& onReaden, const File::OnError& onError) {
+		subscribe(pFile, onReaden, onError);
+		pFile->externDecoder = pDecoder && pFile.get() != (FileType*)pDecoder;
+		pFile->pDecoder = pDecoder;
+	}
+	void subscribe(const shared<File>& pFile, const File::OnError& onError, const File::OnFlush& onFlush = nullptr);
+	/*!
+	Async file loads */
+	void load(const shared<File>& pFile);
+	/*!
+	Async read with file load if file not loaded
 	size default = 0xFFFF (Best buffer performance, see http://zabkat.com/blog/buffered-disk-access.htm) */
 	void read(const shared<File>& pFile, UInt32 size=0xFFFF);
-	void write(const shared<File>& pFile, const Packet& packet);
 	/*!
-	Close */
-	void close(shared<File>& pFile);
+	Async write with file load if file not loaded */
+	void write(const shared<File>& pFile, const Packet& packet);
 
 	void join();
 private:
 	struct Action;
-	struct OpenFile;
-	
-	void dispatch(File& file, const shared<Action>& pAction);
+
+	ThreadPool	_threadPool;
 };
 
 

@@ -33,13 +33,13 @@ struct Thread : virtual Object {
 
 	virtual ~Thread();
 
-	bool						start(Exception& ex, Priority priority = PRIORITY_NORMAL);
+	void						start(Priority priority = PRIORITY_NORMAL);
 	virtual void				stop();
 
 	const char*					name() const { return _name; }
 	bool						running() const { return !_stop; }
 	
-	static unsigned				ProcessorCount() { unsigned result(std::thread::hardware_concurrency());  return result > 0 ? result : 1; }
+	static unsigned				ProcessorCount() { unsigned result(std::thread::hardware_concurrency());  return result ? result : 1; }
 	
 	/*!
 	A sleep, usefull for test, with imprecise milliseconds resolution (resolution from 5 to 15ms) */
@@ -51,8 +51,8 @@ struct Thread : virtual Object {
 
 	struct ChangeName : virtual Object {
 		template <typename ...Args>
-		ChangeName(Args&&... args) { SetSystemName(String::Assign(_oldName, std::forward<Args>(args)...)); _oldName.swap(_Name); }
-		~ChangeName() { SetSystemName(_Name = std::move(_oldName)); }
+		ChangeName(Args&&... args) { SetDebugName(String::Assign(_oldName, std::forward<Args>(args)...)); _oldName.swap(_Name); }
+		~ChangeName() { SetDebugName(_Name = std::move(_oldName)); }
 		operator const std::string&() const { return _Name; }
 	private:
 		std::string _oldName;
@@ -62,12 +62,12 @@ protected:
 
 	Signal wakeUp;
 	template <typename ...Args>
-	const std::string& setName(Args&&... args) { SetSystemName(String::Assign(_Name, std::forward<Args>(args)...)); return _Name; }
+	const std::string& setName(Args&&... args) { SetDebugName(String::Assign(_Name, std::forward<Args>(args)...)); return _Name; }
 private:
 	virtual bool run(Exception& ex, const volatile bool& requestStop) = 0;
 	void		 process();
 
-	static void  SetSystemName(const std::string& name);
+	static void  SetDebugName(const std::string& name);
 	
 	static thread_local std::string		_Name;
 	static thread_local Thread*			_Me;

@@ -44,8 +44,8 @@ bool ThreadQueue::run(Exception&, const volatile bool& requestStop) {
 			}
 			Exception ex;
 			for (shared<Runner>& pRunner : runners) {
-				setName(pRunner->name);
-				AUTO_ERROR(pRunner->run(ex = nullptr), pRunner->name);
+				Thread::ChangeName newName(pRunner->name);
+				AUTO_ERROR(pRunner->run(ex = nullptr), newName);
 				pRunner.reset(); // release resources
 			}
 		}

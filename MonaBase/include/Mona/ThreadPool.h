@@ -23,42 +23,32 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct ThreadPool : virtual Object {
-	/*!
-	If threads==0 use ProcessorCount*2 because gives the better result */
-	ThreadPool(UInt16 threads = 0) : _current(0), _threads(threads ? threads : Thread::ProcessorCount()*2) { _size = UInt16(_threads.size()); }
+	ThreadPool(UInt16 threads = 0) : _current(0) { init(threads); }
+	ThreadPool(Thread::Priority priority, UInt16 threads = 0) : _current(0) { init(threads, priority); }
 
 	UInt16	threads() const { return _size; }
 
-	void	join() { for (Thread& thread : _threads) thread.stop(); }
-
-
-	template<typename RunnerType>
-	bool  queue(Exception& ex, const shared<RunnerType>& pRunner) const {
-		FATAL_CHECK(pRunner);
-		return _threads[_current++%_size].queue(ex, pRunner);
-	}
+	UInt16	join();
 
 	template<typename RunnerType>
-	bool  queue(Exception& ex, const shared<RunnerType>& pRunner, UInt16& track) const {
-		FATAL_CHECK(pRunner);
-		Thread* pThread;
-		if (track > _size) {
-			ex.set<Ex::Intern>("Thread track out of ThreadPool bounds");
-			pThread = &_threads[_current++%_size];
-		} else if (!track) {
-			pThread = &_threads[track = (_current++%_size)];
-			++track;
-		} else
-			pThread = &_threads[track - 1];
-		return pThread->queue(ex, pRunner);
+	void queue(RunnerType&& pRunner) const { return _threads[_current++%_size]->queue(std::forward<RunnerType>(pRunner)); }
+
+	template<typename RunnerType>
+	void queue(RunnerType&& pRunner, UInt16& track) const {
+		if (track) {
+			FATAL_CHECK(track <= _size);
+			return _threads[track - 1]->queue(std::forward<RunnerType>(pRunner));
+		}
+		_threads[track = (_current++%_size)]->queue(std::forward<RunnerType>(pRunner));
+		++track;
 	}
 
 private:
-	struct Thread : virtual Object, ThreadQueue { Thread() : ThreadQueue("ThreadPool") {} };
+	void init(UInt16 threads, Thread::Priority priority = Thread::PRIORITY_NORMAL);
 
-	mutable std::vector<Thread>	_threads;
-	mutable std::atomic<UInt16>	_current;
-	UInt16						_size;
+	mutable std::vector<unique<ThreadQueue>>	_threads;
+	mutable std::atomic<UInt16>					_current;
+	UInt16										_size;
 };
 
 

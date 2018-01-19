@@ -24,19 +24,18 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct ThreadQueue : Thread, virtual Object {
-	ThreadQueue(const char* name) : Thread(name) {}
+	ThreadQueue(const char* name, Priority priority = PRIORITY_NORMAL) : Thread(name), _priority(priority) {}
 	virtual ~ThreadQueue() { stop(); }
 
 	static ThreadQueue*	Current() { return _PCurrent; }
 
 	template<typename RunnerType>
-	bool queue(Exception& ex, const shared<RunnerType>& pRunner) {
+	void queue(RunnerType&& pRunner) {
+		FATAL_CHECK(pRunner); // more easy to debug that if it fails in the thread!
 		std::lock_guard<std::mutex> lock(_mutex);
-		if (!start(ex))
-			return false;
-		_runners.emplace_back(pRunner);
+		start(_priority);
+		_runners.emplace_back(std::forward<RunnerType>(pRunner));
 		wakeUp.set();
-		return true;
 	}
 
 private:
@@ -45,6 +44,7 @@ private:
 	std::deque<shared<Runner>>			_runners;
 	std::mutex							_mutex;
 	static thread_local ThreadQueue*	_PCurrent;
+	Priority							_priority;
 };
 
 

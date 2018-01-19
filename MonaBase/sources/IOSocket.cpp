@@ -37,17 +37,6 @@ using namespace std;
 namespace Mona {
 
 struct IOSocket::Action : Runner, virtual Object {
-	template<typename ActionType>
-	static void Run(const ThreadPool& threadPool, const shared<ActionType>& pAction) {
-		if (!threadPool.queue(pAction->_ex, pAction))
-			pAction->run(pAction->_ex);
-	}
-	template<typename ActionType>
-	static void Run(const ThreadPool& threadPool, const shared<ActionType>& pAction, UInt16& track) {
-		if (!threadPool.queue(pAction->_ex, pAction, track))
-			pAction->run(pAction->_ex);
-	}
-
 	Action(const char* name, int error, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket), _handler(*pSocket->_pHandler) {
 		if (error)
 			Socket::SetException(_ex, error);
@@ -77,7 +66,7 @@ protected:
 
 	template<typename HandleType, typename ...Args>
 	void handle(const shared<Socket>& pSocket, Args&&... args) {
-		_handler.queue(make_shared<HandleType>(name, pSocket, _ex, std::forward<Args>(args)...));
+		_handler.queue(new HandleType(name, pSocket, _ex, std::forward<Args>(args)...));
 		_ex = NULL;
 	}
 
@@ -121,35 +110,32 @@ IOSocket::~IOSocket() {
 
 
 bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
-											shared<Socket::Decoder>&& pDecoder,
 											const Socket::OnReceived& onReceived,
 											const Socket::OnFlush& onFlush,
 											const Socket::OnDisconnection& onDisconnection,
 											const Socket::OnAccept& onAccept,
 											const Socket::OnError& onError) {
+	
 
+	// set unblocking mode!
 	bool block = false;
-	if (!pSocket->getNonBlockingMode()) {
-		block = true;
-		if( !pSocket->setNonBlockingMode(ex, true))
-			return false;
-	}
-
+	if (!pSocket->getNonBlockingMode() && !(block = pSocket->setNonBlockingMode(ex, true)))
+		return false;
+	
 	// check duplication
 	pSocket->onError = onError;
 	pSocket->onAccept = onAccept;
 	pSocket->onDisconnection = onDisconnection;
 	pSocket->onReceived = onReceived;
-	pSocket->pDecoder = move(pDecoder);
 	pSocket->onFlush = onFlush;
 	pSocket->_pHandler = &handler;
+
 
 	{
 		lock_guard<mutex> lock(_mutex); // must protect "start" + _system (to avoid a write operation on restarting) + _subscribers increment
 		if (!running()) {
 			_initSignal.reset();
-			if (!start(ex)) // only way to start IOSocket::run
-				goto FAIL;
+			start(); // only way to start IOSocket::run
 			_initSignal.wait(); // wait _system assignment
 		}
 
@@ -195,7 +181,6 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 FAIL:
 	if (block)
 		pSocket->setNonBlockingMode(ex, false);
-	pSocket->pDecoder = nullptr;
 	pSocket->onFlush = nullptr;
 	pSocket->onReceived = nullptr;
 	pSocket->onDisconnection = nullptr;
@@ -211,7 +196,6 @@ void IOSocket::unsubscribe(shared<Socket>& pSocket) {
 	pSocket->onDisconnection = nullptr;
 	pSocket->onAccept = nullptr;
 	pSocket->onError = nullptr;
-
 
 #if defined(_WIN32)
 	{
@@ -293,7 +277,7 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	if (pSocket->_firstWritable)
 		pSocket->_firstWritable = false;
 #endif
-	Action::Run(threadPool, make_shared<Send>(error, pSocket));
+	threadPool.queue(new Send(error, pSocket));
 }
 
 void IOSocket::read(const shared<Socket>& pSocket, int error) {
@@ -322,12 +306,9 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 					UInt32 receiving = --pSocket->_receiving;
 					if (!_pThread)
 						return;
-					if (receiving < Socket::BACKLOG_MAX) {
-						// REARM
-						Exception ex;
-						if (!_pThread->queue(ex, make_shared<Accept>(0, pSocket)))
-							pSocket->onError(ex);
-					} else
+					if (receiving < Socket::BACKLOG_MAX)
+						_pThread->queue(new Accept(0, pSocket)); // REARM
+					else
 						--pSocket->_reading;
 				}
 				shared<Socket>		_pConnection;
@@ -351,7 +332,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 			}
 		};
 
-		return Action::Run(threadPool, make_shared<Accept>(error, pSocket), pSocket->_threadReceive);
+		return threadPool.queue(new Accept(error, pSocket), pSocket->_threadReceive);
 	}
 
 
@@ -375,12 +356,9 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				receiving = pSocket->_receiving -= receiving;
 				if (!_pThread)
 					return;
-				if(receiving < pSocket->recvBufferSize()) {
-					// REARM
-					Exception ex;
-					if (!_pThread->queue(ex, make_shared<Receive>(0, pSocket)))
-						pSocket->onError(ex);
-				} else
+				if(receiving < pSocket->recvBufferSize())
+					_pThread->queue(new Receive(0, pSocket)); // REARM
+				else
 					--pSocket->_reading;
 			}
 			shared<Buffer>		_pBuffer;
@@ -433,7 +411,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				// decode can't happen BEFORE onDisconnection because this call decode + push to _handler in this call!
 				if (pSocket->pDecoder)
 					pSocket->pDecoder->decode(pBuffer, address, pSocket);
-				else
+				if(pBuffer)
 					handle<Handle>(pSocket, pBuffer, address, stop);
 				available = pSocket->available();
 			};
@@ -441,7 +419,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 		}
 	};
 
-	Action::Run(threadPool, make_shared<Receive>(error, pSocket), pSocket->_threadReceive);
+	threadPool.queue(new Receive(error, pSocket), pSocket->_threadReceive);
 }
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
@@ -465,7 +443,7 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 			return true;
 		}
 	};
-	Action::Run(threadPool, make_shared<Close>(error, pSocket), pSocket->_threadReceive);
+	threadPool.queue(new Close(error, pSocket), pSocket->_threadReceive);
 }
 
 
@@ -645,7 +623,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 			else if (event.filter==EVFILT_WRITE)
 				write(pSocket, error);
 			else if (error) // on few unix system we can get an error without anything else
-				Action::Run(threadPool, make_shared<Action>("SocketError", error, pSocket), pSocket->_threadReceive);
+				threadPool.queue(new Action("SocketError", error, pSocket), pSocket->_threadReceive);
 
 #else
 			epoll_event& event(events[i]);
@@ -692,7 +670,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 				}
 			}
 			if (error) // on few unix system we can get an error without anything else
-				Action::Run(threadPool, make_shared<Action>("SocketError", error, pSocket), pSocket->_threadReceive);
+				threadPool.queue(new Action("SocketError", error, pSocket), pSocket->_threadReceive);
 #endif
 		}
 

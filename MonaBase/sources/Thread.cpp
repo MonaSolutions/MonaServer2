@@ -40,7 +40,7 @@ const UInt32					Thread::MainId(Thread::CurrentId());
 thread_local std::string		Thread::_Name("Main");
 thread_local Thread*			Thread::_Me(NULL);
 
-void Thread::SetSystemName(const string& name) {
+void Thread::SetDebugName(const string& name) {
 #if defined(_DEBUG)
 #if defined(_WIN32)
 	typedef struct tagTHREADNAME_INFO {
@@ -113,7 +113,7 @@ Thread::~Thread() {
 
 void Thread::process() {
 	_Me = this;
-	SetSystemName(_Name = _name);
+	SetDebugName(_Name = _name);
 
 #if !defined(_DEBUG)
 	try {
@@ -159,24 +159,17 @@ void Thread::process() {
 }
 
 
-bool Thread::start(Exception& ex, Priority priority) {
+void Thread::start(Priority priority) {
 	if (!_stop || _Me==this)
-		return true;
+		return;
 	std::lock_guard<std::mutex> lock(_mutex);
 	if (_thread.joinable())
 		_thread.join();
-	try {
-		_priority = priority;
-		wakeUp.reset();
-		_stop = false;
-		_requestStop = false;
-		_thread = thread(&Thread::process, this); // start the thread
-	} catch (exception& exc) {
-		_stop = true;
-		ex.set<Ex::System::Thread>("Impossible to start ", _name, " thread, ", exc.what());
-		return false;
-	}
-	return true;
+	_priority = priority;
+	wakeUp.reset();
+	_stop = false;
+	_requestStop = false;
+	_thread = thread(&Thread::process, this); // start the thread
 }
 
 void Thread::stop() {

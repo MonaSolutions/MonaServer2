@@ -22,7 +22,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <cstdint>
 #include <string>
 #include <cstring>
-#include <complex>
 #include <limits>
 #include <memory>
 #include <functional>

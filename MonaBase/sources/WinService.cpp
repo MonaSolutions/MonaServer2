@@ -50,11 +50,10 @@ bool WinService::init(Exception& ex) const {
 bool WinService::open(Exception& ex) const {
 	if (!init(ex))
 		return false;
-	if (!_svcHandle && !(_svcHandle = OpenServiceA(_scmHandle, _name.c_str(), SERVICE_ALL_ACCESS))) {
-		ex.set<Ex::System::Service>("Service ", _name, " does not exist");
-		return false;
-	}
-	return true;
+	if (_svcHandle || (_svcHandle = OpenServiceA(_scmHandle, _name.c_str(), SERVICE_ALL_ACCESS)))
+		return true;
+	ex.set<Ex::System::Service>("Service ", _name, " does not exist");
+	return false;
 }
 
 void WinService::close() {

@@ -66,7 +66,7 @@ struct UDPSocket : virtual Object {
 		int				_flags;
 	};
 private:
-	virtual shared<Socket::Decoder> newDecoder() { return nullptr; }
+	virtual Socket::Decoder* newDecoder() { return NULL; }
 
 	shared<Socket>		_pSocket;
 	bool				_connected;

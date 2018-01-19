@@ -33,9 +33,10 @@ struct File : virtual Object {
 	NULLABLE
 
 	/*!
-	Decoder offers to decode data in the reception thread when file is used with IOFile
-	If returns > 0 it contine reading operation (reads returned size) */
-	struct Decoder { virtual UInt32 decode(shared<Buffer>& pBuffer, bool end) = 0; };
+	Decoder offers to decode data in the reception thread when file is used with IOFile,
+	If pBuffer is reseted, no onReaden is callen (data captured),
+	If returns > 0 it continue reading operation (reads returned size) */
+	struct Decoder : virtual Object { virtual UInt32 decode(shared<Buffer>& pBuffer, bool end) = 0; };
 
 	// A mode R+W has no sense at this system level, because there is just one reading/writing shared header (R and W position)
 	enum Mode {
@@ -63,7 +64,6 @@ struct File : virtual Object {
 	UInt64		size(bool refresh = false) const;
 	Int64		lastAccess(bool refresh = false) const { return _path.lastAccess(refresh); }
 	Int64		lastChange(bool refresh = false) const { return _path.lastChange(refresh); }
-	UInt8		device() const { return _path.device(); }
 
 	bool		loaded() const { return _handle != -1; }
 
@@ -74,8 +74,9 @@ struct File : virtual Object {
 
 	// File operation
 	/*!
+	Load the file, as expensive as a FileSystem::GetAttributes!
 	If reading error => Ex::Permission || Ex::Unfound || Ex::Intern */
-	bool				load(Exception& ex);
+	virtual bool		load(Exception& ex); // virtual to allow to detect loading error with IOFile (see HTTPFileSender sample)
 	/*!
 	If reading error returns -1 => Ex::System::File || Ex::Intern */
 	int					read(Exception& ex, void* data, UInt32 size);
@@ -92,16 +93,14 @@ private:
 	std::atomic<UInt64>	_written;
 
 	//// Used by IOFile /////////////////////
-	shared<Decoder>				pDecoder;
+	Decoder*					pDecoder;
+	bool						externDecoder;
 	OnReaden					onReaden;
 	OnFlush						onFlush;
 	OnError						onError;
 
-	std::atomic<ThreadQueue*>	_pDevice;
-
 	std::atomic<UInt64>			_queueing;
-	std::atomic<UInt32>			_loading;
-	UInt16						_loadingTrack;
+	UInt16						_ioTrack;
 	UInt16						_decodingTrack;
 	friend struct IOFile;
 };

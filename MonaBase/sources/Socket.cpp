@@ -29,7 +29,7 @@ Socket::Socket(Type type) :
 #if !defined(_WIN32)
 	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
+	externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
 
 	init();
 }
@@ -39,13 +39,15 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr) : _peerAddress(addr), _addre
 #if !defined(_WIN32)
 	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	_nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
+	externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
 
 	init();
 }
 
 
 Socket::~Socket() {
+	if (externDecoder)
+		delete pDecoder;
 	if (_id == NET_INVALID_SOCKET)
 		return;
 	// ::printf("DELETE socket %d\n", _id);

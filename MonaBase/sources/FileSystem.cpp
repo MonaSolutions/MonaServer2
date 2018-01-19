@@ -27,8 +27,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #elif defined(_BSD)
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#else
-#include <sys/sysmacros.h>
 #endif
 #include "dirent.h"
 #include <unistd.h>
@@ -181,14 +179,8 @@ FileSystem::Attributes& FileSystem::GetAttributes(const char* path, size_t size,
 	if (Stat(path, size, status) <= 0)
 		return attributes.reset();
 	attributes.lastChange = status.st_mtime * 1000ll;
-	attributes.lastAccess = status.st_atime *1000ll;
+	attributes.lastAccess = status.st_atime * 1000ll;
 	attributes.size = status.st_mode&S_IFDIR ? 0 : status.st_size;
-#if defined (_WIN32)
-	while (*path == '/') ++path;
-	attributes.device = IsAbsolute(path) ? UInt8(path[0]) : Path::CurrentDir()[0];
-#else
-	attributes.device = UInt8(major(status.st_dev));
-#endif
 	return attributes;
 }
 

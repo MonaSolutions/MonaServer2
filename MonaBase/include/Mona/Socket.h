@@ -34,8 +34,9 @@ struct Socket : virtual Object, Net::Stats {
 
 	/*!
 	Decoder offers to decode data in the reception thread when socket is used with IOSocket
+	If pBuffer is reseted, no onReceived is callen (data captured),
 	/!\ pSocket must never be "attached" to the decoder in a instance variable otherwise a memory leak could happen (however a weak attachment stays acceptable) */
-	struct Decoder { virtual void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) = 0; };
+	struct Decoder : virtual Object { virtual void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) = 0; };
 
 	enum Type {
 		TYPE_STREAM = SOCK_STREAM,
@@ -208,7 +209,8 @@ private:
 	mutable std::atomic<int>	_sendBufferSize;
 
 //// Used by IOSocket /////////////////////
-	shared<Decoder>				pDecoder;
+	Decoder*					pDecoder;
+	bool						externDecoder;
 	OnReceived					onReceived;
 	OnAccept					onAccept;
 	OnError						onError;

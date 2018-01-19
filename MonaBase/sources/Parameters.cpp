@@ -84,9 +84,12 @@ Parameters& Parameters::clear(const string& prefix) {
 		end.back() = prefix.back() + 1;
 		auto it = _pMap->lower_bound(prefix);
 		auto itEnd = _pMap->lower_bound(end);
-		if (it != _pMap->begin() || itEnd != _pMap->end()) {
+		size_t distance = size_t(std::distance(it, itEnd)); // can be just positive
+		if (distance < _pMap->size()) {
+			// partial erase
 			for (; it != itEnd; ++it)
-				erase(it->first);
+				onParamChange(it->first, NULL);
+			_pMap->erase(it, itEnd);
 			return *this;
 		}
 	}

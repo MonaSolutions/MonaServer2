@@ -38,16 +38,16 @@ struct IOSocket : private Thread, virtual Object {
 								const Socket::OnReceived& onReceived,
 								const Socket::OnFlush& onFlush,
 								const Socket::OnError& onError,
-								const Socket::OnDisconnection& onDisconnection=nullptr) { shared<Socket::Decoder> pDecoder; return subscribe(ex, pSocket, std::move(pDecoder), onReceived, onFlush, onDisconnection, nullptr, onError); }
+								const Socket::OnDisconnection& onDisconnection=nullptr) { return subscribe(ex, pSocket, onReceived, onFlush, onDisconnection, nullptr, onError); }
 	bool					subscribe(Exception& ex, const shared<Socket>& pSocket,
-								shared<Socket::Decoder>&& pDecoder,
+								Socket::Decoder* pDecoder,
 								const Socket::OnReceived& onReceived,
 								const Socket::OnFlush& onFlush,
 								const Socket::OnError& onError,
-								const Socket::OnDisconnection& onDisconnection=nullptr) { return subscribe(ex, pSocket, std::move(pDecoder), onReceived, onFlush, onDisconnection, nullptr, onError); }
+								const Socket::OnDisconnection& onDisconnection=nullptr) { return subscribe(ex, pSocket, pDecoder, onReceived, onFlush, onDisconnection, nullptr, onError); }
 	bool					subscribe(Exception& ex, const shared<Socket>& pSocket,
 								const Socket::OnAccept& onAccept,
-								const Socket::OnError& onError) { shared<Socket::Decoder> pDecoder; return subscribe(ex, pSocket, std::move(pDecoder), nullptr, nullptr, nullptr, onAccept, onError); }
+								const Socket::OnError& onError) { return subscribe(ex, pSocket, nullptr, nullptr, nullptr, onAccept, onError); }
 	
 	/*!
 	Unsubscribe pSocket and reset shared<Socket> to avoid to resubscribe the same socket which could crash decoder assignation */
@@ -55,13 +55,30 @@ struct IOSocket : private Thread, virtual Object {
 
 private:
 
-	bool					subscribe(Exception& ex, const shared<Socket>& pSocket,
-								shared<Socket::Decoder>&& pDecoder,
-								const Socket::OnReceived& onReceived,
-								const Socket::OnFlush& onFlush,
-								const Socket::OnDisconnection& onDisconnection,
-								const Socket::OnAccept& onAccept,
-								const Socket::OnError& onError);
+	template<typename SocketType>
+	bool subscribe(Exception& ex, const shared<SocketType>& pSocket,
+			Socket::Decoder* pDecoder,
+			const Socket::OnReceived& onReceived,
+			const Socket::OnFlush& onFlush,
+			const Socket::OnDisconnection& onDisconnection,
+			const Socket::OnAccept& onAccept,
+			const Socket::OnError& onError) {
+		pSocket->externDecoder = pDecoder && pSocket.get() != (SocketType*)pDecoder;
+		pSocket->pDecoder = pDecoder;
+		if (subscribe(ex, pSocket, onReceived, onFlush, onDisconnection, onAccept, onError))
+			return true;
+		if (!pSocket->externDecoder)
+			return false;
+		delete pDecoder;
+		return pSocket->externDecoder = false;
+	}
+
+	bool subscribe(Exception& ex, const shared<Socket>& pSocket,
+			const Socket::OnReceived& onReceived,
+			const Socket::OnFlush& onFlush,
+			const Socket::OnDisconnection& onDisconnection,
+			const Socket::OnAccept& onAccept,
+			const Socket::OnError& onError);
 
 	void			read(const shared<Socket>& pSocket, int error);
 	void			write(const shared<Socket>& pSocket, int error);

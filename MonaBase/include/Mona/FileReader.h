@@ -36,18 +36,20 @@ struct FileReader : virtual Object {
 	bool opened() const { return operator bool(); }
 
 	/*!
-	Async open file to read, return *this to allow a open(path).read(...) right */
-	FileReader& open(const Path& path) { close(); io.open(_pFile, path, newDecoder(), onReaden, onError); return *this; }
-	/*!
-	Sync open file to read, usefull when call from Thread (already threaded) */
-	bool		open(Exception& ex, const Path& path) { close(); return io.open(ex, _pFile, path, newDecoder(), onReaden, onError); }
+	Async open file to read, return *this to allow a open(path).read(...) call 
+	/!\ don't open really the file, because performance are better if opened on first read operation */
+	FileReader& open(const Path& path) {
+		_pFile.reset(new File(path, File::MODE_READ));
+		io.subscribe(_pFile, newDecoder(), onReaden, onError);
+		return *this;
+	}
 	/*!
 	Read data */
 	void		read(UInt32 size = 0xFFFF) { FATAL_CHECK(_pFile);  io.read(_pFile, size); }
-	void		close() { if (_pFile) io.close(_pFile); }
+	void		close() { _pFile.reset(); }
 
 private:
-	virtual shared<File::Decoder> newDecoder() { return nullptr; }
+	virtual File::Decoder* newDecoder() { return NULL; }
 
 	shared<File> _pFile;
 };

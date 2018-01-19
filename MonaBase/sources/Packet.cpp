@@ -90,20 +90,6 @@ Packet& Packet::set(const Packet& packet) {
 	return *this;
 }
 
-
-Packet& Packet::set(const shared<const Binary>& pBuffer) {
-	if (!pBuffer || !pBuffer->data())  // if pBuffer->size==0 the normal behavior is required to get the same data address
-		return set(NULL, 0);
-	if (!_reference) {
-		delete _ppBuffer;
-		_reference = true;
-	}
-	_ppBuffer = &pBuffer;
-	_data = pBuffer->data();
-	_size = pBuffer->size();
-	return *this;
-}
-
 Packet& Packet::set(const void* data, UInt32 size) {
 	if (!_reference) {
 		delete _ppBuffer;

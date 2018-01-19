@@ -43,10 +43,12 @@ namespace Mona {
 
 File::File(const Path& path, Mode mode) :
 	_written(0), _readen(0), _path(path), mode(mode), _decodingTrack(0),
-	_pDevice(NULL), _queueing(0), _loading(0), _loadingTrack(0), _handle(-1) {
+	_queueing(0), _ioTrack(0), _handle(-1), externDecoder(false) {
 }
 
 File::~File() {
+	if (externDecoder)
+		delete pDecoder;
 	// No CPU expensive
 	if (_handle == -1)
 		return;
@@ -101,7 +103,8 @@ bool File::load(Exception& ex) {
 		ULARGE_INTEGER ulChange;
 		ulChange.LowPart = change.dwLowDateTime;
 		ulChange.HighPart = change.dwHighDateTime;
-		_path._pImpl->setAttributes(size.QuadPart, ulAccess.QuadPart / 10000000ULL - 11644473600ULL, ulChange.QuadPart / 10000000ULL - 11644473600ULL, _path.isAbsolute() ? _path[0] : Path::CurrentDir()[0]);
+		// round to seconds precision to get same precision than with stat::
+		_path._pImpl->setAttributes(size.QuadPart, (ulAccess.QuadPart / 10000000ll - 11644473600ll) * 1000ll, (ulChange.QuadPart / 10000000ll - 11644473600ll) * 1000ll);
 		return true;
 	}
 		
@@ -123,7 +126,7 @@ bool File::load(Exception& ex) {
 #endif
 		struct stat status;
 		::fstat(_handle, &status);
-		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_atime * 1000ll, status.st_mtime * 1000ll, UInt8(major(status.st_dev)));
+		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_atime * 1000ll, status.st_mtime * 1000ll);
 		return true;
 	}
 #endif

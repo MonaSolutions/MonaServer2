@@ -55,13 +55,12 @@ struct FileSystem : virtual Static {
 
 	struct Attributes : virtual Object {
 		NULLABLE
-		Attributes() : size(0), lastChange(0), lastAccess(0), device(0) {}
+		Attributes() : size(0), lastChange(0), lastAccess(0) {}
 		Time	lastChange;
 		Time	lastAccess;
 		UInt64	size;
-		UInt8	device;
 		operator bool() const { return lastChange ? true : false; }
-		Attributes& reset() { lastAccess = 0;  lastChange = 0; size = 0; device = 0; return *this; }
+		Attributes& reset() { lastAccess = 0;  lastChange = 0; size = 0; return *this; }
 	};
 
 

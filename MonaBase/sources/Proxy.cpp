@@ -48,7 +48,7 @@ const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket,
 		close(); // destinator has changed!
 	if (!_pSocket) {
 		_pSocket.reset(pSocket->isSecure() ? new TLS::Socket(pSocket->type, ((TLS::Socket*)pSocket.get())->pTLS) : new Socket(pSocket->type));
-		shared<Decoder> pDecoder(new Decoder(io.handler, pSocket, addressFrom));
+		Decoder* pDecoder = new Decoder(io.handler, pSocket, addressFrom);
 		pDecoder->onError = onError;
 		if (!io.subscribe(ex, _pSocket, pDecoder, nullptr, _onFlush, onError, onDisconnection)) {
 			_pSocket.reset();
@@ -59,7 +59,7 @@ const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket,
 		// Pulse connect if always not writable
 		if (!_pSocket->connect(ex = nullptr, addressTo)) {
 			if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK) {
-				_pSocket.reset();
+				close();
 				return _pSocket;
 			}
 			ex = nullptr;

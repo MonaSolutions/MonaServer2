@@ -30,7 +30,7 @@ void Handler::queue(const Event<void()>& onResult) const {
 	private:
 		Event<void()>	_onResult;
 	};
-	queue(make_shared<Result>(onResult));
+	queue(new Result(onResult));
 }
 
 UInt32 Handler::flush() {

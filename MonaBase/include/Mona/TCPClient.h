@@ -65,7 +65,7 @@ struct TCPClient : private StreamData<>, virtual Object {
 		int				_flags;
 	};
 private:
-	virtual shared<Socket::Decoder> newDecoder() { return nullptr; }
+	virtual Socket::Decoder* newDecoder() { return NULL; }
 
 	UInt32 onStreamData(Packet& buffer) { return onData(buffer); }
 

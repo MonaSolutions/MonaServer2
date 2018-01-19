@@ -26,8 +26,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
-class PersistentData : private Thread, public virtual Object {
-public:
+struct PersistentData : private Thread, virtual Object {
 	PersistentData(const char* name = "PersistentData") : _disableTransaction(false), Thread(name) {}
 
 	typedef std::function<void(const std::string& path, const UInt8* value, UInt32 size)> ForEach;
@@ -36,11 +35,11 @@ public:
 
 /*!
 	Add an persitant data */
-	bool add(Exception& ex, const char* path, const Packet& packet) { return newEntry(ex,path, packet); }
-	bool add(Exception& ex, const std::string& path, const Packet& packet) { return newEntry(ex,path.c_str(), packet); }
+	void add(const char* path, const Packet& packet) { newEntry(path, packet); }
+	void add(const std::string& path, const Packet& packet) { newEntry(path.c_str(), packet); }
 
-	bool remove(Exception& ex, const char* path) { return newEntry(ex, path); }
-	bool remove(Exception& ex, const std::string& path) { return newEntry(ex, path.c_str()); }
+	void remove(const char* path) { newEntry(path); }
+	void remove(const std::string& path) { newEntry(path.c_str()); }
 
 	void flush() { stop(); }
 	bool writing() { return running(); }
@@ -55,15 +54,13 @@ private:
 	};
 
 	template <typename ...Args>
-	bool newEntry(Exception& ex, const char* path, Args&&... args) {
+	void newEntry(const char* path, Args&&... args) {
 		if (_disableTransaction)
-			return true;
+			return;
 		std::lock_guard<std::mutex> lock(_mutex);
-		if (!start(ex,Thread::PRIORITY_LOWEST))
-			return false;
+		start(Thread::PRIORITY_LOWEST);
 		_entries.emplace_back(new Entry(path, args ...));
 		wakeUp.set();
-		return true;
 	}
 
 

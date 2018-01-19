@@ -234,6 +234,7 @@
     <ClCompile Include="sources\Signal.cpp" />
     <ClCompile Include="sources\Socket.cpp" />
     <ClCompile Include="sources\SocketAddress.cpp" />
+    <ClCompile Include="sources\ThreadPool.cpp" />
     <ClCompile Include="sources\ThreadQueue.cpp" />
     <ClCompile Include="sources\TLS.cpp" />
     <ClCompile Include="sources\String.cpp" />

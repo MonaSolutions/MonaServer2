@@ -38,16 +38,17 @@ struct FileWriter : virtual Object {
 	bool opened() const { return operator bool(); }
 
 	/*!
-	Async open file to write, return *this to allow a open(path).read(...) right */
-	FileWriter& open(const Path& path, bool append=false) { close();  io.open(_pFile, path, onFlush, onError, append); return *this; }
-	/*!
-	Sync open file to write, usefull when call from Thread (already threaded) */
-	bool		open(Exception& ex, const Path& path, bool append = false) { close();  return io.open(ex, _pFile, path, onFlush, onError, append); }
-
+	Async open file to write, return *this to allow a open(path).write(...) call
+	/!\ don't open really the file, because performance are better if opened on first write operation */
+	FileWriter& open(const Path& path, bool append = false) {
+		_pFile.reset(new File(path, append ? File::MODE_APPEND : File::MODE_WRITE));
+		io.subscribe(_pFile, onError, onFlush);
+		return *this;
+	}
 	/*!
 	Write data, if queueing wait onFlush event for large data transfer*/
 	void		write(const Packet& packet) { FATAL_CHECK(_pFile);  io.write(_pFile, packet); }
-	void		close() { if (_pFile) io.close(_pFile); }
+	void		close() { _pFile.reset(); }
 
 private:
 	shared<File> _pFile;

@@ -178,6 +178,9 @@
     <ClCompile Include="sources\Cache.cpp">
       <Filter>Memory</Filter>
     </ClCompile>
+    <ClCompile Include="sources\ThreadPool.cpp">
+      <Filter>Threading</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\BinaryReader.h">

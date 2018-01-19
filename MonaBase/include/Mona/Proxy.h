@@ -37,10 +37,11 @@ struct Proxy : virtual Object {
 	void					close();
 
 private:
-	struct Decoder : Socket::Decoder {
+	struct Decoder : Socket::Decoder, virtual Object {
 		typedef Socket::OnError			ON(Error);
 
 		Decoder(const Handler& handler, const shared<Socket>& pSocket, const SocketAddress& address) : _pSocket(pSocket), _handler(handler), _address(address) {}
+
 	private:
 		void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
 		shared<Socket> _pSocket;
