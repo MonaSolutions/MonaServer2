@@ -25,6 +25,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <limits>
 #include <memory>
 #include <functional>
+#include <cmath> // C++ version of math.h to solve abs ambiguity over linux
 
 
 /////  Usefull macros and patchs   //////

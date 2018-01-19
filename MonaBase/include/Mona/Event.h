@@ -80,7 +80,7 @@ struct Event<Result(Args ...)> : virtual Object {
 		if (*_pFunction)
 			FATAL_ERROR("Event ", typeof(*this), " already subscribed, unsubscribe before with nullptr assignement");
 		weak<std::function<Result(Args...)>> weakFunction(event._pFunction);
-		*_pFunction = [weakFunction{ std::move(weakFunction) }](Args... args) {
+		*_pFunction = [weakFunction](Args... args) {
 			shared<std::function<Result(Args...)>> pFunction(weakFunction.lock());
 			return (pFunction && *pFunction) ? (*pFunction)(std::forward<Args>(args)...) : Result();
 		};
