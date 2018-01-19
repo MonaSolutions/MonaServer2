@@ -26,7 +26,7 @@ struct BitReader : Binary, virtual Object {
 
 	BitReader(const UInt8* data, UInt32 size) : _bit(0), _current(data), _end(data+size), _data(data), _size(size) {}
 
-	bool read();
+	virtual bool read();
 
 	template<typename ResultType>
 	ResultType read(UInt8 count = (sizeof(ResultType) * 8)) {
@@ -43,7 +43,7 @@ struct BitReader : Binary, virtual Object {
 	}
 
 	UInt64	position() const { return (_current-_data)*8 + _bit; }
-	UInt64	next(UInt64 count = 1);
+	virtual UInt64	next(UInt64 count = 1);
 	void	reset(UInt64 position = 0);
 	UInt64	shrink(UInt64 available);
 
@@ -55,7 +55,7 @@ struct BitReader : Binary, virtual Object {
 
 	
 	static BitReader Null;
-private:
+protected:
 
 	const UInt8*	_data;
 	const UInt8*	_end;

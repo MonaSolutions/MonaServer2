@@ -24,12 +24,15 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 /*!
-Transform a 00 00 01 NAL format to a AVC NAL format (more speed to read) */
-struct H264NALReader : virtual Object, MediaTrackReader {
-	// http://apple-http-osmf.googlecode.com/svn/trunk/src/at/matthew/httpstreaming/HTTPStreamingMP2PESVideo.as
-	// NAL types => http://gentlelogic.blogspot.fr/2011/11/exploring-h264-part-2-h264-bitstream.html
+Transform a 00 00 01 NAL suffixed format to a NAL format (faster to read) 
+start code prefix => https://en.wikipedia.org/wiki/Network_Abstraction_Layer#NAL_Units_in_Byte-Stream_Format_Use
+*/
+template <class VideoType>
+struct NALNetReader : virtual Object, MediaTrackReader {
+	// AVC NAL types => http://gentlelogic.blogspot.fr/2011/11/exploring-h264-part-2-h264-bitstream.html
+	// HEVC NAL types => https://github.com/virinext/hevcesbrowser/blob/master/hevcparser/include/Hevc.h#L13-L41
 
-	H264NALReader(UInt8 track=1) : MediaTrackReader(track), _tag(Media::Video::CODEC_H264), _state(0), _type(0xFF) {}
+	NALNetReader(UInt8 track = 1);
 
 private:
 

@@ -21,13 +21,15 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FLVReader.h"
 #include "Mona/TSReader.h"
 #include "Mona/MP4Reader.h"
-#include "Mona/H264NALReader.h"
+#include "Mona/NALNetReader.h"
 #include "Mona/ADTSReader.h"
 #include "Mona/MP3Reader.h"
 #include "Mona/MonaReader.h"
 #include "Mona/RTPReader.h"
 #include "Mona/RTP_MPEG.h"
 #include "Mona/RTP_H264.h"
+#include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 
 #include "Mona/Logs.h"
 
@@ -46,7 +48,8 @@ static const map<size_t, Format> _Formats({
 	{ typeid(FLVReader).hash_code(), Format("FLV", MIME::TYPE_VIDEO, "x-flv") },
 	{ typeid(TSReader).hash_code(), Format("TS", MIME::TYPE_VIDEO, "mp2t") },
 	{ typeid(MP4Reader).hash_code(), Format("MP4", MIME::TYPE_VIDEO, "mp4") },
-	{ typeid(H264NALReader).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
+	{ typeid(NALNetReader<AVC>).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
+	{ typeid(NALNetReader<HEVC>).hash_code(), Format("HEVC", MIME::TYPE_VIDEO, "hevc") },
 	{ typeid(ADTSReader).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	{ typeid(MP3Reader).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
 	{ typeid(MonaReader).hash_code(), Format("MONA", MIME::TYPE_VIDEO, "mona") },
@@ -71,7 +74,9 @@ MediaReader* MediaReader::New(const char* subMime) {
 	if (String::ICompare(subMime, EXPAND("mp4")) == 0 || String::ICompare(subMime, EXPAND("f4v")) == 0 || String::ICompare(subMime, EXPAND("mov")) == 0)
 		return new MP4Reader();
 	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
-		return new H264NALReader();
+		return new NALNetReader<AVC>();
+	if (String::ICompare(subMime, EXPAND("hevc")) == 0 || String::ICompare(subMime, EXPAND("265")) == 0)
+		return new NALNetReader<HEVC>();
 	if (String::ICompare(subMime, EXPAND("aac")) == 0)
 		return new ADTSReader();
 	if (String::ICompare(subMime, EXPAND("mp3")) == 0)

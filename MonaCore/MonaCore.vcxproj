@@ -203,13 +203,13 @@
   <ItemGroup>
     <ClInclude Include="include\Mona\ADTSReader.h" />
     <ClInclude Include="include\Mona\ADTSWriter.h" />
+    <ClInclude Include="include\Mona\AVC.h" />
     <ClInclude Include="include\Mona\CCaption.h" />
     <ClInclude Include="include\Mona\Client.h" />
     <ClInclude Include="include\Mona\Entity.h" />
     <ClInclude Include="include\Mona\FlashMainStream.h" />
     <ClInclude Include="include\Mona\FLVReader.h" />
-    <ClInclude Include="include\Mona\H264NALReader.h" />
-    <ClInclude Include="include\Mona\H264NALWriter.h" />
+    <ClInclude Include="include\Mona\HEVC.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPDataSender.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPDecoder.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPFileSender.h" />
@@ -230,6 +230,8 @@
     <ClInclude Include="include\Mona\MP4Reader.h" />
     <ClInclude Include="include\Mona\MP4Writer.h" />
     <ClInclude Include="include\Mona\MPEG4.h" />
+    <ClInclude Include="include\Mona\NALNetReader.h" />
+    <ClInclude Include="include\Mona\NALNetWriter.h" />
     <ClInclude Include="include\Mona\PacketWriter.h" />
     <ClInclude Include="include\Mona\Peer.h" />
     <ClInclude Include="include\Mona\Publish.h" />
@@ -302,11 +304,11 @@
   <ItemGroup>
     <ClCompile Include="sources\ADTSReader.cpp" />
     <ClCompile Include="sources\ADTSWriter.cpp" />
+    <ClCompile Include="sources\AVC.cpp" />
     <ClCompile Include="sources\CCaption.cpp" />
     <ClCompile Include="sources\FlashMainStream.cpp" />
     <ClCompile Include="sources\FLVReader.cpp" />
-    <ClCompile Include="sources\H264NALReader.cpp" />
-    <ClCompile Include="sources\H264NALWriter.cpp" />
+    <ClCompile Include="sources\HEVC.cpp" />
     <ClCompile Include="sources\HTTP\HTTPDecoder.cpp" />
     <ClCompile Include="sources\HTTP\HTTPFileSender.cpp" />
     <ClCompile Include="sources\HTTP\HTTPFolderSender.cpp" />
@@ -324,6 +326,8 @@
     <ClCompile Include="sources\MP4Reader.cpp" />
     <ClCompile Include="sources\MP4Writer.cpp" />
     <ClCompile Include="sources\MPEG4.cpp" />
+    <ClCompile Include="sources\NALNetReader.cpp" />
+    <ClCompile Include="sources\NALNetWriter.cpp" />
     <ClCompile Include="sources\Protocol.cpp" />
     <ClCompile Include="sources\Publish.cpp" />
     <ClCompile Include="sources\RendezVous.cpp" />

@@ -47,6 +47,7 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		{ "ts", { TYPE_VIDEO, "mp2t"} },
 		{ "mp4",{ TYPE_VIDEO, "mp4" } },
 		{ "264", { TYPE_VIDEO, "h264" } },
+		{ "265",{ TYPE_VIDEO, "hevc" } },
 		{ "mp3",{ TYPE_AUDIO, "mp3" } },
 		{ "m3u8",{ TYPE_APPLICATION, "x-mpegURL" } },
 		{ "aac",{ TYPE_AUDIO, "aac" } },

@@ -116,10 +116,11 @@ struct Media : virtual Static {
 			CODEC_SCREEN2 = 6,
 			CODEC_H264 = 7,
 			CODEC_H263 = 8,
-			CODEC_MPEG4_2 = 9
+			CODEC_MPEG4_2 = 9,
+			CODEC_HEVC = 12 // Added codec HEVC (not supported by FLV)
 		};
 		static const char* CodecToString(Codec codec) {
-			static const char* Strings[] = { "RAW", "JPEG", "SORENSON", "SCREEN1", "VP6", "VP6_ALPHA", "SCREEN2", "H264", "H263", "MPEG4_2" };
+			static const char* Strings[] = { "RAW", "JPEG", "SORENSON", "SCREEN1", "VP6", "VP6_ALPHA", "SCREEN2", "H264", "H263", "MPEG4_2", "", "", "HEVC" };
 			return Strings[UInt8(codec)];
 		}
 		

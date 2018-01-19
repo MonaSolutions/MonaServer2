@@ -27,8 +27,6 @@ struct Parameters : String::Object<Parameters> {
 	typedef Event<void()>												   ON(Clear);
 
 	typedef std::map<std::string, std::string, String::IComparator>::const_iterator const_iterator;
-	typedef std::string key_type;
-	typedef std::string value_type;
 
 private:
 	struct ForEach {

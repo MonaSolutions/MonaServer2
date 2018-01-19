@@ -18,6 +18,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/MP4Reader.h"
 #include "Mona/MPEG4.h"
+#include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 
 using namespace std;
 
@@ -373,6 +375,11 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						track.types.emplace_back(Media::Video::CODEC_H264);
 						// see https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html#//apple_ref/doc/uid/TP40000939-CH205-74522
 						description.next(70); // slip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
+					}
+					else if (memcmp(typeName, EXPAND("hev1")) == 0) {
+						track.types.emplace_back(Media::Video::CODEC_HEVC);
+						description.next(70); // slip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
+
 					} else if (memcmp(typeName, EXPAND("mp4a")) == 0 || memcmp(typeName, EXPAND(".mp3")) == 0) {
 						track.types.emplace_back(*typeName=='.' ? Media::Audio::CODEC_MP3 : Media::Audio::CODEC_AAC);
 						Track::Type& type = track.types.back();
@@ -480,7 +487,15 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							// section 5.2.4.1.1
 							extension.next(4);
 							shared<Buffer> pBuffer(new Buffer());
-							MPEG4::ReadVideoConfig(extension.current(), extension.available(), *pBuffer);
+							AVC::ReadVideoConfig(extension.current(), extension.available(), *pBuffer);
+							track.types.back().config.set(pBuffer);
+						}
+						else if (memcmp(extension.current(), EXPAND("hvcC")) == 0) {
+							// https://stackoverflow.com/questions/32697608/where-can-i-find-hevc-h-265-specs
+							extension.next(4);
+							shared<Buffer> pBuffer(new Buffer());
+							
+							HEVC::ReadVideoConfig(extension.current(), extension.available(), *pBuffer);
 							track.types.back().config.set(pBuffer);
 						}
 
@@ -862,56 +877,11 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								
 								// Get the correct video.frame type!
 								// + support SPS and PPS inner samples (required by specification)
-								BinaryReader frames(reader.current(), size);
-								type.video.frame = Media::Video::FRAME_UNSPECIFIED;
-								const UInt8* frame=NULL;
-								UInt32 frameSize;
-								Media::Video* pLastVideo = NULL;
-								while (frames.available()>4) {
-									UInt8 frameType = frames.current()[4] & 0x1F;
-									if(frame) {
-										if (type.video.frame == Media::Video::FRAME_CONFIG) {
-											// the previous is a CONFIG frame
-											UInt8 prevType = (frame[4] & 0x1F);
-											if (frameType != prevType) {
-												if (frameType == 7 || frameType == 8) {
-													// complete config packet!
-													frameSize += frames.next(frames.read32()) + 4;
-													if(pLastVideo)
-														++_times[time]; // to match with times synchro
-													_medias.emplace(time, pLastVideo=new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
-													frame = NULL;
-													continue;
-												} // else new frame is not a config part
-												if (prevType == 7) { 
-													if (pLastVideo)
-														++_times[time]; // to match with times synchro
-													_medias.emplace(time, pLastVideo = new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
-												} // else ignore 8 alone packet
-											} // else erase duplicate config type
-											frame = NULL;
-										} else if (frameType == 7 || frameType == 8) {
-											// flush what before config packet
-											if (pLastVideo)
-												++_times[time]; // to match with times synchro
-											_medias.emplace(time, pLastVideo = new Media::Video(type.video, Packet(packet, frame, frameSize), track));
-											frame = NULL;
-										}
-									}
-									type.video.frame = MPEG4::UpdateFrame(frameType, frame ? type.video.frame : Media::Video::FRAME_UNSPECIFIED);
-									if (!frame) {
-										frame = frames.current();
-										frameSize = 0;
-									}
-									frameSize += frames.next(frames.read32()) + 4;
-								}
-								
-								if (frame) {
-									if (pLastVideo)
-										++_times[time]; // to match with times synchro
-									_medias.emplace(time, new Media::Video(type.video, type.video.frame == Media::Video::FRAME_CONFIG ? (type.config = Packet(frame, frameSize)) : Packet(packet, frame, frameSize), track));
-									break;
-								}
+								if (type.video.codec == Media::Video::CODEC_H264)
+									frameToMedias<AVC>(Packet(packet, reader.current(), size), track, type, time);
+								else
+									frameToMedias<HEVC>(Packet(packet, reader.current(), size), track, type, time);
+								break;
 							}
 							default:; // ignored!
 						}
@@ -1020,5 +990,60 @@ void MP4Reader::onFlush(Packet& buffer, Media::Source& source) {
 	MediaReader::onFlush(buffer, source);
 }
 
+template <class VideoType>
+void MP4Reader::frameToMedias(const Packet& packet, UInt8 track, Track::Type& type, UInt32 time) {
+	BinaryReader frames(packet.data(), packet.size());
+	type.video.frame = Media::Video::FRAME_UNSPECIFIED;
+	const UInt8* frame = NULL;
+	UInt32 frameSize;
+	Media::Video* pLastVideo = NULL;
+	while (frames.available()>4) {
+
+		UInt8 frameType = VideoType::NalType(frames.current()[4]);
+		if (frame) {
+			if (type.video.frame == Media::Video::FRAME_CONFIG) {
+				// the previous is a CONFIG frame
+				UInt8 prevType = VideoType::NalType(frame[4]);
+				if (frameType != prevType) {
+					if (VideoType::Frames[frameType] == Media::Video::FRAME_CONFIG) {
+						// complete config packet!
+						frameSize += frames.next(frames.read32()) + 4;
+						if (pLastVideo)
+							++_times[time]; // to match with times synchro
+						_medias.emplace(time, pLastVideo = new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
+						frame = NULL;
+						continue;
+					} // else new frame is not a config part
+					if (prevType == VideoType::NAL_SPS) {
+						if (pLastVideo)
+							++_times[time]; // to match with times synchro
+						_medias.emplace(time, pLastVideo = new Media::Video(type.video, type.config = Packet(frame, frameSize), track));
+					} // else ignore 8 alone packet
+				} // else erase duplicate config type
+				frame = NULL;
+			}
+			else if (VideoType::Frames[frameType] == Media::Video::FRAME_CONFIG) {
+				// flush what before config packet
+				if (pLastVideo)
+					++_times[time]; // to match with times synchro
+				_medias.emplace(time, pLastVideo = new Media::Video(type.video, Packet(packet, frame, frameSize), track));
+				frame = NULL;
+			}
+		}
+		type.video.frame = VideoType::UpdateFrame(frameType, frame ? type.video.frame : Media::Video::FRAME_UNSPECIFIED);
+
+		if (!frame) {
+			frame = frames.current();
+			frameSize = 0;
+		}
+		frameSize += frames.next(frames.read32()) + 4;
+	}
+
+	if (!frame)
+		return;
+	if (pLastVideo)
+		++_times[time]; // to match with times synchro
+	_medias.emplace(time, new Media::Video(type.video, type.video.frame == Media::Video::FRAME_CONFIG ? (type.config = Packet(frame, frameSize)) : Packet(packet, frame, frameSize), track));
+}
 
 } // namespace Mona

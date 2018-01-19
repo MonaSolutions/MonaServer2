@@ -21,7 +21,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FLVWriter.h"
 #include "Mona/TSWriter.h"
 #include "Mona/MP4Writer.h"
-#include "Mona/H264NALWriter.h"
+#include "Mona/NALNetWriter.h"
 #include "Mona/ADTSWriter.h"
 //#include "Mona/MP3Writer.h"
 #include "Mona/SRTWriter.h"
@@ -30,6 +30,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/RTPWriter.h"
 #include "Mona/RTP_MPEG.h"
 #include "Mona/RTP_H264.h"
+#include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 
 #include "Mona/Logs.h"
 
@@ -49,7 +51,8 @@ static const map<size_t, Format> _Formats({
 	{ typeid(FLVWriter).hash_code(), Format("FLV", MIME::TYPE_VIDEO, "x-flv") },
 	{ typeid(TSWriter).hash_code(), Format("TS", MIME::TYPE_VIDEO, "mp2t") },
 	{ typeid(MP4Writer).hash_code(), Format("MP4", MIME::TYPE_VIDEO, "mp4") },
-	{ typeid(H264NALWriter).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
+	{ typeid(NALNetWriter<AVC>).hash_code(), Format("H264", MIME::TYPE_VIDEO, "h264") },
+	{ typeid(NALNetWriter<HEVC>).hash_code(), Format("HEVC", MIME::TYPE_VIDEO, "hevc") },
 	{ typeid(ADTSWriter).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	// { typeid(MP3Writer).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
 	{ typeid(SRTWriter).hash_code(), Format("SRT", MIME::TYPE_TEXT, "plain; charset=utf-8") },
@@ -76,7 +79,9 @@ MediaWriter* MediaWriter::New(const char* subMime) {
 	if (String::ICompare(subMime, EXPAND("mp4")) == 0 || String::ICompare(subMime, EXPAND("f4v")) == 0 || String::ICompare(subMime, EXPAND("mov")) == 0)
 		return new MP4Writer();
 	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
-		return new H264NALWriter();
+		return new NALNetWriter<AVC>();
+	if (String::ICompare(subMime, EXPAND("hevc")) == 0 || String::ICompare(subMime, EXPAND("265")) == 0)
+		return new NALNetWriter<HEVC>();
 	if (String::ICompare(subMime, EXPAND("aac")) == 0)
 		return new ADTSWriter();
 //	if (String::ICompare(subMime, EXPAND("mp3")) == 0)

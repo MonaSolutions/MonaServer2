@@ -23,24 +23,24 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-
-struct H264NALWriter : MediaTrackWriter, virtual Object {
+template <class VideoType>
+struct NALNetWriter : MediaTrackWriter, virtual Object {
 	// https://tools.ietf.org/html/rfc6184
 	// http://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/
 
-	H264NALWriter();
+	NALNetWriter();
 
 	void beginMedia() { _nal = NAL_START; _time = 0; }
 	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
 	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
 
 private:
-	UInt8	_buffer[10];
+	UInt8	_buffer[VideoType::AUD_SIZE];
 	UInt32  _time;
 	enum Nal {
 		NAL_UNDEFINED=0,
-		NAL_VCL, // 1  to 5
-		NAL_CONFIG, // 7 to 8
+		NAL_VCL,
+		NAL_CONFIG,
 		NAL_START
 	} _nal;
 };

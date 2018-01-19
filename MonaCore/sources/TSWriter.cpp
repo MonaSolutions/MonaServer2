@@ -19,6 +19,9 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/TSWriter.h"
 #include "Mona/Crypto.h"
 #include "Mona/ADTSWriter.h"
+#include "Mona/NALNetWriter.h"
+#include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -155,7 +158,7 @@ void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
 			writer.write16(0xE000 | (_pidPCR = (FIRST_VIDEO_PID+it.first)));
 			writer.write16(0xF000);
 		}
-		writer.write8(0x1b); // H264 codec
+		writer.write8(String::ICompare(((Track&)it.second)->format(), "HEVC")==0? 0x24 : 0x1b); // HEVC/H264 codec
 		writer.write16(0xE000 | (FIRST_VIDEO_PID+it.first));
 		
 		UInt16 esiSize = UInt16(it.second.langs.size())*6;
@@ -260,7 +263,7 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 
 	auto it(_videos.lower_bound(track));
 	if (it == _videos.end() || it->first != track) {
-		if (tag.codec != Media::Video::CODEC_H264) {
+		if (tag.codec != Media::Video::CODEC_H264 && tag.codec != Media::Video::CODEC_HEVC) {
 			ERROR("Video track ",track," ignored, TS format doesn't support video ", Media::Video::CodecToString(tag.codec), " codec");
 			return;
 		}
@@ -270,7 +273,7 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 		}
 		
 		// add the new track
-		it = _videos.emplace_hint(it, piecewise_construct, forward_as_tuple(track),forward_as_tuple(new H264NALWriter()));
+		it = _videos.emplace_hint(it, piecewise_construct, forward_as_tuple(track),forward_as_tuple(((tag.codec == Media::Video::CODEC_H264)? (MediaTrackWriter*)new NALNetWriter<AVC>() : (MediaTrackWriter*)new NALNetWriter<HEVC>())));
 		_changed = true;
 	}
 

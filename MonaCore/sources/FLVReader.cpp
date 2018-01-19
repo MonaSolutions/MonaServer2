@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FLVReader.h"
 #include "Mona/AMFReader.h"
 #include "Mona/MPEG4.h"
+#include "Mona/AVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -126,7 +127,7 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 				content += ReadMediaHeader(content.data(), content.size(), _video);
 				if (_video.codec == Media::Video::CODEC_H264 && _video.frame==Media::Video::FRAME_CONFIG) {
 					shared<Buffer> pBuffer(new Buffer());
-					content += MPEG4::ReadVideoConfig(content.data(), content.size(), *pBuffer);
+					content += AVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
 					source.writeVideo(track ? track : 1, _video, Packet(pBuffer));
 				}
 				if(content) // because if was just a config packet, there is no more data!

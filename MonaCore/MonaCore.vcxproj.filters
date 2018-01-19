@@ -197,12 +197,6 @@
     <ClInclude Include="include\Mona\FLVReader.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\H264NALReader.h">
-      <Filter>Multimedia\Serializers</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\H264NALWriter.h">
-      <Filter>Multimedia\Serializers</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\MP3Reader.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
@@ -319,8 +313,20 @@
     <ClInclude Include="include\Mona\WriterReader.h">
       <Filter>Serializers\Patterns</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\HTTP\HTTPFolderSender.h">
-      <Filter>Protocols\HTTP\Senders</Filter>
+    <ClInclude Include="include\Mona\HEVC.h">
+      <Filter>Multimedia</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\HLSWriter.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\NALNetReader.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\NALNetWriter.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\AVC.h">
+      <Filter>Multimedia</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -442,12 +448,6 @@
     <ClCompile Include="sources\FLVReader.cpp">
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
-    <ClCompile Include="sources\H264NALReader.cpp">
-      <Filter>Multimedia\Serializers</Filter>
-    </ClCompile>
-    <ClCompile Include="sources\H264NALWriter.cpp">
-      <Filter>Multimedia\Serializers</Filter>
-    </ClCompile>
     <ClCompile Include="sources\MP3Reader.cpp">
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
@@ -545,8 +545,20 @@
     <ClCompile Include="sources\SRTWriter.cpp">
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
-    <ClCompile Include="sources\HTTP\HTTPFolderSender.cpp">
-      <Filter>Protocols\HTTP\Senders</Filter>
+    <ClCompile Include="sources\HEVC.cpp">
+      <Filter>Multimedia</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HLSWriter.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\NALNetReader.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\NALNetWriter.cpp">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\AVC.cpp">
+      <Filter>Multimedia</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
