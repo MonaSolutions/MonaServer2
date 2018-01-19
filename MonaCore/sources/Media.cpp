@@ -530,16 +530,18 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 	if (!isFile) {
 		// if is not explicitly a file, test if it's a port
 		size = first.find_first_of("/\\", 0);
+		if (size == string::npos)
+			size = first.size(); // to fix past.set (doesn't work with string::npos)
 		if (String::ToNumber(first.data(), size, port)) {
 			address.setPort(port);
-			path.set(first.data() + size);
+			path.set(first.c_str() + size);
 			if (type != TYPE_UDP || isTarget) // if no host and TCP or target
 				address.host().set(IPAddress::Loopback());
 		} else {
 			bool isAddress = false;
 			// Test if it's a address
 			{
-				String::Scoped scoped(first.data() + (size==string::npos ? first.size() : size));
+				String::Scoped scoped(first.data() + size);
 				Exception exc;
 				isAddress = address.set(exc, first.data());
 				if (!isAddress && type) {
@@ -549,7 +551,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 				}
 			}
 			if (isAddress) {
-				path.set(first.data() + size);
+				path.set(first.c_str() + size);
 				if (!address.host() && (type != TYPE_UDP || isTarget)) {
 					ex.set<Ex::Net::Address::Ip>("A TCP or target Stream can't have a wildcard ip");
 					return NULL;

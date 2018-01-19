@@ -26,40 +26,34 @@ namespace Mona {
 
 
 struct HTTPDataSender : HTTPSender, virtual Object {
-	HTTPDataSender(const shared<Socket>& pSocket,
-		const shared<const HTTP::Header>& pRequest,
-		shared<Buffer>& pSetCookie,
-		const char* code, MIME::Type mime, const char* subMime=NULL) : _mime(mime), _pBuffer(new Buffer(4, "\r\n\r\n")), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pSocket, pRequest, pSetCookie) {
-		if (!mime || !subMime || !(_pWriter = Media::Data::NewWriter(Media::Data::ToType(subMime), *_pBuffer)))
-			_pWriter = new StringWriter<>(*_pBuffer);
+	HTTPDataSender(const shared<const HTTP::Header>& pRequest,
+		const char* code, MIME::Type mime, const char* subMime=NULL) : _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest) {
+		if (!mime || !subMime || !(_pWriter = Media::Data::NewWriter(Media::Data::ToType(subMime), buffer())))
+			_pWriter = new StringWriter<>(buffer());
 		else
 			mime = MIME::TYPE_APPLICATION; // Fix mime => Media::Data::ToType success just for APPLICATION submime!
 	}
 
 	template <typename ...Args>
-	HTTPDataSender(const shared<Socket>& pSocket,
-		const shared<const HTTP::Header>& pRequest,
-		shared<Buffer>& pSetCookie,
+	HTTPDataSender(const shared<const HTTP::Header>& pRequest,
 		const char* errorCode, Args&&... args) :
-		_pBuffer(new Buffer(4, "\r\n\r\n")), _code(errorCode), _pWriter(NULL), _mime(MIME::TYPE_TEXT), _subMime("html; charset=utf-8"), HTTPSender("HTTPErrorSender", pSocket, pRequest, pSetCookie) {
+		_code(errorCode), _pWriter(NULL), _mime(MIME::TYPE_TEXT), _subMime("html; charset=utf-8"), HTTPSender("HTTPErrorSender", pRequest) {
 		if (!_code)
 			_code = HTTP_CODE_406;
-		writeError(*_pBuffer, _code, std::forward<Args>(args)...);
+		writeError(_code, std::forward<Args>(args)...);
 	}
 
 	virtual ~HTTPDataSender() { if (_pWriter) delete _pWriter; }
 
 
-	DataWriter&		writer() { return _pWriter ? *_pWriter : DataWriter::Null(); }
+	DataWriter& writer() { return _pWriter ? *_pWriter : DataWriter::Null(); }
 
 private:
-	void run(const HTTP::Header& request, bool& keepalive) { send(_code, _mime, _subMime, Packet(_pBuffer)); }
+	void run() { send(_code, _mime, _subMime); end(); }
 
 	const char*				_code;
 	MIME::Type				_mime;
 	const char*				_subMime;
-
-	shared<Buffer>			_pBuffer;
 	DataWriter*				_pWriter;
 };
 

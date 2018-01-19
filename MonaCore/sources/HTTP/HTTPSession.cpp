@@ -163,14 +163,14 @@ bool HTTPSession::handshake(HTTP::Request& request) {
 	if (!peer.onHandshake(redirection))
 		return true;
 	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_307))
-		HTTP_ADD_HEADER("Location", request->protocol, "://", redirection, request->path, '/', request.path.isFolder() ? "" : request.path.name())
+		HTTP_ADD_HEADER("Location", self->isSecure() ? "https://" : "http://", redirection, request->path, '/', request.path.isFolder() ? "" : request.path.name())
 	HTTP_END_HEADER
 	kill();
 	return false;
 }
 
-shared<Socket::Decoder> HTTPSession::newDecoder() {
-	shared<HTTPDecoder> pDecoder(new HTTPDecoder(api.handler, api.www));
+Socket::Decoder* HTTPSession::newDecoder() {
+	HTTPDecoder* pDecoder = new HTTPDecoder(api.handler, api.www);
 	pDecoder->onRequest = _onRequest;
 	pDecoder->onResponse = _onResponse;
 	return pDecoder;
@@ -358,12 +358,11 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 					} else
 						subscribe(ex, file.baseName());
 					return;
-				default:
-					return _pWriter->writeFile(file, fileProperties);
+				default:;
 			}
+			return _pWriter->writeFile(file, fileProperties);
 		}
 	}
-
 
 	// FOLDER //
 	
@@ -376,8 +375,6 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path, "/");
 		return;
 	}
-
-	// folder view or index redirection (without pass by onRead because can create a infinite loop)
 
 	Parameters fileProperties;
 	MapWriter<Parameters> mapWriter(fileProperties);

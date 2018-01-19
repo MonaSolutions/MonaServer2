@@ -38,7 +38,7 @@ Server::~Server() {
 	stop();
 }
 
-bool Server::start(const Parameters& parameters) {
+void Server::start(const Parameters& parameters) {
 	if(running())
 		stop();
 
@@ -59,9 +59,7 @@ bool Server::start(const Parameters& parameters) {
 	Exception ex;
 	AUTO_ERROR(FileSystem::CreateDirectory(ex, _www), "Application directory creation");
 
-	bool result;
-	AUTO_ERROR(result = Thread::start(ex), "Server");
-	return result;
+	Thread::start();
 }
 
 bool Server::publish(const char* name, shared<Publish>& pPublish) {

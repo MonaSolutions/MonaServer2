@@ -35,15 +35,9 @@ struct TCPSession : Session, private TCPClient, virtual Object {
 
 	template<typename RunnerType>
 	void send(const shared<RunnerType>& pRunner)  {
-		if (died) {
-			ERROR(name(), " tries to send a message after dying");
-			return;
-		}
-		Exception ex;
-		bool success;
-		AUTO_ERROR(success = api.threadPool.queue(ex, pRunner, _sendingTrack), name());
-		if (!success)
-			kill(ex.cast<Ex::Intern>() ? ERROR_RESOURCE : ERROR_SOCKET); // no more thread available? TCP reliable! => disconnection!
+		if (!died)
+			return api.threadPool.queue(pRunner, _sendingTrack);
+		ERROR(name(), " tries to send a message after dying");
 	}
 
 	virtual	void kill(Int32 error=0, const char* reason = NULL);

@@ -118,7 +118,7 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	if (!track)
 		++track; // 1 based!
 
-	NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.time, " (", tag.frame, ")");
+	// NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.time, " (", tag.frame, ")");
 	
 	if (track > _videos.size()) {
 		if (_sequence)

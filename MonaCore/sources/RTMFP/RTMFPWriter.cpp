@@ -116,8 +116,7 @@ void RTMFPWriter::flushing() {
 		_repeatDelay = _output.rto();
 		_repeatTime.update();
 	}
-	_output.send(_pSender);
-	_pSender.reset();
+	_output.send(move(_pSender));
 }
 
 AMFWriter& RTMFPWriter::newMessage(bool reliable, Media::Data::Type type, const Packet& packet) {

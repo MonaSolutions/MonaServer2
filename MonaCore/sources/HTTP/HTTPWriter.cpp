@@ -82,11 +82,27 @@ private:
 };
 
 
-HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0),_requesting(false),_session(session) {}
-
-HTTPWriter::~HTTPWriter() {
-	for (shared<HTTPSender>& pSender : _flushings)
-		pSender->onFlush = nullptr; // to interrupt thread onFlush (pSender can be running in PoolThread)
+HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(false), _session(session),
+	_onFileReaden([this](shared<Buffer>& pBuffer, bool end) {
+		_flushings.pop_front();
+		while (!_flushings.empty()) {
+			if (_flushings.front()->isFile())
+				return _session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front())); // wait onFileReaden!
+			_session.send(_flushings.front());
+			_flushings.pop_front();
+		}
+	}),
+	_onFileError([this](const Exception& ex) {
+		if (ex.cast<Ex::Net::Socket>()) // socket shutdown (WARN already displaid)
+			return;
+		if (ex.cast<Ex::Unfound>()) { // loading error!
+			shared<Buffer> pBuffer;
+			return _onFileReaden(pBuffer, true);
+		}
+		ERROR(ex);
+		if (_pRequest)
+			_pRequest->pSocket->shutdown(); // can't repair the session (client wait content-length!)
+	}) {
 }
 
 void HTTPWriter::closing(Int32 error, const char* reason) {
@@ -119,33 +135,23 @@ void HTTPWriter::endRequest() {
 }
 
 void HTTPWriter::flush(const shared<HTTPSender>& pSender) {
-	bool flush = pSender->flush();
-	if (!flush) {
-		// Wait onFlush!
-		pSender->onFlush = [this]() {
-			_flushings.pop_front();
-			while (!_flushings.empty()) {
-				bool flush = _flushings.front()->flush();
-				_session.send(_flushings.front());
-				if (!flush)
-					break; // Wait onFlush!
-				_flushings.pop_front();
-			}
-		};	
-	}
-	if (_flushings.empty())
-		_session.send(pSender);
-	if (!flush || !_flushings.empty())
-		_flushings.emplace_back(pSender);
+	if (pSender->isFile()) {
+		shared<HTTPFileSender> pFileSender = static_pointer_cast<HTTPFileSender>(pSender);
+		_session.api.ioFile.subscribe(pFileSender, (File::Decoder*)pFileSender.get(), _onFileReaden, _onFileError);
+		if (_flushings.empty())
+			_session.api.ioFile.read(pFileSender);
+	} else if (_flushings.empty())
+		return _session.send(pSender);
+
+	_flushings.emplace_back(pSender);
 }
 
 void HTTPWriter::flushing() {
-	for (shared<HTTPSender>& pSender : _flushings) {
-		if(pSender.unique()) // just if pSender is not running!
-			pSender->flush(); // continue to read the file when paused on congestion
-	}
 	if (_requesting) // during request wait the main response before flush
 		return;
+
+	bool flushing = !_flushings.empty(); // to avoid to considerate new add on following code when restart read in end of this method
+
 	if (_pResponse) {
 		--_requestCount;
 		flush(_pResponse);
@@ -159,12 +165,23 @@ void HTTPWriter::flushing() {
 		} else {
 			// send requestCount packet with header!
 			if (!_requestCount)
-				return;
+				break;
 			--_requestCount;
 			flush(pSender);
 		}
 		_senders.pop_front();
 	};
+
+	// continue to read the file if paused on congestion
+	if(flushing && _flushings.front().unique())
+		_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front()));
+}
+
+void HTTPWriter::writeFile(const Path& file, Parameters& properties) {
+	if(file.isFolder())
+		newSender<HTTPFolderSender>(true, file, properties);
+	else
+		newSender<HTTPFileSender>(true, file, properties);
 }
 
 DataWriter& HTTPWriter::writeMessage(bool isResponse) {

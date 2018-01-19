@@ -126,13 +126,8 @@ struct MediaFile : virtual Static  {
 		bool write(Args&&... args) {
 			if (!_pFile)
 				return false; // Stream not begin or has failed!
-			Exception ex;
-			bool success;
-			AUTO_ERROR(success = io.threadPool.queue(ex, std::make_shared<WriteType>(_pName, io, _pFile, _pWriter, args ...), _writeTrack), description());
-			if (success)
-				return true;
-			Stream::stop(ex);
-			return false;
+			io.threadPool.queue(new WriteType(_pName, io, _pFile, _pWriter, args ...), _writeTrack);
+			return true;
 		}
 
 		struct Write : Runner, virtual Object {

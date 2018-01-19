@@ -113,9 +113,10 @@ void MediaFile::Reader::start() {
 	if (_pFile)
 		return;
 	_realTime =	0; // reset realTime
-	shared<Decoder> pDecoder(new Decoder(io.handler, _pReader, path, _pSource->name(), _pMedias));
+	Decoder* pDecoder = new Decoder(io.handler, _pReader, path, _pSource->name(), _pMedias);
 	pDecoder->onFlush = _onFlush = [this]() { _onTimer(); };
-	io.open(_pFile, path, pDecoder, nullptr, _onFileError);
+	_pFile.reset(new File(path, File::MODE_READ));
+	io.subscribe(_pFile, pDecoder, nullptr, _onFileError);
 	io.read(_pFile);
 	INFO(description(), " starts");
 }
@@ -124,7 +125,7 @@ void MediaFile::Reader::stop() {
 	if (!_pFile)
 		return;
 	timer.set(_onTimer, 0);
-	io.close(_pFile);
+	_pFile.reset();
 	_onFlush = nullptr;
 	_pMedias.reset(new std::deque<unique<Media::Base>>());
 	INFO(description(), " stops"); // to display "stops" before possible "publication reset"
@@ -174,7 +175,8 @@ bool MediaFile::Writer::beginMedia(const string& name) {
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
 	if (_pFile)
 		return true; // already running (MBR switch)
-	io.open(_pFile, path, _onError, _append);
+	_pFile.reset(new File(path, _append ? File::MODE_APPEND : File::MODE_WRITE));
+	io.subscribe(_pFile, _onError);
 	INFO(description(), " starts");
 	_pName.reset(new string(name));
 	return write<Write>();
@@ -188,7 +190,7 @@ void MediaFile::Writer::endMedia() {
 void MediaFile::Writer::stop() {
 	_pName.reset();
 	if(_pFile) {
-		io.close(_pFile);
+		_pFile.reset();
 		INFO(description(), " stops");
 	}
 	_running = false;

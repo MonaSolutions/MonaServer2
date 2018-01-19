@@ -87,7 +87,7 @@ private:
 	bool queue(Args&&... args) {
 		if (!operator bool())
 			return false;
-		if (_pPublishing->api.queue(std::make_shared<Type>(_pPublishing, args ...)))
+		if (_pPublishing->api.queue(new Type(_pPublishing, args ...)))
 			return true;
 		_pPublishing.reset(); // server stopped!
 		return false;

@@ -25,27 +25,18 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct HTTPMediaSender : HTTPSender, virtual Object {
-	HTTPMediaSender(const shared<Socket>& pSocket,
-		const shared<const HTTP::Header>& pRequest,
-		shared<Buffer>& pSetCookie,
-		shared<MediaWriter>& pWriter);
+	HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
+		shared<MediaWriter>& pWriter,
+		Media::Base* pMedia=NULL);
 
 	bool hasHeader() const { return _first; }
-protected:
-	shared<MediaWriter>		pWriter;
-	MediaWriter::OnWrite	onWrite;
-private:
-	void shutdown() {}
-	void run(const HTTP::Header& request, bool& keepalive);
-	bool _first;
-};
 
-template<typename MediaType>
-struct HTTPMediaSend : HTTPMediaSender, MediaType, virtual Object {
-	HTTPMediaSend(const shared<Socket>& pSocket, const shared<const HTTP::Header>& pRequest, shared<Buffer>& pSetCookie, shared<MediaWriter>& pWriter,
-					const typename MediaType::Tag& tag, const Packet& packet, UInt8 track) : HTTPMediaSender(pSocket, pRequest, pSetCookie, pWriter), MediaType(tag, packet, track) {}
 private:
-	void run(const HTTP::Header& request, bool& keepalive) { keepalive = true; pWriter->writeMedia(*this, onWrite); }
+	void run();
+
+	bool _first;
+	shared<MediaWriter> _pWriter;
+	unique<Media::Base>	_pMedia;
 };
 
 

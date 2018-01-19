@@ -291,7 +291,9 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 	return true;
 }
 
-void RTMFPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, const shared<Socket>& pSocket) {
+	shared<Buffer> pBuffer(move(pData)); // capture!
+
 	if (pBuffer->size() <= RTMFP::SIZE_HEADER || (pBuffer->size() > (RTMFP::SIZE_PACKET<<1))) {
 		ERROR("Invalid packet size");
 		return;

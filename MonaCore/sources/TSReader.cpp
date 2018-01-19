@@ -300,7 +300,13 @@ void TSReader::readESI(BinaryReader& reader, Program& program) {
 		switch (type) {
 			case 0x0A: // ISO 639 language + Audio option
 				data = desc.current();
-				_properties[program->track].setString("audioLang", STR data, desc.next(3));
+				size = desc.next(3);
+				while (size && !data[0]) {
+					++data; // remove 0 possible prefix!
+					--size;
+				}
+				if(size)
+					_properties[program->track].setString("audioLang", STR data, size);
 				break;
 			case 0x86: // Caption service descriptor http://atsc.org/wp-content/uploads/2015/03/Program-System-Information-Protocol-for-Terrestrial-Broadcast-and-Cable.pdf
 				UInt8 count = desc.read8() & 0x1F;

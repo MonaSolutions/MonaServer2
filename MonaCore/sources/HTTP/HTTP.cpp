@@ -24,17 +24,7 @@ using namespace std;
 
 namespace Mona {
 
-bool HTTP::Send(Socket& socket, const Packet& packet) {
-	Exception ex;
-	DUMP_RESPONSE(socket.isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), socket.peerAddress());
-	int result = socket.write(ex, packet);
-	if (ex || result<0)
-		WARN(ex);
-	// no shutdown required, already done by write!
-	return result >= 0;
-}
-
-HTTP::Header::Header(const char* protocol, const SocketAddress& serverAddress) : accessControlRequestMethod(0), protocol(protocol),
+HTTP::Header::Header(const shared<Socket>& pSocket) : pSocket(pSocket), accessControlRequestMethod(0),
 	mime(MIME::TYPE_UNKNOWN),
 	type(TYPE_UNKNOWN),
 	version(0),
@@ -46,7 +36,7 @@ HTTP::Header::Header(const char* protocol, const SocketAddress& serverAddress) :
 	secWebsocketKey(NULL),
 	secWebsocketAccept(NULL),
 	accessControlRequestHeaders(NULL),
-	host(serverAddress),
+	host(pSocket->address()),
 	range(NULL),
 	encoding(ENCODING_IDENTITY),
 	code(NULL) {

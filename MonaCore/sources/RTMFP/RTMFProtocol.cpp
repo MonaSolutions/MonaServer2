@@ -89,8 +89,8 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 	};
 }
 
-shared<Socket::Decoder>	RTMFProtocol::newDecoder() {
-	shared<RTMFPDecoder> pDecoder(new RTMFPDecoder(_pRendezVous, api.handler, api.threadPool));
+Socket::Decoder* RTMFProtocol::newDecoder() {
+	RTMFPDecoder* pDecoder = new RTMFPDecoder(_pRendezVous, api.handler, api.threadPool);
 	pDecoder->onSession = _onSession;
 	pDecoder->onEdgeMember = _onEdgeMember;
 	pDecoder->onHandshake = _onHandshake;
@@ -167,7 +167,7 @@ void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, set<SocketAddress>&
 	};
 	Exception ex;
 	BinaryWriter(pBuffer->data() + 9, 3).write8(type).write16(pBuffer->size() - 12);
-	AUTO_ERROR(api.threadPool.queue(ex, make_shared<Sender>(socket(), pBuffer, addresses, pResponse)), "RTMFPSend");
+	api.threadPool.queue(new Sender(socket(), pBuffer, addresses, pResponse));
 }
 
 

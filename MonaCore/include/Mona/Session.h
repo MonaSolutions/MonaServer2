@@ -37,9 +37,8 @@ struct Session : virtual Object {
 		// Int32 Negative => no possible to distribute a message
 		ERROR_SOCKET = -1,
 		ERROR_SHUTDOWN = -1, // no more message exchange acceptation!
-		ERROR_RESOURCE = -2,
-		ERROR_CONGESTED = -3,
-		ERROR_ZOMBIE = -4 // is already died indeed, impossible to send a message!
+		ERROR_CONGESTED = -2,
+		ERROR_ZOMBIE = -3 // is already died indeed, impossible to send a message!
 	};
 
 	static Int32 ToError(const Exception& ex);

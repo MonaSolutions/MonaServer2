@@ -46,6 +46,7 @@ struct MediaSocket : virtual Static {
 
 	private:
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', (_pReader ? _pReader->format() : "AUTO")); }
+		void writeMedia(const HTTP::Message& message);
 
 		struct Decoder : HTTPDecoder, virtual Object {
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
@@ -54,7 +55,7 @@ struct MediaSocket : virtual Static {
 
 		private:
 			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
-			UInt32 onStreamData(Packet& buffer, Socket& socket);
+			UInt32 onStreamData(Packet& buffer, const shared<Socket>& pSocket);
 
 			shared<MediaReader>		_pReader;
 			Type					_type;
@@ -97,7 +98,7 @@ struct MediaSocket : virtual Static {
 
 
 		bool beginMedia(const std::string& name);
-		bool writeProperties(const Media::Properties& properties) { Media::Data::Type type; const Packet& packet(properties(type)); return send<MediaSend<Media::Data>>(0, type, packet); }
+		bool writeProperties(const Media::Properties& properties);
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Audio>>(track, tag, packet); }
 		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Video>>(track, tag, packet); }
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return send<MediaSend<Media::Data>>(track, type, packet); }
@@ -110,13 +111,8 @@ struct MediaSocket : virtual Static {
 		bool send(Args&&... args) {
 			if (!_subscribed)
 				return false; // Stream not started!
-			Exception ex;
-			bool success;
-			AUTO_ERROR(success = io.threadPool.queue(ex, std::make_shared<SendType>(type, _pName, _pSocket, _pWriter, _pStreaming, args ...), _sendTrack), description());
-			if (success)
-				return true;
-			Stream::stop(ex);
-			return false;
+			io.threadPool.queue(new SendType(type, _pName, _pSocket, _pWriter, _pStreaming, args ...), _sendTrack);
+			return true;
 		}
 
 		struct Send : Runner, virtual Object {

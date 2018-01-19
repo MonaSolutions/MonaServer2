@@ -24,22 +24,59 @@ using namespace std;
 
 namespace Mona {
 
-bool HTTPSender::run(Exception&) {
-	bool keepalive(_connection ? true : false); 
-	run(*_pRequest, keepalive);
-	if (!keepalive)
-		_pSocket->shutdown();
-	return true;
+Buffer& HTTPSender::buffer() {
+	if (!_pBuffer)
+		_pBuffer.reset(new Buffer(4, "\r\n\r\n"));
+	return *_pBuffer;
 }
 
-bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, const Packet& packet, UInt64 extraSize) {
-	// WRITE HEADER
+void HTTPSender::setCookies(shared<Buffer>& pSetCookie) {
+	if (!pSetCookie || !hasHeader())
+		return;
+	if (!_pBuffer)
+		_pBuffer = move(pSetCookie);
+	else
+		_pBuffer->resize(_pBuffer->size() - 4, true).append(pSetCookie->data(), pSetCookie->size());
+	_pBuffer->append(EXPAND("\r\n\r\n"));
+}
 
+bool HTTPSender::send(const Packet& content) {
+	if (pRequest->type == HTTP::TYPE_HEAD)
+		return true;
+	if (_chunked) {
+		shared<Buffer> pBuffer(new Buffer());
+		if (_chunked == 2)
+			pBuffer->append(EXPAND("\r\n")); // prefix
+		else
+			++_chunked;
+		String::Append(*pBuffer, String::Format<UInt32>("%X", content.size())).append(EXPAND("\r\n"));
+		if(!content)
+			pBuffer->append(EXPAND("\r\n")); // end!
+		if (!socketSend(Packet(pBuffer)))
+			return false;
+	}
+	return socketSend(content);
+}
+
+bool HTTPSender::socketSend(const Packet& packet) {
+	if (!packet)
+		return true;
+	Exception ex;
+	DUMP_RESPONSE(pRequest->pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), pRequest->pSocket->peerAddress());
+	int result = pRequest->pSocket->write(ex, packet);
+	if (ex || result<0)
+		WARN(ex);
+	// no shutdown required, already done by write!
+	return result >= 0;
+}
+
+bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UInt64 extraSize) {
 	// COMPUTE SIZE
-	if (packet) {
-		const UInt8* current = packet.data();
-		while (memcmp(current++, EXPAND("\r\n\r\n")) != 0);
-		extraSize += packet.size() - (current - packet.data() + 3);
+	const UInt8* headerEnd = _pBuffer ? _pBuffer->data() : NULL;
+	if (headerEnd) {
+		while (memcmp(headerEnd++, EXPAND("\r\n\r\n")) != 0);
+		headerEnd += 3;
+		extraSize += _pBuffer->size() - (headerEnd - _pBuffer->data());
 	}
 
 	shared_ptr<Buffer> pBuffer(new Buffer());
@@ -52,13 +89,24 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, co
 	Date().format(Date::FORMAT_HTTP, writer.write(EXPAND("\r\nDate: ")));
 	writer.write(EXPAND("\r\nServer: Mona"));
 
+	/// Last modified
+	const Path& path = this->path();
+	if (path)
+		String::Append(writer.write(EXPAND("\r\nLast-Modified: ")), String::Date(Date(path.lastChange()), Date::FORMAT_HTTP));
+	
 	/// Content Type/length
 	if (mime) {  // If no mime type, as "304 Not Modified" response, or HTTPWriter::writeRaw which write itself content-type, no content!
 		MIME::Write(writer.write(EXPAND("\r\nContent-Type: ")), mime, subMime);
-		if (!packet) {
-			// no content-length
-			writer.write(EXPAND("\r\n" HTTP_LIVE_HEADER));
-			_connection = HTTP::CONNECTION_CLOSE; // write "connection: close" (session until end of socket)
+		if (extraSize == UINT64_MAX) {
+			if (path) {
+				// Transfer-Encoding: chunked!
+				writer.write(EXPAND("\r\nTransfer-Encoding: chunked"));
+				_chunked = 1;
+			} else {
+				// live => no content-length + live attributes + close on end
+				writer.write(EXPAND("\r\n" HTTP_LIVE_HEADER));
+				_connection = HTTP::CONNECTION_CLOSE; // write "connection: close" (session until end of socket)
+			}
 		} else
 			String::Append(writer.write(EXPAND("\r\nContent-Length: ")), extraSize);
 	}
@@ -74,22 +122,14 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, co
 		writer.write(EXPAND("\r\nConnection: close"));
 
 	/// allow cross request, indeed if onConnection has not been rejected, every cross request are allowed
-	if (_pRequest->origin && String::ICompare(_pRequest->origin, _pRequest->host) != 0)
-		writer.write(EXPAND("\r\nAccess-Control-Allow-Origin: ")).write(_pRequest->origin);
+	if (pRequest->origin && String::ICompare(pRequest->origin, pRequest->host) != 0)
+		writer.write(EXPAND("\r\nAccess-Control-Allow-Origin: ")).write(pRequest->origin);
 
-	/// write Cookies line
-	if (_pSetCookie)
-		writer.write(*_pSetCookie);
-
-	if (_pRequest->type == HTTP::TYPE_HEAD || !packet)
-		writer.write(EXPAND("\r\n\r\n"));
-
-	// SEND HEADER
-	if (!send(Packet(pBuffer)))
-		return false;
-
-	// SEND CONTENT
-	return _pRequest->type != HTTP::TYPE_HEAD && packet ? send(packet) : true;
+	if (headerEnd)
+		return socketSend(Packet(pBuffer)) && socketSend(pRequest->type == HTTP::TYPE_HEAD ? Packet(_pBuffer, _pBuffer->data(), headerEnd - _pBuffer->data()) : Packet(_pBuffer));
+	// no _pBuffer
+	writer.write(EXPAND("\r\n\r\n"));
+	return socketSend(Packet(pBuffer));
 }
 
 

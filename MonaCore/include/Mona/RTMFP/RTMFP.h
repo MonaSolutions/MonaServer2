@@ -161,7 +161,7 @@ struct RTMFP : virtual Static {
 		virtual UInt64				resetWriter(UInt64 id) = 0;
 
 		virtual UInt32		rto() const = 0;
-		virtual void		send(const shared<RTMFPSender>& pSender) = 0;
+		virtual void		send(shared<RTMFPSender>&& pSender) = 0;
 		virtual UInt64		queueing() const = 0;
 	};
 

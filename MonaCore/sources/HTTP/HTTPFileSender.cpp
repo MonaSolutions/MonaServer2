@@ -24,254 +24,200 @@ using namespace std;
 namespace Mona {
 
 
-HTTPFileSender::HTTPFileSender(const shared<Socket>& pSocket,
-	const shared<const HTTP::Header>& pRequest,
-	shared<Buffer>& pSetCookie,
-	IOFile& ioFile, const Path& file, Parameters& properties) : HTTPSender("HTTPFileSender", pSocket, pRequest, pSetCookie),
-		_file(file), _properties(move(properties)), FileReader(ioFile), _head(pRequest->type==HTTP::TYPE_HEAD),
-		_onEnd([this]() {
-			if (_keepalive)
-				return io.handler.queue(HTTPSender::onFlush);
-			socket()->shutdown(); // useless to addition handle.queue time (session is dying)
-		}) {
-}
-
-bool HTTPFileSender::flush() {
-	// /!\ Can be called by an other thread!
-	if (opened() && self->readen() < self->size())
-		read(); // continue to read file when paused on congestion
-	return _head || _file.isFolder();
+HTTPFileSender::HTTPFileSender(const shared<const HTTP::Header>& pRequest,
+	const Path& file, Parameters& properties) : HTTPSender("HTTPFileSender", pRequest),
+		File(file, File::MODE_READ), _properties(move(properties)), _mime(MIME::TYPE_UNKNOWN),
+		_result(properties.begin()), _pos(0), _step(properties.count()), _stage(0) {
 }
 
 
-shared<File::Decoder> HTTPFileSender::newDecoder() {
-	shared<Decoder> pDecoder(new Decoder(io.handler, socket()));
-	pDecoder->onEnd = _onEnd;
-	return pDecoder;
-}
-
-UInt32 HTTPFileSender::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
-	// /!\ Parallel thread!
-	Packet packet(pBuffer);
-	if (packet && !HTTP::Send(*_pSocket, packet))
-		return 0; // stop reading (socket is shutdown now!)
-	if (end)
-		_handler.queue(onEnd);
-	return _pSocket->queueing() ? 0 : packet.size();
-}
-
-void HTTPFileSender::run(const HTTP::Header& request, bool& keepalive) {
-	
-	string buffer;
-	Exception ex;
-
-	if (_file.isFolder()) {
-		// FOLDER
-		if (_file.exists()) {
-			shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
-			BinaryWriter writer(*pBuffer);
-			HTTP_BEGIN_HEADER(writer)
-				HTTP_ADD_HEADER("Last-Modified", String::Date(Date(_file.lastChange()), Date::FORMAT_HTTP));
-			HTTP_END_HEADER
-
-			HTTP::Sort		sort(HTTP::SORT_ASC);
-			HTTP::SortBy	sortBy(HTTP::SORTBY_NAME);
-
-			if (_properties.count()) {
-				if (_properties.getString("N", buffer))
-					sortBy = HTTP::SORTBY_NAME;
-				else if (_properties.getString("M", buffer))
-					sortBy = HTTP::SORTBY_MODIFIED;
-				else if (_properties.getString("S", buffer))
-					sortBy = HTTP::SORTBY_SIZE;
-				if (buffer == "D")
-					sort = HTTP::SORT_DESC;
-			}
-
-			bool success;
-			AUTO_ERROR(success = HTTP::WriteDirectoryEntries(ex, writer, _file, request.path, sortBy, sort), "HTTP Folder view");
-			if (success)
-				send(HTTP_CODE_200, MIME::TYPE_TEXT, "html; charset=utf-8", Packet(pBuffer));
+bool HTTPFileSender::load(Exception& ex) {
+	if (File::load(ex)) {
+		/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
+		if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
+			if (send(HTTP_CODE_304)) // NOT MODIFIED
+				ex.set<Ex::Unfound>(); // to detect end!
 			else
-				sendError(HTTP_CODE_500, "List folder files, ", ex);
-		} else
-			sendError(HTTP_CODE_404, "The requested URL ", request.path, "/ was not found on the server");
-		return;
-	}
-
-	// FILE
-	// /!\ Here if !_head we have to call _onEnd on end!
-	if (!_head) {
-		// keep alive the time to read the file!
-		_keepalive = keepalive;
-		keepalive = true;
-	}
-
-	onError = [this](const Exception& ex) {
-		ERROR(ex);
-		socket()->shutdown(); // can't repair the session (client wait content-length!)
-		return;
-	};
-	if (!open(ex, _file)) {
-		if (ex.cast<Ex::Unfound>()) {
-			// File doesn't exists but maybe folder exists?
-			if (FileSystem::Exists(MAKE_FOLDER(_file))) {
-				/// Redirect to the real folder path
-				shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
-				BinaryWriter writer(*pBuffer);
-				// Full URL required here relating RFC2616 section 10.3.3
-				String::Assign(buffer,request.protocol, "://", request.host, request.path, '/', _file.name(), '/');
-				HTTP_BEGIN_HEADER(writer)
-					HTTP_ADD_HEADER("Location", buffer);
-				HTTP_END_HEADER
-				HTML_BEGIN_COMMON_RESPONSE(writer, EXPAND("Moved Permanently"))
-					writer.write(EXPAND("The document has moved <a href=\"")).write(buffer).write(EXPAND("\">here</a>."));
-				HTML_END_COMMON_RESPONSE(buffer)
-				if(!send(HTTP_CODE_301, MIME::TYPE_TEXT, "html; charset=utf-8", Packet(pBuffer)))
-					return;
-			} else if (!sendError(HTTP_CODE_404, "The requested URL ", request.path, '/', _file.name(), " was not found on the server"))
-				return;
-
-		} else if (!sendError(HTTP_CODE_401, "Impossible to open ", request.path, '/', _file.name(), " file"))
-			return;
-		if(!_head)
-			_onEnd();
-		return;
-	}
-
-	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
-	if (!_properties.count() && request.ifModifiedSince >= self->lastChange()) {
-		if(send(HTTP_CODE_304) && !_head) // NOT MODIFIED
-			_onEnd();
-		return;
-	}
-
-	// Parsing file and replace with parameters every time requested by user (when properties returned by onRead):
-	// - Allow to parse every type of files! same a SVG file!
-	// - Allow to control "304 not modified code" response in checking arguments "If-Modified-Since" and update properties time
-	// - Allow by default to never parsing the document!
-	if (_properties.count() && self->size() > 0xFFFF) {
-		ERROR(request.path, '/', _file.name(), " exceeds limit size of 65535 to allow parameter parsing, file parameters ignored");
-		_properties.clear();
-	}
-	if(_properties.count()) {
-		// parsing file!
-		shared<Buffer> pBuffer(new Buffer(UInt32(self->size())));
-		int readen;
-		AUTO_ERROR(readen = self->read(ex, pBuffer->data(), pBuffer->size()),"HTTP get ", request.path, '/', _file.name());
-		if (readen < 0) {
-			ERROR(ex);
-			socket()->shutdown(); // can't repair the session (client wait content-length!)
-			return; 
+				ex.set<Ex::Net::Socket>();
+			return false;
 		}
-		if (sendFile(Packet(pBuffer, pBuffer->data(), readen)) && !_head)
-			_onEnd();
-	} else if(sendHeader(self->size()) && !_head)
-		read();
-}
-
-bool HTTPFileSender::sendHeader(UInt64 fileSize) {
-	// Create something to download by default!
-	const char* subMime;
-	MIME::Type mime = MIME::Read(_file, subMime);
-	if (!mime) {
-		mime = MIME::TYPE_APPLICATION;
-		subMime = "octet-stream";
+		return true;
 	}
-	shared<Buffer> pBuffer(new Buffer(4, "\r\n\r\n"));
-	BinaryWriter writer(*pBuffer);
-	HTTP_BEGIN_HEADER(writer)
-		HTTP_ADD_HEADER("Last-Modified", String::Date(Date(self->lastChange()), Date::FORMAT_HTTP));
-	HTTP_END_HEADER
-	return send(HTTP_CODE_200, mime, subMime, Packet(pBuffer), fileSize);
+
+	string buffer;
+
+	if (ex.cast<Ex::Unfound>()) {
+		// File doesn't exists but maybe folder exists?
+		if (FileSystem::Exists(MAKE_FOLDER(path()))) {
+			/// Redirect to the real folder path
+			BinaryWriter writer(this->buffer());
+			// Full URL required here relating RFC2616 section 10.3.3
+			String::Assign(buffer, pRequest->pSocket->isSecure() ? "https://" : "http://", pRequest->host, pRequest->path, '/', File::name(), '/');
+			HTTP_BEGIN_HEADER(writer)
+				HTTP_ADD_HEADER("Location", buffer);
+			HTTP_END_HEADER
+			HTML_BEGIN_COMMON_RESPONSE(writer, EXPAND("Moved Permanently"))
+				writer.write(EXPAND("The document has moved <a href=\"")).write(buffer).write(EXPAND("\">here</a>."));
+			HTML_END_COMMON_RESPONSE(buffer)
+			if (!send(HTTP_CODE_301, MIME::TYPE_TEXT, "html; charset=utf-8"))
+				ex.set<Ex::Net::Socket>();
+		} else if (!sendError(HTTP_CODE_404, "The requested URL ", pRequest->path, '/', File::name(), " was not found on the server"))
+			ex.set<Ex::Net::Socket>();
+	} else if (sendError(HTTP_CODE_401, "Impossible to open ", pRequest->path, '/', File::name(), " file"))
+		ex.set<Ex::Unfound>(); // to be detected by HTTPWriter like a loading error!
+	else
+		ex.set<Ex::Net::Socket>();
+	return false;
 }
 
-bool HTTPFileSender::sendFile(const Packet& packet) {
-
+UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
+	
 	vector<Packet> packets;
+	UInt32 size;
+
+	if (!_properties.count()) {
+		size = pBuffer->size();
+		packets.emplace_back(pBuffer); // capture
+	} else // properties => want parse files to replace properties!
+		size = generate(Packet(pBuffer), packets); // capture
+
+	// HEADER
+	if (!_mime) {
+		_mime = MIME::Read(self, _subMime);
+		if (!_mime) {
+			_mime = MIME::TYPE_APPLICATION;
+			_subMime = "octet-stream";
+		}
+		if (!send(HTTP_CODE_200, _mime, _subMime, end ? size : UINT64_MAX))
+			return 0;
+	}
+	// CONTENT
+	if (pRequest->type != HTTP::TYPE_HEAD) {
+		for (Packet& packet : packets) {
+			if (!send(packet))
+				return 0;
+		}
+		if(!end)
+			return pRequest->pSocket->queueing() ? 0 : 0xFFFF;
+	}
+	// END
+	send(Packet::Null()); // to end possible chunked transfer
+	pBuffer.reset(new Buffer()); // to get onReaden callback!
+	this->end();
+	return 0;
+}
+
+const string* HTTPFileSender::search(char c) {
+	if (!c) {
+		// reset
+		const string* pResult = (_result == _properties.end() || _result->first.size() != _pos) ? NULL : &_result->second;
+		_pos = 0;
+		_result = _properties.begin();
+		_step = _properties.count();
+		return pResult;
+	}
+
+	while (_result != _properties.end()) {
+		Int16 diff = _result->first.size() > _pos ? (c - _result->first[_pos]) : 1;
+		if (!diff) {
+			++_pos; // wait next
+			return &_result->second;
+		}
+		if (diff < 0 && _result == _properties.begin()) {
+			_result = _properties.end();
+			return NULL;
+		}
+		auto it = _result;
+		do {
+			if (!(_step /= 2)) {
+				_result = _properties.end();
+				return NULL;
+			}
+			advance(it, (diff & 0x8000) ? -_step : _step);
+			diff = _result->first.compare(0, _pos, it->first, 0, _pos);
+		} while (diff);
+		_result = it;
+	};
+	return NULL;
+}
+
+UInt32 HTTPFileSender::generate(const Packet& packet, vector<Packet>& packets) {
 
 	// iterate on content to replace "<% key %>" fields
-	// At less one char!
-
+	
 	const UInt8* begin = packet.data();
 	const UInt8* cur = begin;
 	const UInt8* end = begin + packet.size();
-	UInt32 size(0);
-	std::string	 tag;
-	UInt8		 stage(0);
+	UInt32		 size(0);
 
 	while (cur<end) {
 
 		if (*cur == '<') {
-			tag.clear();
-			stage = 1;
+			// reset to get "<% name %>" from "<% test <% name %>" (more sense rather searching "test <% name" in the properties!
+			if(_stage>2)
+				search(0);
+			_stage = 1;
 			++cur;
 			continue;
 		}
 
-		switch (stage) {
+		switch (_stage) {
 			case 1:
 				if (*cur == '%') {
 					if ((cur - 1) > begin) {
 						packets.emplace_back(packet, begin, cur - begin - 1);
 						size += packets.back().size();
 					}
-					++stage;
+					++_stage;
 				} else
-					--stage;
+					--_stage;
 				break;
 			case 2:
 				if (isspace(*cur))
 					break;
-				++stage;
+				++_stage;
 			case 3:
 				if (*cur == '%')
-					++stage;
+					++_stage;
+				else if (isspace(*cur))
+					_stage = 5;
 				else
-					tag += *cur;
+					search(*cur);
 				break;
 			case 4:
 				if (*cur == '>') {
-					const char* value = _properties.getString(String::TrimRight(tag));
-					if (value) {
-						packets.emplace_back(Packet(value, strlen(value)));
-						size += packets.back().size();
+					const string* pValue = search(0);
+					if (pValue) {
+						packets.emplace_back(Packet(pValue->data(), pValue->size()));
+						size += pValue->size();
 					}
 					begin = cur + 1;
-					stage = 0;
-				} else {
-					--stage;
-					tag += '%';
-					tag += *cur;
+					_stage = 0;
+					break;
+				}
+				--_stage;
+				search('%');
+				continue;
+			default:
+				if (_stage) { // _stage>4 => spaces!
+					if (!isspace(*cur)) {
+						while (--_stage > 4)
+							search(' ');
+						_stage = 3;
+						continue;
+					}
+					++_stage;
 				}
 				break;
-			default: if(stage) ERROR("HTTP parsing tag stage ", stage, " not expected");
 		}
-
-		if (tag.size() > 0xFF) {
-			WARN("Script parameter exceeds maximum 256 size");
-			tag.clear();
-			stage = 0;
-		}
-
 		++cur;
 	}
 
-
 	// Add rest size
-	size += cur - begin;
-	if (!sendHeader(size))
-		return false;
-	if (_head)
-		return true;
-
-	for (const Packet& packet : packets) {
-		if (!send(packet))
-			return false;
-	}
-
-	// Send the rest
-	return cur > begin ? send(Packet(packet, begin, cur - begin)) : true;
+	if (cur <= begin)
+		return size;
+	packets.emplace_back(packet, begin, cur - begin);
+	return size += cur - begin;
 }
 
 } // namespace Mona

@@ -30,28 +30,27 @@ HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const string&
 }
 
 void HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
-	// Dump just one time
-	DUMP_REQUEST(_name.empty() ? (pSocket->isSecure() ? "HTTPS" : "HTTP") : _name.c_str(), pBuffer->data(), pBuffer->size(), address);
+	if (_stage < BODY && _pUpgradeDecoder) {
+		// has upgraded the session, so is no more a HTTP Session!
+		if (!_pUpgradeDecoder.unique())
+			return _pUpgradeDecoder->decode(pBuffer, address, pSocket);
+		ERROR(_ex.set<Ex::Protocol>("HTTP upgrade rejected"));
+		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
+	}
+
+	Packet packet(pBuffer); // to capture pBuffer!
+	DUMP_REQUEST(_name.empty() ? (pSocket->isSecure() ? "HTTPS" : "HTTP") : _name.c_str(), packet.data(), packet.size(), address); // dump
 
 	if (_ex) // a request error is killing the session!
 		return;
 
-	if (_stage < BODY && _pUpgradeDecoder) {
-		if (_pUpgradeDecoder.unique()) {
-			ERROR(_ex.set<Ex::Protocol>("HTTP upgrade rejected"));
-			pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
-			return;
-		}
-		return _pUpgradeDecoder->decode(pBuffer, address, pSocket);
-	}
-
-	if (!addStreamData(Packet(pBuffer), pSocket->recvBufferSize(), *pSocket)) {
+	if (!addStreamData(packet, pSocket->recvBufferSize(), pSocket)) {
 		ERROR(_ex.set<Ex::Protocol>("HTTP message exceeds buffer maximum ", pSocket->recvBufferSize(), " size"));
 		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
 	}
 }
 
-UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
+UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) {
 	
 	do {
 /////////////////////////////////////////////////////////////////
@@ -72,7 +71,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			if (!_pHeader) {
 				_path.reset();
 				_code = 0;
-				_pHeader.reset(new HTTP::Header(socket.isSecure() ? "https" : "http", socket.address()));
+				_pHeader.reset(new HTTP::Header(pSocket));
 			}
 	
 			// if == '\r\n' (or '\0\n' since that it can have been modified for key/value parsing)
@@ -250,7 +249,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 
 		if (_ex) {
 			// No more message if was a response, otherwise no more reception (allow a error response)
-			socket.shutdown(_pHeader && _pHeader->type ? Socket::SHUTDOWN_RECV : Socket::SHUTDOWN_BOTH);
+			pSocket->shutdown(_pHeader && _pHeader->type ? Socket::SHUTDOWN_RECV : Socket::SHUTDOWN_BOTH);
 			// receive exception to warn the client
 			ERROR(_ex)
 			receive(_ex);

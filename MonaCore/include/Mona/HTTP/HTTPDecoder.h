@@ -26,7 +26,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct HTTPDecoder : Socket::Decoder, private StreamData<Socket&>, protected Media::Source, virtual Object {
+struct HTTPDecoder : Socket::Decoder, private StreamData<const shared<Socket>&>, protected Media::Source, virtual Object {
 	typedef Event<void(HTTP::Request&)>  ON(Request);
 	typedef Event<void(HTTP::Response&)> ON(Response);
 
@@ -34,7 +34,7 @@ struct HTTPDecoder : Socket::Decoder, private StreamData<Socket&>, protected Med
 
 protected:
 	void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
-	UInt32 onStreamData(Packet& buffer, Socket& socket);
+	UInt32 onStreamData(Packet& buffer, const shared<Socket>& pSocket);
 
 private:
 

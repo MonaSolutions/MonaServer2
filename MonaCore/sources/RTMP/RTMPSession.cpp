@@ -91,8 +91,8 @@ RTMPSession::RTMPSession(Protocol& protocol) : _first(true), _controller(2, *thi
 	
 }
 
-shared<Socket::Decoder> RTMPSession::newDecoder() {
-	shared<RTMPDecoder> pDecoder(new RTMPDecoder(api.handler));
+Socket::Decoder* RTMPSession::newDecoder() {
+	RTMPDecoder* pDecoder = new RTMPDecoder(api.handler);
 	pDecoder->onEncryptKey = [this](unique<RC4_KEY>& pEncryptKey) {
 		_pEncryptKey = move(pEncryptKey);
 		((string&)peer.protocol) = _pEncryptKey ? "RTMPE" : "RTMP";

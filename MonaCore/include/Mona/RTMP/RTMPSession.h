@@ -34,7 +34,7 @@ private:
 	void			flush();
 	void			kill(Int32 error=0, const char* reason = NULL);
 	
-	shared<Socket::Decoder>		newDecoder();
+	Socket::Decoder*			newDecoder();
 	RTMPDecoder::OnRequest	   _onRequest;
 
 	bool						_first;

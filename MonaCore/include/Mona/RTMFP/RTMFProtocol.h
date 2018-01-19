@@ -40,7 +40,7 @@ struct RTMFProtocol : UDProtocol, virtual Object  {
 
 	std::set<SocketAddress> addresses;
 private:
-	shared<Socket::Decoder>		newDecoder();
+	Socket::Decoder* newDecoder();
 
 
 	RTMFPDecoder::OnHandshake	_onHandshake;

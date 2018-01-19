@@ -27,12 +27,12 @@ namespace Mona {
 
 Subscription::Subscription(Media::Target& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
 	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _lastTime(0),
-	_audios(true), _videos(true), _datas(true), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self) {
+	_audios(true), _videos(true), _datas(true), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self), _updating(0) {
 }
 
 Subscription::Subscription(Media::TrackTarget& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
 	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _lastTime(0),
-	_audios(false), _videos(false), _datas(false), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self) {
+	_audios(false), _videos(false), _datas(false), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self), _updating(0) {
 }
 
 Subscription::~Subscription() {
@@ -150,6 +150,29 @@ bool Subscription::start() {
 				writeProperties(self); // if no publication media params are also the media medatata
 		}
 		_streaming.update();
+
+		if (_updating)
+			return true;
+		_updating = 1;
+		// Compute congestion on first write to be more far away of the previous flush (work like that for file and network)
+		UInt64 queueing = _target.queueing();
+		if (_congestion(queueing, 0)) {
+			if (!_streams.empty() && _mbr != MBR_DOWN && (!_pNextPublication || (pPublication && _pNextPublication->byteRate() >= pPublication->byteRate()))) {
+				_timeoutMBRUP *= 2; // increase MBR_UP attempt timemout (has been congested one time!)
+				DEBUG("Subscription ", name(), " MBR DOWN");
+				_mbr = MBR_DOWN;
+				_updating = -2;
+			} // else if pNextPublication and !pPublication, wait next publication!
+			_queueing.update();
+		} else if (!_queueing || _queueing.isElapsed(_timeoutMBRUP)) {
+			_queueing = 0;
+			if (!_streams.empty() && _mbr != MBR_UP && (!_pNextPublication || (pPublication && _pNextPublication->byteRate() < pPublication->byteRate()))) {
+				DEBUG("Subscription ", name(), " MBR UP");
+				_mbr = MBR_UP;
+				_updating = -1;
+			} // else if pNextPublication and !pPublication, wait next publication!
+		}
+		_congested = _congestion(queueing);
 		return true;
 	}
 	// reset congestion, will maybe change with this new media!
@@ -250,7 +273,7 @@ void Subscription::reset() {
 }
 
 void Subscription::clear() {
-	// must be like a new subscription creation beware not change pPublication, supervised by ServerAPI)
+	// must be like a new subscription creation beware not change pPublication (supervised by ServerAPI)
 	reset();
 	_waitingFirstVideoSync.update();
 	setNext(NULL);
@@ -259,6 +282,7 @@ void Subscription::clear() {
 
 void Subscription::stop() {
 	_streaming = 0;
+	_updating = 0;
 	// release resources
 	_audios.clear();
 	_videos.clear();
@@ -469,32 +493,16 @@ void Subscription::setFormat(const char* format) {
 }
 
 void Subscription::flush() {
-	if(!_ejected && _streaming) {
-		UInt64 queueing = _target.queueing();
-		if (_congestion(queueing, 0)) {
-			if (!_streams.empty() && _mbr != MBR_DOWN && (!_pNextPublication || (pPublication && _pNextPublication->byteRate() >= pPublication->byteRate()))) {
-				_timeoutMBRUP *= 2; // increase MBR_UP attempt timemout (has been congested one time!)
-				DEBUG("Subscription ", name(), " MBR DOWN");
-				_mbr = MBR_DOWN;
-				onMBR(_streams, true);
-			} // else if pNextPublication and !pPublication, wait next publication!
-			_queueing.update();
-		} else if (!_queueing || _queueing.isElapsed(_timeoutMBRUP)) {
-			_queueing = 0;
-			if (!_streams.empty() && _mbr != MBR_UP && (!_pNextPublication || (pPublication && _pNextPublication->byteRate() < pPublication->byteRate()))) {
-				DEBUG("Subscription ", name(), " MBR UP");
-				_mbr = MBR_UP;
-				onMBR(_streams, false);
-			} // else if pNextPublication and !pPublication, wait next publication!
-		}
-		_congested = _congestion(queueing); // compute "congested" just before "flush" to be the more far and away of previous flush (flush write waiting packet to socket)
-
-		// do the next in real time, but acceptable just on flush (flush allow to modify pPublication->subscriptions list)
-		if (_pNextPublication && !_medias.synchronizing())
-			next(); // timeout next!
-	}
 	_flushable = 0;
 	_target.flush(); // keep flush free even if ejected (usefull for example for ServerAPI::WaitingSync)
+	if (_streaming) { // no "ejected" check because it's valid to switch when ejected (can potentialy solve the ejection)
+		// Following code can modify subscriptions lists of publication and it's acceptable just in flush!
+		if (_updating < 0)
+			onMBR(_streams, _updating<-1);
+		else if (_pNextPublication && !_medias.synchronizing()) // do the next in real time (acceptable just on flush because allow to modify pPublication->subscriptions list)
+			next(); // timeout next!
+	}
+	_updating = 0;
 }
 
 

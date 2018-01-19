@@ -359,12 +359,11 @@ void RTMFPSession::flush() {
 	}
 }
 
-void RTMFPSession::send(const shared<RTMFPSender>& pSender) {
+void RTMFPSession::send(shared<RTMFPSender>&& pSender) {
 	// continue even on _killing to repeat writers messages to flush it (reliable)
 	pSender->address = peer.address;
 	pSender->pSession = _pSenderSession;
-	Exception ex;
-	AUTO_ERROR(api.threadPool.queue(ex, pSender, _senderTrack), name());
+	api.threadPool.queue(move(pSender), _senderTrack);
 }
 
 shared<RTMFPWriter> RTMFPSession::newWriter(UInt64 flowId, const Packet& signature) {

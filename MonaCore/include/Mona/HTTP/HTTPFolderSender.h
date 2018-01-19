@@ -25,29 +25,19 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct HTTPFileSender : HTTPSender, File, File::Decoder, virtual Object {
+struct HTTPFolderSender : HTTPSender, virtual Object {
 	/*!
 	File send */
-	HTTPFileSender(const shared<const HTTP::Header>& pRequest,
-		const Path& file, Parameters& properties);
+	HTTPFolderSender(const shared<const HTTP::Header>& pRequest,
+		const Path& folder, Parameters& properties);
 
-	const Path& path() const { return self; }
-
+	const Path& path() const { return _folder; }
 private:
-	bool				load(Exception& ex);
-	UInt32				decode(shared<Buffer>& pBuffer, bool end);
-	const std::string*	search(char c);
-	UInt32				generate(const Packet& packet, std::vector<Packet>& packets);
+
+	void  run();
 
 	Parameters				_properties;
-	MIME::Type				_mime;
-	const char*				_subMime;
-
-	// For search!
-	Parameters::const_iterator	_result;
-	UInt32						_pos;
-	Int32						_step;
-	UInt8						_stage;
+	Path					_folder;
 };
 
 

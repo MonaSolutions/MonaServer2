@@ -36,8 +36,8 @@ struct Server : protected ServerAPI, private Thread {
 	Server(UInt16 cores=0);
 	virtual ~Server();
 
-	bool start() { Parameters parameters;  return start(parameters); }// params by default
-	bool start(const Parameters& parameters);
+	void start() { Parameters parameters;  start(parameters); }// params by default
+	void start(const Parameters& parameters);
 	void stop() { Thread::stop(); }
 	bool running() { return Thread::running(); }
 

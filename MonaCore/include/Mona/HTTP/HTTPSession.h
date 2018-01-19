@@ -29,7 +29,7 @@ struct HTTPSession : virtual Object, TCPSession {
 	HTTPSession(Protocol& protocol);
 
 private:
-	shared<Socket::Decoder> newDecoder();
+	Socket::Decoder*		newDecoder();
 	HTTPDecoder::OnRequest	_onRequest;
 	HTTPDecoder::OnResponse	_onResponse;
 

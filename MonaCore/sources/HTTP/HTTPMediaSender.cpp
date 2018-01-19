@@ -23,27 +23,29 @@ using namespace std;
 
 namespace Mona {
 
-HTTPMediaSender::HTTPMediaSender(const shared<Socket>& pSocket,
-	const shared<const HTTP::Header>& pRequest,
-	shared<Buffer>& pSetCookie,
-	shared<MediaWriter>& pWriter) : HTTPSender("HTTPMediaSender", pSocket, pRequest, pSetCookie), _first(!pWriter),
-	onWrite([this](const Packet& packet) { send(packet); }) {
-	if (_first && pRequest->subMime)
+HTTPMediaSender::HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
+	shared<MediaWriter>& pWriter,
+	Media::Base* pMedia) : HTTPSender("HTTPMediaSender", pRequest), _pMedia(pMedia) {
+	if ((_first = (pWriter ? false : true)))
 		pWriter.reset(MediaWriter::New(pRequest->subMime));
-	this->pWriter = pWriter;
+	_pWriter = pWriter;
 }
 
-void HTTPMediaSender::run(const HTTP::Header& request, bool& keepalive) {
-	keepalive = _first;
+void HTTPMediaSender::run() {
+	MediaWriter::OnWrite onWrite([this](const Packet& packet) { send(packet); });
 	if (_first) {
 		// first packet streaming
-		if (send(HTTP_CODE_200, pWriter->mime(), pWriter->subMime(), Packet::Null()))
-			pWriter->beginMedia(onWrite);
-		return;
+		if (send(HTTP_CODE_200, _pWriter->mime(), _pWriter->subMime(), UINT64_MAX))
+			_pWriter->beginMedia(onWrite);
+		if(!_pMedia)
+			return;
+	} else if (!_pMedia) {
+		// end
+		_pWriter->endMedia(onWrite);
+		return end();
 	}
-	pWriter->endMedia(onWrite);
+	return _pWriter->writeMedia(*_pMedia, onWrite);
 }
-
 
 
 } // namespace Mona

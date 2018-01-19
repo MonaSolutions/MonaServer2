@@ -150,8 +150,6 @@ struct HTTP : virtual Static {
 
 	static const char*	 ErrorToCode(Int32 error);
 
-	static bool Send(Socket& socket, const Packet& packet);
-
 	static Type			 ParseType(const char* value);
 	static UInt8		 ParseConnection(const char* value);
 	static Encoding		 ParseEncoding(const char* value);
@@ -162,9 +160,9 @@ struct HTTP : virtual Static {
 	static bool			 WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& onCookie=nullptr);
 
 	struct Header : Parameters, virtual Object {
-		Header(const char* protocol, const SocketAddress& serverAddress);
+		Header(const shared<Socket>& pSocket);
 
-		const char*		protocol;
+		shared<Socket>  pSocket;
 
 		MIME::Type		mime;
 		const char*		subMime;
