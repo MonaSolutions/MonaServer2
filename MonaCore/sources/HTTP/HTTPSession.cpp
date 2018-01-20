@@ -199,8 +199,8 @@ bool HTTPSession::manage() {
 
 	// Cancel timeout when subscribing => Case particular to HTTP which can't communicate in the both way in same time and has no ping feature
 	UInt32 timeout = this->timeout;
-	if (_pSubscription)
-		(UInt32&)this->timeout = 0;
+	if (_pSubscription || _pWriter->answering())
+		(UInt32&)this->timeout = 0; // if answering or subscription waits congestion but no timeout (wait end of response, usefull for VLC file playing for example)
 
 	if (!TCPSession::manage())
 		return false;
@@ -218,8 +218,9 @@ bool HTTPSession::manage() {
 			// else HTTPWriter error, error already written!
 			unsubscribe();
 		}
-		(UInt32&)this->timeout = timeout;
 	}
+
+	(UInt32&)this->timeout = timeout;
 	return true;
 }
 

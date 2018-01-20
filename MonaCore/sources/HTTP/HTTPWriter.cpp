@@ -100,8 +100,7 @@ HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(fals
 			return _onFileReaden(pBuffer, true);
 		}
 		ERROR(ex);
-		if (_pRequest)
-			_pRequest->pSocket->shutdown(); // can't repair the session (client wait content-length!)
+		_session->shutdown(); // can't repair the session (client wait content-length!)
 	}) {
 }
 
@@ -173,7 +172,7 @@ void HTTPWriter::flushing() {
 	};
 
 	// continue to read the file if paused on congestion
-	if(flushing && _flushings.front().unique())
+	if (flushing && !_session->queueing())
 		_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front()));
 }
 

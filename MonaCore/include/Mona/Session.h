@@ -87,6 +87,7 @@ private:
 	SESSION_OPTIONS				_sessionsOptions;
 	Protocol&					_protocol;
 	UInt32						_timeout;
+	Congestion					_congestion;
 
 
 	friend struct Sessions;

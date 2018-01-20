@@ -79,7 +79,7 @@ private:
 	UInt16					_code;
 	std::string				_www;
 	const Handler&			_handler;
-	MediaReader*			_pReader;
+	unique<MediaReader>		_pReader;
 	Int64					_length;
 	std::string				_name;
 

@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/NALNetReader.h"
-#include "Mona/MPEG4.h"
 #include "Mona/HEVC.h"
 #include "Mona/AVC.h"
 #include "Mona/Logs.h"
@@ -86,7 +85,7 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 	// - unit delimiter or nal type greater
 	// - times change
 	// /!\ Ignore many VLC frames are in the same NAL unit, it can be redundant coded picture
-	//bool flush = false;
+	bool flush = false;
 	if (_type==0xFF) {
 		// Nal begin!
 		_type = VideoType::NalType(*data);
@@ -94,7 +93,7 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 			return flushNal(source); // flush possible NAL waiting and ignore current NAL (_pNal is reseted)
 		
 		if (_tag.frame == Media::Video::FRAME_CONFIG) {
-			UInt8 prevType = VideoType::NalType(_pNal->data()[4]);
+			UInt8 prevType = VideoType::NalType(_pNal->data()[_position+4]);
 			if (_type == prevType) {
 				_pNal.reset();  // erase repeated config type and wait the other config type!
 			} else if (VideoType::Frames[_type] != Media::Video::FRAME_CONFIG) {
@@ -103,8 +102,8 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 				else
 					_pNal.reset();  // erase alone VPS or PPS config (invalid)
 				_tag.frame = VideoType::UpdateFrame(_type);
-			} /*else
-				flush = true;*/
+			} else
+				flush = true;
 		} else {
 			_tag.frame = VideoType::UpdateFrame(_type, _tag.frame);
 			if (_tag.frame == Media::Video::FRAME_CONFIG)
@@ -136,8 +135,8 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 	_pNal->append(data, size);
 	if (eon)
 		_pNal->resize(_pNal->size() - _state - 1, true); // trim off the [0] 0 0 1
-	/*if(flush)
-		flushNal(source);*/ // TODO: is it necessary? does not work with hevc
+	if(flush)
+		flushNal(source);
 }
 
 template <class VideoType>

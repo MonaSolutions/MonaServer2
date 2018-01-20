@@ -15,7 +15,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/HEVC.h"
-#include "Mona/MPEG4.h"
 
 using namespace std;
 

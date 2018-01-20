@@ -18,7 +18,6 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/FLVReader.h"
 #include "Mona/AMFReader.h"
-#include "Mona/MPEG4.h"
 #include "Mona/AVC.h"
 #include "Mona/Logs.h"
 

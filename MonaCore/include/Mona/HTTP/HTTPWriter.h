@@ -60,6 +60,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	template <typename ...Args>
 	void			writeError(const char* code, Args&&... args) { newSender<HTTPDataSender>(true, code, std::forward<Args>(args)...); }
 
+	bool			answering() const { return !_flushings.empty() || _session->queueing(); }
 	void			flush() { Writer::flush(); }
 private:
 	void			flush(const shared<HTTPSender>& pSender);

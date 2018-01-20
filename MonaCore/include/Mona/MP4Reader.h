@@ -31,7 +31,7 @@ struct MP4Reader : virtual Object, MediaReader {
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
 	// https://w3c.github.io/media-source/isobmff-byte-stream-format.html
 	// With fragments box = > http://l.web.umkc.edu/lizhu/teaching/2016sp.video-communication/ref/mp4.pdf
-	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _firstMoov(true) {}
+	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _firstMoov(true), _sequence(0) {}
 
 private:
 	UInt32  parse(Packet& buffer, Media::Source& source);
@@ -58,6 +58,7 @@ private:
 
 			ELST,
 			MDHD,
+			MFHD,
 			TKHD,
 			TFHD,
 			STSC,
@@ -74,7 +75,7 @@ private:
 		};
 		Box() { operator=(nullptr); }
 		const char* name() {
-			static const char* Names[] = {"UNDEFINED", "MOOV", "MOOF", "MVEX", "TRAK", "TRAF", "TREX", "MDIA", "MINF", "STBL", "DINF", "EDTS", "ELST", "MDHD", "TKHD", "TFHD", "STSC", "ELNG", "STSD", "STSZ", "STCO", "CO64", "STTS", "CTTS", "TRUN", "MDAT" };
+			static const char* Names[] = {"UNDEFINED", "MOOV", "MOOF", "MVEX", "TRAK", "TRAF", "TREX", "MDIA", "MINF", "STBL", "DINF", "EDTS", "ELST", "MDHD", "MFHD", "TKHD", "TFHD", "STSC", "ELNG", "STSD", "STSZ", "STCO", "CO64", "STTS", "CTTS", "TRUN", "MDAT" };
 			return Names[UInt8(_type)];
 		}
 
@@ -155,6 +156,7 @@ private:
 	template <class VideoType>
 	void	frameToMedias(const Packet& packet, UInt8 track, Track::Type& type, UInt32 time);
 
+	UInt32								_sequence;
 	UInt32								_position;
 	UInt64								_offset;
 	bool								_failed;

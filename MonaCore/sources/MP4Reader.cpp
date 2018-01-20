@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MP4Reader.h"
-#include "Mona/MPEG4.h"
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
 
@@ -190,6 +189,8 @@ MP4Reader::Box& MP4Reader::Box::operator=(BinaryReader& reader) {
 		_type = ELST;
 	} else if (memcmp(reader.current(), EXPAND("mdhd")) == 0) {
 		_type = MDHD;
+	} else if (memcmp(reader.current(), EXPAND("mfhd")) == 0) {
+		_type = MFHD;
 	} else if (memcmp(reader.current(), EXPAND("tkhd")) == 0) {
 		_type = TKHD;
 	} else if (memcmp(reader.current(), EXPAND("elng")) == 0) {
@@ -215,6 +216,11 @@ MP4Reader::Box& MP4Reader::Box::operator=(BinaryReader& reader) {
 	reader.next(4);
 	return _rest ? *this : operator=(reader); // if empty, continue to read!
 }
+
+struct Lost : Media::Base, virtual Object {
+	Lost(UInt32 lost) : lost(lost) {}
+	const UInt32 lost;
+};
 
 MP4Reader::Box& MP4Reader::Box::operator-=(BinaryReader& reader) {
 	if (reader.available() < _rest) {
@@ -276,6 +282,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					source.reset();
 				} else
 					_firstMoov = false;
+				_sequence = 0;
 				_audios = _videos = 0;
 				_pTrack = NULL;
 				_tracks.clear();
@@ -318,6 +325,22 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					track.lang[2] = (lang & 0x1F) + 0x60;
 				} else
 					track.lang[0] = 0;
+				break;
+			}
+			case Box::MFHD: {
+				// Movie fragment header
+				if (reader.available()<8)
+					return reader.available();
+				BinaryReader mfhd(reader.current(), 8);
+				mfhd.next(4); // skip version + flags
+				UInt32 sequence = mfhd.read32();
+				if (++_sequence == sequence)
+					break;
+				_sequence = sequence;
+				auto& it = _medias.emplace_hint(_medias.end(),
+					_times.empty() ? (_medias.empty() ? 0 : _medias.rbegin()->first) : _times.begin()->first,
+					new Lost(range<UInt32>(_offset - _position)) // lost approximation
+				);
 				break;
 			}
 			case Box::ELNG: {
@@ -493,8 +516,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						else if (memcmp(extension.current(), EXPAND("hvcC")) == 0) {
 							// https://stackoverflow.com/questions/32697608/where-can-i-find-hevc-h-265-specs
 							extension.next(4);
-							shared<Buffer> pBuffer(new Buffer());
-							
+							shared<Buffer> pBuffer(new Buffer());						
 							HEVC::ReadVideoConfig(extension.current(), extension.available(), *pBuffer);
 							track.types.back().config.set(pBuffer);
 						}
@@ -968,7 +990,10 @@ void MP4Reader::flushMedias(Media::Source& source) {
 		}
 		if (!it->second)
 			continue;
-		source.writeMedia(*it->second);
+		if (it->second->type)
+			source.writeMedia(*it->second);
+		else
+			source.reportLost(it->second->type, ((Lost*)it->second)->lost);
 		delete it->second;
 	}
 	_medias.erase(_medias.begin(), it);

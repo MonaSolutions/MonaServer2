@@ -289,7 +289,6 @@ private:
 	Time					_waitingFirstVideoSync;
 
 	Time					_queueing;
-	bool					_congested;
 	Congestion				_congestion;
 	UInt32					_timeoutMBRUP;
 

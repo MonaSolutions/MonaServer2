@@ -15,6 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/MPEG4.h"
+#include "Mona/Logs.h"
 
 using namespace std;
 

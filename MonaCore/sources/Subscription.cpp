@@ -155,8 +155,8 @@ bool Subscription::start() {
 			return true;
 		_updating = 1;
 		// Compute congestion on first write to be more far away of the previous flush (work like that for file and network)
-		UInt64 queueing = _target.queueing();
-		if (_congestion(queueing, 0)) {
+		_congestion = _target.queueing();
+		if(_congestion(0)) {
 			if (!_streams.empty() && _mbr != MBR_DOWN && (!_pNextPublication || (pPublication && _pNextPublication->byteRate() >= pPublication->byteRate()))) {
 				_timeoutMBRUP *= 2; // increase MBR_UP attempt timemout (has been congested one time!)
 				DEBUG("Subscription ", name(), " MBR DOWN");
@@ -172,12 +172,11 @@ bool Subscription::start() {
 				_updating = -1;
 			} // else if pNextPublication and !pPublication, wait next publication!
 		}
-		_congested = _congestion(queueing);
 		return true;
 	}
 	// reset congestion, will maybe change with this new media!
 	_mbr = MBR_NONE;
-	_congested = false;
+	_congestion = 0;
 
 	if (pPublication && !pPublication->publishing())
 		return false; // wait publication running to start subscription
@@ -346,8 +345,8 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 		}
 	} // else pass in force! (audio track = 0)
 
-	if (_congested) {
-		if (_datas.reliable || _congestion(_target.queueing(), Net::RTO_MAX)) {
+	if (_congestion) {
+		if (_datas.reliable || _congestion(Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Data timeout, insufficient bandwidth to play ", name());
 			return;
@@ -385,8 +384,8 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 		}
 	} // else pass in force! (audio track = 0)
 	
-	if (_congested) {
-		if (_audios.reliable || _congestion(_target.queueing(), Net::RTO_MAX)) {
+	if (_congestion) {
+		if (_audios.reliable || _congestion(Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Audio timeout, insufficient bandwidth to play ", name());
 			return;
@@ -455,8 +454,8 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 		}
 	}
 
-	if (_congested) {
-		if (_videos.reliable || _congestion(_target.queueing(), Net::RTO_MAX)) {
+	if (_congestion) {
+		if (_videos.reliable || _congestion(Net::RTO_MAX)) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Video timeout, insufficient bandwidth to play ", name());
 			return;

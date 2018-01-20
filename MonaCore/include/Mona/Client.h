@@ -57,8 +57,7 @@ struct Client : Entity, virtual Object, Net::Stats {
 	
 	virtual UInt16				ping() const { return 0; } // 0 for protocol which doesn't support PING calculation
 	virtual UInt32				rto() const { return Net::RTO_MAX; }
-	virtual bool				congested(UInt32 duration = Net::RTO_INIT) = 0;
-
+	
 	virtual Writer&				writer() = 0;
 
 protected:

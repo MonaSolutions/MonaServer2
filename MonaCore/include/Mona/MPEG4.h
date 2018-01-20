@@ -19,8 +19,6 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Media.h"
-#include "Mona/MediaWriter.h"
 #include "Mona/BitReader.h"
 
 namespace Mona {

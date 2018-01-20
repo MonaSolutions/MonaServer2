@@ -25,7 +25,7 @@ namespace Mona {
 
 
 HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const string& name) :
-	_name(name), _pReader(NULL), _www(path), _stage(CMD), _handler(handler), _code(0) {
+	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0) {
 	FileSystem::MakeFile(_www);
 }
 
@@ -89,6 +89,11 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 
 					// Upgrade session?
 					if (_pHeader->connection&HTTP::CONNECTION_UPGRADE && String::ICompare(_pHeader->upgrade, "websocket") == 0) {
+						// Fix "ws://localhost/test" in "ws://localhost/test/" to connect to "test" application even if the last "/" is forgotten
+						if(!_path.isFolder()) {
+							_pHeader->path += '/';
+							_pHeader->path.append(_path.name());
+						}
 						_pHeader->pWSDecoder.reset(new WSDecoder(_handler));
 						_pUpgradeDecoder = _pHeader->pWSDecoder;
 					}
@@ -111,7 +116,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								break;
 							}
 							// Publish = POST + VIDEO/AUDIO
-							_pReader = MediaReader::New(_pHeader->subMime);
+							_pReader.reset(MediaReader::New(_pHeader->subMime));
 							if (!_pReader)
 								_ex.set<Ex::Unsupported>("HTTP ", _pHeader->subMime, " media unsupported");
 						case HTTP::TYPE_PUT:
@@ -274,8 +279,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					receive(false, false); // "publish" command if _pReader->read has not already done it (same as reset, but reset is impossible at the beginning)
 			} else if(_pHeader) { // else publication has not begun!
 				_pReader->flush(*this); // send end info!
-				delete _pReader;
-				_pReader = NULL;
+				_pReader.reset();
 			}
 		} else if(_stage != CMD) // can be CMD on end of chunked transfer-encoding
 			receive(packet, !buffer); // !buffer => flush if no more data buffered

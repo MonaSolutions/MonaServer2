@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
+#include "Mona/MPEG4.h"
 #include "Mona/Media.h"
 #include "Mona/MediaWriter.h"
 

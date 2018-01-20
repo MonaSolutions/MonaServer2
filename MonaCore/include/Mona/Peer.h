@@ -21,7 +21,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/ICE.h"
 #include "Mona/ServerAPI.h"
-#include "Mona/Congestion.h"
 
 
 namespace Mona {
@@ -61,7 +60,6 @@ struct Peer : Client, virtual Object {
 	UInt64						sendByteRate() const { return _pNetStats ? _pNetStats->sendByteRate() : 0; }
 	double						sendLostRate() const { return _pNetStats ? _pNetStats->sendLostRate() : 0; }
 
-	bool						congested(UInt32 duration = Net::RTO_INIT) { return  _pNetStats ? _congestion(_pNetStats->queueing(), duration) : false;  }
 	UInt64						queueing() const { return _pNetStats ? _pNetStats->queueing() : 0; }
 
 	
@@ -90,7 +88,6 @@ private:
 	Parameters						_properties;
 
 	Net::Stats*						_pNetStats;
-	Congestion						_congestion;
 	Writer*							_pWriter;
 
 	UInt16							_ping;

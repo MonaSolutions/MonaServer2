@@ -25,10 +25,15 @@ namespace Mona {
 /*!
 Tool to compute queue congestion */
 struct Congestion {
+	NULLABLE 
+
 	Congestion() : _lastQueueing(0), _congested(0) {}
 
 	// Wait RTO time by default (3 sec) => sounds right with socket and file
-	bool operator()(UInt64 queueing, UInt32 duration = Net::RTO_INIT);
+	bool operator()(UInt32 duration = Net::RTO_INIT) const { return _congested && _congested.isElapsed(duration); }
+	operator bool() const { return self(Net::RTO_INIT); }
+
+	Congestion& operator=(UInt64 queueing);
 private:
 	UInt64	_lastQueueing;
 	Time	_congested;
