@@ -157,22 +157,20 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		_pNetStats = &netStats;
 		writer.flushable = false; // response parameter causes unflushable to avoid a data corruption
 		writer.onClose = onClose;
-		
-
-		string buffer;
 
 		// reset default protocol parameters
 		Parameters outParams;
 		MapWriter<Parameters> parameterWriter(outParams);
 		SplitWriter parameterAndResponse(parameterWriter,response);
 
-		_api.onConnection(ex, *this, parameters, parameterAndResponse);
-		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(*this).second) {
+		_api.onConnection(ex, self, parameters, parameterAndResponse);
+		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(self).second) {
 			ERROR(ex.set<Ex::Protocol>("Client ", String::Hex(id, Entity::SIZE), " exists already"));
-			_api.onDisconnection(*this);
+			_api.onDisconnection(self);
 		}
 		if (ex) {
 			writer.clear();
+			writer.onClose = nullptr;
 			_pWriter = NULL;
 			_pNetStats = NULL;
 		} else {

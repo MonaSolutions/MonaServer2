@@ -37,7 +37,7 @@ struct MapWriter : DataWriter, virtual Object {
 	UInt64 beginArray(UInt32 size) { return beginComplex(); }
 	void   endArray() { endComplex();  }
 
-	UInt64 beginObjectArray(UInt32 size) { beginComplex(); beginComplex(true); return 0; }
+	UInt64 beginObjectArray(UInt32 size) { beginComplex(); return beginComplex(true); }
 
 	void writeString(const char* value, UInt32 size) { set(value, size); }
 	void writeNumber(double value) { set(String(value)); }
