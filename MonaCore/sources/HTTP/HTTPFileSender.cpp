@@ -53,7 +53,7 @@ bool HTTPFileSender::load(Exception& ex) {
 			/// Redirect to the real folder path
 			BinaryWriter writer(this->buffer());
 			// Full URL required here relating RFC2616 section 10.3.3
-			String::Assign(buffer, pRequest->pSocket->isSecure() ? "https://" : "http://", pRequest->host, pRequest->path, '/', File::name(), '/');
+			String::Assign(buffer, pSocket->isSecure() ? "https://" : "http://", pRequest->host, pRequest->path, '/', File::name(), '/');
 			HTTP_BEGIN_HEADER(writer)
 				HTTP_ADD_HEADER("Location", buffer);
 			HTTP_END_HEADER
@@ -99,12 +99,11 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 				return 0;
 		}
 		if(!end)
-			return pRequest->pSocket->queueing() ? 0 : 0xFFFF;
+			return pSocket->queueing() ? 0 : 0xFFFF;
 	}
 	// END
 	send(Packet::Null()); // to end possible chunked transfer
 	pBuffer.reset(new Buffer()); // to get onReaden callback!
-	this->end();
 	return 0;
 }
 

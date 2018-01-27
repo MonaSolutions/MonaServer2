@@ -28,6 +28,7 @@ struct HTTPMediaSender : HTTPSender, virtual Object {
 	HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
 		shared<MediaWriter>& pWriter,
 		Media::Base* pMedia=NULL);
+	~HTTPMediaSender();
 
 	bool hasHeader() const { return _first; }
 

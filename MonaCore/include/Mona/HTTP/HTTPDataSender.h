@@ -27,7 +27,7 @@ namespace Mona {
 
 struct HTTPDataSender : HTTPSender, virtual Object {
 	HTTPDataSender(const shared<const HTTP::Header>& pRequest,
-		const char* code, MIME::Type mime, const char* subMime=NULL) : _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest) {
+		const char* code, MIME::Type mime=MIME::TYPE_UNKNOWN, const char* subMime=NULL) : _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest) {
 		if (!mime || !subMime || !(_pWriter = Media::Data::NewWriter(Media::Data::ToType(subMime), buffer())))
 			_pWriter = new StringWriter<>(buffer());
 		else
@@ -49,7 +49,7 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 	DataWriter& writer() { return _pWriter ? *_pWriter : DataWriter::Null(); }
 
 private:
-	void run() { send(_code, _mime, _subMime); end(); }
+	void run() { send(_code, _mime, _subMime); }
 
 	const char*				_code;
 	MIME::Type				_mime;

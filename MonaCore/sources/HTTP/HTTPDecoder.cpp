@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/HTTP/HTTPDecoder.h"
+#include "Mona/HTTP/HTTPSender.h"
 #include "Mona/Util.h"
 
 using namespace std;
@@ -25,6 +26,10 @@ namespace Mona {
 
 
 HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const string& name) :
+	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0) {
+	FileSystem::MakeFile(_www);
+}
+HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, const string& name) : _pRendezVous(pRendezVous),
 	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0) {
 	FileSystem::MakeFile(_www);
 }
@@ -69,9 +74,10 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 			}
 
 			if (!_pHeader) {
+				// reset header var to parse
 				_path.reset();
 				_code = 0;
-				_pHeader.reset(new HTTP::Header(pSocket));
+				_pHeader.reset(new HTTP::Header(pSocket, _pRendezVous.operator bool()));
 			}
 	
 			// if == '\r\n' (or '\0\n' since that it can have been modified for key/value parsing)
@@ -79,6 +85,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 
 				if (_stage == LEFT) {
 					// \r\n\r\n!
+					// BEGIN OF FINAL PARSE
 					buffer += 2;
 
 					// Try to fix mime if no content-type with file extension!
@@ -123,13 +130,28 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 							if(_stage==BODY)
 								_stage = PROGRESSIVE;
 							break;
+						case HTTP::TYPE_RDV:
+							if (!_pRendezVous) {
+								_ex.set<Ex::Protocol>("HTTP RDV doesn't activated, set to true HTTP.rendezVous configuration");
+								break;
+							}
+							if (_stage == CHUNKED) {
+								_ex.set<Ex::Protocol>("HTTP RDV doesn't accept chunked transfert-encoding");
+								break;
+							}
+							if (!_path.isFolder()) {
+								_pHeader->path += '/';
+								_pHeader->path.append(_path.name());
+							}
+							break;
 						case HTTP::TYPE_GET:
 							if (_pHeader->mime == MIME::TYPE_TEXT || _pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO)
 								_path.exists(); // preload disk attributes now in the thread!
 						default:
-							_length = 0;
+							_length = 0; // ignore content-length to avoid request corruption/saturation, if a content was present the next parsing will give a fatal decoding error
 					}
 					break;
+					// END OF FINAL PARSE
 				}
 
 				// KEY = VALUE
@@ -175,7 +197,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						break;
 					}
 					String::Scoped scoped(STR buffer.data());
-					if (!String::ICompare(signifiant, EXPAND("HTTP")) == 0 && !(_pHeader->type = HTTP::ParseType(signifiant))) {
+					if (!String::ICompare(signifiant, EXPAND("HTTP")) == 0 && !(_pHeader->type = HTTP::ParseType(signifiant, _pHeader->rendezVous))) {
 						_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
 						break;
 					}
@@ -281,8 +303,31 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 				_pReader->flush(*this); // send end info!
 				_pReader.reset();
 			}
-		} else if(_stage != CMD) // can be CMD on end of chunked transfer-encoding
-			receive(packet, !buffer); // !buffer => flush if no more data buffered
+		} else if (_stage != CMD) { // can be CMD on end of chunked transfer-encoding
+			if (_pHeader && _pHeader->type==HTTP::TYPE_RDV) {
+				HTTP::RendezVous::OnMeet onMeet([&pSocket](const HTTP::Request& local, const HTTP::Request& remote) {
+					{ // Send local to remote
+						HTTPSender local2Remote("RDVSender", local);
+						BinaryWriter writer(local2Remote.buffer());
+						HTTP_BEGIN_HEADER(writer)
+							HTTP_ADD_HEADER("From", pSocket->peerAddress())
+						HTTP_END_HEADER
+						local2Remote.send(HTTP_CODE_200, local->mime, local->subMime, local.size());
+						local2Remote.send(local);
+					}
+					// Send remote to local
+					HTTPSender remote2Local("RDVSender", remote);
+					BinaryWriter writer(remote2Local.buffer());
+					HTTP_BEGIN_HEADER(writer)
+						HTTP_ADD_HEADER("From", pSocket->peerAddress())
+					HTTP_END_HEADER
+					remote2Local.send(HTTP_CODE_200, remote->mime, remote->subMime, remote.size());
+					remote2Local.send(remote);
+				});
+				_pRendezVous->join(_pHeader, packet, onMeet);
+			} else 
+				receive(packet, !buffer); // !buffer => flush if no more data buffered
+		}
 
 		if (_stage!=CHUNKED && !_length)
 			_stage = CMD; // to parse Header next time!

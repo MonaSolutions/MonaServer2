@@ -316,9 +316,6 @@
     <ClInclude Include="include\Mona\HEVC.h">
       <Filter>Multimedia</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\HLSWriter.h">
-      <Filter>Multimedia\Serializers</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\NALNetReader.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
@@ -327,6 +324,9 @@
     </ClInclude>
     <ClInclude Include="include\Mona\AVC.h">
       <Filter>Multimedia</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\HTTP\HTTPFolderSender.h">
+      <Filter>Protocols\HTTP\Senders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -548,9 +548,6 @@
     <ClCompile Include="sources\HEVC.cpp">
       <Filter>Multimedia</Filter>
     </ClCompile>
-    <ClCompile Include="sources\HLSWriter.cpp">
-      <Filter>Multimedia\Serializers</Filter>
-    </ClCompile>
     <ClCompile Include="sources\NALNetReader.cpp">
       <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
@@ -559,6 +556,9 @@
     </ClCompile>
     <ClCompile Include="sources\AVC.cpp">
       <Filter>Multimedia</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HTTP\HTTPFolderSender.cpp">
+      <Filter>Protocols\HTTP\Senders</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -27,26 +27,23 @@ namespace Mona {
 
 
 struct HTTPSender : Runner, virtual Object {
+	HTTPSender(const char* name,
+		const shared<const HTTP::Header>& pRequest) : _chunked(0), pSocket(pRequest->weakSocket.lock()), // hold socket to thhe sending (answer even if server falls)
+		pRequest(pRequest), connection(pRequest->connection), Runner(name) {}
+	virtual ~HTTPSender() { if (!connection) pSocket->shutdown(); }
 
 	bool isFile() const { const Path& path(this->path()); return path && !path.isFolder(); }
 
 	virtual bool hasHeader() const { return true; }
 
 	void setCookies(shared<Buffer>& pSetCookie);
-	
-protected:
-	HTTPSender(const char* name,
-		const shared<const HTTP::Header>& pRequest) : _chunked(0),
-		pRequest(pRequest),_connection(pRequest->connection), Runner(name) {}
-
-	shared<const HTTP::Header> pRequest;
 
 	Buffer& buffer();
 
 	/*!
 	If extraSize=UINT64_MAX + path(): Transfer-Encoding: chunked
 	If extraSize=UINT64_MAX + !path(): live streaming => no content-length, live attributes and close on end of response */
-	bool send(const char* code, MIME::Type mime, const char* subMime, UInt64 extraSize=0);
+	bool send(const char* code, MIME::Type mime, const char* subMime, UInt64 extraSize = 0);
 	bool send(const Packet& content);
 	bool send(const char* code) { return send(code, MIME::TYPE_UNKNOWN, NULL); }
 
@@ -55,6 +52,13 @@ protected:
 		writeError(code, std::forward<Args>(args)...);
 		return send(code, MIME::TYPE_TEXT, "html; charset=utf-8");
 	}
+	
+protected:
+
+	shared<const HTTP::Header> pRequest;
+	shared<Socket>			   pSocket;
+	UInt8					   connection;
+
 
 	template <typename ...Args>
 	void writeError(const char* code, Args&&... args) {
@@ -67,16 +71,13 @@ protected:
 		HTML_END_COMMON_RESPONSE(pRequest->host)
 	}
 
-	void end() { if (!_connection) pRequest->pSocket->shutdown(); }
-
 private:
 	virtual const Path& path() const { return Path::Null(); }
 
 	bool socketSend(const Packet& packet);
 	bool run(Exception&) { run(); return true; }
-	virtual void run() { end(); }
+	virtual void run() {}
 
-	UInt8						_connection;
 	shared<Buffer>				_pBuffer;
 	UInt8						_chunked;
 };

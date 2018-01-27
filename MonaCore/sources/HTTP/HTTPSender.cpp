@@ -62,8 +62,8 @@ bool HTTPSender::socketSend(const Packet& packet) {
 	if (!packet)
 		return true;
 	Exception ex;
-	DUMP_RESPONSE(pRequest->pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), pRequest->pSocket->peerAddress());
-	int result = pRequest->pSocket->write(ex, packet);
+	DUMP_RESPONSE(pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), pSocket->peerAddress());
+	int result = pSocket->write(ex, packet);
 	if (ex || result<0)
 		WARN(ex);
 	// no shutdown required, already done by write!
@@ -95,28 +95,29 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UI
 		String::Append(writer.write(EXPAND("\r\nLast-Modified: ")), String::Date(Date(path.lastChange()), Date::FORMAT_HTTP));
 	
 	/// Content Type/length
-	if (mime) {  // If no mime type, as "304 Not Modified" response, or HTTPWriter::writeRaw which write itself content-type, no content!
+	if (mime)  // If no mime type as "304 Not Modified" response or HTTPWriter::writeRaw which write itself content-type => no content!
 		MIME::Write(writer.write(EXPAND("\r\nContent-Type: ")), mime, subMime);
-		if (extraSize == UINT64_MAX) {
-			if (path) {
-				// Transfer-Encoding: chunked!
-				writer.write(EXPAND("\r\nTransfer-Encoding: chunked"));
-				_chunked = 1;
-			} else {
-				// live => no content-length + live attributes + close on end
-				writer.write(EXPAND("\r\n" HTTP_LIVE_HEADER));
-				_connection = HTTP::CONNECTION_CLOSE; // write "connection: close" (session until end of socket)
-			}
-		} else
-			String::Append(writer.write(EXPAND("\r\nContent-Length: ")), extraSize);
-	}
+	if (extraSize == UINT64_MAX) {
+		if (path) {
+			// Transfer-Encoding: chunked!
+			writer.write(EXPAND("\r\nTransfer-Encoding: chunked"));
+			_chunked = 1;
+		} else {
+			// live => no content-length + live attributes + close on end
+			writer.write(EXPAND("\r\n" HTTP_LIVE_HEADER));
+			connection = HTTP::CONNECTION_CLOSE; // write "connection: close" (session until end of socket)
+		}
+	// no content-length for any Informational response OR 204 no content response OR 304 not modified response
+	// see https://tools.ietf.org/html/rfc7230#section-3.3.2
+	} else if(code[0]>'3' || (code[0]>'1' && (code[1]!='0' || code[2] != '4')))
+		String::Append(writer.write(EXPAND("\r\nContent-Length: ")), extraSize);
 
 	/// Connection type, same than request!
-	if (_connection&HTTP::CONNECTION_KEEPALIVE) {
+	if (connection&HTTP::CONNECTION_KEEPALIVE) {
 		writer.write(EXPAND("\r\nConnection: keep-alive"));
-		if (_connection&HTTP::CONNECTION_UPGRADE)
+		if (connection&HTTP::CONNECTION_UPGRADE)
 			writer.write(EXPAND(", upgrade"));
-	} else if (_connection&HTTP::CONNECTION_UPGRADE)
+	} else if (connection&HTTP::CONNECTION_UPGRADE)
 		writer.write(EXPAND("\r\nConnection: upgrade"));
 	else
 		writer.write(EXPAND("\r\nConnection: close"));

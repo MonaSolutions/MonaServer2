@@ -16,7 +16,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "Mona/HTTP/HTTPSession.h"
+#include "Mona/HTTP/HTTProtocol.h"
 #include "Mona/MapReader.h"
 #include "Mona/MapWriter.h"
 #include "Mona/QueryReader.h"
@@ -170,7 +170,7 @@ bool HTTPSession::handshake(HTTP::Request& request) {
 }
 
 Socket::Decoder* HTTPSession::newDecoder() {
-	HTTPDecoder* pDecoder = new HTTPDecoder(api.handler, api.www);
+	HTTPDecoder* pDecoder = new HTTPDecoder(api.handler, api.www, protocol<HTTProtocol>().pRendezVous);
 	pDecoder->onRequest = _onRequest;
 	pDecoder->onResponse = _onResponse;
 	return pDecoder;
@@ -302,7 +302,7 @@ void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 	}
 
 	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_200))
-		HTTP_ADD_HEADER("Access-Control-Allow-Methods", "GET, HEAD, PUT, PATH, POST, OPTIONS")
+		HTTP_ADD_HEADER("Access-Control-Allow-Methods", HTTP::Types(request.rendezVous))
 		if (request.accessControlRequestHeaders)
 			HTTP_ADD_HEADER("Access-Control-Allow-Headers", request.accessControlRequestHeaders)
 		HTTP_ADD_HEADER("Access-Control-Max-Age", "86400") // max age of 24 hours

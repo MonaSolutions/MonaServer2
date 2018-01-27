@@ -24,7 +24,7 @@ using namespace std;
 
 namespace Mona {
 
-HTTP::Header::Header(const shared<Socket>& pSocket) : pSocket(pSocket), accessControlRequestMethod(0),
+HTTP::Header::Header(const shared<Socket>& pSocket, bool rendezVous) : weakSocket(pSocket), accessControlRequestMethod(0),
 	mime(MIME::TYPE_UNKNOWN),
 	type(TYPE_UNKNOWN),
 	version(0),
@@ -39,7 +39,8 @@ HTTP::Header::Header(const shared<Socket>& pSocket) : pSocket(pSocket), accessCo
 	host(pSocket->address()),
 	range(NULL),
 	encoding(ENCODING_IDENTITY),
-	code(NULL) {
+	code(NULL),
+	rendezVous(rendezVous) {
 }
 
 void HTTP::Header::set(const char* key, const char* value) {
@@ -75,7 +76,7 @@ void HTTP::Header::set(const char* key, const char* value) {
 	} else if (String::ICompare(key, "access-control-request-method") == 0) {
 
 		String::ForEach forEach([this](UInt32 index, const char* value) {
-			Type type(ParseType(value));
+			Type type(ParseType(value, rendezVous));
 			if (!type)
 				WARN("Access-control-request-method, unknown ", value, " type")
 			else
@@ -129,9 +130,11 @@ const char* HTTP::ErrorToCode(Int32 error) {
 	}
 }
 
-HTTP::Type HTTP::ParseType(const char* value) {
+HTTP::Type HTTP::ParseType(const char* value, bool withRDV) {
 	switch (strlen(value)) {
 		case 3:
+			if (withRDV && String::ICompare(value, EXPAND("RDV")) == 0)
+				return TYPE_RDV;
 			if(String::ICompare(value, EXPAND("GET")) == 0)
 				return TYPE_GET;
 			break;
@@ -380,6 +383,26 @@ bool HTTP::WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& on
 	if (!res)
 		buffer.resize(before, true);
 	return res;
+}
+
+
+//////// RENDEZ VOUS ////////////
+
+HTTP::RendezVous::RendezVous() :
+	_validate([](const char*, map<const char*, Request, Comparator>::iterator& it) { return !it->second->weakSocket.expired(); }) {
+}
+
+bool HTTP::RendezVous::join(shared<Header>& pHeader, const Packet& packet, const OnMeet& onMeet) {
+	lock_guard<mutex> lock(_mutex);
+	const auto& it = lower_bound(_meets, pHeader->path.c_str(), _validate);
+	if (it == _meets.end() || String::ICompare(it->first, pHeader->path.c_str()) != 0) {
+		_meets.emplace_hint(it, piecewise_construct, forward_as_tuple(pHeader->path.c_str()), forward_as_tuple(Path::Null(), pHeader, move(packet), true));
+		return false;
+	}
+	Request request(Path::Null(), pHeader, packet, true);
+	onMeet(request, it->second);
+	_meets.erase(it);
+	return true;
 }
 
 

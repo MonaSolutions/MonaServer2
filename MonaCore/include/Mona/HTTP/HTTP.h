@@ -116,12 +116,19 @@ struct HTTP : virtual Static {
 		TYPE_PUT = 4,
 		TYPE_OPTIONS = 8,
 		TYPE_POST = 16,
-		TYPE_DELETE = 32
+		TYPE_DELETE = 32,
+		TYPE_RDV = 8192
 	};
 	static const char* TypeToString(Type type) {
-		static const char* Strings[] = { "UNKNOWN", "HEAD", "GET", "PUT", "OPTIONS", "POST", "DELETE" };
+		static const char* Strings[] = { "UNKNOWN", "HEAD", "GET", "PUT", "OPTIONS", "POST", "DELETE", "RDV" };
 		return Strings[UInt8(type)];
 	}
+	static const char* Types(bool withRDV=false) {
+		if(withRDV)
+			return "HEAD, GET, PUT, OPTIONS, POST, OPTIONS, RDV";
+		return "HEAD, GET, PUT, OPTIONS, POST, OPTIONS";
+	}
+	
 
 	enum Connection {
 		CONNECTION_CLOSE = 0, // close by default, other values requires a connection staying opened (upgrade or keepalive)
@@ -150,7 +157,7 @@ struct HTTP : virtual Static {
 
 	static const char*	 ErrorToCode(Int32 error);
 
-	static Type			 ParseType(const char* value);
+	static Type			 ParseType(const char* value, bool withRDV=false);
 	static UInt8		 ParseConnection(const char* value);
 	static Encoding		 ParseEncoding(const char* value);
 
@@ -160,9 +167,9 @@ struct HTTP : virtual Static {
 	static bool			 WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& onCookie=nullptr);
 
 	struct Header : Parameters, virtual Object {
-		Header(const shared<Socket>& pSocket);
+		Header(const shared<Socket>& pSocket, bool rendezVous=false);
 
-		shared<Socket>  pSocket;
+		weak<Socket>   weakSocket; // allow to get peerAddress and other request info, and weak because can hold a Socket::Decoder which can hold the same Header
 
 		MIME::Type		mime;
 		const char*		subMime;
@@ -189,6 +196,8 @@ struct HTTP : virtual Static {
 		UInt8			accessControlRequestMethod;
 		const char*		accessControlRequestHeaders;
 
+		bool			rendezVous;
+
 		shared<WSDecoder>	pWSDecoder;
 
 		void			set(const char* key, const char* value);
@@ -207,8 +216,10 @@ struct HTTP : virtual Static {
 		const Header& operator*() const { return *_pHeader; }
 		operator const shared<const Header>&() const { return _pHeader; }
 		operator bool() const { return _pHeader.operator bool(); }
+		bool unique() const { return _pHeader.unique(); }
 	protected:
-		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
+		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(packet), _pHeader(std::move(pHeader)) {}
+		Message(shared<Header>& pHeader, const Packet&& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
 		/*!
 		exception */
 		Message(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true) { pHeader.reset(); }
@@ -229,6 +240,7 @@ struct HTTP : virtual Static {
 
 	struct Request : Message, virtual Object {
 		Request(const Path& path, shared<Header>& pHeader, const Packet& packet, bool flush) : path(path), Message(pHeader, packet, flush) {}
+		Request(const Path& path, shared<Header>& pHeader, const Packet&& packet, bool flush) : path(path), Message(pHeader, std::move(packet), flush) {}
 		/*!
 		exception */
 		Request(const Path& path, shared<Header>& pHeader, const Exception& ex) : path(path), Message(pHeader, ex) {}
@@ -247,6 +259,7 @@ struct HTTP : virtual Static {
 
 	struct Response : Message, virtual Object {
 		Response(UInt16 code, shared<Header>& pHeader, const Packet& packet, bool flush) : code(code), Message(pHeader, packet, flush) {}
+		Response(UInt16 code, shared<Header>& pHeader, const Packet&& packet, bool flush) : code(code), Message(pHeader, std::move(packet), flush) {}
 		/*!
 		exception */
 		Response(UInt16 code, shared<Header>& pHeader, const Exception& ex) : code(code), Message(pHeader, ex) {}
@@ -261,6 +274,22 @@ struct HTTP : virtual Static {
 		Response(UInt16 code, shared<Header>& pHeader, bool endMedia, bool flush) : code(code), Message(pHeader, endMedia, flush) {}
 
 		UInt16 code;
+	};
+
+	struct RendezVous : virtual Object {
+		RendezVous();
+	
+		typedef std::function<void(const HTTP::Request& local, const HTTP::Request& remote)> OnMeet;
+
+		bool join(shared<Header>& pHeader, const Packet& packet, const OnMeet& onMeet);
+
+	private:
+		struct Comparator {
+			bool operator()(const char* path1, const char* path2) const { return String::ICompare(path1, path2)<0; }
+		};
+		std::mutex									_mutex;
+		std::map<const char*, Request, Comparator>  _meets;
+		std::function<bool(const char*, std::map<const char*, Request, Comparator>::iterator&)> _validate;
 	};
 };
 

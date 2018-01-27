@@ -337,7 +337,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				if (++_sequence == sequence)
 					break;
 				_sequence = sequence;
-				auto& it = _medias.emplace_hint(_medias.end(),
+				_medias.emplace_hint(_medias.end(),
 					_times.empty() ? (_medias.empty() ? 0 : _medias.rbegin()->first) : _times.begin()->first,
 					new Lost(range<UInt32>(_offset - _position)) // lost approximation
 				);

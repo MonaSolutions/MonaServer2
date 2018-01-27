@@ -31,7 +31,7 @@ void HTTPFolderSender::run() {
 	// FOLDER
 	if (!_folder.exists()) {
 		sendError(HTTP_CODE_404, "The requested URL ", pRequest->path, "/ was not found on the server");
-		return end();
+		return;
 	}
 
 	HTTP::Sort		sort(HTTP::SORT_ASC);
@@ -57,7 +57,6 @@ void HTTPFolderSender::run() {
 		send(HTTP_CODE_200, MIME::TYPE_TEXT, "html; charset=utf-8");
 	else
 		sendError(HTTP_CODE_500, "List folder files, ", ex);
-	end();
 }
 
 

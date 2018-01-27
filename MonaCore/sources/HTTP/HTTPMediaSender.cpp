@@ -31,6 +31,11 @@ HTTPMediaSender::HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
 	_pWriter = pWriter;
 }
 
+HTTPMediaSender::~HTTPMediaSender() {
+	if (_first || _pMedia)
+		connection = HTTP::CONNECTION_KEEPALIVE;
+}
+
 void HTTPMediaSender::run() {
 	MediaWriter::OnWrite onWrite([this](const Packet& packet) { send(packet); });
 	if (_first) {
@@ -39,11 +44,9 @@ void HTTPMediaSender::run() {
 			_pWriter->beginMedia(onWrite);
 		if(!_pMedia)
 			return;
-	} else if (!_pMedia) {
-		// end
-		_pWriter->endMedia(onWrite);
-		return end();
-	}
+	} else if (!_pMedia)
+		return _pWriter->endMedia(onWrite);
+
 	return _pWriter->writeMedia(*_pMedia, onWrite);
 }
 

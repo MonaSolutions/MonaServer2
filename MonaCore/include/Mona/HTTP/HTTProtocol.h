@@ -25,11 +25,13 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct HTTProtocol : TCProtocol, virtual Object {
-	HTTProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS = nullptr) : TCProtocol(name, api, sessions, pTLS) {
+	HTTProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS = nullptr) :
+		TCProtocol(name, api, sessions, pTLS) {
 
 		setNumber("port", pTLS ? 443 : 80);
 		setNumber("timeout", 10); // ideal value between 7 and 10, but take 10 to be equal to max keyframe interval configurable for a video (10sec), to allow a live streaming not interrupted by session timeout
 		setBoolean("index", true); // index directory, if false => forbid directory index, otherwise redirection to index
+		setBoolean("rendezVous", false);
 
 		onConnection = [this](const shared<Socket>& pSocket) {
 			// Create session
@@ -37,6 +39,15 @@ struct HTTProtocol : TCProtocol, virtual Object {
 		};
 	}
 	~HTTProtocol() { onConnection = nullptr; }
+
+	shared<HTTP::RendezVous> pRendezVous;
+
+	bool load(Exception& ex) {
+		if (getBoolean<false>("rendezVous"))
+			pRendezVous.reset(new HTTP::RendezVous());
+		return TCProtocol::load(ex);
+	}
+
 };
 
 

@@ -24,7 +24,18 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-
+/*!
+Help to custom writing operation for method which require a DataReader like Writer::writeRaw =>
+struct RawWriter : WriterReader {
+	bool write(DataWriter& writer) {
+		writer.beginObject();
+		writer.writeStringProperty("content-type", EXPAND("html"));
+		writer.endObject();
+		writer.writeString(EXPAND("hello"));
+		return true;
+	}
+} reader;
+client.writer().writeRaw(reader); */
 struct WriterReader : DataReader, virtual Object {
 	WriterReader() : _rest(true) {}
 
