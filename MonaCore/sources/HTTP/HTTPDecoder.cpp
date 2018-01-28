@@ -77,7 +77,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 				// reset header var to parse
 				_path.reset();
 				_code = 0;
-				_pHeader.reset(new HTTP::Header(pSocket, _pRendezVous.operator bool()));
+				_pHeader.reset(new HTTP::Header(*pSocket, _pRendezVous.operator bool()));
 			}
 	
 			// if == '\r\n' (or '\0\n' since that it can have been modified for key/value parsing)
@@ -305,26 +305,29 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 			}
 		} else if (_stage != CMD) { // can be CMD on end of chunked transfer-encoding
 			if (_pHeader && _pHeader->type==HTTP::TYPE_RDV) {
-				HTTP::RendezVous::OnMeet onMeet([&pSocket](const HTTP::Request& local, const HTTP::Request& remote) {
+				HTTP::RendezVous::OnMeet onMeet([&pSocket](const HTTP::Request& local, const HTTP::Request& remote, const shared<Socket>& pRemoteSocket) {
 					{ // Send local to remote
-						HTTPSender local2Remote("RDVSender", local);
+						HTTPSender local2Remote("RDVSender", remote, pRemoteSocket);
 						BinaryWriter writer(local2Remote.buffer());
 						HTTP_BEGIN_HEADER(writer)
-							HTTP_ADD_HEADER("From", pSocket->peerAddress())
+							HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
+							HTTP_ADD_HEADER("from", pSocket->peerAddress())
 						HTTP_END_HEADER
 						local2Remote.send(HTTP_CODE_200, local->mime, local->subMime, local.size());
 						local2Remote.send(local);
 					}
 					// Send remote to local
-					HTTPSender remote2Local("RDVSender", remote);
+					HTTPSender remote2Local("RDVSender", local, pSocket);
 					BinaryWriter writer(remote2Local.buffer());
 					HTTP_BEGIN_HEADER(writer)
-						HTTP_ADD_HEADER("From", pSocket->peerAddress())
+						HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
+						HTTP_ADD_HEADER("from", pRemoteSocket->peerAddress())
 					HTTP_END_HEADER
 					remote2Local.send(HTTP_CODE_200, remote->mime, remote->subMime, remote.size());
 					remote2Local.send(remote);
+					return true;
 				});
-				_pRendezVous->join(_pHeader, packet, onMeet);
+				_pRendezVous->join(_pHeader, packet, pSocket, onMeet);
 			} else 
 				receive(packet, !buffer); // !buffer => flush if no more data buffered
 		}

@@ -28,7 +28,8 @@ namespace Mona {
 
 struct HTTPSender : Runner, virtual Object {
 	HTTPSender(const char* name,
-		const shared<const HTTP::Header>& pRequest) : _chunked(0), pSocket(pRequest->weakSocket.lock()), // hold socket to thhe sending (answer even if server falls)
+		const shared<const HTTP::Header>& pRequest,
+		const shared<Socket>& pSocket) : _chunked(0), pSocket(pSocket), // hold socket to thhe sending (answer even if server falls)
 		pRequest(pRequest), connection(pRequest->connection), Runner(name) {}
 	virtual ~HTTPSender() { if (!connection) pSocket->shutdown(); }
 

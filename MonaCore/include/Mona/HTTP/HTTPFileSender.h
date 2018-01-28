@@ -28,7 +28,7 @@ namespace Mona {
 struct HTTPFileSender : HTTPSender, File, File::Decoder, virtual Object {
 	/*!
 	File send */
-	HTTPFileSender(const shared<const HTTP::Header>& pRequest,
+	HTTPFileSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
 		const Path& file, Parameters& properties);
 
 	const Path& path() const { return self; }

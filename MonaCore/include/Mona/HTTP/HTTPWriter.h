@@ -78,7 +78,7 @@ private:
 	shared<SenderType> newSender(bool isResponse, Args&&... args) {
 		if (!*this || !_pRequest) // if closed or has never gotten any request!
 			return NULL;
-		shared<SenderType> pSender(new SenderType(_pRequest, std::forward<Args>(args)...));
+		shared<SenderType> pSender(new SenderType(_pRequest, _session, std::forward<Args>(args)...));
 		pSender->setCookies(_pSetCookie);
 		if(isResponse) {
 			if (_pResponse) {

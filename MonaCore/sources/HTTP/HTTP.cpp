@@ -24,7 +24,7 @@ using namespace std;
 
 namespace Mona {
 
-HTTP::Header::Header(const shared<Socket>& pSocket, bool rendezVous) : weakSocket(pSocket), accessControlRequestMethod(0),
+HTTP::Header::Header(const Socket& socket, bool rendezVous) : accessControlRequestMethod(0),
 	mime(MIME::TYPE_UNKNOWN),
 	type(TYPE_UNKNOWN),
 	version(0),
@@ -36,7 +36,7 @@ HTTP::Header::Header(const shared<Socket>& pSocket, bool rendezVous) : weakSocke
 	secWebsocketKey(NULL),
 	secWebsocketAccept(NULL),
 	accessControlRequestHeaders(NULL),
-	host(pSocket->address()),
+	host(socket.address()),
 	range(NULL),
 	encoding(ENCODING_IDENTITY),
 	code(NULL),
@@ -389,19 +389,23 @@ bool HTTP::WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& on
 //////// RENDEZ VOUS ////////////
 
 HTTP::RendezVous::RendezVous() :
-	_validate([](const char*, map<const char*, Request, Comparator>::iterator& it) { return !it->second->weakSocket.expired(); }) {
+	_validate([](const char*, map<const char*, Remote, Comparator>::iterator& it) { return !it->second.weakSocket.expired(); }) {
 }
 
-bool HTTP::RendezVous::join(shared<Header>& pHeader, const Packet& packet, const OnMeet& onMeet) {
+bool HTTP::RendezVous::join(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket, const OnMeet& onMeet) {
 	lock_guard<mutex> lock(_mutex);
-	const auto& it = lower_bound(_meets, pHeader->path.c_str(), _validate);
-	if (it == _meets.end() || String::ICompare(it->first, pHeader->path.c_str()) != 0) {
-		_meets.emplace_hint(it, piecewise_construct, forward_as_tuple(pHeader->path.c_str()), forward_as_tuple(Path::Null(), pHeader, move(packet), true));
+	auto it = lower_bound(_remotes, pHeader->path.c_str(), _validate);
+	if (it == _remotes.end() || String::ICompare(it->first, pHeader->path.c_str()) != 0) {
+		_remotes.emplace_hint(it, piecewise_construct, forward_as_tuple(pHeader->path.c_str()), forward_as_tuple(pHeader, move(packet), pSocket));
 		return false;
 	}
-	Request request(Path::Null(), pHeader, packet, true);
-	onMeet(request, it->second);
-	_meets.erase(it);
+	shared<Socket> pRemoteSocket = it->second.weakSocket.lock();
+	if (!pRemoteSocket) {
+		_remotes.emplace_hint(_remotes.erase(it), piecewise_construct, forward_as_tuple(pHeader->path.c_str()), forward_as_tuple(pHeader, move(packet), pSocket));
+		return false;
+	}
+	onMeet(Request(Path::Null(), pHeader, packet, true), it->second, pRemoteSocket);
+	_remotes.erase(it);
 	return true;
 }
 

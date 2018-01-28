@@ -24,8 +24,9 @@ using namespace std;
 namespace Mona {
 
 HTTPMediaSender::HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
+	const shared<Socket>& pSocket,
 	shared<MediaWriter>& pWriter,
-	Media::Base* pMedia) : HTTPSender("HTTPMediaSender", pRequest), _pMedia(pMedia) {
+	Media::Base* pMedia) : HTTPSender("HTTPMediaSender", pRequest, pSocket), _pMedia(pMedia) {
 	if ((_first = (pWriter ? false : true)))
 		pWriter.reset(MediaWriter::New(pRequest->subMime));
 	_pWriter = pWriter;

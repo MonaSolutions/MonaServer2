@@ -24,8 +24,8 @@ using namespace std;
 namespace Mona {
 
 
-HTTPFileSender::HTTPFileSender(const shared<const HTTP::Header>& pRequest,
-	const Path& file, Parameters& properties) : HTTPSender("HTTPFileSender", pRequest),
+HTTPFileSender::HTTPFileSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
+	const Path& file, Parameters& properties) : HTTPSender("HTTPFileSender", pRequest, pSocket),
 		File(file, File::MODE_READ), _properties(move(properties)), _mime(MIME::TYPE_UNKNOWN),
 		_pos(0), _step(properties.count()), _stage(0) {
 		_result = _properties.begin(); // do it here to get compatible _properties.begin() and not properties.begin()

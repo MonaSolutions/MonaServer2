@@ -26,8 +26,8 @@ namespace Mona {
 
 
 struct HTTPDataSender : HTTPSender, virtual Object {
-	HTTPDataSender(const shared<const HTTP::Header>& pRequest,
-		const char* code, MIME::Type mime=MIME::TYPE_UNKNOWN, const char* subMime=NULL) : _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest) {
+	HTTPDataSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
+		const char* code, MIME::Type mime=MIME::TYPE_UNKNOWN, const char* subMime=NULL) : _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest, pSocket) {
 		if (!mime || !subMime || !(_pWriter = Media::Data::NewWriter(Media::Data::ToType(subMime), buffer())))
 			_pWriter = new StringWriter<>(buffer());
 		else
@@ -35,9 +35,9 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 	}
 
 	template <typename ...Args>
-	HTTPDataSender(const shared<const HTTP::Header>& pRequest,
+	HTTPDataSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
 		const char* errorCode, Args&&... args) :
-		_code(errorCode), _pWriter(NULL), _mime(MIME::TYPE_TEXT), _subMime("html; charset=utf-8"), HTTPSender("HTTPErrorSender", pRequest) {
+		_code(errorCode), _pWriter(NULL), _mime(MIME::TYPE_TEXT), _subMime("html; charset=utf-8"), HTTPSender("HTTPErrorSender", pRequest, pSocket) {
 		if (!_code)
 			_code = HTTP_CODE_406;
 		writeError(_code, std::forward<Args>(args)...);

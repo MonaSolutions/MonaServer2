@@ -167,9 +167,7 @@ struct HTTP : virtual Static {
 	static bool			 WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& onCookie=nullptr);
 
 	struct Header : Parameters, virtual Object {
-		Header(const shared<Socket>& pSocket, bool rendezVous=false);
-
-		weak<Socket>   weakSocket; // allow to get peerAddress and other request info, and weak because can hold a Socket::Decoder which can hold the same Header
+		Header(const Socket& socket, bool rendezVous=false);
 
 		MIME::Type		mime;
 		const char*		subMime;
@@ -279,17 +277,21 @@ struct HTTP : virtual Static {
 	struct RendezVous : virtual Object {
 		RendezVous();
 	
-		typedef std::function<void(const HTTP::Request& local, const HTTP::Request& remote)> OnMeet;
+		typedef std::function<void(const HTTP::Request& local, const HTTP::Request& remote, const shared<Socket>& pRemoteSocket)> OnMeet;
 
-		bool join(shared<Header>& pHeader, const Packet& packet, const OnMeet& onMeet);
+		bool join(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket, const OnMeet& onMeet);
 
 	private:
+		struct Remote : Request, virtual Object {
+			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) : weakSocket(pSocket), Request(Path::Null(), pHeader, std::move(packet), true) {}
+			const weak<Socket> weakSocket;
+		};
 		struct Comparator {
 			bool operator()(const char* path1, const char* path2) const { return String::ICompare(path1, path2)<0; }
 		};
 		std::mutex									_mutex;
-		std::map<const char*, Request, Comparator>  _meets;
-		std::function<bool(const char*, std::map<const char*, Request, Comparator>::iterator&)> _validate;
+		std::map<const char*, Remote, Comparator>   _remotes;
+		std::function<bool(const char*, std::map<const char*, Remote, Comparator>::iterator&)> _validate;
 	};
 };
 

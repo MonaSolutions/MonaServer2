@@ -51,8 +51,7 @@ BinaryWriter& BinaryWriter::writeRandom(UInt32 count) {
 BinaryWriter& BinaryWriter::write7BitEncoded(UInt32 value) {
 	do {
 		unsigned char c = (unsigned char)(value & 0x7F);
-		value >>= 7;
-		if (value)
+		if (value >>= 7)
 			c |= 0x80;
 		write8(c);
 	} while (value);

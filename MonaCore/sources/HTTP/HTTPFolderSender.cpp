@@ -23,8 +23,8 @@ using namespace std;
 
 namespace Mona {
 
-HTTPFolderSender::HTTPFolderSender(const shared<const HTTP::Header>& pRequest,
-	const Path& folder, Parameters& properties) : HTTPSender("HTTPFolderSender", pRequest), _folder(folder), _properties(move(properties)) {
+HTTPFolderSender::HTTPFolderSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
+	const Path& folder, Parameters& properties) : HTTPSender("HTTPFolderSender", pRequest, pSocket), _folder(folder), _properties(move(properties)) {
 }
 
 void HTTPFolderSender::run() {

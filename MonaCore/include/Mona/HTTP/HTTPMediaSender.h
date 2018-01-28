@@ -26,6 +26,7 @@ namespace Mona {
 
 struct HTTPMediaSender : HTTPSender, virtual Object {
 	HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
+		const shared<Socket>& pSocket,
 		shared<MediaWriter>& pWriter,
 		Media::Base* pMedia=NULL);
 	~HTTPMediaSender();
