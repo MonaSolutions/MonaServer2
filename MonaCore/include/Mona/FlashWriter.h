@@ -77,6 +77,7 @@ private:
 	double					_callbackHandleOnAbort;
 	double					_callbackHandle;
 
+	Packet					_vps;
 	Packet					_sps;
 	Packet					_pps;
 	bool					_firstAV;

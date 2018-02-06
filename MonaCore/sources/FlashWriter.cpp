@@ -20,6 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Util.h"
 #include "Mona/Session.h"
 #include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 #include "Mona/FLVWriter.h"
 #include "Mona/StringWriter.h"
 
@@ -132,14 +133,17 @@ bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		// patch for flash, to avoid to wait audio, an empty audio packet has to be sent ( = "end audio signal")
 		write(AMF::TYPE_AUDIO, _time, reliable);
 	}
-	bool isAVCConfig(tag.codec == Media::Video::CODEC_H264 && tag.frame == Media::Video::FRAME_CONFIG && AVC::ParseVideoConfig(packet, _sps, _pps));
+	bool isAVCConfig(tag.frame == Media::Video::FRAME_CONFIG && ((tag.codec == Media::Video::CODEC_H264 && AVC::ParseVideoConfig(packet, _sps, _pps)) || (tag.codec == Media::Video::CODEC_HEVC && HEVC::ParseVideoConfig(packet, _vps, _sps, _pps))));
 	BinaryWriter& writer(*write(AMF::TYPE_VIDEO, _time, isAVCConfig ? Packet::Null() : packet, reliable));
 	writer.write8(FLVWriter::ToCodecs(tag));
-	if (tag.codec != Media::Video::CODEC_H264)
+	if (tag.codec != Media::Video::CODEC_H264 && tag.codec != Media::Video::CODEC_HEVC)
 		return true;
-	if (isAVCConfig)
-		AVC::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _sps, _pps);
-	else
+	if (isAVCConfig) {
+		if (tag.codec == Media::Video::CODEC_HEVC)
+			HEVC::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _vps, _sps, _pps);
+		else
+			AVC::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _sps, _pps);
+	} else
 		writer.write8(1).write24(tag.compositionOffset);
 	return true;
 }

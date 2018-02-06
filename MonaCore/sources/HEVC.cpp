@@ -160,7 +160,6 @@ UInt32 HEVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 		UInt16 nalus = reader.read16();
 		writer.next(4); // size
 
-		INFO("Nal type : ", (nalType & 0x3f), " ; nalus : ", nalus)
 		switch (nalType & 0x3f) {
 		case 0x20:
 		case 0x21:
@@ -181,7 +180,7 @@ UInt32 HEVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 		if ((nalType & 0x3f) == 0x22)
 			break;
 	}
-	return reader.position();
+	return size; // we want to ignore the remaining data otherwise it will overwrite the codecs
 }
 
 BinaryWriter& HEVC::WriteVideoConfig(BinaryWriter& writer, const Packet& vps, const Packet& sps, const Packet& pps) {
