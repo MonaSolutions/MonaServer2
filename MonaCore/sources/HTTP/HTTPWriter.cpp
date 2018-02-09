@@ -84,6 +84,10 @@ private:
 
 HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(false), _session(session),
 	_onFileReaden([this](shared<Buffer>& pBuffer, bool end) {
+#if !defined(_DEBUG)
+		if (_flushings.empty())
+			return;
+#endif
 		_flushings.pop_front();
 		while (!_flushings.empty()) {
 			if (_flushings.front()->isFile())
