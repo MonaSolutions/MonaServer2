@@ -283,7 +283,7 @@ struct Media : virtual Static {
 		void setProperties(UInt8 track, DataReader& reader);
 		bool flushProperties();
 	private:
-		mutable std::vector<Packet>	_packets;
+		mutable std::deque<Packet>	_packets;
 		bool						_newProperties;
 	};
 

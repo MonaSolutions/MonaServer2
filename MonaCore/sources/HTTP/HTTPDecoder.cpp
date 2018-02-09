@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/HTTP/HTTPDecoder.h"
-#include "Mona/HTTP/HTTPSender.h"
 #include "Mona/Util.h"
 
 using namespace std;
@@ -197,7 +196,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						break;
 					}
 					String::Scoped scoped(STR buffer.data());
-					if (!String::ICompare(signifiant, EXPAND("HTTP")) == 0 && !(_pHeader->type = HTTP::ParseType(signifiant, _pHeader->rendezVous))) {
+					if (!String::ICompare(signifiant, EXPAND("HTTP")) == 0 && !(_pHeader->type = HTTP::ParseType(signifiant, _pRendezVous.operator bool()))) {
 						_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
 						break;
 					}
@@ -251,7 +250,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 /////////////////////////////////////////////////////////////////
 //////////////////// BODY RECEPTION /////////////////////////////
 
-		Packet packet(buffer);
+		Packet packet(buffer.buffer(), buffer.data(), buffer.size());
 
 		if (!_length && !_ex && _stage == CHUNKED) {
 			for (;;) {
@@ -304,31 +303,9 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 				_pReader.reset();
 			}
 		} else if (_stage != CMD) { // can be CMD on end of chunked transfer-encoding
-			if (_pHeader && _pHeader->type==HTTP::TYPE_RDV) {
-				HTTP::RendezVous::OnMeet onMeet([&pSocket](const HTTP::Request& local, const HTTP::Request& remote, const shared<Socket>& pRemoteSocket) {
-					{ // Send local to remote
-						HTTPSender local2Remote("RDVSender", remote, pRemoteSocket);
-						BinaryWriter writer(local2Remote.buffer());
-						HTTP_BEGIN_HEADER(writer)
-							HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
-							HTTP_ADD_HEADER("from", pSocket->peerAddress())
-						HTTP_END_HEADER
-						local2Remote.send(HTTP_CODE_200, local->mime, local->subMime, local.size());
-						local2Remote.send(local);
-					}
-					// Send remote to local
-					HTTPSender remote2Local("RDVSender", local, pSocket);
-					BinaryWriter writer(remote2Local.buffer());
-					HTTP_BEGIN_HEADER(writer)
-						HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
-						HTTP_ADD_HEADER("from", pRemoteSocket->peerAddress())
-					HTTP_END_HEADER
-					remote2Local.send(HTTP_CODE_200, remote->mime, remote->subMime, remote.size());
-					remote2Local.send(remote);
-					return true;
-				});
-				_pRendezVous->join(_pHeader, packet, pSocket, onMeet);
-			} else 
+			if (_pHeader && _pHeader->type==HTTP::TYPE_RDV)
+				_pRendezVous->meet(_pHeader, packet, pSocket);
+			else 
 				receive(packet, !buffer); // !buffer => flush if no more data buffered
 		}
 

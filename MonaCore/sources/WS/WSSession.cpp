@@ -182,7 +182,7 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 
 		// Binary => audio or video or data
 
-		Packet content(message);
+		Packet content(message.buffer(), message.data(), message.size());
 
 		if(!_media) {
 			BinaryReader header(message.data(), message.size());

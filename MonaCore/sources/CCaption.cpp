@@ -169,7 +169,7 @@ UInt32 CCaption::extract(const Media::Video::Tag& tag, const Packet& packet, con
 }
 
 void CCaption::decode(const Media::Video::Tag& tag, const Packet& packet, const OnLang& onLang) {
-	Packet content(packet);
+	Packet content(packet.buffer(), packet.data(), packet.size());
 	while (content.size() >= 3) {
 		UInt8 type = content.data()[0];
 		UInt8 hi = content.data()[1];

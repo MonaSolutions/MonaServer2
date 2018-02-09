@@ -28,7 +28,7 @@ Packet is a ingenious buffer tool which can be mainly used in two complement way
 		void method(const Packet& packet)
 	To allow a sharing buffer referenced (without data copy) Packet constructor will make data referenced immutable.
 - As a way to hold a sharing buffer (in buffering it if not already done)
-		
+
 Example:
 	Packet unbuffered("data",4);
 	Packet buffered(pBuffer);
@@ -43,45 +43,45 @@ struct Packet: Binary, virtual Object {
 	Build an empty Packet */
 	Packet() : _ppBuffer(&Null().buffer()), _data(NULL), _size(0), _reference(true) {}
 	/*!
-	Reference an immutable area of unbuffered data */
-	Packet(const void* data, UInt32 size) : _data(BIN data), _size(size), _ppBuffer(&Null().buffer()), _reference(true) {}
+	Reference an immutable area of unbuffered data (explicit to not reference a temporary memory zone) */
+	explicit Packet(const void* data, UInt32 size) : _data(BIN data), _size(size), _ppBuffer(&Null().buffer()), _reference(true) {}
 	/*!
-	Reference an immutable area of unbuffered data */
+	Reference an immutable area of unbuffered data (explicit to not reference a temporary memory zone or be auto-selected by a Packet because 'const Packet&' is deleted) */
 	Packet(const Binary& binary) : _data(BIN binary.data()), _size(binary.size()), _ppBuffer(&Null().buffer()), _reference(true) {}
 	/*!
-	Create a copy from packet */
-	Packet(const Packet& packet) : _reference(true) { set(packet); }
-	/*!
-	Create a copy from packet and move area of data referenced, area have to be include inside */
-	Packet(const Packet& packet, const UInt8* data) : _reference(true) { set(packet, data); }
-	Packet(const Packet& packet, const UInt8* data, UInt32 size) : _reference(true) { set(packet, data, size); }
+	Create a copy from packet and move area of data referenced, area have to be include inside (explicit to not reference a temporary packet) */
+	explicit Packet(const Packet& packet, const UInt8* data) : _reference(true) { set(packet, data); }
+	explicit Packet(const Packet& packet, const UInt8* data, UInt32 size) : _reference(true) { set(packet, data, size); }
 	/*!
 	Bufferize packet */
-	explicit Packet(const Packet&& packet) : _reference(true) { set(std::move(packet)); }
+	Packet(const Packet&& packet) : _reference(true) { set(std::move(packet)); }
 	/*!
 	Bufferize packet and move area of data referenced, area have to be include inside */
-	explicit Packet(const Packet&& packet, const UInt8* data) : _reference(true) { set(std::move(packet), data); }
-	explicit Packet(const Packet&& packet, const UInt8* data, UInt32 size) : _reference(true) { set(std::move(packet), data, size); }
+	Packet(const Packet&& packet, const UInt8* data) : _reference(true) { set(std::move(packet), data); }
+	Packet(const Packet&& packet, const UInt8* data, UInt32 size) : _reference(true) { set(std::move(packet), data, size); }
 	/*!
-	Reference an immutable area of buffered data */
+	Reference an immutable area of buffered data (explicit to not reference a temporary pBuffer) */
 	template<typename BinaryType>
-	Packet(const shared<const BinaryType>& pBuffer) : _reference(true) { set<BinaryType>(pBuffer); }
+	explicit Packet(const shared<const BinaryType>& pBuffer) : _reference(true) { set(pBuffer); }
 	/*!
-	Reference an immutable area of buffered data and move area of data referenced, area have to be include inside */
+	Reference an immutable area of buffered data and move area of data referenced, area have to be include inside
+	(explicit to not reference a temporary pBuffer) */
 	template<typename BinaryType>
-	Packet(const shared<const BinaryType>& pBuffer, const UInt8* data) : _reference(true) { set<BinaryType>(pBuffer, data); }
+	explicit Packet(const shared<const BinaryType>& pBuffer, const UInt8* data) : _reference(true) { set(pBuffer, data); }
 	template<typename BinaryType>
-	Packet(const shared<const BinaryType>& pBuffer, const UInt8* data, UInt32 size) : _reference(true) { set<BinaryType>(pBuffer, data, size); }
+	explicit Packet(const shared<const BinaryType>& pBuffer, const UInt8* data, UInt32 size) : _reference(true) { set(pBuffer, data, size); }
 	/*!
-	Capture the buffer passed in parameter, buffer become immutable and allows safe distribution */
+	Capture the buffer passed in parameter, buffer become immutable and allows safe distribution
+	(explicit to note that pBuffer is release) */
 	template<typename BinaryType>
-	explicit Packet(shared<BinaryType>& pBuffer) : _reference(true) { set<BinaryType>(pBuffer); }
+	explicit Packet(shared<BinaryType>& pBuffer) : _reference(true) { set(pBuffer); }
 	/*!
-	Capture the buffer passed in parameter and move area of data referenced, buffer become immutable and allows safe distribution, area have to be include inside */
+	Capture the buffer passed in parameter and move area of data referenced, buffer become immutable and allows safe distribution, area have to be include inside
+	(explicit to note that pBuffer is release) */
 	template<typename BinaryType>
-	explicit Packet(shared<BinaryType>& pBuffer, const UInt8* data) : _reference(true) { set<BinaryType>(pBuffer, data); }
+	explicit Packet(shared<BinaryType>& pBuffer, const UInt8* data) : _reference(true) { set(pBuffer, data); }
 	template<typename BinaryType>
-	explicit Packet(shared<BinaryType>& pBuffer, const UInt8* data, UInt32 size) : _reference(true) { set<BinaryType>(pBuffer, data, size); }
+	explicit Packet(shared<BinaryType>& pBuffer, const UInt8* data, UInt32 size) : _reference(true) { set(pBuffer, data, size); }
 	/*!
 	Release the referenced area of data */
 	virtual ~Packet() { if (!_reference) delete _ppBuffer; }
@@ -89,7 +89,7 @@ struct Packet: Binary, virtual Object {
 	Allow to compare data packet*/
 	bool operator == (const Packet& packet) const { return _size == packet._size && ((_size && memcmp(_data, packet._data, _size)==0) || _data == packet._data); }
 	bool operator != (const Packet& packet) const { return !operator==(packet); }
-	bool operator < (const Packet& packet) const { return _size != packet._size ? _size < packet._size : (_size ? memcmp(_data, packet._data, _size) < 0 : _data < packet._data); }
+	bool operator <  (const Packet& packet) const { return _size != packet._size ? _size < packet._size : (_size ? memcmp(_data, packet._data, _size) < 0 : _data < packet._data); }
 	bool operator <= (const Packet& packet) const { return operator==(packet) || operator<(packet); }
 	bool operator >  (const Packet& packet) const { return !operator<=(packet); }
 	bool operator >= (const Packet& packet) const { return operator==(packet) || operator>(packet); }
@@ -131,7 +131,7 @@ struct Packet: Binary, virtual Object {
 	Reference an immutable area of unbuffered data */
 	Packet& operator=(const Binary& binary) { return set(binary); }
 	/*!
-	Assign a copy from packet */
+	Reference a packet */
 	Packet& operator=(const Packet& packet) { return set(packet); }
 	/*!
 	Bufferize packet */
@@ -139,11 +139,11 @@ struct Packet: Binary, virtual Object {
 	/*!
 	Reference an immutable area of buffered data and move area of data referenced, area have to be include inside */
 	template<typename BinaryType>
-	Packet& operator=(const shared<const BinaryType>& pBuffer) { return set<BinaryType>(pBuffer); }
+	Packet& operator=(const shared<const BinaryType>& pBuffer) { return set(pBuffer); }
 	/*!
 	Capture the buffer passed in parameter, buffer become immutable and allows safe distribution */
 	template<typename BinaryType>
-	Packet& operator=(shared<BinaryType>& pBuffer) { return set<BinaryType>(pBuffer); }
+	Packet& operator=(shared<BinaryType>& pBuffer) { return set(pBuffer); }
 	/*!
 	Release packet */
 	Packet& operator=(std::nullptr_t) { return set(NULL, 0); }
@@ -160,10 +160,10 @@ struct Packet: Binary, virtual Object {
 	Reference an immutable area of unbuffered data */
 	Packet& set(const Binary& binary) { return set(binary.data(), binary.size()); }
 	/*!
-	Create a copy from packet */
+	Reference a packet */
 	Packet& set(const Packet& packet);
 	/*!
-	Create a copy from packet and move area of data referenced, area have to be include inside */
+	Reference a packet and move area of data referenced, area have to be include inside */
 	Packet& set(const Packet& packet, const UInt8* data) { return set(packet).setArea(data, packet.size() - (data-packet.data())); }
 	Packet& set(const Packet& packet, const UInt8* data, UInt32 size) { return set(packet).setArea(data, size); }
 	/*!
@@ -177,54 +177,50 @@ struct Packet: Binary, virtual Object {
 	Reference an immutable area of buffered data */
 	template<typename BinaryType>
 	Packet& set(const shared<const BinaryType>& pBuffer) {
-		if (!pBuffer || !pBuffer->data()) // if size==0 the normal behavior is required to get the same data address
+		if (!pBuffer || !pBuffer->data())  // if pBuffer->size==0 the normal behavior is required to get the same data address
 			return set(NULL, 0);
 		if (!_reference)
 			delete _ppBuffer;
-		else
-			_reference = false;
-		_ppBuffer = new shared<const Binary>(pBuffer);
+		_reference = typeid(Binary) == typeid(BinaryType);
 		_data = pBuffer->data();
 		_size = pBuffer->size();
-		return *this;
-	}
-	template<typename BinaryType, typename std::enable_if<!std::is_same<BinaryType, Binary>::value>::type>
-	Packet& set(const shared<const BinaryType>& pBuffer) {
-		if (!pBuffer || !pBuffer->data())  // if pBuffer->size==0 the normal behavior is required to get the same data address
-			return set(NULL, 0);
-		if (!_reference) {
-			delete _ppBuffer;
-			_reference = true;
-		}
-		_ppBuffer = &pBuffer;
-		_data = pBuffer->data();
-		_size = pBuffer->size();
-		return *this;
+		_ppBuffer = _reference ? (shared<const Binary>*)&pBuffer : new shared<const Binary>(pBuffer);
+		return self;
 	}
 	/*!
 	Reference an immutable area of buffered data and move area of data referenced, area have to be include inside */
 	template<typename BinaryType>
-	Packet& set(const shared<const BinaryType>& pBuffer, const UInt8* data) { return set<const BinaryType>(pBuffer).setArea(data, pBuffer->size() - (data - pBuffer->data())); }
+	Packet& set(const shared<const BinaryType>& pBuffer, const UInt8* data) { return set(pBuffer).setArea(data, pBuffer->size() - (data - pBuffer->data())); }
 	template<typename BinaryType>
-	Packet& set(const shared<const BinaryType>& pBuffer, const UInt8* data, UInt32 size) { return set<const BinaryType>(pBuffer).setArea(data, size); }
+	Packet& set(const shared<const BinaryType>& pBuffer, const UInt8* data, UInt32 size) { return set(pBuffer).setArea(data, size); }
 	/*!
 	Capture the buffer passed in parameter, buffer become immutable and allows safe distribution */
 	template<typename BinaryType>
 	Packet& set(shared<BinaryType>& pBuffer) {
-		set<const BinaryType>(pBuffer);
-		pBuffer.reset(); // forbid now all changes by caller!
-		return *this;
+		if (!pBuffer || !pBuffer->data()) // if size==0 the normal behavior is required to get the same data address
+			return set(NULL, 0); // no need here to capture pBuffer (no holder on)
+		if (!_reference)
+			delete _ppBuffer;
+		else
+			_reference = false;
+		_data = pBuffer->data();
+		_size = pBuffer->size();
+		_ppBuffer = new shared<const Binary>(move(pBuffer)); // forbid now all changes by caller!
+		return self;
 	}
 	/*!
 	Capture the buffer passed in parameter and move area of data referenced, buffer become immutable and allows safe distribution, area have to be include inside */
 	template<typename BinaryType>
-	Packet& set(shared<BinaryType>& pBuffer, const UInt8* data) { return set<BinaryType>(pBuffer).setArea(data, pBuffer->size() - (data - pBuffer->data())); }
+	Packet& set(shared<BinaryType>& pBuffer, const UInt8* data) { return set(pBuffer).setArea(data, pBuffer->size() - (data - pBuffer->data())); }
 	template<typename BinaryType>
-	Packet& set(shared<BinaryType>& pBuffer, const UInt8* data, UInt32 size) { return set<BinaryType>(pBuffer).setArea(data, size); }
+	Packet& set(shared<BinaryType>& pBuffer, const UInt8* data, UInt32 size) { return set(pBuffer).setArea(data, size); }
 
 	static const Packet& Null() { static Packet Null(nullptr); return Null; }
 
 private:
+	// Keep copy-constructor private because is referencing automatically a packet is not safe (forbid vector<Packet> usage too, prefer rather deque<Packet>)
+	// + keep no-explicit to avoid auto-selection of "const Binary& binary" alternative
+	Packet(const Packet& packet) : _reference(true) { set(packet); }
 	Packet(std::nullptr_t) : _ppBuffer(new shared<const Binary>()), _data(NULL), _size(0), _reference(false) {}
 
 	Packet& setArea(const UInt8* data, UInt32 size);

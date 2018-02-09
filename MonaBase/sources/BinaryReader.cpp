@@ -60,8 +60,7 @@ UInt32 BinaryReader::read7BitEncoded() {
 	do {
 		c = read8();
 		UInt32 x = (c & 0x7F);
-		x <<= s;
-		value += x;
+		value += (x << s);
 		s += 7;
 	} while (c & 0x80);
 	return value;

@@ -37,7 +37,7 @@ private:
 	bool				load(Exception& ex);
 	UInt32				decode(shared<Buffer>& pBuffer, bool end);
 	const std::string*	search(char c);
-	UInt32				generate(const Packet& packet, std::vector<Packet>& packets);
+	UInt32				generate(const Packet& packet, std::deque<Packet>& packets);
 
 	Parameters				_properties;
 	MIME::Type				_mime;

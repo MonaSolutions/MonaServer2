@@ -73,14 +73,15 @@ bool HTTPFileSender::load(Exception& ex) {
 
 UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 	
-	vector<Packet> packets;
-	UInt32 size;
+	deque<Packet> packets;
+	Packet packet(pBuffer); // capture and hold buffer until end of life of packets
 
+	UInt32 size;
 	if (!_properties.count()) {
-		size = pBuffer->size();
-		packets.emplace_back(pBuffer); // capture
+		size = packet.size();
+		packets.emplace_back(packet.buffer());
 	} else // properties => want parse files to replace properties!
-		size = generate(Packet(pBuffer), packets); // capture
+		size = generate(packet, packets);
 
 	// HEADER
 	if (!_mime) {
@@ -141,7 +142,7 @@ const string* HTTPFileSender::search(char c) {
 	return NULL;
 }
 
-UInt32 HTTPFileSender::generate(const Packet& packet, vector<Packet>& packets) {
+UInt32 HTTPFileSender::generate(const Packet& packet, deque<Packet>& packets) {
 
 	// iterate on content to replace "<% key %>" fields
 	
@@ -188,7 +189,7 @@ UInt32 HTTPFileSender::generate(const Packet& packet, vector<Packet>& packets) {
 				if (*cur == '>') {
 					const string* pValue = search(0);
 					if (pValue) {
-						packets.emplace_back(Packet(pValue->data(), pValue->size()));
+						packets.emplace_back(pValue->data(), pValue->size());
 						size += pValue->size();
 					}
 					begin = cur + 1;
@@ -213,7 +214,7 @@ UInt32 HTTPFileSender::generate(const Packet& packet, vector<Packet>& packets) {
 		++cur;
 	}
 
-	// Add rest size
+	// Add rest size?
 	if (cur <= begin)
 		return size;
 	packets.emplace_back(packet, begin, cur - begin);

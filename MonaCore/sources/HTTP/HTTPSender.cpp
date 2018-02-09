@@ -98,7 +98,7 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UI
 	if (mime)  // If no mime type as "304 Not Modified" response or HTTPWriter::writeRaw which write itself content-type => no content!
 		MIME::Write(writer.write(EXPAND("\r\nContent-Type: ")), mime, subMime);
 	if (extraSize == UINT64_MAX) {
-		if (path) {
+		if (path || !mime) {
 			// Transfer-Encoding: chunked!
 			writer.write(EXPAND("\r\nTransfer-Encoding: chunked"));
 			_chunked = 1;

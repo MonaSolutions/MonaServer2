@@ -216,8 +216,7 @@ struct HTTP : virtual Static {
 		operator bool() const { return _pHeader.operator bool(); }
 		bool unique() const { return _pHeader.unique(); }
 	protected:
-		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(packet), _pHeader(std::move(pHeader)) {}
-		Message(shared<Header>& pHeader, const Packet&& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
+		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
 		/*!
 		exception */
 		Message(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true) { pHeader.reset(); }
@@ -238,7 +237,6 @@ struct HTTP : virtual Static {
 
 	struct Request : Message, virtual Object {
 		Request(const Path& path, shared<Header>& pHeader, const Packet& packet, bool flush) : path(path), Message(pHeader, packet, flush) {}
-		Request(const Path& path, shared<Header>& pHeader, const Packet&& packet, bool flush) : path(path), Message(pHeader, std::move(packet), flush) {}
 		/*!
 		exception */
 		Request(const Path& path, shared<Header>& pHeader, const Exception& ex) : path(path), Message(pHeader, ex) {}
@@ -257,7 +255,6 @@ struct HTTP : virtual Static {
 
 	struct Response : Message, virtual Object {
 		Response(UInt16 code, shared<Header>& pHeader, const Packet& packet, bool flush) : code(code), Message(pHeader, packet, flush) {}
-		Response(UInt16 code, shared<Header>& pHeader, const Packet&& packet, bool flush) : code(code), Message(pHeader, std::move(packet), flush) {}
 		/*!
 		exception */
 		Response(UInt16 code, shared<Header>& pHeader, const Exception& ex) : code(code), Message(pHeader, ex) {}
@@ -276,22 +273,21 @@ struct HTTP : virtual Static {
 
 	struct RendezVous : virtual Object {
 		RendezVous();
-	
-		typedef std::function<void(const HTTP::Request& local, const HTTP::Request& remote, const shared<Socket>& pRemoteSocket)> OnMeet;
 
-		bool join(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket, const OnMeet& onMeet);
+		bool meet(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket);
 
 	private:
-		struct Remote : Request, virtual Object {
-			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) : weakSocket(pSocket), Request(Path::Null(), pHeader, std::move(packet), true) {}
-			const weak<Socket> weakSocket;
+		void send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from);
+		struct Remote : Request, weak<Socket>, virtual Object {
+			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) :
+				weak<Socket>(pSocket), Request(Path::Null(), pHeader, std::move(packet), true) {}
 		};
 		struct Comparator {
 			bool operator()(const char* path1, const char* path2) const { return String::ICompare(path1, path2)<0; }
 		};
 		std::mutex									_mutex;
-		std::map<const char*, Remote, Comparator>   _remotes;
-		std::function<bool(const char*, std::map<const char*, Remote, Comparator>::iterator&)> _validate;
+		std::map<const char*, unique<const Remote>, Comparator>   _remotes;
+		std::function<bool(const char*, std::map<const char*, unique<const Remote>, Comparator>::iterator&)> _validate;
 	};
 };
 

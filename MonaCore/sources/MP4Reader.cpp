@@ -1068,7 +1068,10 @@ void MP4Reader::frameToMedias(const Packet& packet, UInt8 track, Track::Type& ty
 		return;
 	if (pLastVideo)
 		++_times[time]; // to match with times synchro
-	_medias.emplace(time, new Media::Video(type.video, type.video.frame == Media::Video::FRAME_CONFIG ? (type.config = Packet(frame, frameSize)) : Packet(packet, frame, frameSize), track));
+	if (type.video.frame == Media::Video::FRAME_CONFIG)
+		_medias.emplace(time, new Media::Video(type.video, type.config.set(frame, frameSize), track));
+	else
+		_medias.emplace(time, new Media::Video(type.video, Packet(packet, frame, frameSize), track));
 }
 
 } // namespace Mona

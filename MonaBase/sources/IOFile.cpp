@@ -58,8 +58,8 @@ private:
 	shared<File> _pFile; // shared and not weak to allow to detect current reading/writing process to avoid to recall ioFile.read/write if it's useless!
 };
 
-IOFile::IOFile(const Handler& handler, const ThreadPool& threadPool) :
-	handler(handler), threadPool(threadPool), _threadPool(Thread::PRIORITY_LOW, Thread::ProcessorCount()*2) { // 2*CPU => because disk speed can be at maximum 2x more than memory, and Low priority to not impact main thread pool
+IOFile::IOFile(const Handler& handler, const ThreadPool& threadPool, UInt16 cores) :
+	handler(handler), threadPool(threadPool), _threadPool(Thread::PRIORITY_LOW, cores*2) { // 2*CPU => because disk speed can be at maximum 2x more than memory, and Low priority to not impact main thread pool
 }
 
 IOFile::~IOFile() {

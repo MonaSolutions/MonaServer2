@@ -225,7 +225,8 @@ Media::Data::Data(DataReader& properties, UInt8 track) : Base(TYPE_DATA, *proper
 Media::Data::Data(const Properties& properties) : Base(TYPE_DATA, properties((Media::Data::Type&)tag), 0), isProperties(true) {
 }
 
-Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)), _newProperties(false) {
+Media::Properties::Properties(const Media::Data& data) : _newProperties(false) {
+	_packets.emplace_back(move(data));
 	unique_ptr<DataReader> pReader(Data::NewReader(data.tag, data));
 	MapWriter<Parameters> writer(self);
 	pReader->read(writer);

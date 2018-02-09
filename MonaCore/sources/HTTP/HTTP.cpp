@@ -17,7 +17,9 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/HTTP/HTTP.h"
+#include "Mona/HTTP/HTTPSender.h"
 #include <algorithm>
+
 
 using namespace std;
 
@@ -388,25 +390,62 @@ bool HTTP::WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& on
 
 //////// RENDEZ VOUS ////////////
 
+
 HTTP::RendezVous::RendezVous() :
-	_validate([](const char*, map<const char*, Remote, Comparator>::iterator& it) { return !it->second.weakSocket.expired(); }) {
+	_validate([](const char*, map<const char*, unique<const Remote>, Comparator>::iterator& it) { return !it->second->expired(); }) {
 }
 
-bool HTTP::RendezVous::join(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket, const OnMeet& onMeet) {
-	lock_guard<mutex> lock(_mutex);
-	auto it = lower_bound(_remotes, pHeader->path.c_str(), _validate);
-	if (it == _remotes.end() || String::ICompare(it->first, pHeader->path.c_str()) != 0) {
-		_remotes.emplace_hint(it, piecewise_construct, forward_as_tuple(pHeader->path.c_str()), forward_as_tuple(pHeader, move(packet), pSocket));
+bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) {
+	// read join and resolve parameters
+	bool join = false;
+	Util::ForEachParameter forEach([&join, &pHeader](const string& key, const char* value) {
+		if (String::ICompare(key, "join") != 0)
+			return true;
+		join = !value || !String::IsFalse(value);
 		return false;
-	}
-	shared<Socket> pRemoteSocket = it->second.weakSocket.lock();
-	if (!pRemoteSocket) {
-		_remotes.emplace_hint(_remotes.erase(it), piecewise_construct, forward_as_tuple(pHeader->path.c_str()), forward_as_tuple(pHeader, move(packet), pSocket));
-		return false;
-	}
-	onMeet(Request(Path::Null(), pHeader, packet, true), it->second, pRemoteSocket);
-	_remotes.erase(it);
-	return true;
+	});
+	Util::UnpackQuery(pHeader->query, forEach);
+
+	// meet
+	{ // lock
+		unique_lock<mutex> lock(_mutex);
+		auto it = lower_bound(_remotes, pHeader->path.c_str(), _validate);
+		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path.c_str()) == 0) {
+			shared<Socket> pRemoteSocket = it->second->lock();
+			if (pRemoteSocket) {
+				unique<const Remote> pRemote = move(it->second);
+				_remotes.erase(it);
+				lock.unlock(); // unlock
+				Request local(Path::Null(), pHeader, packet, true); // pHeader captured!
+				// Send local to remote
+				send(pRemoteSocket, *pRemote, local, pSocket->peerAddress());
+				// Send remote to local
+				send(pSocket, local, *pRemote, pRemoteSocket->peerAddress());
+				return true;
+			}
+			it = _remotes.erase(it);
+		}
+		if (!join) {
+			Remote* pRemote = new Remote(pHeader, packet, pSocket);
+			_remotes.emplace_hint(it, (*pRemote)->path.c_str(), pRemote);
+			return false;
+		}
+	} // unlock
+	HTTPSender("RDVSender", pHeader, pSocket).send(HTTP_CODE_410);
+	pHeader.reset(); // release header
+	return false;
+}
+
+void HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from) {
+	// Send local to remote
+	HTTPSender sender("RDVSender", pHeader, pSocket);
+	BinaryWriter writer(sender.buffer());
+	HTTP_BEGIN_HEADER(writer)
+		HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
+		HTTP_ADD_HEADER("from", from)
+	HTTP_END_HEADER
+	sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size());
+	sender.send(message);
 }
 
 

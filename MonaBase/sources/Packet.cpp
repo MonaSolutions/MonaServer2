@@ -48,13 +48,13 @@ Packet& Packet::operator-=(UInt32 count) {
 Packet Packet::operator+(UInt32 offset) const {
 	if (offset>_size)
 		offset = _size;
-	return Packet(*this, _data + offset, _size - offset);
+	return Packet(self, _data + offset, _size - offset);
 }
 
 Packet Packet::operator-(UInt32 count) const {
 	if (count>_size)
 		count = _size;
-	return Packet(*this, _data, _size - count);
+	return Packet(self, _data, _size - count);
 }
 
 const shared<const Binary>& Packet::bufferize() const {

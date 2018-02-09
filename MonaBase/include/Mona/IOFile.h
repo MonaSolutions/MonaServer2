@@ -31,7 +31,7 @@ Indeed even if SSD drive allows parallel reading and writing operation every ope
 so it's useless to try to exceeds number of CPU core (Thread::ProcessorCount() has been tested and approved with file load) */
 struct IOFile : virtual Object {
 
-	IOFile(const Handler& handler, const ThreadPool& threadPool);
+	IOFile(const Handler& handler, const ThreadPool& threadPool, UInt16 cores=0);
 	~IOFile();
 
 	const Handler&	  handler;
