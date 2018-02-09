@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/FLVWriter.h"
 #include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -75,19 +76,20 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 
 	UInt32 size(packet.size());
 
-	Packet	sps, pps;
-
+	Packet sps, pps, vps;
+	UInt8 codec;
 	switch (type) {
 		case AMF::TYPE_VIDEO:
 			++size; // for codec byte
-			if ((isAVC = ((codecs & 0x0F) == Media::Video::CODEC_H264))) {
+			codec = codecs & 0x0F;
+			if ((isAVC = (codec == Media::Video::CODEC_H264 || codec == Media::Video::CODEC_HEVC))) {
 				size += 4; // for config byte + composition offset 3 bytes
 				if (isConfig) {
 					// find just sps and pps data, ignore the rest
 					size -= packet.size();
-					if (!AVC::ParseVideoConfig(packet, sps, pps))
+					if (((codec == Media::Video::CODEC_H264) && !AVC::ParseVideoConfig(packet, sps, pps)) || ((codec == Media::Video::CODEC_HEVC) && !HEVC::ParseVideoConfig(packet, vps, sps, pps)))
 						return;
-					size += sps.size() + pps.size() + 11;
+					size += vps.size() + sps.size() + pps.size() + ((codec == Media::Video::CODEC_H264) ? 11 : 38); // TODO: Use a constant for video config header size
 				}
 			}
 			break;
@@ -120,7 +122,7 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 		writer.write8(codecs);
 
 	if (isAVC) {
-		 // H264 or AAC!
+		 // H264/HEVC or AAC!
 		writer.write8(isConfig ? 0 : 1);
 		// Composition offset
 		if (type == AMF::TYPE_VIDEO)
@@ -132,7 +134,9 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 		pBuffer.reset(new Buffer());
 		if (packet)
 			onWrite(packet);
-	} else
+	} else if (vps)
+		HEVC::WriteVideoConfig(writer, vps, sps, pps); // write vps sps + pps
+	else
 		AVC::WriteVideoConfig(writer, sps, pps); // write sps + pps
 
 	BinaryWriter(*pBuffer).write32(11 + size); // footer

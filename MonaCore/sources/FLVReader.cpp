@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FLVReader.h"
 #include "Mona/AMFReader.h"
 #include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -59,7 +60,7 @@ UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Video::T
 	UInt8 codecs(reader.read8());
 	tag.codec = Media::Video::Codec(codecs & 0x0F);
 	tag.frame = Media::Video::Frame((codecs & 0xF0) >> 4);
-	if (tag.codec == Media::Video::CODEC_H264) {
+	if (tag.codec == Media::Video::CODEC_H264 || tag.codec == Media::Video::CODEC_HEVC) {
 		if (!reader.read8())
 			tag.frame = Media::Video::FRAME_CONFIG;
 		tag.compositionOffset = reader.read24();
@@ -124,9 +125,12 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 				_size -= 7;
 				Packet content(buffer, reader.current(), _size);
 				content += ReadMediaHeader(content.data(), content.size(), _video);
-				if (_video.codec == Media::Video::CODEC_H264 && _video.frame==Media::Video::FRAME_CONFIG) {
+				if (_video.frame == Media::Video::FRAME_CONFIG && ((_video.codec == Media::Video::CODEC_H264) || (_video.codec == Media::Video::CODEC_HEVC))) {
 					shared<Buffer> pBuffer(new Buffer());
-					content += AVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
+					if (_video.codec == Media::Video::CODEC_HEVC)
+						content += HEVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
+					else
+						content += AVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
 					source.writeVideo(track ? track : 1, _video, Packet(pBuffer));
 				}
 				if(content) // because if was just a config packet, there is no more data!

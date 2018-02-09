@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FlashStream.h"
 #include "Mona/FLVReader.h"
 #include "Mona/AVC.h"
+#include "Mona/HEVC.h"
 #include "Mona/PacketWriter.h"
 #include "Mona/MapWriter.h"
 #include "Mona/Logs.h"
@@ -394,9 +395,12 @@ void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
 
 	_video.time = timestamp;
 	UInt32 readen(FLVReader::ReadMediaHeader(packet.data(), packet.size(), _video));
-	if (_video.codec == Media::Video::CODEC_H264 && _video.frame == Media::Video::FRAME_CONFIG) {
+	if (_video.frame == Media::Video::FRAME_CONFIG && (_video.codec == Media::Video::CODEC_H264 || _video.codec == Media::Video::CODEC_HEVC)) {
 		shared<Buffer> pBuffer(new Buffer());
-		readen += AVC::ReadVideoConfig(packet.data()+readen, packet.size()-readen, *pBuffer);
+		if (_video.codec == Media::Video::CODEC_HEVC)
+			readen += HEVC::ReadVideoConfig(packet.data() + readen, packet.size() - readen, *pBuffer);
+		else
+			readen += AVC::ReadVideoConfig(packet.data() + readen, packet.size() - readen, *pBuffer);
 		_pPublication->writeVideo(_video, Packet(pBuffer), _videoTrack);
 		if (packet.size() <= readen)
 			return; //rest nothing
