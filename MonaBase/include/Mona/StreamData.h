@@ -22,7 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 template<typename ...Args>
-struct StreamData {
+struct StreamData : virtual Object {
 
 	bool addStreamData(const Packet& packet, UInt32 limit, Args... args) {
 		// Call onStreamData just one time to prefer recursivity rather "while repeat", and allow a "flush" info!
