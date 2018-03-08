@@ -63,8 +63,10 @@ UInt8 FLVWriter::ToCodecs(const Media::Audio::Tag& tag) {
 }
 
 void FLVWriter::beginMedia(const OnWrite& onWrite) {
-	if (onWrite)
-		onWrite(Packet(EXPAND("\x46\x4c\x56\x01\x05\x00\x00\x00\x09\x00\x00\x00\x00")));
+	if (!onWrite)
+		return;
+	static const Packet Header(EXPAND("\x46\x4c\x56\x01\x05\x00\x00\x00\x09\x00\x00\x00\x00"));
+	onWrite(Header);
 }
 
 void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, UInt32 time, UInt16 compositionOffset, const Packet& packet, const OnWrite& onWrite) {
