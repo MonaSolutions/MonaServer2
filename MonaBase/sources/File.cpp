@@ -47,8 +47,10 @@ File::File(const Path& path, Mode mode) :
 }
 
 File::~File() {
-	if (externDecoder)
+	if (externDecoder) {
+		pDecoder->onRelease(self);
 		delete pDecoder;
+	}
 	// No CPU expensive
 	if (_handle == -1)
 		return;

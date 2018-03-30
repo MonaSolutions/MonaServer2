@@ -32,7 +32,7 @@ struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 
 	AMFWriter&				writeMessage();
 	AMFWriter&				writeInvocation(const char* name) { return writeInvocation(name, 0); }
-	void					writeRaw(DataReader& reader);
+	void					writeRaw(DataReader& arguments, const Packet& packet = Packet::Null());
 	BinaryWriter&			writeRaw() { return *write(AMF::TYPE_RAW); }
 
 	AMFWriter&				writeAMFSuccess(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_result", code, false, description, withoutClosing); }
@@ -66,7 +66,7 @@ protected:
 
 	AMFWriter&				write(AMF::Type type, UInt32 time = 0) { return write(type, time, Media::Data::TYPE_AMF, Packet::Null(), reliable); }
 	AMFWriter&				write(AMF::Type type, UInt32 time, bool reliable) { return write(type, time, Media::Data::TYPE_AMF, Packet::Null(), reliable); }
-	AMFWriter&				write(AMF::Type type, UInt32 time, const Packet& packet, bool reliable) { return write(type, time, Media::Data::TYPE_AMF, packet, reliable); }
+	AMFWriter&				write(AMF::Type type, UInt32 time, Media::Data::Type packetType, const Packet& packet) { return write(type, time, packetType, packet, reliable); }
 	virtual AMFWriter&		write(AMF::Type type, UInt32 time, Media::Data::Type packetType, const Packet& packet, bool reliable) = 0;
 	virtual void			closing(Int32 error, const char* reason = NULL);
 	

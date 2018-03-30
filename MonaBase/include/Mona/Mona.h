@@ -161,7 +161,16 @@ inline UInt8 abs(Int8 value) { return (UInt8)std::abs(value); }
 template<typename Type1, typename Type2, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
 inline ResultType distance(Type1 value1, Type2 value2) {
 	ResultType result(value2 - value1);
-	return abs(result) > (std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max() >> 1) ? (value1 - value2) : result;
+	return abs(result) > ceil(std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max()/2.0) ? (value1 - value2) : result;
+}
+
+template<typename Type1, typename Type2, typename Type3, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
+inline ResultType distance(Type1 value1, Type2 value2, Type3 max, Type3 min=0) {
+	ResultType result(value2 - value1);
+	max = max - min;
+	if (abs(result) <= ceil(max / 2.0))
+		return result;
+	return result>0 ? (result - max) : (max + result);
 }
 
 inline bool isalnum(char value) { return ASCII::Is(value, ASCII::ALPHA | ASCII::DIGIT); }

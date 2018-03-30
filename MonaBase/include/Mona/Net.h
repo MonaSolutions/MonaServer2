@@ -183,13 +183,13 @@ namespace Mona {
 
 struct Net : virtual Object {
 	enum {
-		RTO_MIN = 1000, // see https://tools.ietf.org/html/rfc2988
-		RTO_INIT = 3000,
-		RTO_MAX = 10000
+		RTO_MIN = 1000u, // see https://tools.ietf.org/html/rfc2988
+		RTO_INIT = 3000u,
+		RTO_MAX = 10000u
 	};
 
 	enum {
-		MTU_RELIABLE_SIZE = 1280
+		MTU_RELIABLE_SIZE = 1280u
 	};
 
 	static UInt32 GetRecvBufferSize() { return _Net._recvBufferSize; }

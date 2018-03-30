@@ -28,9 +28,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
+// length because size() can easly overloads an other inheriting method
+// no empty because empty() can easly overloads an other inheriting method
 #define CONST_STRING(STRING)	operator const std::string&() const { return STRING;} \
 								std::size_t length() const { return (STRING).length(); } \
-								bool	  empty() const { return (STRING).empty(); } \
 								const char& operator[] (std::size_t pos) const { return (STRING)[pos]; } \
 								const char& back() const { return (STRING).back(); } \
 								const char& front() const { return (STRING).front(); } \
@@ -179,7 +180,7 @@ struct String : std::string, virtual Object {
 	static bool IsTrue(const std::string& value) { return IsTrue(value.data(),value.size()); }
 	static bool IsTrue(const char* value,std::size_t size=std::string::npos) { return ICompare(value, "1", size) == 0 || String::ICompare(value, "true", size) == 0 || String::ICompare(value, "yes", size) == 0 || String::ICompare(value, "on", size) == 0; }
 	static bool IsFalse(const std::string& value) { return IsFalse(value.data(),value.size()); }
-	static bool IsFalse(const char* value, std::size_t size = std::string::npos) { return ICompare(value, "0", size) == 0 || String::ICompare(value, "false", size) == 0 || String::ICompare(value, "no", size) == 0 || String::ICompare(value, "off", size) == 0 || String::ICompare(value, "null", size) == 0; }
+	static bool IsFalse(const char* value, std::size_t size = std::string::npos) { return !value || ICompare(value, "0", size) == 0 || String::ICompare(value, "false", size) == 0 || String::ICompare(value, "no", size) == 0 || String::ICompare(value, "off", size) == 0 || String::ICompare(value, "null", size) == 0; }
 
 	template <typename BufferType>
 	static BufferType& ToHex(const std::string& value, BufferType& buffer) { return ToHex(value.c_str(), buffer); }

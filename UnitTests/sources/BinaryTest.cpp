@@ -49,17 +49,17 @@ void Write(Args&&... args) {
 	double dVal = -1.5;
 	writer.write(&dVal, sizeof(dVal));
 
-	writer.write7BitValue(100);
-	writer.write7BitValue(1000);
-	writer.write7BitValue(10000);
-	writer.write7BitValue(100000);
-	writer.write7BitValue(1000000);
+	writer.write7Bit<UInt32>(100);
+	writer.write7Bit<UInt32>(1000);
+	writer.write7Bit<UInt32>(10000);
+	writer.write7Bit<UInt32>(100000);
+	writer.write7Bit<UInt32>(1000000);
 
-	writer.write7BitLongValue(100);
-	writer.write7BitLongValue(1000);
-	writer.write7BitLongValue(10000);
-	writer.write7BitLongValue(100000);
-	writer.write7BitLongValue(1000000);
+	writer.write7Bit<UInt64>(100);
+	writer.write7Bit<UInt64>(1000);
+	writer.write7Bit<UInt64>(10000);
+	writer.write7Bit<UInt64>(100000);
+	writer.write7Bit<UInt64>(1000000);
 
 	writer.write("RAW");
 }
@@ -108,26 +108,26 @@ void Read(Args&&... args) {
 	reader.read(sizeof(doublev), (char *)&doublev);
 	CHECK(doublev == -1.5);
 
-	UInt32 uint32v = reader.read7BitValue();
+	UInt32 uint32v = reader.read7Bit<UInt32>();
 	CHECK(uint32v == 100);
-	uint32v = reader.read7BitValue();
+	uint32v = reader.read7Bit<UInt32>();
 	CHECK(uint32v == 1000);
-	uint32v = reader.read7BitValue();
+	uint32v = reader.read7Bit<UInt32>();
 	CHECK(uint32v == 10000);
-	uint32v = reader.read7BitValue();
+	uint32v = reader.read7Bit<UInt32>();
 	CHECK(uint32v == 100000);
-	uint32v = reader.read7BitValue();
+	uint32v = reader.read7Bit<UInt32>();
 	CHECK(uint32v == 1000000);
 
-	uint64v = reader.read7BitLongValue();
+	uint64v = reader.read7Bit<UInt64>();
 	CHECK(uint64v == 100);
-	uint64v = reader.read7BitLongValue();
+	uint64v = reader.read7Bit<UInt64>();
 	CHECK(uint64v == 1000);
-	uint64v = reader.read7BitLongValue();
+	uint64v = reader.read7Bit<UInt64>();
 	CHECK(uint64v == 10000);
-	uint64v = reader.read7BitLongValue();
+	uint64v = reader.read7Bit<UInt64>();
 	CHECK(uint64v == 100000);
-	uint64v = reader.read7BitLongValue();
+	uint64v = reader.read7Bit<UInt64>();
 	CHECK(uint64v == 1000000);
 
 	CHECK(String::ICompare((const char*)reader.current(),"RAW")==0);

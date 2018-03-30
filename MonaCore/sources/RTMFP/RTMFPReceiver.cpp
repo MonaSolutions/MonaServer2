@@ -126,11 +126,11 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 				break;
 			case 0x5e: {
 				// RTMFPWriter exception!
-				UInt64 id(message.read7BitLongValue());
+				UInt64 id = message.read7Bit<UInt64>(10);
 				acks[id].reset();
 				// trick to avoid a repeating exception message from client
-				BinaryWriter(write(socket, address, 0x10, 3 + Binary::Get7BitValueSize(id)))
-					.write8(RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END).write7BitLongValue(id).write16(0); // Stage=0 and DeltaAck = 0 to avoid to request a ack for that
+				BinaryWriter(write(socket, address, 0x10, 3 + Binary::Get7BitSize<UInt64>(id, 10)))
+					.write8(RTMFP::MESSAGE_ABANDON | RTMFP::MESSAGE_END).write7Bit<UInt64>(id, 10).write16(0); // Stage=0 and DeltaAck = 0 to avoid to request a ack for that
 				break;
 			}
 			case 0x18:
@@ -145,15 +145,15 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 			case 0x50:
 			case 0x51: {
 				// Ack RTMFPWriter
-				UInt64 id = message.read7BitLongValue();
-				UInt64 bufferSize = message.read7BitLongValue();
+				UInt64 id = message.read7Bit<UInt64>(10);
+				UInt64 bufferSize = message.read7Bit<UInt64>(10);
 				if (bufferSize) {
 					const auto& it = acks.emplace(id, Packet());
 					if (it.second || it.first->second) { // to avoid to override a RTMFPWriter fails!
 						if(type == 0x50) {
 							// convert to 0x51!
 							const UInt8* begin(message.current());
-							message.read7BitLongValue(); // stage!
+							message.read7Bit<UInt64>(10); // stage!
 							UInt8* lostBuffer(BIN message.current());
 							UInt32 lostCount(0);
 							while (message.available()) {
@@ -167,7 +167,7 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 									bits >>= 1;
 								}
 							}
-							it.first->second.set(Packet(packet, begin, (lostBuffer - begin) + BinaryWriter(lostBuffer, 4).write7BitValue(lostCount).size()));
+							it.first->second.set(Packet(packet, begin, (lostBuffer - begin) + BinaryWriter(lostBuffer, 4).write7Bit<UInt64>(lostCount).size()));
 						} else
 							it.first->second.set(Packet(packet, message.current(), message.available()));
 					}
@@ -186,9 +186,9 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 			// 0x11 special request, in repeat case (following stage request)
 			case 0x10: {
 				flags = message.read8();
-				flowId = message.read7BitLongValue();
-				stage = message.read7BitLongValue() - 1;
-				message.read7BitLongValue(); // deltaNAck
+				flowId = message.read7Bit<UInt64>(10);
+				stage = message.read7Bit<UInt64>(10) - 1;
+				message.read7Bit<UInt64>(10); // deltaNAck
 
 				if (flags & RTMFP::MESSAGE_OPTIONS) {
 					// flow creation
@@ -197,8 +197,8 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 					const auto& it = _flows.find(flowId);
 					if (it == _flows.end()) {
 						DEBUG("Message for flow ", flowId, " unknown or flow already closed");
-						BinaryWriter(write(socket, address, 0x5e, 1 + Binary::Get7BitValueSize(flowId)))
-							.write7BitLongValue(flowId).write8(0);
+						BinaryWriter(write(socket, address, 0x5e, 1 + Binary::Get7BitSize<UInt64>(flowId, 10)))
+							.write7Bit<UInt64>(flowId, 10).write8(0);
 					} else
 						pFlow = &it->second;
 				}
@@ -236,18 +236,18 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 				// Write ack with a buffer information of 0xFF7Fu (max possible) => to simplify protocol and guarantee max exchange (max buffer always available)
 				vector<UInt64> losts;
 				stage = pFlow->buildAck(losts, size = 0);
-				size += Binary::Get7BitValueSize(pFlow->id) + Binary::Get7BitValueSize(0xFF7Fu) + Binary::Get7BitValueSize(stage);
+				size += Binary::Get7BitSize<UInt64>(pFlow->id, 10) + Binary::Get7BitSize<UInt64>(0xFF7F) + Binary::Get7BitSize<UInt64>(stage, 10);
 				BinaryWriter writer(write(socket, address, 0x51, size));
-				writer.write7BitLongValue(pFlow->id).write7BitValue(0xFF7F).write7BitLongValue(stage);
+				writer.write7Bit<UInt64>(pFlow->id, 10).write7Bit<UInt64>(0xFF7F).write7Bit<UInt64>(stage, 10);
 				for (UInt64 lost : losts)
-					writer.write7BitLongValue(lost);
+					writer.write7Bit<UInt64>(lost, 10);
 				if (pFlow->consumed())
 					_flows.erase(pFlow->id);
 				pFlow = NULL;
 			} else {
 				// commit everything (flow unknown, can be a flow which has failed)
-				BinaryWriter(write(socket, address, 0x51, 1 + Binary::Get7BitValueSize(flowId) + Binary::Get7BitValueSize(stage)))
-					.write7BitLongValue(flowId).write7BitValue(0).write7BitLongValue(stage);
+				BinaryWriter(write(socket, address, 0x51, 1 + Binary::Get7BitSize<UInt64>(flowId, 10) + Binary::Get7BitSize<UInt64>(stage, 10)))
+					.write7Bit<UInt64>(flowId, 10).write7Bit<UInt64>(0).write7Bit<UInt64>(stage, 10);
 					
 			}
 			stage = 0;
@@ -272,13 +272,13 @@ UInt64 RTMFPReceiver::Flow::buildAck(vector<UInt64>& losts, UInt16& size) {
 	auto it = _fragments.begin();
 	while (it != _fragments.end()) {
 		stage = it->first - stage - 2;
-		size += Binary::Get7BitValueSize(stage);
+		size += Binary::Get7BitSize<UInt64>(stage, 10);
 		losts.emplace_back(stage); // lost count
 		UInt32 buffered(0);
 		stage = it->first;
 		while (++it != _fragments.end() && it->first == (++stage))
 			++buffered;
-		size += Binary::Get7BitValueSize(buffered);
+		size += Binary::Get7BitSize<UInt64>(buffered, 10);
 		losts.emplace_back(buffered);
 		--stage;
 	}

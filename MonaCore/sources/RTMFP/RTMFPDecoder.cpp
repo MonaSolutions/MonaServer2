@@ -77,8 +77,8 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				break;
 			}
 			case 0x30: {
-				reader.read7BitLongValue(); // useless
-				reader.read7BitLongValue(); // size epd (useless)
+				reader.read7Bit<UInt64>(10); // useless
+				reader.read7Bit<UInt64>(10); // size epd (useless)
 				UInt8 type(reader.read8());
 				if (type == 0x0f) {
 					if (reader.available()<48) {
@@ -191,7 +191,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				if (!tag)
 					WARN("38 hanshake without 30 before or client has changed address between the both");
 				UInt32 farId = reader.read32();
-				if (reader.read7BitLongValue() != RTMFP::SIZE_COOKIE) {
+				if (reader.read7Bit<UInt64>(10) != RTMFP::SIZE_COOKIE) {
 					ERROR("Bad handshake cookie ", String::Hex(reader.current(), 16), "..., its size should be 64 bytes");
 					return;
 				}
@@ -199,10 +199,10 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				UInt32 id = Byte::From32Network(*(UInt32*)reader.current());
 				reader.next(RTMFP::SIZE_COOKIE);
 
-				UInt8 farPubKeySize = UInt8(reader.read7BitLongValue());
+				UInt8 farPubKeySize = range<UInt8>(reader.read7Bit<UInt64>(10));
 				const UInt8* farPubKey = reader.current();
 		
-				UInt16 size = reader.read7BitValue() - 2;
+				UInt16 size = range<UInt16>(reader.read7Bit<UInt64>(10)) - 2;
 				reader.next(2); // unknown
 				const UInt8* key = reader.current(); reader.next(size);
 
@@ -216,7 +216,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				shared<Buffer> pOut;
 				RTMFP::InitBuffer(pOut, 0x0B);
 				BinaryWriter writer(*pOut);
-				writer.write8(0x78).next(2).write32(id).write7BitLongValue(dh.publicKeySize() + 11);
+				writer.write8(0x78).next(2).write32(id).write7Bit<UInt64>(dh.publicKeySize() + 11);
 				UInt32 noncePos = writer.size();
 				writer.write(EXPAND("\x03\x1A\x00\x00\x02\x1E\x00"));
 				UInt8 byte2 = DiffieHellman::SIZE - dh.publicKeySize();
@@ -231,7 +231,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				// Compute Keys
 				UInt8 encryptKey[Crypto::SHA256_SIZE];
 				UInt8 decryptKey[Crypto::SHA256_SIZE];
-				size = UInt16(reader.read7BitValue());
+				size = range<UInt16>(reader.read7Bit<UInt64>(10));
 				RTMFP::ComputeAsymetricKeys(secret, secretSize, reader.current(), size, writer.data() + noncePos, dh.publicKeySize() + 11, decryptKey, encryptKey);
 				//TRACE(String::Hex(secret, DiffieHellman::SIZE));
 

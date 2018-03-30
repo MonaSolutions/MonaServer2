@@ -197,11 +197,14 @@ bool HTTPSession::manage() {
 	if (_pUpgradeSession)
 		return _pUpgradeSession->manage();
 
-	// Cancel timeout when subscribing => Case particular to HTTP which can't communicate in the both way in same time and has no ping feature
 	UInt32 timeout = this->timeout;
-	if (_pSubscription || _pWriter->answering())
-		(UInt32&)this->timeout = 0; // if answering or subscription waits congestion but no timeout (wait end of response, usefull for VLC file playing for example)
-
+	// Cancel timeout when subscribing, and use rather subscribing timeout! (HTTP which has no ping feature)
+	// If answering waits end of response, usefull for VLC file playing for example (which can to ::recv after a quantity of data in socket.available())
+	// In HTTP we can use some "auto feature" like RDV which doesn't pass over main thread (implemented in HTTPDecoder)
+	// So timeout just on nothing more is sending during timeout (send = valid HTTP response)
+	if (_pSubscription || _pWriter->answering() || !self->sendTime().isElapsed(timeout))
+		(UInt32&)this->timeout = 0;
+		
 	if (!TCPSession::manage())
 		return false;
 	
@@ -209,7 +212,7 @@ bool HTTPSession::manage() {
 	if (_pSubscription) {
 		if (!_pSubscription->streaming(timeout)) {
 			INFO(name(), " timeout connection");
-			kill(ERROR_IDLE);
+			kill(ERROR_IDLE, _pSubscription->name().c_str()); // _pSubscription->name().c_str() to disable kill=ERROR_IDLE possible canceling (see HTTP::kill)
 			return false;
 		}
 		if(_pSubscription->ejected()) {

@@ -46,8 +46,10 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr) : _peerAddress(addr), _addre
 
 
 Socket::~Socket() {
-	if (externDecoder)
+	if (externDecoder) {
+		pDecoder->onRelease(self);
 		delete pDecoder;
+	}
 	if (_id == NET_INVALID_SOCKET)
 		return;
 	// ::printf("DELETE socket %d\n", _id);

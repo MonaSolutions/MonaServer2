@@ -21,6 +21,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/TCPSession.h"
 #include "Mona/MediaWriter.h"
+#include "Mona/HTTP/HTTPErrorSender.h"
 #include "Mona/HTTP/HTTPDataSender.h"
 #include "Mona/HTTP/HTTPMediaSender.h"
 #include "Mona/HTTP/HTTPFileSender.h"
@@ -42,7 +43,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	DataWriter&		writeInvocation(const char* name) { DataWriter& writer(writeMessage()); writer.writeString(name,strlen(name)); return writer; }
 	DataWriter&		writeMessage() { return writeMessage(false); }
 	DataWriter&		writeResponse(UInt8 type=0) { return writeMessage(true); }
-	void			writeRaw(DataReader& reader);
+	void			writeRaw(DataReader& arguments, const Packet& packet = Packet::Null());
 
 	bool			writeSetCookie(DataReader& reader, const HTTP::OnCookie& onCookie = nullptr) { if (!_pSetCookie) _pSetCookie.reset(new Buffer()); return HTTP::WriteSetCookie(reader, *_pSetCookie, onCookie); }
 	void			writeFile(const Path& file, Parameters& properties);
@@ -56,9 +57,9 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	// No writeProperties here because HTTP has no way to control a multiple channel global stream
 	void			endMedia();
 
-	void			writeError(const Exception& ex) { newSender<HTTPDataSender>(true, HTTP::ErrorToCode(Session::ToError(ex)), ex); }
+	void			writeError(const Exception& ex) { newSender<HTTPErrorSender>(true, HTTP::ErrorToCode(Session::ToError(ex)), ex); }
 	template <typename ...Args>
-	void			writeError(const char* code, Args&&... args) { newSender<HTTPDataSender>(true, code, std::forward<Args>(args)...); }
+	void			writeError(const char* code, Args&&... args) { newSender<HTTPErrorSender>(true, code, std::forward<Args>(args)...); }
 
 	bool			answering() const { return !_flushings.empty() || _session->queueing(); }
 	void			flush() { Writer::flush(); }

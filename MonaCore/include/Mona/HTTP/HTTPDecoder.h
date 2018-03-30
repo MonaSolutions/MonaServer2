@@ -38,6 +38,7 @@ protected:
 	UInt32 onStreamData(Packet& buffer, const shared<Socket>& pSocket);
 
 private:
+	void  onRelease(Socket& socket);
 
 	// for header reading, keep this order!!
 	enum Stage {
@@ -64,18 +65,21 @@ private:
 		if (_code) {
 			if (onResponse)
 				return _handler.queue(onResponse, _code, _pHeader, std::forward<Args>(args)...);
+			_pHeader.reset();
 			WARN("Response ignored");
 			return;
 		}
+		_lastRequest.update();
 		if (onRequest)
 			return _handler.queue(onRequest, _path, _pHeader, std::forward<Args>(args)...);
+		_pHeader.reset();
 		WARN("Request ignored");
 	}
-
 
 	Exception				_ex;
 	Stage					_stage;
 	shared<HTTP::Header>	_pHeader;
+	Time					_lastRequest;
 	Path					_path;
 	UInt16					_code;
 	std::string				_www;

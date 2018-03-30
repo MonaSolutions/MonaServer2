@@ -64,15 +64,28 @@ AMFWriter& FlashWriter::writeMessage() {
 	return writer;
 }
 
-void FlashWriter::writeRaw(DataReader& reader) {
-	UInt8 type;
-	UInt32 time;
-	if (!reader.readNumber(type)) {
-		ERROR("RTMP content required at less a AMF number type (second param can be optionally timestamp number)");
-		return;
+void FlashWriter::writeRaw(DataReader& arguments, const Packet& packet) {
+	UInt8 type(AMF::TYPE_INVOCATION);
+	UInt32 time(0);
+	if (arguments.readNumber(type))
+		arguments.readNumber(time);
+	// Media::Data::TYPE_UNKNOWN for AMF invocation or data to convert in AMF Bytes, otherwise on control message write the content in raw!
+	Media::Data::Type packetType(type >= AMF::TYPE_DATA_AMF3 ? Media::Data::TYPE_UNKNOWN : Media::Data::TYPE_AMF);
+	DataWriter& amf = write(AMF::Type(type), time, packetType, packet);
+	switch (type) {
+		case AMF::TYPE_INVOCATION_AMF3:
+			amf->write8(AMF::AMF0_AMF3_OBJECT);
+		case AMF::TYPE_INVOCATION:
+			amf.writeString(EXPAND("onRaw"));
+			amf.writeNumber(0);
+			amf->write8(AMF::AMF0_NULL); // for RTMP compatibility! (requiere it)
+		default:;
 	}
-	StringWriter<> writer(write(AMF::Type(type), reader.readNumber(time) ? time : 0)->buffer());
-	reader.read(writer);
+	if (packetType) { // if is not a Data or invocation so convert all in binary!
+		StringWriter<> writer(amf->buffer());
+		arguments.read(writer);
+	} else // else we can convert it to AMF!
+		arguments.read(amf);
 }
 
 AMFWriter& FlashWriter::writeInvocation(const char* name, double callback) {
@@ -117,7 +130,7 @@ bool FlashWriter::beginMedia(const string& name) {
 bool FlashWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
 	_time = tag.time + _lastTime;
 	_firstAV = false;
-	BinaryWriter& writer(*write(AMF::TYPE_AUDIO, _time, packet, reliable));
+	BinaryWriter& writer(*write(AMF::TYPE_AUDIO, _time, Media::Data::TYPE_AMF, packet, reliable));
 	if (!packet)
 		return true; // "end audio signal" => detected by FP and works just if no packet content!
 	writer.write8(FLVWriter::ToCodecs(tag));
@@ -134,7 +147,7 @@ bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		write(AMF::TYPE_AUDIO, _time, reliable);
 	}
 	bool isAVCConfig(tag.frame == Media::Video::FRAME_CONFIG && ((tag.codec == Media::Video::CODEC_H264 && AVC::ParseVideoConfig(packet, _sps, _pps)) || (tag.codec == Media::Video::CODEC_HEVC && HEVC::ParseVideoConfig(packet, _vps, _sps, _pps))));
-	BinaryWriter& writer(*write(AMF::TYPE_VIDEO, _time, isAVCConfig ? Packet::Null() : packet, reliable));
+	BinaryWriter& writer(*write(AMF::TYPE_VIDEO, _time, Media::Data::TYPE_AMF, isAVCConfig ? Packet::Null() : packet, reliable));
 	writer.write8(FLVWriter::ToCodecs(tag));
 	if (tag.codec != Media::Video::CODEC_H264 && tag.codec != Media::Video::CODEC_HEVC)
 		return true;
@@ -170,7 +183,7 @@ bool FlashWriter::writeData(Media::Data::Type type, const Packet& packet, bool r
 
 bool FlashWriter::writeProperties(const Media::Properties& properties) {
 	// Always give 0 here for time, otherwise RTMP or RTMFP can't receive the data (tested..)
-	AMFWriter& writer(write(AMF::TYPE_DATA, 0, properties[amf0 ? Media::Data::TYPE_AMF0 : Media::Data::TYPE_AMF], true));
+	AMFWriter& writer(write(AMF::TYPE_DATA, 0, Media::Data::TYPE_AMF, properties[amf0 ? Media::Data::TYPE_AMF0 : Media::Data::TYPE_AMF], true));
 	// Handler required (else can't be received in flash)
 	writer.amf0 = true;
 	writer.writeString(EXPAND("onMetaData"));

@@ -42,12 +42,12 @@ struct BinaryWriter : Binary, virtual Object {
 	BinaryWriter& write64(UInt64 value);
 	BinaryWriter& writeDouble(double value);
 	BinaryWriter& writeFloat(float value);
-	BinaryWriter& writeString(const std::string& value) { write7BitEncoded(value.size()); return write(value); }
-	BinaryWriter& writeString(const char* value) { UInt32 size(strlen(value)); write7BitEncoded(size); return write(value, size); }
-	BinaryWriter& write7BitEncoded(UInt32 value);
-	BinaryWriter& write7BitValue(UInt32 value);
-	BinaryWriter& write7BitLongValue(UInt64 value);
 	BinaryWriter& writeBool(bool value) { return write8(value ? 1 : 0); }
+	
+	template<typename ValueType>
+	BinaryWriter& write7Bit(typename std::common_type<ValueType>::type value, UInt8 bytes = sizeof(ValueType) + 1);
+	BinaryWriter& writeString(const std::string& value) { return write7Bit<UInt32>(value.size()).write(value); }
+	BinaryWriter& writeString(const char* value) { UInt32 size(strlen(value)); return write7Bit<UInt32>(size).write(value, size); }
 
 	BinaryWriter& writeRandom(UInt32 count=1);
 

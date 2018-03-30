@@ -39,14 +39,11 @@ void WSWriter::flushing() {
 }
 
 
-void WSWriter::writeRaw(DataReader& reader) {
-	UInt8 type;
-	if (!reader.readNumber(type)) {
-		ERROR("WebSocket content required at less a WS number type");
-		return;
-	}
-	StringWriter<> writer(write(WS::Type(type))->buffer());
-	reader.read(writer);
+void WSWriter::writeRaw(DataReader& arguments, const Packet& packet) {
+	UInt8 type(WS::TYPE_BINARY);
+	arguments.readNumber(type);
+	StringWriter<> writer(write(WS::Type(type), packet)->buffer());
+	arguments.read(writer);
 }
 
 DataWriter& WSWriter::writeInvocation(const char* name) {

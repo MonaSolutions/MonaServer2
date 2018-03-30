@@ -220,23 +220,22 @@ bool Subscription::start() {
 		writeProperties(*pPublication);
 
 	// Send codecs settings on start! Time is 0 (like following first packet)
-	UInt8 track(1);
+	UInt8 track(0);
 	for (const Publication::AudioTrack& audio : pPublication->audios) {
-		if (!audio.config)
-			continue;
-		writeAudio(UInt8(track), audio.config, audio.config);
+		++track;
+		if (audio.config)
+			writeAudio(track, audio.config, audio.config);
 		if (_ejected)
 			return false;
-		++track;
+		
 	}
-	track = 1;
+	track = 0;
 	for (const Publication::VideoTrack& video : pPublication->videos) {
-		if (!video.config)
-			continue;
-		writeVideo(UInt8(track), video.config, video.config);
+		++track;
+		if (video.config)
+			writeVideo(track, video.config, video.config);
 		if (_ejected)
 			return false;
-		++track;
 	}
 	return true;
 }

@@ -48,7 +48,8 @@ struct Writer : virtual Object {
 	virtual DataWriter&		writeInvocation(const char* name) { return DataWriter::Null(); }
 	virtual DataWriter&		writeMessage() { return DataWriter::Null(); }
 	virtual DataWriter&		writeResponse(UInt8 type=0) { return writeMessage(); }
-	virtual void			writeRaw(DataReader& reader) {}
+	virtual void			writeRaw(DataReader& arguments, const Packet& packet = Packet::Null()) {}
+	void					writeRaw(const Packet& packet) { writeRaw(DataReader::Null(), packet); }
 
 	/*!
 	Usefull to detect congestion, on TCP writer, it can redirect to socket.queueing() */

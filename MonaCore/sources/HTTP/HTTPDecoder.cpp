@@ -25,12 +25,25 @@ namespace Mona {
 
 
 HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const string& name) :
-	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0) {
+	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 	FileSystem::MakeFile(_www);
 }
 HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, const string& name) : _pRendezVous(pRendezVous),
-	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0) {
+	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 	FileSystem::MakeFile(_www);
+}
+
+void HTTPDecoder::onRelease(Socket& socket) {
+	if (_pUpgradeDecoder || socket.sendTime() >= _lastRequest)
+		return;
+	// We have gotten a HTTP request and since nothing has been answering,
+	// to avoid client like XMLHttpRequest to interpret it like a timeout and request again (no response = timeout for some browers like chrome|firefox)
+	// send a "204 no content" response (204 allows 'no content-length')
+	// (usefull too for HTTP RDV to signal "no meeting" after timeout!)
+	Exception ignore;
+	static const Packet TimeoutClose(EXPAND("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"));
+	DUMP_RESPONSE(socket.isSecure() ? "HTTPS" : "HTTP", TimeoutClose.data(), TimeoutClose.size(), socket.peerAddress());
+	socket.write(ignore, TimeoutClose);
 }
 
 void HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
@@ -130,6 +143,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								_stage = PROGRESSIVE;
 							break;
 						case HTTP::TYPE_RDV:
+							if (_length < 0)
+								_length = 0; // RDV request can ommit content-length if no content-length!
 							if (!_pRendezVous) {
 								_ex.set<Ex::Protocol>("HTTP RDV doesn't activated, set to true HTTP.rendezVous configuration");
 								break;
@@ -142,6 +157,9 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								_pHeader->path += '/';
 								_pHeader->path.append(_path.name());
 							}
+							// do here to detect possible _ex on the socket!
+							pSocket->send(_ex, NULL, 0); // to differ HTTP timeout (we have received a valid request, wait now that nothing is sending until timeout!)
+							_lastRequest.update(pSocket->sendTime() + 1); // to do working 204 response (see HTTPDecoder::onRelease)
 							break;
 						case HTTP::TYPE_GET:
 							if (_pHeader->mime == MIME::TYPE_TEXT || _pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO)
@@ -303,9 +321,9 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 				_pReader.reset();
 			}
 		} else if (_stage != CMD) { // can be CMD on end of chunked transfer-encoding
-			if (_pHeader && _pHeader->type==HTTP::TYPE_RDV)
+			if (_pHeader && _pHeader->type == HTTP::TYPE_RDV)
 				_pRendezVous->meet(_pHeader, packet, pSocket);
-			else 
+			else
 				receive(packet, !buffer); // !buffer => flush if no more data buffered
 		}
 

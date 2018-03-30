@@ -227,14 +227,13 @@ void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publica
 	Exception ex;
 	Publication* pLastPublication(NULL);
 	auto it = streams.begin();
-	string name;
 	while (it!=streams.end()) {
 		Media::Stream* pStream(it->second);
 		if (Media::Target* pTarget = dynamic_cast<Media::Target*>(pStream)) {
 			INFO(pStream->description(), " loaded on publication ", it->first);
 			Subscription* pSubscription(new Subscription(*pTarget));
 			pStream->start(); // Start stream before subscription to call Stream::start before Target::beginMedia
-			if (!subscribe(ex, name.assign(it->first), *pSubscription, pStream->query.c_str())) {  // logs already displaid by subscribe
+			if (!subscribe(ex, it->first, *pSubscription, pStream->query.c_str())) {  // logs already displaid by subscribe
 				delete pSubscription;
 				streams.erase(it++);
 				delete pStream;
@@ -243,16 +242,16 @@ void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publica
 			subscriptions.emplace(pSubscription);
 		} else {
 			// publish
-			Publication* pPublication = publish(ex=nullptr, name.assign(it->first)); // logs already displaid by publish
+			Publication* pPublication = publish(ex=nullptr, it->first); // logs already displaid by publish
 			if (!pPublication) {
-				if (!pLastPublication || pLastPublication->name() != name) {
+				if (!pLastPublication || pLastPublication->name() != it->first) {
 					streams.erase(it++);
 					delete pStream;
 					continue;
 				}
-				pPublication = pLastPublication;
+				pPublication = pLastPublication; // was same publication!
 			}
-			INFO(pStream->description()," loaded on publication ",name);
+			INFO(pStream->description()," loaded on publication ", it->first);
 			publications.emplace(pLastPublication = pPublication);
 			pStream->start(*pPublication);
 		}

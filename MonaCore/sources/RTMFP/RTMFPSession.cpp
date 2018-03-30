@@ -94,7 +94,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			signature.set(reader.current(), type & 0x7F);
 			BinaryReader streamReader(signature.data(), signature.size());
 			streamReader.next(4);
-			_pFlow->streamId = streamReader.read7BitValue();
+			_pFlow->streamId = range<UInt16>(streamReader.read7Bit<UInt64>(10));
 			reader.next(signature.size());
 			while (UInt8 length = reader.read8())
 				reader.next(length);
@@ -105,7 +105,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 
 		// join group
 		if (type == AMF::TYPE_CHUNKSIZE) { // trick to catch group in RTMFP (CHUNCKSIZE format doesn't exist in RTMFP)
-			UInt32 size = reader.read7BitValue();
+			UInt32 size = range<UInt32>(reader.read7Bit<UInt64>(10));
 			Entity::Map<RTMFP::Group>& groups(protocol<RTMFProtocol>().groups);
 			Entity::Map<RTMFP::Group>::iterator it;
 			const UInt8* groupId;
@@ -201,10 +201,10 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 			if (ack) {
 				// ACK
 				BinaryReader reader(ack.data(), ack.size());
-				UInt64 stage(reader.read7BitLongValue());
+				UInt64 stage(reader.read7Bit<UInt64>(10));
 				UInt32 lostCount(0);
 				if (reader.available())
-					lostCount += UInt32(reader.read7BitLongValue()) + 1;
+					lostCount += UInt32(reader.read7Bit<UInt64>(10)) + 1;
 				itWriter->second->acquit(stage, lostCount);
 			} else // FAIL
 				itWriter->second->fail("Writer rejected on session ", name());

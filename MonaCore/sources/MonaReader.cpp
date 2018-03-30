@@ -59,9 +59,18 @@ UInt32 MonaReader::parse(Packet& buffer, Media::Source& source) {
 			case Media::TYPE_VIDEO:
 				source.writeVideo(track, video, media);
 				break;
-			case Media::TYPE_DATA:
-				source.writeData(track, data, media);
+			case Media::TYPE_DATA: {
+				if (track) {
+					source.writeData(track, data, media);
+					break;
+				}
+				unique_ptr<DataReader> pReader(Media::Data::NewReader(data, media));
+				if(pReader)
+					source.setProperties(0, *pReader);
+				else
+					source.writeData(track, data, media);
 				break;
+			}
 			default:
 				ERROR("Malformed header size");
 		}

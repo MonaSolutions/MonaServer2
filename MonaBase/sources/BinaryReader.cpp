@@ -53,18 +53,6 @@ UInt8* BinaryReader::read(UInt32 size, UInt8* value) {
 	return value;
 }
 
-UInt32 BinaryReader::read7BitEncoded() {
-	UInt8 c;
-	UInt32 value = 0;
-	int s = 0;
-	do {
-		c = read8();
-		UInt32 x = (c & 0x7F);
-		value += (x << s);
-		s += 7;
-	} while (c & 0x80);
-	return value;
-}
 
 UInt16 BinaryReader::read16() {
 	UInt16 value(0);
@@ -115,35 +103,21 @@ float BinaryReader::readFloat() {
 	return value;
 }
 
-UInt32 BinaryReader::read7BitValue() {
-	UInt8 n = 0;
-    UInt8 b = read8();
-    UInt32 result = 0;
-    while ((b&0x80) && n < 3) {
-        result <<= 7;
-        result |= (b&0x7F);
-        b = read8();
-        ++n;
-    }
-    result <<= ((n<3) ? 7 : 8); // Use all 8 bits from the 4th byte
-    result |= b;
+template<typename ValueType>
+ValueType BinaryReader::read7Bit(UInt8 bytes) {
+	UInt8 byte;
+	ValueType result = 0;
+	do {
+		byte = read8();
+		if (!--bytes)
+			return (result << 8) | byte; // Use all 8 bits from the 5th byte
+		result = (result << 7) | (byte & 0x7F);
+	} while (byte & 0x80);
 	return result;
 }
 
-UInt64 BinaryReader::read7BitLongValue() {
-	UInt8 n = 0;
-    UInt8 b = read8();
-    UInt64 result = 0;
-    while ((b&0x80) && n < 8) {
-        result <<= 7;
-        result |= (b&0x7F);
-        b = read8();
-        ++n;
-    }
-    result <<= ((n<8) ? 7 : 8); // Use all 8 bits from the 4th byte
-    result |= b;
-	return result;
-}
-
+template UInt16 BinaryReader::read7Bit(UInt8 bytes);
+template UInt32 BinaryReader::read7Bit(UInt8 bytes);
+template UInt64 BinaryReader::read7Bit(UInt8 bytes);
 
 } // namespace Mona

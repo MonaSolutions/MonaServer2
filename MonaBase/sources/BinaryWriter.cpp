@@ -48,16 +48,6 @@ BinaryWriter& BinaryWriter::writeRandom(UInt32 count) {
 	return *this;
 }
 
-BinaryWriter& BinaryWriter::write7BitEncoded(UInt32 value) {
-	do {
-		unsigned char c = (unsigned char)(value & 0x7F);
-		if (value >>= 7)
-			c |= 0x80;
-		write8(c);
-	} while (value);
-	return *this;
-}
-
 BinaryWriter& BinaryWriter::write16(UInt16 value) {
 	if (_flipBytes)
 		value = Byte::Flip16(value);
@@ -93,34 +83,24 @@ BinaryWriter& BinaryWriter::writeFloat(float value) {
 	return write(&value, sizeof(value));
 }
 
-
-BinaryWriter& BinaryWriter::write7BitValue(UInt32 value) {
-	UInt8 shift = (Get7BitValueSize(value)-1)*7;
-	bool max = false;
-	if(shift>=21) { // 4 bytes maximum
-		shift = 22;
-		max = true;
+template<typename ValueType>
+BinaryWriter& BinaryWriter::write7Bit(typename common_type<ValueType>::type value, UInt8 bytes) {
+	if (!bytes)
+		return self;
+	UInt8 bits = (bytes - 1) * 7 + 1;
+	if (!(value >> (bits - 1))) {
+		bits -= 8;
+		while (!(value >> bits) && (bits -= 7));
 	}
-
-	while(shift>=7) {
-		write8(0x80 | ((value>>shift)&0x7F));
-		shift -= 7;
+	while (bits>1) {
+		write8(0x80 | UInt8(value >> bits));
+		bits -= 7;
 	}
-	return write8(max ? value&0xFF : value&0x7F);
+	return write8(value & (bits ? 0xFF : 0x7F));
 }
-
-BinaryWriter& BinaryWriter::write7BitLongValue(UInt64 value) {
-	UInt8 shift = (Get7BitValueSize(value)-1)*7;
-	bool max = shift>=63; // Can give 10 bytes!
-	if(max)
-		++shift;
-
-	while(shift>=7) {
-		write8(0x80 | ((value>>shift)&0x7F));
-		shift -= 7;
-	}
-	return write8(max ? value&0xFF : value&0x7F);
-}
+template BinaryWriter& BinaryWriter::write7Bit<UInt16>(common_type<UInt16>::type value, UInt8 bytes);
+template BinaryWriter& BinaryWriter::write7Bit<UInt32>(common_type<UInt32>::type value, UInt8 bytes);
+template BinaryWriter& BinaryWriter::write7Bit<UInt64>(common_type<UInt64>::type value, UInt8 bytes);
 
 
 } // namespace Mona

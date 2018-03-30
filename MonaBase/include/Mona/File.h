@@ -36,7 +36,10 @@ struct File : virtual Object {
 	Decoder offers to decode data in the reception thread when file is used with IOFile,
 	If pBuffer is reseted, no onReaden is callen (data captured),
 	If returns > 0 it continue reading operation (reads returned size) */
-	struct Decoder : virtual Object { virtual UInt32 decode(shared<Buffer>& pBuffer, bool end) = 0; };
+	struct Decoder : virtual Object {
+		virtual UInt32 decode(shared<Buffer>& pBuffer, bool end) = 0;
+		virtual void onRelease(File& file) {}
+	};
 
 	// A mode R+W has no sense at this system level, because there is just one reading/writing shared header (R and W position)
 	enum Mode {

@@ -28,10 +28,12 @@ struct Binary : virtual Object {
 
 	explicit operator bool() const { return data() && size(); }
 
-	// max size = 5
-	static UInt8 Get7BitValueSize(UInt32 value) { UInt8 result(1); while (value >>= 7) ++result; return result; }
-	// max size = 10
-	static UInt8 Get7BitValueSize(UInt64 value) { UInt8 result(1); while (value >>= 7) ++result; return result; }
+	template<typename ValueType>
+	static UInt8 Get7BitSize(typename std::common_type<ValueType>::type value, UInt8 bytes = sizeof(ValueType) + 1) {
+		UInt8 result(1);
+		while ((value >>= 7) && result++<bytes);
+		return result-(value ? 1 : 0); // 8th bit
+	}
 };
 
 

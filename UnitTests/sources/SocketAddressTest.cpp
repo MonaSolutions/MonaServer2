@@ -105,7 +105,7 @@ ADD_TEST(Behavior) {
 ADD_TEST(ToString) {
 	// toString performance (for loop test)
 	SocketAddress sa;
-	CHECK(!sa.empty());
+	CHECK(sa.length());
 }
 
 ADD_TEST(ParsePerformance) {

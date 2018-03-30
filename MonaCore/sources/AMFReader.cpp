@@ -45,7 +45,7 @@ const char* AMFReader::readText(UInt32& size) {
 	UInt32 reset(0), reference(0);
 	if (_amf3) {
 		reference = reader.position();
-		size = reader.read7BitValue();
+		size = reader.read7Bit<UInt32>(4);
 		bool isInline = size & 0x01;
 		size >>= 1;
 		if(!isInline) {
@@ -55,7 +55,7 @@ const char* AMFReader::readText(UInt32& size) {
 			}
 			reset = reader.position();
 			reader.reset(_stringReferences[size]);
-			size = (reader.read7BitValue() >> 1);
+			size = (reader.read7Bit<UInt32>(4) >> 1);
 		}
 	} else
 		size = reader.read16();
@@ -224,7 +224,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 				return true;
 			}
 			// Forced in AMF3 here!
-			UInt32 value = reader.read7BitValue();
+			UInt32 value = reader.read7Bit<UInt32>(4);
 			if(value>0xFFFFFFF)
 				value-=(1<<29);
 			writer.writeNumber(value);
@@ -240,7 +240,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 			reader.next();
 			// Forced in AMF3 here!
 			UInt32 pos = reader.position();
-			UInt32 size = reader.read7BitValue();
+			UInt32 size = reader.read7Bit<UInt32>(4);
 			bool isInline = size&0x01;
 			size >>= 1;
 
@@ -265,7 +265,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 				}
 				UInt32 reset = reader.position();
 				reader.reset(_references[size]);
-				writeBytes(writer, ((++size)<<1) | 0x01, reader.current(), reader.read7BitValue()>>1);
+				writeBytes(writer, ((++size)<<1) | 0x01, reader.current(), reader.read7Bit<UInt32>(4)>>1);
 				reader.reset(reset);
 			}
 			return true;
@@ -276,7 +276,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 			Date date;
 			if (_amf3) {
 				UInt32 pos = reader.position();
-				UInt32 flags = reader.read7BitValue();
+				UInt32 flags = reader.read7Bit<UInt32>(4);
 				bool isInline = flags & 0x01;
 				if (isInline) {
 					if (_referencing) {
@@ -309,7 +309,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 			reader.next();
 			// AMF3
 			UInt32 reference = reader.position();
-			UInt32 size = reader.read7BitValue();
+			UInt32 size = reader.read7Bit<UInt32>(4);
 			bool isInline = size&0x01;
 			size >>= 1;
 
@@ -328,7 +328,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 				}
 				reset = reader.position();
 				reader.reset(_references[reference]);
-				size = reader.read7BitValue() >> 1;
+				size = reader.read7Bit<UInt32>(4) >> 1;
 				pReference = beginMap(writer,((++reference)<<1) | 0x01, ex, size, reader.read8() & 0x01);
 				_referencing = false;
 			} else if (_referencing) {
@@ -472,7 +472,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 				reader.next();
 				
 				UInt32 reference = reader.position();
-				size = reader.read7BitValue();
+				size = reader.read7Bit<UInt32>(4);
 				bool isInline = size&0x01;
 				size >>= 1;
 
@@ -487,7 +487,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 		
 					reset = reader.position();
 					reader.reset(_references[size]);
-					size = reader.read7BitValue() >> 1;
+					size = reader.read7Bit<UInt32>(4) >> 1;
 					_referencing = false;
 				} else if (_referencing) {
 					_references.emplace_back(reference);
@@ -571,7 +571,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 	///  AMF3
 	reader.next();
 
-	UInt32 flags = reader.read7BitValue();
+	UInt32 flags = reader.read7Bit<UInt32>(4);
 	UInt32 pos(reader.position());
 	UInt32 resetObject(0);
 	bool isInline = flags&0x01;
@@ -589,7 +589,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 		
 		resetObject = reader.position();
 		reader.reset(_references[flags]);
-		flags = reader.read7BitValue() >> 1;
+		flags = reader.read7Bit<UInt32>(4) >> 1;
 		_referencing = false;
 	} else if (_referencing) {
 		_references.emplace_back(pos);
@@ -609,7 +609,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 	} else if(flags<_classDefReferences.size()) {
 		reset = reader.position();
 		reader.reset(_classDefReferences[flags]);
-		flags = reader.read7BitValue()>>2;
+		flags = reader.read7Bit<UInt32>(4)>>2;
 		text = readText(size);
 		_referencing = false;
 	} else

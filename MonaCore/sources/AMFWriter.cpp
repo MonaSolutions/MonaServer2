@@ -48,7 +48,7 @@ bool AMFWriter::repeat(UInt64 reference) {
 		if (!_amf3)
 			writer.write8(AMF::AMF0_AMF3_OBJECT);
 		writer.write8(_references[(vector<UInt8>::size_type&)reference]);
-		writer.write7BitValue((UInt32)reference<<1);
+		writer.write7Bit<UInt32>((UInt32)reference<<1, 4);
 		return true;
 	}
 
@@ -98,11 +98,11 @@ void AMFWriter::writeText(const char* value,UInt32 size) {
 		const auto& it = _stringReferences.emplace(piecewise_construct, forward_as_tuple(value, size), forward_as_tuple(_stringReferences.size()));
 		if (!it.second) {
 			// already exists
-			writer.write7BitValue(it.first->second << 1);
+			writer.write7Bit<UInt32>(it.first->second << 1, 4);
 			return;
 		}
 	}
-	writer.write7BitValue((size<<1) | 0x01).write(value,size);
+	writer.write7Bit<UInt32>((size<<1) | 0x01, 4).write(value,size);
 }
 
 void AMFWriter::writeNull() {
@@ -141,7 +141,7 @@ void AMFWriter::writeNumber(double value){
 		writer.write8(AMF::AMF3_INTEGER); // marker
 		if(value<0)
 			value+=(1<<29);
-		writer.write7BitValue((UInt32)value);
+		writer.write7Bit<UInt32>((UInt32)value, 4);
 		return;
 	}
 	writer.write8(_amf3 ? UInt8(AMF::AMF3_NUMBER) : UInt8(AMF::AMF0_NUMBER)); // marker
@@ -155,7 +155,7 @@ UInt64 AMFWriter::writeBytes(const UInt8* data, UInt32 size) {
 		writer.write8(AMF::AMF0_AMF3_OBJECT); // switch in AMF3 format
 	}
 	writer.write8(AMF::AMF3_BYTEARRAY); // bytearray in AMF3 format!
-	writer.write7BitValue((size << 1) | 1);
+	writer.write7Bit<UInt32>((size << 1) | 1, 4);
 	writer.write(data,size);
 	_references.emplace_back(AMF::AMF3_BYTEARRAY);
 	return (_references.size()<<1) | 0x01;
@@ -190,7 +190,7 @@ UInt64 AMFWriter::beginObject(const char* type) {
 
 	// ClassDef always inline (because never hard properties, all is dynamic)
 	// Always dynamic (but can't be externalizable AND dynamic!)
-	writer.write7BitValue(11); // 00001011 => inner object + classdef inline + dynamic
+	writer.write7Bit<UInt32>(11, 4); // 00001011 => inner object + classdef inline + dynamic
 
 	writePropertyName(type ? type : "");
 
@@ -211,7 +211,7 @@ UInt64 AMFWriter::beginArray(UInt32 size) {
 	}
 
 	writer.write8(AMF::AMF3_ARRAY);
-	writer.write7BitValue((size << 1) | 1);
+	writer.write7Bit<UInt32>((size << 1) | 1, 4);
 	writer.write8(01); // end marker, no properties (pure array)
 	_references.emplace_back(AMF::AMF3_ARRAY);
 	return (_references.size()<<1) | 1;
@@ -227,7 +227,7 @@ UInt64 AMFWriter::beginObjectArray(UInt32 size) {
 	}
 	_levels.push_back(_amf3); // endArray
 	writer.write8(AMF::AMF3_ARRAY);
-	writer.write7BitValue((size << 1) | 1);
+	writer.write7Bit<UInt32>((size << 1) | 1, 4);
 	_references.emplace_back(AMF::AMF3_ARRAY);
 	return (_references.size()<<1) | 1;
 }
@@ -241,7 +241,7 @@ UInt64 AMFWriter::beginMap(Exception& ex, UInt32 size,bool weakKeys) {
 		_amf3=true;
 	}
 	writer.write8(AMF::AMF3_DICTIONARY);
-	writer.write7BitValue((size << 1) | 1);
+	writer.write7Bit<UInt32>((size << 1) | 1, 4);
 	writer.write8(weakKeys ? 0x01 : 0x00);
 	_references.emplace_back(AMF::AMF3_DICTIONARY);
 	return (_references.size()<<1) | 1;

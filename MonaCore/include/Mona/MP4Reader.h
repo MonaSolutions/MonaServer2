@@ -125,10 +125,10 @@ private:
 			Media::Type _type;
 		};
 
-		Track() : _id(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL), propertiesFlushed(false) { lang[0] = 0; }
+		Track() : _track(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL), propertiesFlushed(false) { lang[0] = 0; }
 
-		operator UInt8() const { return _id; }
-		Track& operator=(UInt8 id) { _id = id; return *this; }
+		operator UInt8() const { return _track; }
+		Track& operator=(UInt8 track) { _track = track; return *this; }
 
 		char						lang[3]; // if lang[0]==0 => undefined!
 		bool						propertiesFlushed;
@@ -150,7 +150,7 @@ private:
 		std::deque<Repeat>			compositionOffsets; // ctts
 
 	private:
-		UInt8 _id;
+		UInt8 _track;
 	};
 
 	template <class VideoType>

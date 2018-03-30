@@ -187,7 +187,7 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 	_pStreaming(pStreaming), _pName(pName),
 	onWrite([this, type](const Packet& packet) {
 		Packet chunk(packet, packet.data(), 0);
-		while (chunk.set(packet, chunk.data() + chunk.size())) {
+		while (chunk.set(packet, packet.data() + chunk.size())) {
 			if (type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE)
 				chunk.shrink(Net::MTU_RELIABLE_SIZE);
 			DUMP_RESPONSE(_pName->c_str(), chunk.data(), chunk.size(), _pSocket->peerAddress());
@@ -254,7 +254,7 @@ void MediaSocket::Writer::start() {
 		shared<Buffer> pBuffer(new Buffer());
 		BinaryWriter writer(*pBuffer);
 		writer.write(EXPAND("POST ")).write(path);
-		writer.write(EXPAND("HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
+		writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
 		writer.write(address);
 		MIME::Write(writer.write(EXPAND("\r\nContent-Type: ")), _pWriter->mime(), _pWriter->subMime()).write(EXPAND("\r\n\r\n"));
 		DUMP_REQUEST(_pName->c_str(), pBuffer->data(), pBuffer->size(), address);

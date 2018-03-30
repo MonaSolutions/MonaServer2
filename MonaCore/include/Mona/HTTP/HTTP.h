@@ -279,14 +279,15 @@ struct HTTP : virtual Static {
 	private:
 		void send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from);
 		struct Remote : Request, weak<Socket>, virtual Object {
-			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) :
+			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) : from(self->upgrade),
 				weak<Socket>(pSocket), Request(Path::Null(), pHeader, std::move(packet), true) {}
+			const char* from;
 		};
 		struct Comparator {
 			bool operator()(const char* path1, const char* path2) const { return String::ICompare(path1, path2)<0; }
 		};
-		std::mutex									_mutex;
-		std::map<const char*, unique<const Remote>, Comparator>   _remotes;
+		std::mutex														_mutex;
+		std::map<const char*, unique<const Remote>, Comparator>			_remotes;
 		std::function<bool(const char*, std::map<const char*, unique<const Remote>, Comparator>::iterator&)> _validate;
 	};
 };

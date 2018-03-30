@@ -24,7 +24,7 @@ namespace Mona {
 
 struct RawWriter : DataWriter, Packet, virtual Object {
 
-	RawWriter(Media::Data::Type type, Buffer& buffer) : _level(0), _type(type), DataWriter(buffer), _header(false), _first(true) {}
+	RawWriter(Buffer& buffer) : _level(0), DataWriter(buffer), _header(false), _first(true) {}
 
 	UInt64 beginObject(const char* type = NULL) {
 		if (_level++ || !_first)
@@ -38,12 +38,8 @@ struct RawWriter : DataWriter, Packet, virtual Object {
 		if (--_level || !_header)
 			return;
 		// end header!
-		if (!_first) { // has no content-type
-			if (_type)
-				writer.write(EXPAND("Content-Type: application/")).write(Media::Data::TypeToSubMime(_type)).write("\r\n");
-			else
-				writer.write(EXPAND("Content-Type: text/html; charset=utf-8\r\n"));
-		}
+		if (!_first) // has no content-type
+			writer.write(EXPAND("Content-Type: text/html; charset=utf-8\r\n"));
 		writer.write("\r\n");
 		_first = _header = false;
 	}
@@ -78,7 +74,6 @@ private:
 	UInt8				_level;
 	bool				_header;
 	bool				_first;
-	Media::Data::Type	_type;
 };
 
 
@@ -176,7 +171,7 @@ void HTTPWriter::flushing() {
 	};
 
 	// continue to read the file if paused on congestion
-	if (flushing && !_session->queueing())
+	if (flushing && !_session->queueing() && _flushings.front().unique()) // if !_flushings.front().unique() => is reading (+ can cause a double call to _onFileReaden)
 		_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front()));
 }
 
@@ -201,13 +196,14 @@ DataWriter& HTTPWriter::writeResponse(const char* subMime) {
 	return pSender ? pSender->writer() : DataWriter::Null();
 }
 
-void HTTPWriter::writeRaw(DataReader& reader) {
+void HTTPWriter::writeRaw(DataReader& arguments, const Packet& packet) {
 	// Take the entiere control
+	// first parameter is HTTP headers in a object view
 	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN);
 	if (!pSender)
 		return;
-	RawWriter writer(Media::Data::ToType(reader), pSender->writer()->buffer());
-	reader.read(writer);
+	RawWriter writer(pSender->writer()->buffer());
+	arguments.read(writer);
 }
 
 BinaryWriter& HTTPWriter::writeRaw(const char* code) {

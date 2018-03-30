@@ -38,10 +38,6 @@ struct BinaryReader : Binary, virtual Object {
 
 	char			read() { return _current==_end ? 0 : *_current++; }
 
-	UInt32			read7BitValue();
-	UInt64			read7BitLongValue();
-	UInt32			read7BitEncoded();
-	std::string&	readString(std::string& value) { return read(read7BitEncoded(),value); }
 	UInt8			read8() { return _current==_end ? 0 : *_current++; }
 	UInt16			read16();
 	UInt32			read24();
@@ -50,6 +46,9 @@ struct BinaryReader : Binary, virtual Object {
 	double			readDouble();
 	float			readFloat();
 	bool			readBool() { return _current==_end ? false : ((*_current++) != 0); }
+	template<typename ValueType>
+	ValueType		read7Bit(UInt8 bytes = sizeof(ValueType) + 1);
+	std::string&	readString(std::string& value) { return read(read7Bit<UInt32>(), value); }
 
 	
 	UInt32			position() const { return _current-_data; }

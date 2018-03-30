@@ -19,36 +19,25 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/DataReader.h"
-
+#include "Mona/HTTP/HTTPSender.h"
 
 namespace Mona {
 
-/*!
-Help to custom writing operation for method which require a DataReader like Writer::writeRaw =>
-struct HTTPHeader : WriterReader {
-	bool write(DataWriter& writer) {
-		writer.beginObject();
-		writer.writeStringProperty("content-type", EXPAND("html"));
-		writer.endObject();
-		writer.writeString(EXPAND("hello"));
-		return false;
+
+struct HTTPErrorSender : HTTPSender, virtual Object {
+	template <typename ...Args>
+	HTTPErrorSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
+		const char* errorCode, Args&&... args) : _code(errorCode), HTTPSender("HTTPErrorSender", pRequest, pSocket) {
+		if (!_code)
+			_code = HTTP_CODE_406;
+		writeError(_code, std::forward<Args>(args)...);
 	}
-} reader;
-client.writer().writeRaw(reader); */
-struct WriterReader : DataReader, virtual Object {
-	WriterReader() : _rest(true) {}
 
-	void reset() { _rest = true; }
 private:
-	virtual bool write(DataWriter& writer) = 0;
+	void run() { send(_code, MIME::TYPE_TEXT, "html; charset=utf-8"); }
 
-	UInt8 followingType() { return _rest ? OTHER : END; }
-	bool readOne(UInt8 type, DataWriter& writer) { return _rest = write(writer); }
-
-	bool _rest;
+	const char*				_code;
 };
-
 
 
 } // namespace Mona

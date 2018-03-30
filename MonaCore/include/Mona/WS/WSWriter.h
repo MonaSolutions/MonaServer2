@@ -36,7 +36,7 @@ struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	DataWriter&		writeInvocation(const char* name);
 	DataWriter&		writeMessage() { return writeJSON(); } // JSON
 	DataWriter&		writeResponse(UInt8 type=0) { return write(WS::Type(type)); } // if type==0 will write a JSON message
-	void			writeRaw(DataReader& reader);
+	void			writeRaw(DataReader& arguments, const Packet& packet = Packet::Null());
 
 	void			writePing() { write(WS::TYPE_PING)->write32(UInt32(_session.peer.connection.elapsed())); }
 	void			writePong(const Packet& packet) { write(WS::TYPE_PONG, packet); }

@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MP4Reader.h"
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
+#include "Mona/WriterReader.h"
 
 using namespace std;
 
@@ -953,31 +954,33 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 
 
 void MP4Reader::flushMedias(Media::Source& source) {
-	struct TrackReader : DataReader, virtual Object {
-		TrackReader(const Track& track) : _track(track), _done(false) {}
-		void		reset() { _done = false; }
+	struct TrackReader : WriterReader {
+		TrackReader(UInt8 track, std::deque<Track>& tracks) : _track(track), _tracks(tracks) {}
 	private:
-		UInt8 followingType() { return _done ? END : OTHER; }
-		bool readOne(UInt8 type, DataWriter& writer) {
-			_done = true;
+		bool write(DataWriter& writer) {
 			writer.beginObject();
-			if (_track.lang[0]) {
-				writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
-				writer.writeString(_track.lang, sizeof(_track.lang));
+			for (Track& track : _tracks) {
+				if (track != _track || !track.pType)
+					continue;
+				track.propertiesFlushed = true;
+				if (track.lang[0]) {
+					writer.writePropertyName(*track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
+					writer.writeString(track.lang, sizeof(track.lang));
+				}
 			}
 			writer.endObject();
-			return true;
+			return false;
 		}
-
-		bool		 _done;
-		const Track& _track;
+		std::deque<Track>&  _tracks;
+		UInt8				_track;
 	};
+
+	bool flushProperties = false;
 	for (Track& track : _tracks) {
 		if (!track || !track.pType || track.propertiesFlushed)
 			continue;
-		track.propertiesFlushed = true;
-		TrackReader reader(track);
-		source.setProperties(track, reader);
+		flushProperties = true;
+		break;
 	}
 
 	auto it = _medias.begin();
@@ -990,9 +993,14 @@ void MP4Reader::flushMedias(Media::Source& source) {
 		}
 		if (!it->second)
 			continue;
-		if (it->second->type)
+		if (it->second->type) {
+			if (flushProperties) {
+				flushProperties = false;
+				TrackReader reader(it->second->track, _tracks);
+				source.setProperties(it->second->track, reader);
+			}
 			source.writeMedia(*it->second);
-		else
+		} else
 			source.reportLost(it->second->type, ((Lost*)it->second)->lost);
 		delete it->second;
 	}

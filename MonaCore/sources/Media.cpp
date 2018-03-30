@@ -254,7 +254,7 @@ const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
 		// give the first available serialization
 		if (!_packets.empty())
 			return _packets[0];
-		type = Media::Data::TYPE_AMF;
+		type = Media::Data::TYPE_JSON; // JSON by Default!
 	}
 	// not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
 	_packets.resize(type);
@@ -274,7 +274,7 @@ void Media::Properties::setProperties(UInt8 track, DataReader& reader) {
 	if (!track) {
 		// overrides the all properties
 		clear();
-		MapWriter<Parameters> writer(*this);
+		MapWriter<Parameters> writer(self);
 		reader.read(writer);
 		return;
 	}
@@ -285,7 +285,7 @@ void Media::Properties::setProperties(UInt8 track, DataReader& reader) {
 	prefix.pop_back();
 
 	// write new properties
-	MapWriter<Parameters> writer(*this);
+	MapWriter<Parameters> writer(self);
 	writer.beginObject();
 	writer.writePropertyName(prefix.c_str());
 	reader.read(writer);

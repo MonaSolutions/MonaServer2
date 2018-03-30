@@ -391,18 +391,22 @@ bool HTTP::WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& on
 //////// RENDEZ VOUS ////////////
 
 
-HTTP::RendezVous::RendezVous() :
+HTTP::RendezVous::RendezVous() : 
 	_validate([](const char*, map<const char*, unique<const Remote>, Comparator>::iterator& it) { return !it->second->expired(); }) {
 }
 
 bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) {
 	// read join and resolve parameters
 	bool join = false;
-	Util::ForEachParameter forEach([&join, &pHeader](const string& key, const char* value) {
-		if (String::ICompare(key, "join") != 0)
-			return true;
-		join = !value || !String::IsFalse(value);
-		return false;
+	const char* to = NULL;
+	Util::ForEachParameter forEach([&join, &to, &pHeader](const string& key, const char* value) {
+		if (String::ICompare(key, "join") == 0)
+			join = !value || !String::IsFalse(value);
+		else if (String::ICompare(key, "from") == 0)
+			pHeader->upgrade = pHeader->setString(key, value).c_str();
+		else if (String::ICompare(key, "to") == 0)
+			to = pHeader->setString(key, value).c_str();
+		return true;
 	});
 	Util::UnpackQuery(pHeader->query, forEach);
 
@@ -411,28 +415,41 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 		unique_lock<mutex> lock(_mutex);
 		auto it = lower_bound(_remotes, pHeader->path.c_str(), _validate);
 		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path.c_str()) == 0) {
+			// found!
 			shared<Socket> pRemoteSocket = it->second->lock();
 			if (pRemoteSocket) {
-				unique<const Remote> pRemote = move(it->second);
-				_remotes.erase(it);
-				lock.unlock(); // unlock
-				Request local(Path::Null(), pHeader, packet, true); // pHeader captured!
-				// Send local to remote
-				send(pRemoteSocket, *pRemote, local, pSocket->peerAddress());
-				// Send remote to local
-				send(pSocket, local, *pRemote, pRemoteSocket->peerAddress());
-				return true;
-			}
-			it = _remotes.erase(it);
+				if (!to || String::ICompare(pHeader->code = to, it->second->from) == 0) {
+					const Remote* pRemote = it->second.get();
+					if (!join || packet) { // no release RDV if join without packet!
+						it->second.release();
+						_remotes.erase(it);
+						join = false;
+					} // else to == NULL!
+					lock.unlock(); // unlock
+
+					Request local(Path::Null(), pHeader, packet, true); // pHeader captured!
+					// Send remote to local (request)
+					send(pSocket, local, *pRemote, pRemoteSocket->peerAddress());
+					if (!join) {
+						// Send local to remote (response)
+						send(pRemoteSocket, *pRemote, local, pSocket->peerAddress());
+						delete pRemote;
+					}
+					return true;
+				}
+				// response match a previous request => 410
+				join = false;
+			} else
+				it = _remotes.erase(it); // peer not found!
 		}
-		if (!join) {
+		if (!join && !to) {
 			Remote* pRemote = new Remote(pHeader, packet, pSocket);
 			_remotes.emplace_hint(it, (*pRemote)->path.c_str(), pRemote);
-			return false;
-		}
+			return true;
+		} // else peer not found => 410
 	} // unlock
-	HTTPSender("RDVSender", pHeader, pSocket).send(HTTP_CODE_410);
-	pHeader.reset(); // release header
+	HTTPSender("RDVSender", pHeader, pSocket).sendError(HTTP_CODE_410);
+	pHeader.reset();
 	return false;
 }
 
@@ -442,10 +459,17 @@ void HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const He
 	BinaryWriter writer(sender.buffer());
 	HTTP_BEGIN_HEADER(writer)
 		HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
-		HTTP_ADD_HEADER("from", from)
+		const char* id = message->getString("from");
+		if(id)
+			HTTP_ADD_HEADER("from", from, ", ", id)
+		else
+			HTTP_ADD_HEADER("from", from)
 	HTTP_END_HEADER
-	sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size());
-	sender.send(message);
+	if (!pHeader->code) {
+		sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size());
+		sender.send(message);
+	} else
+		sender.send(HTTP_CODE_200);
 }
 
 

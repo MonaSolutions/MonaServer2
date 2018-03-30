@@ -30,7 +30,7 @@ ADD_TEST(Getters) {
 	CHECK(!path);
 	path.set("");
 	CHECK(path);
-	CHECK(path.empty());
+	CHECK(!path.length());
 	CHECK(!path.isAbsolute());
 	CHECK(path.name() == Path::CurrentDir().name());
 	CHECK(path.baseName() == Path::CurrentDir().baseName());

@@ -199,11 +199,7 @@ BinaryWriter& RTMFP::WriteAddress(BinaryWriter& writer, const SocketAddress& add
 		writer.write8(location | 0x80);
 	else
 		writer.write8(location);
-	NET_SOCKLEN size(host.size());
-	const UInt8* bytes = BIN host.data();
-	for (NET_SOCKLEN i = 0; i<size; ++i)
-		writer.write8(bytes[i]);
-	return writer.write16(address.port());
+	return writer.write(host.data(), host.size()).write16(address.port());
 }
 
 template<typename AddrType>

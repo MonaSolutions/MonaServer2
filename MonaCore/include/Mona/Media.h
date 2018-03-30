@@ -65,13 +65,13 @@ struct Media : virtual Static {
 	struct Data : Base, virtual Object {
 		enum Type {
 			TYPE_UNKNOWN = 0,
-			TYPE_AMF,
-			TYPE_AMF0,
-			TYPE_JSON,
-			TYPE_XMLRPC,
-			TYPE_QUERY,
-			TYPE_TEXT,
-			TYPE_MEDIA
+			TYPE_AMF = 1,
+			TYPE_AMF0 = 2,
+			TYPE_JSON = 3,
+			TYPE_XMLRPC = 4,
+			TYPE_QUERY = 5,
+			TYPE_TEXT = 6,
+			TYPE_MEDIA = 0xFF, // just used in intern in Mona!
 		};
 		typedef Type Tag;
 		static const char* TypeToString(Type type) {
@@ -253,10 +253,10 @@ struct Media : virtual Static {
 	/// O = composition offset
 	/// N = track
 	/// T = time
-	// DATA => 0NTTTTTT [NNNNNNNN]
+	// DATA => 0NTTTTTT [NNNNNNNN] (usually if TTTTTT=0 => properties!)
 	/// N = track
 	/// T = type
-	static UInt8		 PackedSize(const Media::Audio::Tag& tag, UInt8 track = 1) { return track==1 ? 6 : 7; }
+	static UInt8		 PackedSize(const Media::Audio::Tag& tag, UInt8 track = 1) { return track==1 ? 7 : 8; }
 	static UInt8		 PackedSize(const Media::Video::Tag& tag, UInt8 track = 1) { return tag.compositionOffset ? (track == 1 ? 8 : 9) : (track == 1 ? 6 : 7); }
 	static UInt8		 PackedSize(Media::Data::Type type, UInt8 track = 0) { return track ? 2 : 1; }
 	static BinaryWriter& Pack(BinaryWriter& writer, const Media::Audio::Tag& tag, UInt8 track = 1);
