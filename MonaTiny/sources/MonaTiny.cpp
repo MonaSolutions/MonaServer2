@@ -119,6 +119,16 @@ void MonaTiny::onAddressChanged(Client& client, const SocketAddress& oldAddress)
 }
 
 bool MonaTiny::onInvocation(Exception& ex, Client& client, const string& name, DataReader& arguments, UInt8 responseType) {
+	/* Haivision Encoder Patch
+	if (name == "FCPublish") {
+		FlashWriter* pWriter = dynamic_cast<FlashWriter*>(&client.writer());
+		if (pWriter) {
+			string stream(client.path);
+			arguments.readString(stream);
+			pWriter->writeAMFState("onFCPublish", "NetStream.Publish.Start", "status", stream + " is now published");
+			return true;
+		}
+	}*/
 	// on client message, returns "false" if "name" message is unknown
 	DEBUG(name, " call from ", client.protocol, " to ", client.path.empty() ? "/" : client.path);
 	if (client.hasCustomData())
