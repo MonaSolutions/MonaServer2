@@ -258,7 +258,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 
 RTMFPDecoder::RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool) : _pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(new atomic<UInt32>(0)),
 	_validateReceiver([this](UInt32 keySearched, map<UInt32, shared<RTMFPReceiver>>::iterator& it) {
-		return keySearched != it->first && it->second.unique() && it->second->obsolete() ? false : true;
+		return it->second.unique() && it->second->obsolete() ? false : true;
 	}),
 	_validateHandshake([this](const SocketAddress& keySearched, map<SocketAddress, shared<Handshake>>::iterator& it) {
 		return it->second.unique() && it->second->obsolete() ? false : true;
@@ -327,7 +327,7 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 			it = _receivers.emplace_hint(it, id, pReceiver);
 		} else if (it->second.unique()) {
 			// RTMFPSession dead!
-			// Search in handshake?
+			// Search in handshake (address has changed?)
 			shared<RTMFPReceiver> pReceiver;
 			if (finalizeHandshake(id, address, pReceiver)) // else is an obsolete session! will resend 0x4C message
 				it->second = pReceiver; // replace by new session!

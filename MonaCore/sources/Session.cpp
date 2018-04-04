@@ -70,8 +70,8 @@ void Session::init(Session& session) {
 		};
 		session.onParameters(Params(_protocol, parameters));
 	};
-	if(_pPeer.unique()) // in morphing case, use the kill "wrapper session" rather (already subscribed to kill of "wrapper session")
-		peer.onClose = [this](Int32 error, const char* reason) { kill(error, reason); };
+	if(!peer.onClose) // in morphing case it's already subscribed
+		peer.onClose = [this](Int32 error, const char* reason) { kill(error ? error : ERROR_REJECTED, reason); };
 }
 
 Session::~Session() {
