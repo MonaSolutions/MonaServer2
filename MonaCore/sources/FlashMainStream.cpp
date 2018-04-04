@@ -81,11 +81,11 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 		peer.onConnection(ex, writer, netStats, message, response);
 		if (ex) {
 			if (ex.cast<Ex::Application::Unfound>())
-				writer.writeAMFMainError("NetConnection.Connect.InvalidApp", ex);
+				writer.writeAMFError("NetConnection.Connect.InvalidApp", ex);
 			else if(ex.cast<Ex::Application::Error>())
-				writer.writeAMFMainError("NetConnection.Connect.Rejected", ex);
+				writer.writeAMFError("NetConnection.Connect.Rejected", ex);
 			else
-				writer.writeAMFMainError("NetConnection.Connect.Failed", ex);
+				writer.writeAMFError("NetConnection.Connect.Failed", ex);
 			writer.writeInvocation("close");
 			writer.close();
 			return;
@@ -104,7 +104,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 
 	if (!peer) {
 		// writer on FlashMainStream is necessary main request => a close will close the entiere session!
-		writer.writeAMFMainError("NetConnection.Connect.Failed", "Connect before to send any message");
+		writer.writeAMFError("NetConnection.Connect.Failed", "Connect before to send any message");
 		writer.writeInvocation("close");
 		writer.close();
 		return;
@@ -152,7 +152,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 			DEBUG("Method client setPeerInfo not found in application ", peer.path);
 	}
 	if(ex)
-		writer.writeAMFError("NetConnection.Call.Failed", ex); // AMS sends a AMFError message and no a AMFStatusError here (allows to fix an issue too with ffmpeg/vlc and getStreamLength invocation)
+		writer.writeAMFState("_error", "error", "NetConnection.Call.Failed", ex); // AMS sends a AMFState+_error message and no a AMFStatusError here (allows to fix an issue too with ffmpeg/vlc and getStreamLength invocation)
 }
 
 void FlashMainStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& writer) {

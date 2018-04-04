@@ -62,10 +62,10 @@ void FlashStream::disengage(FlashWriter* pWriter) {
 		if (pWriter) {
 			switch (_pSubscription->ejected()) {
 				case Subscription::EJECTED_BANDWITDH:
-					pWriter->writeAMFStatusError("NetStream.Play.InsufficientBW", "Insufficient bandwidth to play " + name);
+					pWriter->writeAMFStatus("NetStream.Play.InsufficientBW", "error", "Insufficient bandwidth to play " + name);
 					break;
 				case Subscription::EJECTED_ERROR:
-					pWriter->writeAMFStatusError("NetStream.Play.Failed", "Unknown error to play " + name);
+					pWriter->writeAMFStatus("NetStream.Play.Failed", "error", "Unknown error to play " + name);
 					break;
 				default:;
 			}
@@ -145,9 +145,9 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 		
 		if (!api.subscribe(ex, stream, peer, *_pSubscription)) {
 			if(ex.cast<Ex::Unfound>())
-				writer.writeAMFStatusError("NetStream.Play.StreamNotFound", ex);
+				writer.writeAMFStatus("NetStream.Play.StreamNotFound", "error", ex);
 			else
-				writer.writeAMFStatusError("NetStream.Play.Failed", ex);
+				writer.writeAMFStatus("NetStream.Play.Failed", "error", ex);
 			delete _pSubscription;
 			_pSubscription = NULL;
 			return;
@@ -203,7 +203,7 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 			_dataTrack = 0;
 			if (_pPublication->recording()) {
 				_pPublication->recorder()->onError = [this, &writer](const Exception& ex) {
-					writer.writeAMFStatusError("NetStream.Record.Failed", ex);
+					writer.writeAMFStatus("NetStream.Record.Failed", "error", ex);
 					writer.writeAMFStatus("NetStream.Record.Stop", _pPublication->name() + " recording stopped");
 					writer.flush();
 				};
@@ -211,12 +211,12 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 			} else if (ex) {
 				// recording pb!
 				if (ex.cast<Ex::Unsupported>())
-					writer.writeAMFStatusError("NetStream.Record.Failed", ex);
+					writer.writeAMFStatus("NetStream.Record.Failed", "error", ex);
 				else
-					writer.writeAMFStatusError("NetStream.Record.NoAccess", ex);
+					writer.writeAMFStatus("NetStream.Record.NoAccess", "error", ex);
 			}
 		} else
-			writer.writeAMFStatusError("NetStream.Publish.BadName", ex);
+			writer.writeAMFStatus("NetStream.Publish.BadName", "error", ex);
 		return;
 	}
 	
@@ -264,7 +264,7 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 				// useless, client knows it when it calls NetStream::seek method, and wait "NetStream.Seek.Complete" rather (raised by client side)
 				// writer.writeAMFStatus("NetStream.Seek.Notify", _pListener->publication.name() + " seek operation");
 			} else
-				writer.writeAMFStatusError("NetStream.Seek.InvalidTime", _pSubscription->name() + string(" seek operation must pass in argument a milliseconds position time"));
+				writer.writeAMFStatus("NetStream.Seek.InvalidTime", "error", _pSubscription->name() + string(" seek operation must pass in argument a milliseconds position time"));
 			return;
 		}
 	}

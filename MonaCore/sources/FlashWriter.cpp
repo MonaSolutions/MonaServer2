@@ -39,22 +39,22 @@ void FlashWriter::closing(Int32 error, const char* reason) {
 		return;
 	switch(error) {
 		case Session::ERROR_SERVER:
-			writeAMFMainError("NetConnection.Connect.AppShutdown", reason ? reason : "Server shutdown");
+			writeAMFError("NetConnection.Connect.AppShutdown", reason ? reason : "Server shutdown");
 			break;
 		case Session::ERROR_REJECTED:
-			writeAMFMainError("NetConnection.Connect.Rejected", reason ? reason : "Client rejected");
+			writeAMFError("NetConnection.Connect.Rejected", reason ? reason : "Client rejected");
 			break;
 		case Session::ERROR_IDLE:
-			writeAMFMainError("NetConnection.Connect.IdleTimeout", reason ? reason : "Client idle timeout");
+			writeAMFError("NetConnection.Connect.IdleTimeout", reason ? reason : "Client idle timeout");
 			break;
 		case Session::ERROR_PROTOCOL:
-			writeAMFMainError("NetConnection.Connect.Failed", reason ? reason : "Protocol error");
+			writeAMFError("NetConnection.Connect.Failed", reason ? reason : "Protocol error");
 			break;
 		case Session::ERROR_UNEXPECTED:
-			writeAMFMainError("NetConnection.Connect.Failed", reason ? reason : "Unknown error");
+			writeAMFError("NetConnection.Connect.Failed", reason ? reason : "Unknown error");
 			break;
 		default: // User code
-			writeAMFMainError("NetConnection.Connect.Failed", reason ? reason : String("Error ", error));
+			writeAMFError("NetConnection.Connect.Failed", reason ? reason : String("Error ", error));
 	}
 }
 
@@ -98,12 +98,12 @@ AMFWriter& FlashWriter::writeInvocation(const char* name, double callback) {
 	return writer;
 }
 
-AMFWriter& FlashWriter::writeAMFState(const char* name,const char* code, bool isError, const string& description,bool withoutClosing) {
+AMFWriter& FlashWriter::writeAMFState(const char* name, const char* code, const char* level, const string& description, bool withoutClosing) {
 	AMFWriter& writer = (AMFWriter&)writeInvocation(name, _callbackHandleOnAbort = _callbackHandle);
 	_callbackHandle = 0;
 	writer.amf0 = true;
 	writer.beginObject();
-	writer.writeStringProperty("level",isError ? "error" : "status");
+	writer.writeStringProperty("level", level);
 	writer.writeStringProperty("code",code);
 	writer.writeStringProperty("description", description);
 	writer.amf0 = amf0;

@@ -35,14 +35,13 @@ struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 	void					writeRaw(DataReader& arguments, const Packet& packet = Packet::Null());
 	BinaryWriter&			writeRaw() { return *write(AMF::TYPE_RAW); }
 
-	AMFWriter&				writeAMFSuccess(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_result", code, false, description, withoutClosing); }
-	void					writeAMFStatus(const char* code, const std::string& description) { writeAMFState("onStatus", code, false, description); }
-	void					writeAMFStatusError(const char* code, const std::string& description) { writeAMFState("onStatus", code, true, description); }
-
-	AMFWriter&				writeAMFError(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_error", code, true, description, withoutClosing); }
+	AMFWriter&				writeAMFSuccess(const char* code, const std::string& description, bool withoutClosing = false) { return writeAMFState("_result", code, "status", description, withoutClosing); }
 	/*!
-	Write a AMF Main Error, then the writer should be closed (writeInvocation("close") + close()) */
-	AMFWriter&				writeAMFMainError(const char* code, const std::string& description, bool withoutClosing = false) { _callbackHandle = 1; return writeAMFError(code, description, withoutClosing); }
+	Write a AMF Error then the writer should be closed (writeInvocation("close") + close()) */
+	AMFWriter&				writeAMFError(const char* code, const std::string& description, bool withoutClosing = false) { _callbackHandle = 1; return writeAMFState("_error", code, "error", description, withoutClosing); }
+	void					writeAMFStatus(const char* code, const std::string& description) { writeAMFState("onStatus", code, "status", description); }
+	void					writeAMFStatus(const char* code, const char* level, const std::string& description) { writeAMFState("onStatus", code, level, description); }
+	AMFWriter&				writeAMFState(const char* name, const char* code, const char* level, const std::string& description, bool withoutClosing = false);
 	
 	AMFWriter&				writeAMFData(const std::string& name);
 
@@ -71,7 +70,6 @@ protected:
 	virtual void			closing(Int32 error, const char* reason = NULL);
 	
 	AMFWriter&				writeInvocation(const char* name, double callback);
-	AMFWriter&				writeAMFState(const char* name,const char* code,bool isError, const std::string& description,bool withoutClosing=false);
 
 private:
 	double					_callbackHandleOnAbort;
