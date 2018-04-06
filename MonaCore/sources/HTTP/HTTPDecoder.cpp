@@ -51,7 +51,7 @@ void HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, 
 		// has upgraded the session, so is no more a HTTP Session!
 		if (!_pUpgradeDecoder.unique())
 			return _pUpgradeDecoder->decode(pBuffer, address, pSocket);
-		ERROR(_ex.set<Ex::Protocol>("HTTP upgrade rejected"));
+		DEBUG(_ex.set<Ex::Protocol>("HTTP upgrade rejected")); // DEBUG level because can happen on HTTPSession close (not an error and impossible to differenciate the both by the code)
 		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
 	}
 
