@@ -33,6 +33,13 @@ bool TestDecode(string data, const char* result, UInt32 size) {
 	return Util::FromBase64(data) && memcmp(data.c_str(),result,size)==0;
 }
 
+ADD_TEST(Generators) {
+	UInt8 max = (Util::Random() % 129) + 128;
+	set<UInt8> ids;
+	UInt8 next = 0;
+	for (UInt8 i = 0; i < max; ++i)
+		CHECK(ids.emplace(next = (next + Util::UInt8Generators[max]) % max).second);
+}
 
 ADD_TEST(UnpackQuery) {
 	string value;
@@ -129,6 +136,7 @@ ADD_TEST(Base64) {
 	CHECK(Util::FromBase64(Result));
 	CHECK(memcmp(Result.data(), data, sizeof(data)) == 0);
 }
+
 
 }
 

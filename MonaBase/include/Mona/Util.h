@@ -33,6 +33,9 @@ struct Util : virtual Static {
 	static Type		Random() { return Type(Random()); } // cast gives the modulo!
 	static void		Random(UInt8* data, UInt32 size) { for (UInt32 i = 0; i < size; ++i) data[i] = UInt8(Random()); }
 
+	static const UInt8 UInt8Generators[];
+
+
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
 
 	/// \brief Unpack url in path and query
