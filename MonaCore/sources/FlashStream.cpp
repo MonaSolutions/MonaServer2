@@ -21,7 +21,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
 #include "Mona/PacketWriter.h"
-#include "Mona/MapWriter.h"
 #include "Mona/Logs.h"
 
 
@@ -359,8 +358,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 				reader.next(); // @setDataFrame
 				if (reader.nextType() == DataReader::STRING)
 					reader.next(); // remove onMetaData
-				MapWriter<Parameters> writer(_pPublication->clear());
-				reader.read(writer);
+				_pPublication->setProperties(_dataTrack, reader);
 				return;
 			}
 		}

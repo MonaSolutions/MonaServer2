@@ -270,14 +270,8 @@ const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
 }
 
 void Media::Properties::setProperties(UInt8 track, DataReader& reader) {
-	
-	if (!track) {
-		// overrides the all properties
-		clear();
-		MapWriter<Parameters> writer(self);
-		reader.read(writer);
-		return;
-	}
+	if (!track)
+		track = 1; // by default use track=1 to never override all properties (let's it to final user in using Media::Properties directly)
 
 	// clear in first this track properties!
 	String prefix(track, '.');

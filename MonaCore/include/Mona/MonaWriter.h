@@ -31,11 +31,17 @@ struct MonaWriter : MediaWriter, virtual Object {
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if(onWrite) write(track, tag, packet, onWrite); }
 	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, tag, packet, onWrite); }
 	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, type, packet, onWrite); }
-
+	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
+		Media::Data::Type type;
+		const Packet& packet = properties(type);
+		writeData(0, type, packet, onWrite); // use data command channel (can't happen in a container) to write properties!
+	}
 private:
 	
 	template<typename TagType>
 	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
+		if (!track)
+			return; // ignore data command!
 		UInt8 buffer[9];
 		onWrite(Media::Pack(BinaryWriter(buffer, sizeof(buffer)).write32(Media::PackedSize(tag, track) + packet.size()), tag, track));
 		onWrite(packet);

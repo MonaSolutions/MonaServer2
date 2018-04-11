@@ -95,11 +95,6 @@ MediaWriter* MediaWriter::New(const char* subMime) {
 	return NULL;
 }
 
-void MediaWriter::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
-	Media::Data::Type type;
-	const Packet& packet = properties(type);
-	writeData(0, type, packet, onWrite);
-}
 void MediaWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
 	WARN(typeof(self), " doesn't support data writing operation");
 }

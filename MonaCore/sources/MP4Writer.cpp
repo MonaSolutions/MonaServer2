@@ -75,7 +75,7 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 	if (!track)
 		++track; // 1 based!
 
-	// INFO(tag.isConfig ? "Audio config " : "Audio ", tag.time);
+	//INFO(tag.isConfig ? "Audio config " : "Audio ", tag.time);
 
 	if (track > _audios.size()) {
 		if (_sequence)
@@ -118,8 +118,6 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	}
 	if (!track)
 		++track; // 1 based!
-
-	// NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.time, " (", tag.frame, ")");
 	
 	if (track > _videos.size()) {
 		if (_sequence)
@@ -128,6 +126,7 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	}
 
 	Frames& videos = _videos[track - 1];
+	// NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.frame, ' ', tag.time, " (", tag.time - (videos.empty() ? videos.lastTime : videos.back()->time()), ")");
 	if (distance(videos.empty() ? videos.lastTime : videos.back()->time(), tag.time) < 0) {
 		WARN("Non-monotonic video timestamp, packet ignored");
 		return;

@@ -253,7 +253,7 @@ struct Media : virtual Static {
 	/// O = composition offset
 	/// N = track
 	/// T = time
-	// DATA => 0NTTTTTT [NNNNNNNN] (usually if TTTTTT=0 => properties!)
+	// DATA => 0NTTTTTT [NNNNNNNN]
 	/// N = track
 	/// T = type
 	static UInt8		 PackedSize(const Media::Audio::Tag& tag, UInt8 track = 1) { return track==1 ? 7 : 8; }

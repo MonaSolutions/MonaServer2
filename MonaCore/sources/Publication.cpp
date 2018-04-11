@@ -348,6 +348,7 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 }
 
 void Publication::onParamChange(const string& key, const string* pValue) {
+	Media::Properties::onParamChange(key, pValue);
 	size_t found = key.find('.');
 	if (found == string::npos)
 		return;
@@ -360,15 +361,13 @@ void Publication::onParamChange(const string& key, const string* pValue) {
 		_audios[track].lang = pValue ? pValue->c_str() : NULL;
 	else if (String::ICompare(prop, EXPAND("textLang")) == 0)
 		_datas[track].textLang = pValue ? pValue->c_str() : NULL;
-	Media::Properties::onParamChange(key, pValue);
-
 }
 void Publication::onParamClear() {
+	Media::Properties::onParamClear();
 	for (AudioTrack& track : _audios)
 		track.lang = NULL;
 	for (DataTrack& track : _datas)
 		track.textLang = NULL;
-	Media::Properties::onParamClear();
 }
 
 void Publication::flushProperties() {

@@ -100,19 +100,22 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	void							reportLost(UInt32 lost) { reportLost(Media::TYPE_NONE, lost); }
 	void							reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 
-/*! 
+	/*! 
 	Push audio packet, an empty audio "isConfig" packet is required by some protocol to signal "audio end".
 	Good practice would be to send an audio empty "isConfig" packet for publishers which can stop "dynamically" just audio track.
 	/!\ Audio timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
 	void							writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { writeAudio(track, tag, packet); }
-/*!
+	/*!
 	Push video packet
 	Video timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
 	void							writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { writeVideo(track, tag, packet); }
-/*!
+	/*!
 	Push data packet */
 	void							writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { writeData(track, type, packet); }
 	
+	/*!
+	Set properties, prefer the direct publication object access to change properties when done by final user */
+	void setProperties(UInt8 track, DataReader& reader) { Properties::setProperties(track, reader); }
 
 	void							flush();
 	void							flush(UInt16 ping);
@@ -127,7 +130,6 @@ private:
 	void stopRecording();
 
 	// Media::Properties overrides
-	void setProperties(UInt8 track, DataReader& reader) { Properties::setProperties(track, reader); }
 	void onParamChange(const std::string& key, const std::string* pValue);
 	void onParamClear();
 
