@@ -26,16 +26,10 @@ using namespace std;
 namespace Mona {
 
 template <> 
-NALNetWriter<AVC>::NALNetWriter() {
-	// Unit Access demilited requires by some plugins like HLSFlash!
-	memcpy(_buffer, EXPAND("\x00\x00\x00\x01\x09\xF0\x00\x00\x00\x01"));
-}
+const Packet NALNetWriter<AVC>::_Unit(EXPAND("\x00\x00\x00\x01\x09\xF0\x00\x00\x00\x01")); // Unit Access demilited requires by some plugins like HLSFlash!
 
 template <>
-NALNetWriter<HEVC>::NALNetWriter() {
-	// Unit Access demilited requires by some plugins like HLSFlash!
-	memcpy(_buffer, EXPAND("\x00\x00\x00\x01\x46\x01\x50\x00\x00\x00\x01"));
-}
+const Packet NALNetWriter<HEVC>::_Unit(EXPAND("\x00\x00\x00\x01\x46\x01\x50\x00\x00\x00\x01")); // Unit Access demilited requires by some plugins like HLSFlash!
 
 template <class VideoType>
 void NALNetWriter<VideoType>::writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
@@ -77,7 +71,7 @@ void NALNetWriter<VideoType>::writeVideo(const Media::Video::Tag& tag, const Pac
 			Media::Video::Frame frame = VideoType::Frames[type];
 			Nal newNal = (frame == Media::Video::FRAME_INTER || frame == Media::Video::FRAME_KEY) ? NAL_VCL : ((frame == Media::Video::FRAME_CONFIG) ? NAL_CONFIG : NAL_UNDEFINED);
 			if (nal == NAL_START || (nal && newNal != nal))
-				finalSize += VideoType::AUD_SIZE;  // NAL unit delimiter + 00 00 00 01 prefix
+				finalSize += _Unit.size();  // NAL unit delimiter + 00 00 00 01 prefix
 			else if (newNal == NAL_CONFIG)
 				finalSize += 4; // 00 00 00 01 prefix
 			else
@@ -101,11 +95,11 @@ void NALNetWriter<VideoType>::writeVideo(const Media::Video::Tag& tag, const Pac
 			Media::Video::Frame frame = VideoType::Frames[type];
 			Nal newNal = (frame == Media::Video::FRAME_INTER || frame == Media::Video::FRAME_KEY) ? NAL_VCL : ((frame == Media::Video::FRAME_CONFIG) ? NAL_CONFIG : NAL_UNDEFINED);
 			if (_nal == NAL_START || (_nal && newNal != _nal))
-				onWrite(Packet(_buffer, VideoType::AUD_SIZE));  // NAL unit delimiter + 00 00 00 01 prefix
+				onWrite(_Unit);  // NAL unit delimiter + 00 00 00 01 prefix
 			else if (newNal == NAL_CONFIG)
-				onWrite(Packet(_buffer, 4)); // 00 00 00 01 prefix
+				onWrite(Packet(_Unit, _Unit.data(), 4)); // 00 00 00 01 prefix
 			else
-				onWrite(Packet(_buffer+1, 3)); // 00 00 00 01 prefix
+				onWrite(Packet(_Unit, _Unit.data()+1, 3)); // 00 00 00 01 prefix
 			onWrite(Packet(packet, reader.current(), size));
 			_nal = newNal;
 		} else

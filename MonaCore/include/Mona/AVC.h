@@ -42,7 +42,6 @@ struct AVC : virtual Static {
 		NAL_FILLER = 12,
 	};
 	static const Media::Video::Codec CODEC = Media::Video::CODEC_H264;
-	static const UInt8 AUD_SIZE = 10; // Access Unit Delimiter
 	/*!
 	Get Nal type from byte */
 	static UInt8				NalType(const UInt8 byte) { return byte & 0x1F; }

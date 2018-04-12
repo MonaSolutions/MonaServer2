@@ -56,7 +56,6 @@ struct HEVC : virtual Static {
 		NAL_SEI_SUFFIX = 40,
 	};
 	static const Media::Video::Codec CODEC = Media::Video::CODEC_HEVC;
-	static const UInt8 AUD_SIZE = 11; // Access Unit Delimiter
 
 	/*!
 	Get Nal type from byte */

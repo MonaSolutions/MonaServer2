@@ -35,7 +35,6 @@ struct NALNetWriter : MediaTrackWriter, virtual Object {
 	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize);
 
 private:
-	UInt8	_buffer[VideoType::AUD_SIZE];
 	UInt32  _time;
 	enum Nal {
 		NAL_UNDEFINED=0,
@@ -43,6 +42,8 @@ private:
 		NAL_CONFIG,
 		NAL_START
 	} _nal;
+
+	static const Packet	_Unit;
 };
 
 
