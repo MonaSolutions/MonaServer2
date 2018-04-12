@@ -27,9 +27,13 @@ namespace Mona {
 
 template <> 
 const Packet NALNetWriter<AVC>::_Unit(EXPAND("\x00\x00\x00\x01\x09\xF0\x00\x00\x00\x01")); // Unit Access demilited requires by some plugins like HLSFlash!
+template <>
+NALNetWriter<AVC>::NALNetWriter() {}
 
 template <>
 const Packet NALNetWriter<HEVC>::_Unit(EXPAND("\x00\x00\x00\x01\x46\x01\x50\x00\x00\x00\x01")); // Unit Access demilited requires by some plugins like HLSFlash!
+template <>
+NALNetWriter<HEVC>::NALNetWriter() {}
 
 template <class VideoType>
 void NALNetWriter<VideoType>::writeVideo(const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
