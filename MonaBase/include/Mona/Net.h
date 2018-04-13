@@ -181,6 +181,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
+struct SocketAddress;
 struct Net : virtual Object {
 	enum {
 		RTO_MIN = 1000u, // see https://tools.ietf.org/html/rfc2988
@@ -192,10 +193,13 @@ struct Net : virtual Object {
 		MTU_RELIABLE_SIZE = 1280u
 	};
 
+
 	static UInt32 GetRecvBufferSize() { return _Net._recvBufferSize; }
 	static void   SetRecvBufferSize(UInt32 size) { _Net._recvBufferSize= size; }
 	static UInt32 GetSendBufferSize() { return _Net._sendBufferSize; }
 	static void	  SetSendBufferSize(UInt32 size) { _Net._sendBufferSize = size; }
+
+	static UInt32 GetInterfaceIndex(const SocketAddress& address);
 
 #if defined(_WIN32)
 	static int  LastError() { return WSAGetLastError(); }

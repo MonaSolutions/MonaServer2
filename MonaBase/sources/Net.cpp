@@ -15,7 +15,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Net.h"
-#if !defined(_WIN32)
+#include "Mona/SocketAddress.h"
+#if defined(_WIN32)
+#include <Iphlpapi.h>
+#else
+#include <net/if.h>
+#include <ifaddrs.h>
 #include <sys/resource.h>
 #endif
 
@@ -115,6 +120,26 @@ Net::Net() {
 Net::~Net() {
 #if defined(_WIN32)
 	WSACleanup();
+#endif
+}
+
+UInt32 Net::GetInterfaceIndex(const SocketAddress& address) {
+	if (!address.host())
+		return 0;
+#if defined(_WIN32)
+	DWORD index = 0;
+	return GetBestInterfaceEx((sockaddr *)address.data(), &index)==NO_ERROR ? index : 0;
+#else
+	ifaddrs* firstNetIf = NULL;
+	getifaddrs(&firstNetIf);
+	ifaddrs* netIf = NULL;
+	for (netIf = firstNetIf; netIf; netIf = netIf->ifa_next) {
+		if (netIf->ifa_addr && netIf->ifa_addr->sa_family == address.family() && memcmp(address.data(), netIf->ifa_addr, sizeof(sockaddr) - 4) == 0) // -4 trick to compare just host ip (ignore port)
+			break;
+	}
+	if (firstNetIf)
+		freeifaddrs(firstNetIf);
+	return netIf ? if_nametoindex(netIf->ifa_name) : 0;
 #endif
 }
 

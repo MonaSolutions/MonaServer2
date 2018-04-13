@@ -204,6 +204,34 @@ bool Socket::getReusePort() const {
 
 }
 
+bool Socket::joinGroup(Exception& ex, const IPAddress& ip, UInt32 interfaceIndex) {
+	if (ip.family() == IPAddress::IPv4) {
+		struct ip_mreq mreq;
+		memcpy(&mreq.imr_multiaddr, ip.data(), ip.size());
+		mreq.imr_interface.s_addr = htonl(interfaceIndex);
+		return setOption(ex, IPPROTO_IP, IP_ADD_MEMBERSHIP, mreq);
+	}
+	struct ipv6_mreq mreq;
+	memcpy(&mreq.ipv6mr_multiaddr, ip.data(), ip.size());
+	mreq.ipv6mr_interface = interfaceIndex;
+	return setOption(ex, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, mreq);
+}
+
+void Socket::leaveGroup(const IPAddress& ip, UInt32 interfaceIndex) {
+	Exception ex;
+	if (ip.family() == IPAddress::IPv4) {
+		struct ip_mreq mreq;
+		memcpy(&mreq.imr_multiaddr, ip.data(), ip.size());
+		mreq.imr_interface.s_addr = htonl(interfaceIndex);
+		setOption(ex, IPPROTO_IP, IP_DROP_MEMBERSHIP, mreq);
+	} else {
+		struct ipv6_mreq mreq;
+		memcpy(&mreq.ipv6mr_multiaddr, ip.data(), ip.size());
+		mreq.ipv6mr_interface = interfaceIndex;
+		setOption(ex, IPPROTO_IPV6, IP_DROP_MEMBERSHIP, mreq);
+	}
+}
+
 bool Socket::accept(Exception& ex, shared<Socket>& pSocket) {
 	if (_ex) {
 		ex = _ex;
@@ -247,9 +275,11 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 
 	// Allow to call multiple time this method, it can help on windows target to etablish a connection instead of waiting the connection!
 	int rc;
-	if(type == Socket::TYPE_DATAGRAM && !address) // fix a UDP disconnect problem (Wildcard IPv4-IPv6 mapping != sockaddr null!)
+	if (type == Socket::TYPE_DATAGRAM && !address) { // fix a UDP disconnect problem (Wildcard IPv4-IPv6 mapping != sockaddr null!)
+		if (!_peerAddress)
+			return true; // no change, usefull to fix double disconnection issue (can not assign 0.0.0.0 address!)
 		rc = ::connect(_id, SocketAddress::Wildcard(IPAddress::IPv6).data(), SocketAddress::Wildcard(IPAddress::IPv6).size());
-	else
+	} else
 		rc = ::connect(_id, address.data(), address.size());
 
 	if (block)
@@ -298,12 +328,13 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 }
 
 
-bool Socket::bind(Exception& ex, const SocketAddress& address) {
+bool Socket::bind(Exception& ex, const SocketAddress& addr) {
 	if (_ex) {
 		ex = _ex;
 		return false;
 	}
 
+	SocketAddress address(addr);
 	if (type == TYPE_STREAM) {
 		// http://stackoverflow.com/questions/3757289/tcp-option-so-linger-zero-when-its-required =>
 		/// If you must restart your server application which currently has thousands of client connections you might consider
@@ -311,16 +342,20 @@ bool Socket::bind(Exception& ex, const SocketAddress& address) {
 		// as this might prevent the server from getting available ports for new client connections after being restarted.
 		setLinger(ex, true, 0); // avoid a TCP port overriding on server usage
 		setReuseAddress(ex, true); // to avoid a conflict between address bind on not exactly same address (see http://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t)
+	} else if (address.host().isMulticast()) {
+		// if address is multicast then connect to the ip group multicast!
+		joinGroup(ex, address.host());
+		address.host().set(IPAddress::Wildcard());
 	}
 	if (::bind(_id, address.data(), address.size()) != 0) {
 		SetException(ex, Net::LastError(), " (address=", address, ")");
 		return false;
 	}
-
 	if (address)
 		_address = address; // if port = 0, will be computed!
 	else
 		_address.set(IPAddress::Loopback(), 0); // to advise that address must be computed
+
 	return true;
 }
 

@@ -32,6 +32,8 @@ bool SocketAddress::set(Exception& ex, const IPAddress& host, const char* servic
 }
 
 bool SocketAddress::setIntern(Exception& ex, const char* host, const char* service, bool resolveHost) {
+	if(!service) // to solve the ambiguitis call between set(..., const char* port) and set(..., UInt16 port) when port = 0
+		return setIntern(ex, host, UInt16(0), resolveHost);
 	UInt16 port = resolveService(ex, service);
 	if (!port)
 		return false;
