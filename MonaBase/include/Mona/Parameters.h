@@ -99,6 +99,9 @@ public:
 	static const Parameters& Null() { static Parameters Null(nullptr); return Null; }
 
 protected:
+	Parameters(const Parameters& other) { setParams(other); }
+	Parameters& setParams(const Parameters& other);
+
 	virtual void onParamChange(const std::string& key, const std::string* pValue) { onChange(key, pValue); }
 	virtual void onParamClear() { onClear(); }
 

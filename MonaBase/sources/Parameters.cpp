@@ -20,18 +20,43 @@ using namespace std;
 
 namespace Mona {
 
+Parameters& Parameters::setParams(const Parameters& other) {
+	if (!other.count()) {
+		clear();
+		return *this;
+	}
+	// clear self!
+	if (_pMap && !_pMap->empty()) {
+		_pMap->clear();
+		onParamClear();
+	}
+	// copy data
+	if (other._pMap && !other._pMap->empty()) {
+		if (!_pMap)
+			_pMap.reset(new map<string, string, String::IComparator>());
+		*_pMap = *other._pMap;
+	}
+	// onChange!
+	for (auto& it : *this)
+		onParamChange(it.first, &it.second);
+	return *this;
+}
+
 Parameters& Parameters::setParams(Parameters&& other) {
 	if (!other.count()) {
 		clear();
 		return *this;
 	}
 	// clear self!
-	_pMap.reset();
-	onParamClear();
+	if(_pMap && !_pMap->empty()) {
+		_pMap.reset();
+		onParamClear();
+	}
 	// move data
 	_pMap = std::move(other._pMap);
 	// clear other
-	other.onParamClear();
+	if(_pMap && !_pMap->empty())
+		other.onParamClear();
 	// onChange!
 	for (auto& it : *this)
 		onParamChange(it.first, &it.second);

@@ -109,9 +109,9 @@ namespace Mona {
 
 struct HTTP : virtual Static {
 
-	enum Type {
+	enum Type { // with values to allow to check types with accessControlRequestMethod
 		TYPE_UNKNOWN = 0,
-		TYPE_HEAD=1,
+		TYPE_HEAD = 1,
 		TYPE_GET = 2,
 		TYPE_PUT = 4,
 		TYPE_OPTIONS = 8,
@@ -120,8 +120,17 @@ struct HTTP : virtual Static {
 		TYPE_RDV = 8192
 	};
 	static const char* TypeToString(Type type) {
-		static const char* Strings[] = { "UNKNOWN", "HEAD", "GET", "PUT", "OPTIONS", "POST", "DELETE", "RDV" };
-		return Strings[UInt8(type)];
+		switch (type) {
+			case TYPE_HEAD:		return "HEAD";
+			case TYPE_GET:		return "GET";
+			case TYPE_PUT:		return "PUT";
+			case TYPE_OPTIONS:	return "OPTIONS";
+			case TYPE_POST:		return "POST";
+			case TYPE_DELETE:	return "DELETE";
+			case TYPE_RDV:		return "RDV";
+			default:;
+		}
+		return "UNKNOWN";
 	}
 	static const char* Types(bool withRDV=false) {
 		if(withRDV)
@@ -216,19 +225,19 @@ struct HTTP : virtual Static {
 		operator bool() const { return _pHeader.operator bool(); }
 		bool unique() const { return _pHeader.unique(); }
 	protected:
-		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) {}
+		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) { if (_pHeader) setParams(*_pHeader); }
 		/*!
 		exception */
 		Message(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true) { pHeader.reset(); }
 		/*!
 		media packet */
-		Message(shared<Header>& pHeader, Media::Base* pMedia) : lost(0), pMedia(pMedia), _pHeader(std::move(pHeader)), flush(false) {}
+		Message(shared<Header>& pHeader, Media::Base* pMedia) : lost(0), pMedia(pMedia), _pHeader(std::move(pHeader)), flush(false) { if (_pHeader) setParams(*_pHeader); }
 		/*!
 		media lost infos */
-		Message(shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : lost(lost), pMedia(new Media::Base(type, Packet::Null(), track)), _pHeader(std::move(pHeader)), flush(false) {}
+		Message(shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : lost(lost), pMedia(new Media::Base(type, Packet::Null(), track)), _pHeader(std::move(pHeader)), flush(false) { if (_pHeader) setParams(*_pHeader); }
 		/*!
 		media reset, flush or publish end */
-		Message(shared<Header>& pHeader, bool endMedia, bool flush) : lost(0), pMedia(endMedia ? NULL : new Media::Base()), _pHeader(std::move(pHeader)), flush(flush) {}
+		Message(shared<Header>& pHeader, bool endMedia, bool flush) : lost(0), pMedia(endMedia ? NULL : new Media::Base()), _pHeader(std::move(pHeader)), flush(flush) { if (_pHeader) setParams(*_pHeader); }
 
 		~Message() { if (pMedia) delete pMedia; }
 	private:

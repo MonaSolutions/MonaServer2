@@ -214,9 +214,12 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						break;
 					}
 					String::Scoped scoped(STR buffer.data());
-					if (!String::ICompare(signifiant, EXPAND("HTTP")) == 0 && !(_pHeader->type = HTTP::ParseType(signifiant, _pRendezVous.operator bool()))) {
-						_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
-						break;
+					if (String::ICompare(signifiant, EXPAND("HTTP")) != 0) {
+						if (!(_pHeader->type = HTTP::ParseType(signifiant, _pRendezVous.operator bool()))) {
+							_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
+							break;
+						}
+						_pHeader->setString("type", HTTP::TypeToString(_pHeader->type));
 					}
 					signifiant = STR buffer.data() + 1;
 					_stage = PATH;

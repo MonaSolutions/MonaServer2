@@ -49,7 +49,7 @@ struct MapWriter : DataWriter, virtual Object {
 private:
 	UInt64 beginComplex(bool ignore=false) {
 		_layers.emplace_back(_key.size(), 0);
-		if (ignore)
+		if (ignore || _layers.size()<3)
 			return 0;
 		if (_isProperty) {
 			String::Append(_key, _property, '.');
@@ -70,10 +70,15 @@ private:
 	
 	template <typename ...Args>
 	void set(Args&&... args) {
-		if (!_isProperty)
+		if (!_isProperty) {
+			if (_layers.size() < 2) {
+				_map.emplace(std::piecewise_construct, std::forward_as_tuple(std::forward<Args>(args)...), std::forward_as_tuple(String::Empty()));
+				return;
+			}
 			String::Assign(_property, _layers.back().second++);
+		} else
+			_isProperty = false;
 		_map.emplace(std::piecewise_construct, std::forward_as_tuple(String(_key, _property)), std::forward_as_tuple(std::forward<Args>(args)...));
-		_isProperty = false;
 	}
 
 	MapType&							   _map;

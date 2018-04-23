@@ -139,10 +139,10 @@ HTTP::Type HTTP::ParseType(const char* value, bool withRDV) {
 				return TYPE_RDV;
 			if(String::ICompare(value, EXPAND("GET")) == 0)
 				return TYPE_GET;
-			break;
-		case 4:
 			if (String::ICompare(value, EXPAND("PUT")) == 0)
 				return TYPE_PUT;
+			break;
+		case 4:
 			if (String::ICompare(value, EXPAND("HEAD")) == 0)
 				return TYPE_HEAD;
 			if (String::ICompare(value, EXPAND("POST")) == 0)
