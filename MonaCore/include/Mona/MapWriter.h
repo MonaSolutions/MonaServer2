@@ -29,7 +29,7 @@ struct MapWriter : DataWriter, virtual Object {
 	MapWriter(MapType& map) : _layers({{0,0}}), _map(map), _isProperty(false) {}
 
 	UInt64 beginObject(const char* type = NULL) { return beginComplex(); }
-	void   writePropertyName(const char* value) { _property.append(value); _isProperty = true; }
+	void   writePropertyName(const char* value) { _property = value; _isProperty = true; }
 	void   endObject() { endComplex(); }
 
 	void  clear() { _isProperty = false; _property.clear(); _key.clear(); _layers.assign({ {0,0} }); _map.clear(); }
@@ -49,14 +49,13 @@ struct MapWriter : DataWriter, virtual Object {
 private:
 	UInt64 beginComplex(bool ignore=false) {
 		_layers.emplace_back(_key.size(), 0);
-		if (ignore || _layers.size()<3)
+		if (ignore)
 			return 0;
 		if (_isProperty) {
 			String::Append(_key, _property, '.');
 			_isProperty = false;
 		} else
 			String::Append(_key, (++_layers.rbegin())->second++, '.');
-		_property = _key;
 		return 0;
 	}
 
@@ -66,17 +65,15 @@ private:
 			return;
 		}
 		_key.resize(_layers.back().first);
-		_property = _key;
 		_layers.pop_back();
 	}
 	
 	template <typename ...Args>
 	void set(Args&&... args) {
 		if (!_isProperty)
-			String::Append(_property, _layers.back().second++);
-		_map.emplace(std::piecewise_construct, std::forward_as_tuple(_property), std::forward_as_tuple(std::forward<Args>(args)...));
+			String::Assign(_property, _layers.back().second++);
+		_map.emplace(std::piecewise_construct, std::forward_as_tuple(String(_key, _property)), std::forward_as_tuple(std::forward<Args>(args)...));
 		_isProperty = false;
-		_property = _key;
 	}
 
 	MapType&							   _map;

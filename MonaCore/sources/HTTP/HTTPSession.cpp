@@ -398,15 +398,15 @@ void HTTPSession::processPost(Exception& ex, HTTP::Request& request) {
 	
 	if (request.pMedia)
 		return publish(ex, request.path); // Publish
-	
+
 	// Else data
-	unique_ptr<DataReader> pReader(Media::Data::NewReader(Media::Data::ToType(request->subMime), request));
 	string name;
+	unique_ptr<DataReader> pReader(Media::Data::NewReader(Media::Data::ToType(request->subMime), request));
 	if (!pReader)
 		pReader.reset(new StringReader(request.data(), request.size()));
-	else
+	else if(request.path.isFolder())
 		pReader->readString(name);
-	if (!peer.onInvocation(ex, name, *pReader))
+	if (!peer.onInvocation(ex, request.path.isFolder() ? name : request.path.name(), *pReader))
 		ERROR(ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path));
 }
 
