@@ -20,25 +20,17 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/DataWriter.h"
-#include <set>
 
 namespace Mona {
 
 struct SplitWriter : DataWriter, virtual Object {
-	SplitWriter(Buffer& buffer) {}
-
 	template <class ...Args>
 	SplitWriter(DataWriter& writer,Args&&... args) { addWriter(writer,args ...); }
 
 	template <class ...Args>
 	void addWriter(DataWriter& writer,Args&&... args) {
-		_writers.emplace(&writer);
+		_writers.emplace_back(&writer);
 		addWriter(args ...);
-	}
-	template <class ...Args>
-	void removeWriter(DataWriter& writer,Args&&... args) {
-		_writers.erase(&writer);
-		removeWriter(args ...);
 	}
 
 	UInt64 beginObject(const char* type = NULL)								{ for (DataWriter* pWriter : _writers) pWriter->beginObject(type); return 0; }
@@ -65,9 +57,8 @@ struct SplitWriter : DataWriter, virtual Object {
 
 private:
 	void addWriter() {}
-	void removeWriter() {}
 
-	std::set<DataWriter*> _writers;
+	std::vector<DataWriter*> _writers;
 };
 
 

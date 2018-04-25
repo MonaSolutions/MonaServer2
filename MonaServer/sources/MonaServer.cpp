@@ -598,7 +598,7 @@ bool MonaServer::onInvocation(Exception& ex, Client& client,const string& name,D
 	return found;
 }
 
-bool MonaServer::onFileAccess(Exception& ex, Client& client, Client::FileAccessType type, DataReader& parameters, File& file, DataWriter& properties) { 
+bool MonaServer::onFileAccess(Exception& ex, Client& client, File::Mode mode, DataReader& parameters, File& file, DataWriter& properties) { 
 
 	if (file.isFolder()) {
 		// filePath must be a file, not a folder, otherwise it's a security issue
@@ -606,7 +606,9 @@ bool MonaServer::onFileAccess(Exception& ex, Client& client, Client::FileAccessT
 		return false;
 	}
 
-	bool result(true);
+	TODO onDelete!
+
+	bool result(!mode);
 	SCRIPT_BEGIN(loadService(client))
 		SCRIPT_MEMBER_FUNCTION_BEGIN(Client,client,type==Client::FileAccessType::READ ? "onRead" : "onWrite")
 			SCRIPT_WRITE_STRING(file.name().c_str())

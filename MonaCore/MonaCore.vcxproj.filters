@@ -331,6 +331,9 @@
     <ClInclude Include="include\Mona\HTTP\HTTPErrorSender.h">
       <Filter>Protocols\HTTP\Senders</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\SplitReader.h">
+      <Filter>Serializers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">

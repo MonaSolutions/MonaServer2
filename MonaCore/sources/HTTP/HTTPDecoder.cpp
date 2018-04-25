@@ -99,13 +99,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					// \r\n\r\n!
 					// BEGIN OF FINAL PARSE
 					buffer += 2;
-
-					// Try to fix mime if no content-type with file extension!
-					if (!_pHeader->mime)
-						_pHeader->mime = MIME::Read(_path, _pHeader->subMime);
-	
-					_pHeader->getNumber("content-length", _length = -1);
-
+					
 					// Upgrade session?
 					if (_pHeader->connection&HTTP::CONNECTION_UPGRADE && String::ICompare(_pHeader->upgrade, "websocket") == 0) {
 						// Fix "ws://localhost/test" in "ws://localhost/test/" to connect to "test" application even if the last "/" is forgotten
@@ -117,11 +111,22 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						_pUpgradeDecoder = _pHeader->pWSDecoder;
 					}
 
+					// Try to fix mime if no content-type with file extension!
+					if (!_pHeader->mime)
+						_pHeader->mime = MIME::Read(_path, _pHeader->subMime);
+
 					if (_pHeader->encoding == HTTP::ENCODING_CHUNKED) {
-						_length = 0; // ignore content-length
 						_stage = CHUNKED;
-					} else
+						_pHeader->progressive = true;
+						// force no content-length!
+						_pHeader->erase("content-length");
+						_length = 0;
+					} else {
 						_stage = BODY;
+						_pHeader->progressive = !_pHeader->getNumber("content-length", _length = -1);
+					}
+
+					bool invocation = false;
 					switch (_pHeader->type) {
 						case HTTP::TYPE_UNKNOWN:
 							if(!_code) {
@@ -129,30 +134,25 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								break;
 							} // else is response!
 						case HTTP::TYPE_POST:
-							if (_pHeader->mime != MIME::TYPE_VIDEO && _pHeader->mime != MIME::TYPE_AUDIO) {
-								if(_length<0)
-									_ex.set<Ex::Protocol>("HTTP post request without content-length (authorized just for POST media streaming or PUT request)");
+							if (_pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO) {
+								// Publish = POST + VIDEO/AUDIO
+								_pReader.reset(MediaReader::New(_pHeader->subMime));
+								if (!_pReader)
+									_ex.set<Ex::Unsupported>("HTTP ", _pHeader->subMime, " media unsupported");
 								break;
 							}
-							// Publish = POST + VIDEO/AUDIO
-							_pReader.reset(MediaReader::New(_pHeader->subMime));
-							if (!_pReader)
-								_ex.set<Ex::Unsupported>("HTTP ", _pHeader->subMime, " media unsupported");
 						case HTTP::TYPE_PUT:
-							if(_stage==BODY)
-								_stage = PROGRESSIVE;
+							if (_path.extension().empty()) // else write file if PUT or append file if POST
+								invocation = true;
+							else
+								_path.exists(); // preload disk attributes now in the thread (see _fileWriter->exists() ? HTTP_CODE_200 : HTTP_CODE_201 in HTTPSession)
 							break;
 						case HTTP::TYPE_RDV:
-							if (_length < 0)
-								_length = 0; // RDV request can ommit content-length if no content-length!
 							if (!_pRendezVous) {
 								_ex.set<Ex::Protocol>("HTTP RDV doesn't activated, set to true HTTP.rendezVous configuration");
 								break;
 							}
-							if (_stage == CHUNKED) {
-								_ex.set<Ex::Protocol>("HTTP RDV doesn't accept chunked transfert-encoding");
-								break;
-							}
+							invocation = true;
 							if (!_path.isFolder()) {
 								_pHeader->path += '/';
 								_pHeader->path.append(_path.name());
@@ -164,11 +164,22 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						case HTTP::TYPE_GET:
 							if (_pHeader->mime == MIME::TYPE_TEXT || _pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO)
 								_path.exists(); // preload disk attributes now in the thread!
+						case HTTP::TYPE_DELETE:
+							invocation = true; // must not have progressive content!
+							break;
 						default:
 							_length = 0; // ignore content-length to avoid request corruption/saturation, if a content was present the next parsing will give a fatal decoding error
 					}
-					break;
-					// END OF FINAL PARSE
+
+					if (invocation) {
+						if (_length < 0)
+							_length = 0; // invocation request can ommit content-length if no content
+						else if (_stage == CHUNKED)
+							_ex.set<Ex::Protocol>("HTTP ", HTTP::TypeToString(_pHeader->type), " invocation doesn't accept chunked transfert-encoding");
+					}
+					if(_length>=0)
+						_pHeader->progressive = false;
+					break; // END OF FINAL PARSE
 				}
 
 				// KEY = VALUE
@@ -314,13 +325,13 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 		buffer += packet.size();
 
 		if (_pReader) { // POST media streaming (publish)
-			_pReader->read(packet, *this);
+			_pReader->read(packet, self);
 			packet = nullptr;
 			if (_length) {
 				if(_pHeader)
 					receive(false, false); // "publish" command if _pReader->read has not already done it (same as reset, but reset is impossible at the beginning)
 			} else if(_pHeader) { // else publication has not begun!
-				_pReader->flush(*this); // send end info!
+				_pReader->flush(self); // send end info!
 				_pReader.reset();
 			}
 		} else if (_stage != CMD) { // can be CMD on end of chunked transfer-encoding

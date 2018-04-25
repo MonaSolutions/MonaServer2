@@ -79,6 +79,7 @@ struct Peer : Client, virtual Object {
 	/// \param properties : recieve output parameters returned by onRead()
 	bool onRead(Exception& ex, Path& file, DataReader& arguments, DataWriter& properties) { return onFileAccess(ex, File::MODE_READ, file, arguments, properties); }
 	bool onWrite(Exception& ex, Path& file, DataReader& arguments, DataWriter& properties) { return onFileAccess(ex, File::MODE_WRITE, file, arguments, properties); }
+	bool onDelete(Exception& ex, Path& file, DataReader& arguments) { return onFileAccess(ex, File::MODE_DELETE, file, arguments, DataWriter::Null()); }
 
 private:
 	bool onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties);

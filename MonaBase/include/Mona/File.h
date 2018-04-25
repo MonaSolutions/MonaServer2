@@ -45,7 +45,8 @@ struct File : virtual Object {
 	enum Mode {
 		MODE_READ = 0, // To allow to test WRITE with a simple "if"
 		MODE_WRITE,
-		MODE_APPEND
+		MODE_APPEND,
+		MODE_DELETE
 	};
 	File(const Path& path, Mode mode);
 	~File();

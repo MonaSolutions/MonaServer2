@@ -157,14 +157,15 @@ void IOFile::write(const shared<File>& pFile, const Packet& packet) {
 			_flushing = _flushing && (pFile->_queueing -= _packet.size()) <= 0xFFFF;
 			if (!pFile->write(ex, _packet.data(), _packet.size()))
 				return false;
-			if(_flushing)
+			if(_flushing || pFile->mode==File::MODE_DELETE)
 				handle<Handle>();
 			return true;
 		}
 		Packet		 _packet;
 		bool		 _flushing;
 	};
-	if (packet)
+	// do the WriteFile even if packet is empty to allow to open the file and clear its content (or delete file) if we are not in a append mode!
+	if(packet || pFile->mode!=File::MODE_APPEND)
 		_threadPool.queue(new WriteFile(handler, pFile, packet), pFile->_ioTrack);
 }
 

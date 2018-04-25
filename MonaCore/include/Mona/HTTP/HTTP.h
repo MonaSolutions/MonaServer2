@@ -134,8 +134,8 @@ struct HTTP : virtual Static {
 	}
 	static const char* Types(bool withRDV=false) {
 		if(withRDV)
-			return "HEAD, GET, PUT, OPTIONS, POST, OPTIONS, RDV";
-		return "HEAD, GET, PUT, OPTIONS, POST, OPTIONS";
+			return "HEAD, GET, PUT, OPTIONS, POST, DELETE, RDV";
+		return "HEAD, GET, PUT, OPTIONS, POST, DELETE";
 	}
 	
 
@@ -194,6 +194,7 @@ struct HTTP : virtual Static {
 		const char*		upgrade;
 		UInt8			cacheControl;
 		Encoding		encoding;
+		bool			progressive;
 
 		Date			ifModifiedSince;
 

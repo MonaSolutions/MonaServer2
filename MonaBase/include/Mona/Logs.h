@@ -110,7 +110,7 @@ private:
 #define DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::IsDumping()) Mona::Logs::DumpResponse(NAME, DATA, SIZE, NAME, " => ", ADDRESS); }
 #define DUMP_RESPONSE_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= Mona::LOG_DEBUG) DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS)
 
-#define LOG(LEVEL, ...)  { if(Mona::Logs::GetLevel()>=LEVEL) { Mona::Logs::Log(LEVEL, __FILE__,__LINE__, __VA_ARGS__); } }
+#define LOG(LEVEL, ...)  { if(Mona::Logs::GetLevel()>=(LEVEL)) { Mona::Logs::Log((LEVEL), __FILE__,__LINE__, __VA_ARGS__); } }
 
 #define FATAL(...)	LOG(Mona::LOG_FATAL, __VA_ARGS__)
 #define CRITIC(...) LOG(Mona::LOG_CRITIC, __VA_ARGS__)

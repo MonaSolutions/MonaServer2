@@ -50,6 +50,14 @@ struct FileWriter : virtual Object {
 	void		write(const Packet& packet) { FATAL_CHECK(_pFile);  io.write(_pFile, packet); }
 	void		close() { _pFile.reset(); }
 
+	/*!
+	Async delete file, you can erase the file multiple time in doing erase + write(Packet::Null()), or close it immediately with erase(..).close()! */
+	FileWriter& erase(const Path& path) {
+		_pFile.reset(new File(path, File::MODE_DELETE));
+		io.subscribe(_pFile, onError, onFlush);
+		io.write(_pFile, Packet::Null());
+		return *this;
+	}
 private:
 	shared<File> _pFile;
 };

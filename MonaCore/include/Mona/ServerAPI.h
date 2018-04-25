@@ -95,7 +95,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION
-	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) {return true;}  // Exception::SOFTWARE
+	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) { return !mode; }  // Exception::SOFTWARE
 
 	virtual bool			onPublish(Exception& ex, Publication& publication, Client* pClient){return true;}
 	virtual void			onUnpublish(Publication& publication, Client* pClient){}

@@ -34,7 +34,7 @@ Peer::Peer(ServerAPI& api, const char* protocol) : pingTime(0), // pingTime to 0
 
 Peer::~Peer() {
 	if (connection)
-		ERROR("Client ", String::Hex(id, Entity::SIZE), " deleting whereas connected, onDisconnection forgotten");
+		CRITIC("Client ", String::Hex(id, Entity::SIZE), " deleting whereas connected, onDisconnection forgotten");
 	// Ices subscription can happen on peer not connected (virtual member for group for example)
 	for(const auto& it: _ices) {
 		((Peer*)it.first)->_ices.erase(this);
@@ -165,7 +165,7 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 
 		_api.onConnection(ex, self, parameters, parameterAndResponse);
 		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(self).second) {
-			ERROR(ex.set<Ex::Protocol>("Client ", String::Hex(id, Entity::SIZE), " exists already"));
+			CRITIC(ex.set<Ex::Protocol>("Client ", String::Hex(id, Entity::SIZE), " exists already"));
 			_api.onDisconnection(self);
 		}
 		if (ex) {
@@ -181,7 +181,7 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		}
 		writer.flushable = true; // remove unflushable
 	} else
-		ERROR("Client ", String::Hex(id, Entity::SIZE), " seems already connected!")
+		CRITIC("Client ", String::Hex(id, Entity::SIZE), " seems already connected!")
 }
 
 void Peer::onDisconnection() {
@@ -190,7 +190,7 @@ void Peer::onDisconnection() {
 	(Time&)connection = 0;
 	((Time&)disconnection).update();
 	if (!((Entity::Map<Client>&)_api.clients).erase(id))
-		ERROR("Client ", String::Hex(id, Entity::SIZE), " seems already disconnected!");
+		CRITIC("Client ", String::Hex(id, Entity::SIZE), " seems already disconnected!");
 	_pWriter->onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
 	_api.onDisconnection(*this);
 	_pWriter = NULL;
@@ -200,14 +200,19 @@ void Peer::onDisconnection() {
 bool Peer::onInvocation(Exception& ex, const string& name, DataReader& reader, UInt8 responseType) {
 	if (connection)
 		return _api.onInvocation(ex, *this, name, reader, responseType);
-	ERROR("RPC client before connection to ", path);
+	CRITIC("RPC client before connection to ", path);
 	return false;
 }
 
 bool Peer::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) {
-	if(connection)
-		return _api.onFileAccess(ex,mode,file, arguments, properties, this);
-	ERROR(ex.set<Ex::Intern>("File '", file, "' access by a not connected client"));
+	if (!connection) {
+		CRITIC(ex.set<Ex::Intern>(path, '/', file.name(), " access by a not connected client"));
+		return false;
+	}
+	if(_api.onFileAccess(ex,mode,file, arguments, properties, this))
+		return true;
+	if (!ex)
+		ERROR(ex.set<Ex::Permission>(path, '/', file.name(), " access denied by application ", path));
 	return false;
 }
 

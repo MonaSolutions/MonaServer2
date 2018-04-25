@@ -61,7 +61,7 @@ private:
 	void					onDisconnection(Mona::Client& client);
 	void					onAddressChanged(Mona::Client& client, const Mona::SocketAddress& oldAddress);
 	bool					onInvocation(Mona::Exception& ex, Mona::Client& client,const std::string& name,Mona::DataReader& reader,Mona::UInt8 responseType);
-	bool					onFileAccess(Mona::Exception& ex, Mona::Client& client, Mona::Client::FileAccessType type, Mona::DataReader& parameters, Mona::File& file, Mona::DataWriter& properties);
+	bool					onFileAccess(Mona::Exception& ex, Mona::Client& client, Mona::File::Mode mode, Mona::DataReader& parameters, Mona::File& file, Mona::DataWriter& properties);
 
 	void					onJoinGroup(Mona::Client& client,Mona::Group& group);
 	void					onUnjoinGroup(Mona::Client& client,Mona::Group& group);

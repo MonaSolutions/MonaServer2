@@ -251,6 +251,7 @@
     <ClInclude Include="include\Mona\SDP.h" />
     <ClInclude Include="include\Mona\Server.h" />
     <ClInclude Include="include\Mona\ServerAPI.h" />
+    <ClInclude Include="include\Mona\SplitReader.h" />
     <ClInclude Include="include\Mona\SplitWriter.h" />
     <ClInclude Include="include\Mona\SRTWriter.h" />
     <ClInclude Include="include\Mona\StringReader.h" />
