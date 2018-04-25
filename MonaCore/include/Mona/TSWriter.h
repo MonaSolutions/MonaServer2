@@ -58,7 +58,10 @@ private:
 	struct Track : virtual Object {
 		NULLABLE
 
-		Track(MediaTrackWriter* pWriter) : _pWriter(pWriter) { _pWriter->beginMedia();  }
+		Track(MediaTrackWriter* pWriter) : _pWriter(pWriter) { 
+			if(pWriter)
+				pWriter->beginMedia(); 
+		}
 		~Track() { if (_pWriter) delete _pWriter; }
 
 		operator bool() const { return _pWriter ? true : false; }
