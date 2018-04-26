@@ -444,7 +444,7 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 		}
 		if (!join && !to) {
 			Remote* pRemote = new Remote(pHeader, packet, pSocket);
-			_remotes.emplace_hint(it, (*pRemote)->path.c_str(), pRemote);
+			_remotes.emplace_hint(it, piecewise_construct, forward_as_tuple((*pRemote)->path.c_str()), forward_as_tuple(pRemote));
 			return true;
 		} // else peer not found => 410
 	} // unlock
