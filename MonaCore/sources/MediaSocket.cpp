@@ -186,14 +186,14 @@ MediaSocket::Writer* MediaSocket::Writer::New(Media::Stream::Type type, const Pa
 MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming) : Runner("MediaSocketSend"), _pSocket(pSocket), pWriter(pWriter),
 	_pStreaming(pStreaming), _pName(pName),
 	onWrite([this, type](const Packet& packet) {
-		Packet chunk(packet, packet.data(), 0);
-		while (chunk.set(packet, packet.data() + chunk.size())) {
-			if (type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE)
-				chunk.shrink(Net::MTU_RELIABLE_SIZE);
-			DUMP_RESPONSE(_pName->c_str(), chunk.data(), chunk.size(), _pSocket->peerAddress());
+		UInt32 size = 0;
+		Packet chunk(packet, packet.data(), packet.size());
+		while (chunk += size) {
+			size = type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
+			DUMP_RESPONSE(_pName->c_str(), chunk.data(), size, _pSocket->peerAddress());
 			Exception ex;
 			UInt64 byteRate = _pSocket->sendByteRate(); // Get byteRate before write to start computing cycle on 0!
-			int result = _pSocket->write(ex, chunk);
+			int result = _pSocket->write(ex, Packet(chunk, chunk.data(), size));
 			if (result && !*_pStreaming && byteRate) {
 				INFO("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', this->pWriter->format(), " starts");
 				*_pStreaming = true;

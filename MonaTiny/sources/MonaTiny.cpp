@@ -146,7 +146,7 @@ bool MonaTiny::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataRead
 	} else
 		DEBUG(file.name(), " file access to ", file.parent().empty() ? "/" : file.parent());
 	// arguments.read(properties); to test HTTP page properties (HTTP parsing!)
-	return true;
+	return !mode;
 }
 
 

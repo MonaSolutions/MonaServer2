@@ -74,6 +74,8 @@ bool File::load(Exception& ex) {
 		ex.set<Ex::Intern>("Empty path can not be opened");
 		return false;
 	}
+	if (mode == MODE_DELETE)
+		return FileSystem::Delete(ex, _path);
 	if (_path.isFolder()) {
 		ex.set<Ex::Intern>(_path, " is a directory, can not be opened");
 		return false;
@@ -216,6 +218,8 @@ bool File::write(Exception& ex, const void* data, UInt32 size) {
 		ex.set<Ex::Intern>("Impossible to write ", _path, " opened in reading mode");
 		return false;
 	}
+	if (mode == MODE_DELETE)
+		return true; // deletion done in load!
 #if defined(_WIN32)
 	DWORD written;
 	if (!WriteFile((HANDLE)_handle, data, size, &written, NULL))

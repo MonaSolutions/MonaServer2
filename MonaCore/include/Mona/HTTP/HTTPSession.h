@@ -55,12 +55,16 @@ private:
 	/// \brief Process GET & HEAD commands
 	/// Search for a method or a file whitch correspond to the _filePath
 	void			processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters);
-	void			processPost(Exception& ex, HTTP::Request& request);
-	void			processPut(Exception& ex, HTTP::Request& request);
+	void			processPost(Exception& ex, HTTP::Request& request, QueryReader& parameters);
+	void			processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters);
+	void			processDelete(Exception& ex, HTTP::Request& request, QueryReader& parameters);
+
+	bool			invoke(Exception& ex, HTTP::Request& request, QueryReader& parameters, const char* name = NULL);
 
 	unique<HTTPWriter>  _pWriter; // pointer to release source on session::kill
 	Subscription*		_pSubscription;
 	Publication*		_pPublication;
+	FileWriter			_fileWriter;
 
 	unique<Session>		_pUpgradeSession;
 

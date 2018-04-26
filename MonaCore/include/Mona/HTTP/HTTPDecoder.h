@@ -48,7 +48,6 @@ private:
 		LEFT,
 		RIGHT,
 		BODY,
-		PROGRESSIVE,
 		CHUNKED
 	};
 

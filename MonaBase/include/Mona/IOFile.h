@@ -38,18 +38,22 @@ struct IOFile : virtual Object {
 	const ThreadPool& threadPool;
 
 	/*!
-	Subscribe */
+	Subscribe read */
 	template<typename FileType>
 	void subscribe(const shared<FileType>& pFile, const File::OnReaden& onReaden, const File::OnError& onError) {
 		pFile->onError = onError;
 		pFile->onReaden = onReaden;
 	}
+	/*!
+	Subscribe read with decoder*/
 	template<typename FileType>
 	void subscribe(const shared<FileType>& pFile, File::Decoder* pDecoder, const File::OnReaden& onReaden, const File::OnError& onError) {
 		subscribe(pFile, onReaden, onError);
 		pFile->externDecoder = pDecoder && pFile.get() != (FileType*)pDecoder;
 		pFile->pDecoder = pDecoder;
 	}
+	/*!
+	Subscribe write */
 	void subscribe(const shared<File>& pFile, const File::OnError& onError, const File::OnFlush& onFlush = nullptr);
 	/*!
 	Async file loads */

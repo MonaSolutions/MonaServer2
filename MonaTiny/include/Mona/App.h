@@ -15,7 +15,7 @@ struct App : virtual Object {
 
 		virtual void onAddressChanged(const SocketAddress& oldAddress) {}
 		virtual bool onInvocation(Exception& ex, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; }
-		virtual bool onFileAccess(Exception& ex, Mona::File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) { return true; }
+		virtual bool onFileAccess(Exception& ex, Mona::File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) { return !mode; }
 
 		virtual bool onPublish(Exception& ex, Publication& publication) { return true; }
 		virtual void onUnpublish(Publication& publication) {}

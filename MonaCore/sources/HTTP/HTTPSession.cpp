@@ -21,6 +21,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MapWriter.h"
 #include "Mona/QueryReader.h"
 #include "Mona/StringReader.h"
+#include "Mona/SplitReader.h"
+#include "Mona/WriterReader.h"
 #include "Mona/WS/WSSession.h"
 
 
@@ -30,7 +32,7 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(new HTTPWriter(*this)),
+HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(new HTTPWriter(*this)), _fileWriter(protocol.api.ioFile),
 	_onResponse([this](HTTP::Response& response) {
 		kill(ERROR_PROTOCOL, "A HTTP response has been received instead of request");
 	}),
@@ -106,13 +108,16 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 							processGet(ex, request, parameters);
 							break;
 						case HTTP::TYPE_POST:
-							processPost(ex, request);
+							processPost(ex, request, parameters);
 							break;
 						case HTTP::TYPE_OPTIONS: // happen when Move Redirection is sent
 							processOptions(ex, *request);
 							break;
 						case HTTP::TYPE_PUT:
-							processPut(ex, request);
+							processPut(ex, request, parameters);
+							break;
+						case HTTP::TYPE_DELETE:
+							processDelete(ex, request, parameters);
 							break;
 						default:
 							ex.set<Ex::Protocol>(name(), ", unsupported command");
@@ -125,9 +130,18 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 					_pWriter->writeError(ex);
 				_pWriter->endRequest();
 			}
-		} else if(request.size()) // can happen on chunked request unwanted (what to do with that?)
-			return kill(Session::ERROR_UNSUPPORTED, "None media chunked request unsupported");
+		}
 
+		if (_fileWriter) {
+			// write file (put or post progressive)
+			_fileWriter.write(request);
+			if ((request && !request->progressive) || !request.size()) { // if progressive a request empty means end of content!
+				// send a PUT response + close the fileWriter
+				_pWriter->writeRaw(_fileWriter->exists() ? HTTP_CODE_200 : HTTP_CODE_201);
+				_fileWriter.close();
+			}
+		} else if (!request && request.size()) // can happen on chunked request unwanted (what to do with that?)
+			return kill(Session::ERROR_PROTOCOL, "Progressive request unsupported");
 
 		if (request.pMedia) {
 			// Something to post!
@@ -156,6 +170,9 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 		return _pWriter->writeSetCookie(reader, onCookie);
 	};
 
+	_fileWriter.onError = [this](const Exception& ex) {
+		_pWriter->writeError(ex); // keep session alive, normal error!
+	};
 }
 
 bool HTTPSession::handshake(HTTP::Request& request) {
@@ -299,11 +316,6 @@ void HTTPSession::unpublish() {
 
 void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 	// Control methods quiested
-	if (request.accessControlRequestMethod&HTTP::TYPE_DELETE) {
-		ex.set<Ex::Permission>("HTTP Deletion not allowed");
-		return;
-	}
-
 	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_200))
 		HTTP_ADD_HEADER("Access-Control-Allow-Methods", HTTP::Types(request.rendezVous))
 		if (request.accessControlRequestHeaders)
@@ -324,13 +336,13 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		// CODECS => https://tools.ietf.org/html/rfc6381
 
 		// 1 - priority on client method
-		if (file.extension().empty() && peer.onInvocation(ex, file.name(), parameters)) // can be method!
+		if (file.extension().empty() && invoke(ex, request, parameters)) // can be method!
 			return;
 	
 		// 2 - try to get a file
 		Parameters fileProperties;
 		MapWriter<Parameters> mapWriter(fileProperties);
-		if (!peer.onRead(ex, file, parameters, mapWriter)) {
+		if (!peer.onRead(ex=nullptr, file, parameters, mapWriter)) {
 			if (!ex)
 				ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path,"/",file.name());
 			return;
@@ -372,8 +384,9 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 	
 	// Redirect to the file (get name to prevent path insertion), if impossible (_index empty or invalid) list directory
 	if (!_index.empty()) {
-		if (_index.find_last_of('.') == string::npos && peer.onInvocation(ex, _index, parameters)) // can be method!
+		if (_index.find_last_of('.') == string::npos && invoke(ex, request, parameters, _index.c_str())) // can be method!
 			return;
+		ex = nullptr;
 		file.set(file, _index);
 	} else if (!_indexDirectory) {
 		ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path, "/");
@@ -386,29 +399,66 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 	_pWriter->writeFile(file, fileProperties); // folder view or index redirection (without pass by onRead because can create a infinite loop)
 }
 
-void HTTPSession::processPut(Exception& ex, HTTP::Request& request) {
-	if (request) {
-		// TODO peer.onWriteFile + Forbidden response if return false
-	}
-	// TODO Write file (add packet to current writing file) + answer OK after writing success if content-length < 0xFFFFFFFF (had content-length)
-	ex.set<Ex::Unsupported>("HTTP PUT unsupported today");
-}
-
-void HTTPSession::processPost(Exception& ex, HTTP::Request& request) {
-	
+void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
 	if (request.pMedia)
 		return publish(ex, request.path); // Publish
-
-	// Else data
-	string name;
-	unique_ptr<DataReader> pReader(Media::Data::NewReader(Media::Data::ToType(request->subMime), request));
-	if (!pReader)
-		pReader.reset(new StringReader(request.data(), request.size()));
-	else if(request.path.isFolder())
-		pReader->readString(name);
-	if (!peer.onInvocation(ex, request.path.isFolder() ? name : request.path.name(), *pReader))
-		ERROR(ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path));
+	processPut(ex, request, parameters); // data or file append (as behavior as PUT)
 }
+
+void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
+	if (!request.path.extension().empty()) {
+		// write file!
+		Parameters properties;
+		MapWriter<Parameters> props(properties);
+		bool append(request->type == HTTP::TYPE_POST);
+		struct AppendReader : WriterReader {
+			bool write(DataWriter& writer) {
+				writer.writeString(EXPAND("append"));
+				return false;
+			}
+		} appendReader;
+		SplitReader params(parameters, append ? appendReader : DataReader::Null());
+		if (peer.onWrite(ex, request.path, params, props)) {
+			properties.getBoolean("append", append);
+			_fileWriter.open(request.path, append);
+		} // else "ex" is necessary set so HTTP session will be killed!
+	} else if(!invoke(ex, request, parameters)) // invoke method!
+		ERROR(ex);
+}
+
+void HTTPSession::processDelete(Exception& ex, HTTP::Request& request, QueryReader& query) {
+	if (!request.path.extension().empty()) {
+		// delete file!
+		if (peer.onDelete(ex, request.path, query)) {
+			_fileWriter.erase(request.path).close();
+			_pWriter->writeRaw(HTTP_CODE_200);
+		} // else "ex" is necessary set so HTTP session will be killed!	
+	} else if (!invoke(ex, request, query)) // invoke method!
+		ERROR(ex);
+}
+
+bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& parameters, const char* name) {
+	if (!name && !request.path.isFolder())
+		name = request.path.name().c_str();
+
+	bool hasContent = request->hasKey("content-length");
+	string method;
+	DataReader* pReader = hasContent ? Media::Data::NewReader(Media::Data::ToType(request->subMime), request) : &parameters;
+	if (!pReader)
+		pReader = new StringReader(request.data(), request.size());
+	else if (!name) {
+		pReader->readString(method);
+		name = method.c_str();
+	}
+
+	bool result = peer.onInvocation(ex, name, *pReader);
+	if (hasContent)
+		delete pReader;
+	if (!result && !ex)
+		ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path);
+	return result;
+}
+
 
 
 } // namespace Mona

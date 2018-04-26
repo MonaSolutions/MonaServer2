@@ -145,12 +145,8 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 	}
 
 	Exception ex;
-	if (!peer.onInvocation(ex, name, message)) {
-		if (name != "setPeerInfo")
-			ERROR(ex.set<Ex::Unfound>("Method client ", name, " not found in application ", peer.path))
-		else
-			DEBUG("Method client setPeerInfo not found in application ", peer.path);
-	}
+	if (!peer.onInvocation(ex, name, message) && !ex)
+		LOG(name == "setPeerInfo" ? LOG_DEBUG : LOG_ERROR, ex.set<Ex::Unfound>("Method client ", name, " not found in application ", peer.path));
 	if(ex)
 		writer.writeAMFState("_error", "error", "NetConnection.Call.Failed", ex); // AMS sends a AMFState+_error message and no a AMFStatusError here (allows to fix an issue too with ffmpeg/vlc and getStreamLength invocation)
 }

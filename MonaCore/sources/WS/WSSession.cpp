@@ -213,7 +213,7 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 
 	if (!pReader)
 		pReader.reset(new StringReader(message.data(), message.size()));
-	if (!peer.onInvocation(ex, name, *pReader, isBinary ? WS::TYPE_BINARY : (!isJSON  ? WS::TYPE_TEXT : 0)))
+	if (!peer.onInvocation(ex, name, *pReader, isBinary ? WS::TYPE_BINARY : (!isJSON  ? WS::TYPE_TEXT : 0)) && !ex)
 		ERROR(ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path));
 }
 

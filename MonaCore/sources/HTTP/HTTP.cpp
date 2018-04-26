@@ -148,6 +148,10 @@ HTTP::Type HTTP::ParseType(const char* value, bool withRDV) {
 			if (String::ICompare(value, EXPAND("POST")) == 0)
 				return TYPE_POST;
 			break;
+		case 6:
+			if (String::ICompare(value, EXPAND("DELETE")) == 0)
+				return TYPE_DELETE;
+			break;
 		case 7:
 			if (String::ICompare(value, EXPAND("OPTIONS")) == 0)
 				return TYPE_OPTIONS;
