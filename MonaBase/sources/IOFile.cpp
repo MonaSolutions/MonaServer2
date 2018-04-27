@@ -75,8 +75,8 @@ void IOFile::join() {
 
 void IOFile::subscribe(const shared<File>& pFile, const File::OnError& onError, const File::OnFlush& onFlush) {
 	pFile->onError = onError;
-	if (pFile->onFlush = onFlush)
-		onFlush(); // can start write operation immediatly!
+	if ((pFile->onFlush = onFlush) && (pFile->mode==File::MODE_WRITE|| pFile->mode == File::MODE_APPEND))
+		onFlush(false); // can start write operation immediatly!
 }
 
 void IOFile::load(const shared<File>& pFile) {
@@ -87,7 +87,6 @@ void IOFile::load(const shared<File>& pFile) {
 void IOFile::read(const shared<File>& pFile, UInt32 size) {
 	struct ReadFile : Action {
 		ReadFile(const Handler& handler, const shared<File>& pFile, const ThreadPool& threadPool, UInt32 size) : Action("ReadFile", handler, pFile), _threadPool(threadPool), _size(size) {}
-		operator bool() const { return true; }
 	private:
 		struct Handle : Action::Handle, virtual Object {
 			Handle(const char* name, const shared<File>& pFile, shared<Buffer>& pBuffer, bool end) :
@@ -144,29 +143,60 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 void IOFile::write(const shared<File>& pFile, const Packet& packet) {
 	struct WriteFile : Action {
 		WriteFile(const Handler& handler, const shared<File>& pFile, const Packet& packet) : _packet(move(packet)), Action("WriteFile", handler, pFile) {
-			_flushing = (pFile->_queueing += _packet.size())>0xFFFF;
+			pFile->_queueing += _packet.size();
 		}
-		operator bool() const { return true; }
 	private:
 		struct Handle : Action::Handle, virtual Object {
 			Handle(const char* name, const shared<File>& pFile) : Action::Handle(name, pFile) {}
 		private:
-			void handle(File& file) { file.onFlush(); }
+			void handle(File& file) {
+				if(!--file._flushing)
+					file.onFlush(!file.loaded());
+			}
 		};
 		bool run(Exception& ex, const shared<File>& pFile) {
-			_flushing = _flushing && (pFile->_queueing -= _packet.size()) <= 0xFFFF;
+			UInt64 queueing = (pFile->_queueing -= _packet.size());
 			if (!pFile->write(ex, _packet.data(), _packet.size()))
 				return false;
-			if(_flushing || pFile->mode==File::MODE_DELETE)
+			if (queueing)
+				return true;
+			if(!pFile->_flushing++) // To signal end of write!
 				handle<Handle>();
+			else
+				--pFile->_flushing;
 			return true;
 		}
 		Packet		 _packet;
-		bool		 _flushing;
 	};
-	// do the WriteFile even if packet is empty to allow to open the file and clear its content (or delete file) if we are not in a append mode!
-	if(packet || pFile->mode!=File::MODE_APPEND)
+	// do the WriteFile even if packet is empty when not loaded to allow to open the file and clear its content or create the file
+	// or to allow to create the folder => if File is a Folder opened in WRITE/APPEND mode loaded is always false and write an empty packet create the folder => allow a folder creation asynchrone!
+	if(packet || !pFile->loaded())
 		_threadPool.queue(new WriteFile(handler, pFile, packet), pFile->_ioTrack);
+}
+
+void IOFile::erase(const shared<File>& pFile) {
+	struct EraseFile : Action {
+		EraseFile(const Handler& handler, const shared<File>& pFile) : Action("EraseFile", handler, pFile) {}
+	private:
+		struct Handle : Action::Handle, virtual Object {
+			Handle(const char* name, const shared<File>& pFile) : Action::Handle(name, pFile) {}
+		private:
+			void handle(File& file) {
+				if (!--file._flushing)
+					file.onFlush(!file.loaded());
+			}
+		};
+		bool run(Exception& ex, const shared<File>& pFile) {
+			if (!pFile->erase(ex))
+				return false;
+			if (!pFile->_flushing++) // To signal end of write!
+				handle<Handle>();
+			else
+				--pFile->_flushing;
+			return true;
+		}
+	};
+	_threadPool.queue(new EraseFile(handler, pFile), pFile->_ioTrack);
 }
 
 

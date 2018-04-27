@@ -24,12 +24,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 /*!
-File is a Path file with read and write operation 
-/!\ Direct access to disk cache, no buffering */
+File is a Path file with read and write operation,
+it's performance oriented, supports UTF8 path, and can be used with IOFile to work in a asynchronous way */
 struct File : virtual Object {
 	typedef Event<void(shared<Buffer>& pBuffer, bool end)>	OnReaden;
 	typedef Event<void(const Exception&)>					OnError;
-	typedef Event<void()>									OnFlush;
+	typedef Event<void(bool deletion)>						OnFlush;
 	NULLABLE
 
 	/*!
@@ -43,17 +43,17 @@ struct File : virtual Object {
 
 	// A mode R+W has no sense at this system level, because there is just one reading/writing shared header (R and W position)
 	enum Mode {
-		MODE_READ = 0, // To allow to test WRITE with a simple "if"
-		MODE_WRITE,
-		MODE_APPEND,
-		MODE_DELETE
+		MODE_READ = 0, // 0 value allow to test WRITE with a simple "if"
+		MODE_WRITE, // allow to write file or delete file/folder
+		MODE_APPEND, // append data to file
+		MODE_DELETE // just deletion file/folder permission
 	};
 	File(const Path& path, Mode mode);
 	~File();
 
 	const Mode  mode;
 
-	explicit operator bool() const { return _handle != -1; }
+	explicit operator bool() const { return _loaded; }
 	operator const Path&() const { return _path; }
 
 	// properties
@@ -69,7 +69,7 @@ struct File : virtual Object {
 	Int64		lastAccess(bool refresh = false) const { return _path.lastAccess(refresh); }
 	Int64		lastChange(bool refresh = false) const { return _path.lastChange(refresh); }
 
-	bool		loaded() const { return _handle != -1; }
+	bool		loaded() const { return _loaded; }
 
 	UInt64		readen() const { return _readen; }
 	UInt64		written() const { return _written; }
@@ -82,16 +82,21 @@ struct File : virtual Object {
 	If reading error => Ex::Permission || Ex::Unfound || Ex::Intern */
 	virtual bool		load(Exception& ex); // virtual to allow to detect loading error with IOFile (see HTTPFileSender sample)
 	/*!
-	If reading error returns -1 => Ex::System::File || Ex::Intern */
+	If reading error returns -1 => Ex::System::File || Ex::Permission */
 	int					read(Exception& ex, void* data, UInt32 size);
 	/*!
-	If writing error => Ex::System::File || Ex::Intern */
+	If writing error => Ex::System::File || Ex::Permission */
 	bool				write(Exception& ex, const void* data, UInt32 size);
+	/*!
+	If deletion error => Ex::System::File || Ex::Permission
+	/!\ One time deleted no more write operation is possible */
+	bool				erase(Exception& ex);
 
 	void				reset();
 
 private:
 	Path				_path;
+	volatile bool		_loaded;
 	long				_handle;
 	std::atomic<UInt64>	_readen;
 	std::atomic<UInt64>	_written;
@@ -104,6 +109,7 @@ private:
 	OnError						onError;
 
 	std::atomic<UInt64>			_queueing;
+	std::atomic<UInt32>			_flushing;
 	UInt16						_ioTrack;
 	UInt16						_decodingTrack;
 	friend struct IOFile;

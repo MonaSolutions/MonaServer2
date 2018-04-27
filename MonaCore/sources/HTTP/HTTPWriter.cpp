@@ -83,6 +83,10 @@ HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(fals
 		if (_flushings.empty())
 			return;
 #endif
+		if (_flushings.front()->isFile()) {
+			shared<HTTPFileSender> pFile = static_pointer_cast<HTTPFileSender>(_flushings.front());
+			_session.api.ioFile.unsubscribe(pFile);
+		}
 		_flushings.pop_front();
 		while (!_flushings.empty()) {
 			if (_flushings.front()->isFile())

@@ -125,7 +125,7 @@ void MediaFile::Reader::stop() {
 	if (!_pFile)
 		return;
 	timer.set(_onTimer, 0);
-	_pFile.reset();
+	io.unsubscribe(_pFile);
 	_onFlush = nullptr;
 	_pMedias.reset(new std::deque<unique<Media::Base>>());
 	INFO(description(), " stops"); // to display "stops" before possible "publication reset"
@@ -190,7 +190,7 @@ void MediaFile::Writer::endMedia() {
 void MediaFile::Writer::stop() {
 	_pName.reset();
 	if(_pFile) {
-		_pFile.reset();
+		io.unsubscribe(_pFile);
 		INFO(description(), " stops");
 	}
 	_running = false;

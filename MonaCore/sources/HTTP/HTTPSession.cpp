@@ -130,17 +130,12 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 					_pWriter->writeError(ex);
 				_pWriter->endRequest();
 			}
-		}
-
-		if (_fileWriter) {
+		} else if(_fileWriter) {
 			// write file (put or post progressive)
+			if(!request.size()) // if progressive a request empty means end of content!
+				_EOWFlags |= 1;
 			_fileWriter.write(request);
-			if ((request && !request->progressive) || !request.size()) { // if progressive a request empty means end of content!
-				// send a PUT response + close the fileWriter
-				_pWriter->writeRaw(_fileWriter->exists() ? HTTP_CODE_200 : HTTP_CODE_201);
-				_fileWriter.close();
-			}
-		} else if (!request && request.size()) // can happen on chunked request unwanted (what to do with that?)
+		} else if (request.size()) // can happen on chunked request unwanted (what to do with that?)
 			return kill(Session::ERROR_PROTOCOL, "Progressive request unsupported");
 
 		if (request.pMedia) {
@@ -172,6 +167,18 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 	_fileWriter.onError = [this](const Exception& ex) {
 		_pWriter->writeError(ex); // keep session alive, normal error!
+		_fileWriter.close();
+		flush();
+	};
+	_fileWriter.onFlush = [this](bool deletion) {
+		if(deletion)
+			_pWriter->writeRaw(HTTP_CODE_200);
+		else if (_EOWFlags&1) // send a PUT response + close the fileWriter
+			_pWriter->writeRaw(_EOWFlags&2 ? HTTP_CODE_201 : HTTP_CODE_200);
+		else
+			return;
+		_fileWriter.close();
+		flush();
 	};
 }
 
@@ -328,21 +335,23 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 	// use index http option in the case of GET request on a directory
 	
 	Path& file(request.path);
+
+	// Priority on client method
+	if (file.extension().empty() && invoke(ex, request, parameters)) // can be method if not a file (can be a folder)
+		return;
+	ex = nullptr;
+
 	if (!file.isFolder()) {
 		// FILE //
 
 		// TODO m3u8
 		// https://developer.apple.com/library/ios/technotes/tn2288/_index.html
 		// CODECS => https://tools.ietf.org/html/rfc6381
-
-		// 1 - priority on client method
-		if (file.extension().empty() && invoke(ex, request, parameters)) // can be method!
-			return;
 	
 		// 2 - try to get a file
 		Parameters fileProperties;
 		MapWriter<Parameters> mapWriter(fileProperties);
-		if (!peer.onRead(ex=nullptr, file, parameters, mapWriter)) {
+		if (!peer.onRead(ex, file, parameters, mapWriter)) {
 			if (!ex)
 				ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path,"/",file.name());
 			return;
@@ -406,35 +415,37 @@ void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader
 }
 
 void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
-	if (!request.path.extension().empty()) {
-		// write file!
-		Parameters properties;
-		MapWriter<Parameters> props(properties);
-		bool append(request->type == HTTP::TYPE_POST);
-		struct AppendReader : WriterReader {
-			bool write(DataWriter& writer) {
-				writer.writeString(EXPAND("append"));
-				return false;
-			}
-		} appendReader;
-		SplitReader params(parameters, append ? appendReader : DataReader::Null());
-		if (peer.onWrite(ex, request.path, params, props)) {
-			properties.getBoolean("append", append);
-			_fileWriter.open(request.path, append);
-		} // else "ex" is necessary set so HTTP session will be killed!
-	} else if(!invoke(ex, request, parameters)) // invoke method!
-		ERROR(ex);
+	if (request.path.extension().empty() && invoke(ex, request, parameters))
+		return;
+	ex = nullptr;
+	// write file or create folder
+	Parameters properties;
+	MapWriter<Parameters> props(properties);
+	bool append(request->type == HTTP::TYPE_POST);
+	struct AppendReader : WriterReader {
+		bool write(DataWriter& writer) {
+			writer.writeString(EXPAND("append"));
+			return false;
+		}
+	} appendReader;
+	SplitReader params(parameters, append ? appendReader : DataReader::Null());
+	if (peer.onWrite(ex, request.path, params, props)) {
+		properties.getBoolean("append", append);
+		_EOWFlags = 0;
+		_fileWriter.open(request.path, append);
+		_EOWFlags = (request.path.exists() ? 0 : 2) | (request->progressive ? 0 : 1); // before open otherwise onFlush will close the writer!
+		_fileWriter.write(request);
+	} // else "ex" is necessary set so HTTP session will be killed!
 }
 
-void HTTPSession::processDelete(Exception& ex, HTTP::Request& request, QueryReader& query) {
-	if (!request.path.extension().empty()) {
-		// delete file!
-		if (peer.onDelete(ex, request.path, query)) {
-			_fileWriter.erase(request.path).close();
-			_pWriter->writeRaw(HTTP_CODE_200);
-		} // else "ex" is necessary set so HTTP session will be killed!	
-	} else if (!invoke(ex, request, query)) // invoke method!
-		ERROR(ex);
+void HTTPSession::processDelete(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
+	if (request.path.extension().empty() && invoke(ex, request, parameters))
+		return;
+	ex = nullptr;
+	// file/folder deletion!
+	_EOWFlags = 0;
+	if (peer.onDelete(ex, request.path, parameters)) // else "ex" is necessary set so HTTP session will be killed!	
+		_fileWriter.open(request.path).erase();
 }
 
 bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& parameters, const char* name) {

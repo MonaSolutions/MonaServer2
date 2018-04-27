@@ -53,8 +53,17 @@ struct IOFile : virtual Object {
 		pFile->pDecoder = pDecoder;
 	}
 	/*!
-	Subscribe write */
+	Subscribe write/delete */
 	void subscribe(const shared<File>& pFile, const File::OnError& onError, const File::OnFlush& onFlush = nullptr);
+	/*!
+	Unsubscribe */
+	template<typename FileType>
+	void unsubscribe(shared<FileType>& pFile) {
+		pFile->onFlush = nullptr;
+		pFile->onReaden = nullptr;
+		pFile->onError = nullptr;
+		pFile.reset();
+	}
 	/*!
 	Async file loads */
 	void load(const shared<File>& pFile);
@@ -65,6 +74,9 @@ struct IOFile : virtual Object {
 	/*!
 	Async write with file load if file not loaded */
 	void write(const shared<File>& pFile, const Packet& packet);
+	/*!
+	Async deletion with file load if file not loaded */
+	void erase(const shared<File>& pFile);
 
 	void join();
 private:

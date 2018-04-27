@@ -42,7 +42,7 @@ ADD_TEST(File) {
 		CHECK(file.size() == 10);
 		char data[10];
 		CHECK(file.read(ex, data, 20) == 10 && file.readen() == 10 && !ex && memcmp(data, EXPAND("SalutSalut")) == 0);
-		CHECK(!file.write(ex, data, sizeof(data)) && ex && ex.cast<Ex::Intern>());
+		CHECK(!file.write(ex, data, sizeof(data)) && ex && ex.cast<Ex::Permission>());
 		ex = nullptr;
 	}
 
@@ -51,7 +51,7 @@ ADD_TEST(File) {
 		CHECK(file.write(ex, EXPAND("Salut")) && !ex);
 		CHECK(file.written() == 5 && file.size(true) == 5);
 		char data[10];
-		CHECK(file.read(ex, data, sizeof(data)) == -1 && ex && ex.cast<Ex::Intern>());
+		CHECK(file.read(ex, data, sizeof(data)) == -1 && ex && ex.cast<Ex::Permission>());
 		ex = nullptr;
 	}
 }
@@ -68,7 +68,7 @@ static struct MainHandler : Handler {
 	}
 
 private:
-	void flush();
+	void flush() {}
 	Signal _signal;
 } _Handler;
 static ThreadPool	_ThreadPool;
@@ -111,8 +111,9 @@ ADD_TEST(FileWriter) {
 		FATAL_ERROR("FileWriter, ", ex);
 	};
 	bool onFlush = false;
-	writer.onFlush = [&onFlush]() {
+	writer.onFlush = [&onFlush, &writer](bool deletion) {
 		onFlush = true;
+		CHECK(!deletion);
 	};
 	writer.open(name).write(salut);
 	io.join();
@@ -123,7 +124,6 @@ ADD_TEST(FileWriter) {
 	CHECK(writer->written() == 10 && writer->size(true) == 10);
 	writer.close();
 	
-
 	onFlush = false;
 	writer.open(name, true).write(salut);
 	io.join();
@@ -131,7 +131,7 @@ ADD_TEST(FileWriter) {
 	CHECK(writer->written()==5 && writer->size(true) == 15);
 	writer.close();
 
-	CHECK(_Handler.join(0));
+	CHECK(_Handler.join(2)); // 2 writing step = 2 onFlush!
 	CHECK(FileSystem::Delete(ex, name) && !ex);
 }
 

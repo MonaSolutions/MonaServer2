@@ -21,6 +21,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
+/*!
+Help tool to Write/Delete file in a asynchronous way (can be done also in using directly IOFile + File)
+It can be used too for an asynchronous folder deletion in using erase method */
 struct FileWriter : virtual Object {
 	typedef File::OnFlush	 ON(Flush);
 	typedef File::OnError	 ON(Error);
@@ -41,6 +44,7 @@ struct FileWriter : virtual Object {
 	Async open file to write, return *this to allow a open(path).write(...) call
 	/!\ don't open really the file, because performance are better if opened on first write operation */
 	FileWriter& open(const Path& path, bool append = false) {
+		close();
 		_pFile.reset(new File(path, append ? File::MODE_APPEND : File::MODE_WRITE));
 		io.subscribe(_pFile, onError, onFlush);
 		return *this;
@@ -48,16 +52,9 @@ struct FileWriter : virtual Object {
 	/*!
 	Write data, if queueing wait onFlush event for large data transfer*/
 	void		write(const Packet& packet) { FATAL_CHECK(_pFile);  io.write(_pFile, packet); }
-	void		close() { _pFile.reset(); }
+	void		erase() { FATAL_CHECK(_pFile); io.erase(_pFile); }
+	void		close() { if(_pFile) io.unsubscribe(_pFile); }
 
-	/*!
-	Async delete file, you can erase the file multiple time in doing erase + write(Packet::Null()), or close it immediately with erase(..).close()! */
-	FileWriter& erase(const Path& path) {
-		_pFile.reset(new File(path, File::MODE_DELETE));
-		io.subscribe(_pFile, onError, onFlush);
-		io.write(_pFile, Packet::Null());
-		return *this;
-	}
 private:
 	shared<File> _pFile;
 };

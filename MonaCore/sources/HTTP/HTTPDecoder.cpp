@@ -144,8 +144,6 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						case HTTP::TYPE_PUT:
 							if (_path.extension().empty()) // else write file if PUT or append file if POST
 								invocation = true;
-							else
-								_path.exists(); // preload disk attributes now in the thread (see _fileWriter->exists() ? HTTP_CODE_200 : HTTP_CODE_201 in HTTPSession)
 							break;
 						case HTTP::TYPE_RDV:
 							if (!_pRendezVous) {

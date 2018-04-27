@@ -39,6 +39,7 @@ struct FileReader : virtual Object {
 	Async open file to read, return *this to allow a open(path).read(...) call 
 	/!\ don't open really the file, because performance are better if opened on first read operation */
 	FileReader& open(const Path& path) {
+		close();
 		_pFile.reset(new File(path, File::MODE_READ));
 		io.subscribe(_pFile, newDecoder(), onReaden, onError);
 		return *this;
@@ -46,7 +47,7 @@ struct FileReader : virtual Object {
 	/*!
 	Read data */
 	void		read(UInt32 size = 0xFFFF) { FATAL_CHECK(_pFile);  io.read(_pFile, size); }
-	void		close() { _pFile.reset(); }
+	void		close() { if (_pFile) io.unsubscribe(_pFile); }
 
 private:
 	virtual File::Decoder* newDecoder() { return NULL; }

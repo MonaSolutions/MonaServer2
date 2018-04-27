@@ -65,6 +65,7 @@ private:
 	Subscription*		_pSubscription;
 	Publication*		_pPublication;
 	FileWriter			_fileWriter;
+	UInt8				_EOWFlags; // 1 = end of write, 2 = has been created
 
 	unique<Session>		_pUpgradeSession;
 

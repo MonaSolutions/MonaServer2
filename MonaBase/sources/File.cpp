@@ -41,7 +41,7 @@ using namespace std;
 
 namespace Mona {
 
-File::File(const Path& path, Mode mode) :
+File::File(const Path& path, Mode mode) : _flushing(0), _loaded(false),
 	_written(0), _readen(0), _path(path), mode(mode), _decodingTrack(0),
 	_queueing(0), _ioTrack(0), _handle(-1), externDecoder(false) {
 }
@@ -68,18 +68,21 @@ UInt64 File::queueing() const {
 }
 
 bool File::load(Exception& ex) {
-	if (_handle!=-1)
+	if (_loaded)
 		return true;
 	if (!_path) {
 		ex.set<Ex::Intern>("Empty path can not be opened");
 		return false;
 	}
-	if (mode == MODE_DELETE)
-		return FileSystem::Delete(ex, _path);
 	if (_path.isFolder()) {
-		ex.set<Ex::Intern>(_path, " is a directory, can not be opened");
+		ex.set<Ex::Intern>("Cannot load a ", _path, " folder");
 		return false;
 	}
+	if (mode == MODE_DELETE) {
+		ex.set<Ex::Permission>(_path, " load unauthorized in delete mode");
+		return false;
+	}
+	// file READ, WRITE or APPEND
 #if defined(_WIN32)
 	wchar_t wFile[PATH_MAX];
 	MultiByteToWideChar(CP_UTF8, 0, _path.c_str(), -1, wFile, sizeof(wFile));
@@ -109,6 +112,7 @@ bool File::load(Exception& ex) {
 		ulChange.HighPart = change.dwHighDateTime;
 		// round to seconds precision to get same precision than with stat::
 		_path._pImpl->setAttributes(size.QuadPart, (ulAccess.QuadPart / 10000000ll - 11644473600ll) * 1000ll, (ulChange.QuadPart / 10000000ll - 11644473600ll) * 1000ll);
+		_loaded = true;
 		return true;
 	}
 		
@@ -131,6 +135,7 @@ bool File::load(Exception& ex) {
 		struct stat status;
 		::fstat(_handle, &status);
 		_path._pImpl->setAttributes(status.st_mode&S_IFDIR ? 0 : (UInt64)status.st_size, status.st_atime * 1000ll, status.st_mtime * 1000ll);
+		_loaded = true;
 		return true;
 	}
 #endif
@@ -149,7 +154,7 @@ bool File::load(Exception& ex) {
 }
 
 UInt64 File::size(bool refresh) const {
-	if (_handle==-1)
+	if (!_loaded)
 		return _path.size(refresh);
 
 	if (!refresh)
@@ -178,7 +183,7 @@ UInt64 File::size(bool refresh) const {
 }
 
 void File::reset() {
-	if(_handle == -1)
+	if(!_loaded)
 		return;
 	_readen = 0;
 	_written = 0;
@@ -190,10 +195,14 @@ void File::reset() {
 }
 
 int File::read(Exception& ex, void* data, UInt32 size) {
+	if (_path.isFolder()) {
+		ex.set<Ex::Intern>("Cannot read data from a ", _path, " folder");
+		return false;
+	}
 	if (!load(ex))
 		return -1;
 	if (mode) {
-		ex.set<Ex::Intern>("Impossible to read ", _path, " opened in writing mode");
+		ex.set<Ex::Permission>(_path, " read unauthorized in writing, append or deletion mode");
 		return -1;
 	}
 #if defined(_WIN32)
@@ -212,22 +221,27 @@ int File::read(Exception& ex, void* data, UInt32 size) {
 }
 
 bool File::write(Exception& ex, const void* data, UInt32 size) {
+	if (_path.isFolder()) {
+		if (size)
+			ex.set<Ex::Intern>("Cannot write data to a ", _path, " folder");
+		return FileSystem::CreateDirectory(ex, _path);
+	}
 	if (!load(ex))
 		return false;
-	if (!mode) {
-		ex.set<Ex::Intern>("Impossible to write ", _path, " opened in reading mode");
+	if (!mode || mode > MODE_APPEND) {
+		ex.set<Ex::Permission>(_path, " write unauthorized in reading or deletion mode");
 		return false;
 	}
-	if (mode == MODE_DELETE)
-		return true; // deletion done in load!
+	if (!size)
+		return true; // nothing todo!
 #if defined(_WIN32)
 	DWORD written;
 	if (!WriteFile((HANDLE)_handle, data, size, &written, NULL))
-		written = -1;
+		written = 0;
 #else
 	ssize_t written = ::write(_handle, data, size);
 #endif
-	if (written < 0) {
+	if (written <= 0) {
 		ex.set<Ex::System::File>("Impossible to write ", _path, " (size=", size, ")");
 		return false;
 	}
@@ -236,6 +250,21 @@ bool File::write(Exception& ex, const void* data, UInt32 size) {
 		ex.set<Ex::System::File>("No more disk space to write ", _path, " (size=", size, ")");
 		return false;
 	}
+	return true;
+}
+
+bool File::erase(Exception& ex) {
+	if (mode != MODE_DELETE && mode != MODE_WRITE) {
+		ex.set<Ex::Permission>(_path, " deletion unauthorized in reading or append mode");
+		return false;
+	}
+	if (!FileSystem::Delete(ex, _path))
+		return false;
+	if (_loaded) {
+		_readen = 0;
+		_written = 0;
+	}
+	_path._pImpl->setAttributes(0, 0, 0); // update attributes (no exists!)
 	return true;
 }
 
