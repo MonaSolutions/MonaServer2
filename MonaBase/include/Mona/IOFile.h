@@ -75,8 +75,11 @@ struct IOFile : virtual Object {
 	Async write with file load if file not loaded */
 	void write(const shared<File>& pFile, const Packet& packet);
 	/*!
-	Async deletion with file load if file not loaded */
+	Async file/folder deletion*/
 	void erase(const shared<File>& pFile);
+	/*!
+	Async file/folder creation */
+	void create(const shared<File>& pFile) { write(pFile, Packet::Null()); }
 
 	void join();
 private:

@@ -91,6 +91,9 @@ struct File : virtual Object {
 	If deletion error => Ex::System::File || Ex::Permission
 	/!\ One time deleted no more write operation is possible */
 	bool				erase(Exception& ex);
+	/*!
+	Create file or folder */
+	bool				create(Exception& ex) { return write(ex, NULL, 0); }
 
 	void				reset();
 
