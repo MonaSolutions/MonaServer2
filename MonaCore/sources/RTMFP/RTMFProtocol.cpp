@@ -137,7 +137,7 @@ bool RTMFProtocol::load(Exception& ex) {
 	String::ForEach forEach([this](UInt32 index, const char* value) {
 		SocketAddress address;
 		Exception ex;
-		if (!address.set(ex, value))
+		if (!address.set(ex, value) && !address.set(ex, value, 1935))
 			return true;
 		this->addresses.emplace(address);
 		return true;
