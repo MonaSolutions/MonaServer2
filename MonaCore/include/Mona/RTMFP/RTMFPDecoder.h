@@ -66,7 +66,8 @@ private:
 	const ThreadPool&		_threadPool;
 	const Handler&			_handler;
 
-	UInt32																									  _time;
+	UInt32																									  _timeHandshakes;
+	UInt32																									  _timeReceivers;
 	std::map<UInt32, shared<RTMFPReceiver>>																	  _receivers;
 	std::map<SocketAddress, shared<RTMFPReceiver>>															  _peers;
 	std::map<SocketAddress, shared<Handshake>>																  _handshakes;

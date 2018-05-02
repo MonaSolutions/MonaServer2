@@ -35,7 +35,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 	UInt16					track;
 	shared<RTMFPReceiver>	pReceiver;
 
-	bool obsolete() const { return _recvTime.isElapsed(95000); } // 95 seconds, must be less that RTMFPSession timeout (120 seconds), 95 = RTMFP spec.
+	bool obsolete(const Time& now=Time::Now()) const { return (now - _recvTime) > 95000; } // 95 seconds, must be less that RTMFPSession timeout (120 seconds), 95 = RTMFP spec.
 
 	void receive(Socket& socket, shared<Buffer>& pBuffer, const SocketAddress& address) {
 		Exception ex;
@@ -257,7 +257,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 };
 
 RTMFPDecoder::RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool) :
-	_time(0), _pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(new atomic<UInt32>(0)) {
+	_timeReceivers(0), _timeHandshakes(0), _pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(new atomic<UInt32>(0)) {
 }
 
 bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver) {
@@ -287,28 +287,6 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 }
 
 void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, const shared<Socket>& pSocket) {
-	// Clean handshakes/receivers
-	// Use a time integer rather Timer to try to be very very fast at this level
-	// 1000 => If we get 1000 packets per second, resource can't exceed 95000 items (obsolete timeout = 95 sec)
-	if (++_time > 1000) {
-		_time = 0;
-		// remove obsolete handshakes
-		auto it = _handshakes.begin();
-		while (it != _handshakes.end()) {
-			if (it->second.unique() && it->second->obsolete())
-				it = _handshakes.erase(it);
-			else
-				++it;
-		}
-		// remove obsolete receivers
-		auto itRecv = _receivers.begin();
-		while (itRecv != _receivers.end()) {
-			if (itRecv->second.unique() && itRecv->second->obsolete())
-				itRecv = _receivers.erase(itRecv);
-			else
-				++itRecv;
-		}
-	}
 	shared<Buffer> pBuffer(move(pData)); // capture!
 
 	if (pBuffer->size() <= RTMFP::SIZE_HEADER || (pBuffer->size() > (RTMFP::SIZE_PACKET<<1))) {
@@ -324,9 +302,26 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 	//DEBUG("RTMFP Session ",id," size ",pBuffer->size());
 	if (!id) {
 		// HANDSHAKE
+
+		// Clean handshakes/receivers
+		// Use a time integer rather Timer to try to be very very fast at this level
+		// 1000 => If we get 1000 packets per second, resource can't exceed 95000 items (obsolete timeout = 95 sec)
+		if (++_timeHandshakes > 1000) {
+			_timeHandshakes = 0;
+			Time now; // get time just once for performance
+			// remove obsolete handshakes
+			auto it = _handshakes.begin();
+			while (it != _handshakes.end()) {
+				if (it->second.unique() && it->second->obsolete(now))
+					it = _handshakes.erase(it);
+				else
+					++it;
+			}
+		}
+
 		Exception ex;
 		auto it = _handshakes.lower_bound(address);
-		if (_time && it != _handshakes.end() && it->second.unique() && it->second->obsolete())
+		if (_timeHandshakes && it != _handshakes.end() && it->second.unique() && it->second->obsolete())
 			it = _handshakes.erase(it);
 		if (it == _handshakes.end() || it->first != address) {
 			// Create handshake
@@ -336,6 +331,20 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 		}
 		receive(it->second, pBuffer, address, pSocket);
 	} else {
+
+		// remove obsolete receivers
+		if (++_timeReceivers > 1000) {
+			_timeReceivers = 0;
+			Time now; // get time just once for performance
+			auto itRecv = _receivers.begin();
+			while (itRecv != _receivers.end()) {
+				if (itRecv->second.unique() && itRecv->second->obsolete(now))
+					itRecv = _receivers.erase(itRecv);
+				else
+					++itRecv;
+			}
+		}
+
 		auto it = _receivers.lower_bound(id);
 		if (it == _receivers.end() || it->first != id) {
 			shared<RTMFPReceiver> pReceiver;
@@ -350,7 +359,7 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 			shared<RTMFPReceiver> pReceiver;
 			if (finalizeHandshake(id, address, pReceiver)) // else is an obsolete session! will resend 0x4C message
 				it->second = pReceiver; // replace by new session!
-			else if (_time && it->second->obsolete()) {
+			else if (_timeReceivers && it->second->obsolete()) {
 				_receivers.erase(it);
 				return;
 			}
