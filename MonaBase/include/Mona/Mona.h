@@ -219,29 +219,6 @@ inline const std::string& typeof() {
 	return Type;
 }
 
-template<typename MapType>
-inline typename MapType::iterator lower_bound(MapType& map, const typename MapType::key_type& key, const std::function<bool(const typename MapType::key_type&, typename MapType::iterator&)>& validate) {
-	typename MapType::iterator it, result(map.begin());
-	typename MapType::key_compare less = map.key_comp();
-	UInt32 count(map.size()), step;
-	while (count) {
-		if (!validate(key, result)) {
-			result = map.erase(result);
-			if (!--count)
-				return result;
-		}
-		it = result;
-		step = count / 2;
-		std::advance(it, step);
-		if (less(it->first, key)) {
-			result = ++it;
-			count -= step + 1;
-		} else
-			count = step;
-	}
-	return result;
-}
-
 template <typename Type>
 class is_container : virtual Static {
 	template<typename C> static char(&B(typename std::enable_if<

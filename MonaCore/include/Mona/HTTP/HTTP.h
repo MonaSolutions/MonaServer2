@@ -282,7 +282,8 @@ struct HTTP : virtual Static {
 	};
 
 	struct RendezVous : virtual Object {
-		RendezVous();
+		RendezVous(const Timer&	timer);
+		~RendezVous();
 
 		bool meet(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket);
 
@@ -298,7 +299,8 @@ struct HTTP : virtual Static {
 		};
 		std::mutex														_mutex;
 		std::map<const char*, unique<const Remote>, Comparator>			_remotes;
-		std::function<bool(const char*, std::map<const char*, unique<const Remote>, Comparator>::iterator&)> _validate;
+		Timer::OnTimer												    _onTimer;
+		const Timer&													_timer;
 	};
 };
 

@@ -66,10 +66,9 @@ private:
 	const ThreadPool&		_threadPool;
 	const Handler&			_handler;
 
-	std::function<bool(UInt32, std::map<UInt32, shared<RTMFPReceiver>>::iterator&)>							  _validateReceiver;
+	UInt32																									  _time;
 	std::map<UInt32, shared<RTMFPReceiver>>																	  _receivers;
 	std::map<SocketAddress, shared<RTMFPReceiver>>															  _peers;
-	std::function<bool(const SocketAddress& address, std::map<SocketAddress, shared<Handshake>>::iterator&)>  _validateHandshake;
 	std::map<SocketAddress, shared<Handshake>>																  _handshakes;
 	shared<RendezVous>																						  _pRendezVous;
 	shared<std::atomic<UInt32>>																				  _pReceiving;

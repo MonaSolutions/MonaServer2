@@ -395,8 +395,23 @@ bool HTTP::WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& on
 //////// RENDEZ VOUS ////////////
 
 
-HTTP::RendezVous::RendezVous() : 
-	_validate([](const char*, map<const char*, unique<const Remote>, Comparator>::iterator& it) { return !it->second->expired(); }) {
+HTTP::RendezVous::RendezVous(const Timer& timer) : _timer(timer),
+	_onTimer([this](UInt32)->UInt32 {
+		// remove obsolete handshakes
+		auto it = _remotes.begin();
+		while (it != _remotes.end()) {
+			if (it->second->expired())
+				it = _remotes.erase(it);
+			else
+				++it;
+		}
+		return 10000;
+	}) {
+	_timer.set(_onTimer, 10000);
+}
+
+HTTP::RendezVous::~RendezVous() {
+	_timer.set(_onTimer, 0);
 }
 
 bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) {
@@ -417,7 +432,7 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 	// meet
 	{ // lock
 		unique_lock<mutex> lock(_mutex);
-		auto it = lower_bound(_remotes, pHeader->path.c_str(), _validate);
+		auto it = _remotes.lower_bound(pHeader->path.c_str());
 		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path.c_str()) == 0) {
 			// found!
 			shared<Socket> pRemoteSocket = it->second->lock();

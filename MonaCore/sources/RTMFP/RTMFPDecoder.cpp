@@ -256,17 +256,12 @@ struct RTMFPDecoder::Handshake : virtual Object {
 	shared<Packet>			_pResponse;
 };
 
-RTMFPDecoder::RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool) : _pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(new atomic<UInt32>(0)),
-	_validateReceiver([this](UInt32 keySearched, map<UInt32, shared<RTMFPReceiver>>::iterator& it) {
-		return it->second.unique() && it->second->obsolete() ? false : true;
-	}),
-	_validateHandshake([this](const SocketAddress& keySearched, map<SocketAddress, shared<Handshake>>::iterator& it) {
-		return it->second.unique() && it->second->obsolete() ? false : true;
-	}) {
+RTMFPDecoder::RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool) :
+	_time(0), _pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(new atomic<UInt32>(0)) {
 }
 
 bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver) {
-	auto itHand = lower_bound(_handshakes, address, _validateHandshake);
+	auto itHand = _handshakes.lower_bound(address);
 	if (itHand == _handshakes.end() || itHand->first != address || !itHand->second->pReceiver) {
 		// no "receiver"("session") handshake, address has changed?
 		DEBUG("Handshake iteration");
@@ -292,6 +287,28 @@ bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, sh
 }
 
 void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, const shared<Socket>& pSocket) {
+	// Clean handshakes/receivers
+	// Use a time integer rather Timer to try to be very very fast at this level
+	// 1000 => If we get 1000 packets per second, resource can't exceed 95000 items (obsolete timeout = 95 sec)
+	if (++_time > 1000) {
+		_time = 0;
+		// remove obsolete handshakes
+		auto it = _handshakes.begin();
+		while (it != _handshakes.end()) {
+			if (it->second.unique() && it->second->obsolete())
+				it = _handshakes.erase(it);
+			else
+				++it;
+		}
+		// remove obsolete receivers
+		auto itRecv = _receivers.begin();
+		while (itRecv != _receivers.end()) {
+			if (itRecv->second.unique() && itRecv->second->obsolete())
+				itRecv = _receivers.erase(itRecv);
+			else
+				++itRecv;
+		}
+	}
 	shared<Buffer> pBuffer(move(pData)); // capture!
 
 	if (pBuffer->size() <= RTMFP::SIZE_HEADER || (pBuffer->size() > (RTMFP::SIZE_PACKET<<1))) {
@@ -308,7 +325,9 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 	if (!id) {
 		// HANDSHAKE
 		Exception ex;
-		auto it = lower_bound(_handshakes, address, _validateHandshake);
+		auto it = _handshakes.lower_bound(address);
+		if (_time && it != _handshakes.end() && it->second.unique() && it->second->obsolete())
+			it = _handshakes.erase(it);
 		if (it == _handshakes.end() || it->first != address) {
 			// Create handshake
 			it = _handshakes.emplace_hint(it, piecewise_construct, forward_as_tuple(address), forward_as_tuple(new Handshake(_handler, _pRendezVous)));
@@ -317,7 +336,7 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 		}
 		receive(it->second, pBuffer, address, pSocket);
 	} else {
-		auto it = lower_bound(_receivers, id, _validateReceiver);
+		auto it = _receivers.lower_bound(id);
 		if (it == _receivers.end() || it->first != id) {
 			shared<RTMFPReceiver> pReceiver;
 			if (!finalizeHandshake(id, address, pReceiver)) {
@@ -331,6 +350,10 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 			shared<RTMFPReceiver> pReceiver;
 			if (finalizeHandshake(id, address, pReceiver)) // else is an obsolete session! will resend 0x4C message
 				it->second = pReceiver; // replace by new session!
+			else if (_time && it->second->obsolete()) {
+				_receivers.erase(it);
+				return;
+			}
 		}
 		receive(it->second, pBuffer, address, pSocket);
 	}

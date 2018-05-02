@@ -44,7 +44,7 @@ struct HTTProtocol : TCProtocol, virtual Object {
 
 	bool load(Exception& ex) {
 		if (getBoolean<false>("rendezVous"))
-			pRendezVous.reset(new HTTP::RendezVous());
+			pRendezVous.reset(new HTTP::RendezVous(api.timer));
 		return TCProtocol::load(ex);
 	}
 
