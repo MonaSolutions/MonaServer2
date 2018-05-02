@@ -27,7 +27,7 @@ using namespace std;
 namespace Mona {
 
 
-RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions), _pRendezVous(new RendezVous()) {
+RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions), _pRendezVous(new RendezVous()), _manageTimes(0) {
 	memcpy(_certificat, "\x01\x0A\x41\x0E", 4);
 	Util::Random(&_certificat[4], 64);
 	memcpy(&_certificat[68], "\x02\x15\x02\x02\x15\x05\x02\x15\x0E", 9);
@@ -89,14 +89,6 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 	};
 }
 
-Socket::Decoder* RTMFProtocol::newDecoder() {
-	RTMFPDecoder* pDecoder = new RTMFPDecoder(_pRendezVous, api.handler, api.threadPool);
-	pDecoder->onSession = _onSession;
-	pDecoder->onEdgeMember = _onEdgeMember;
-	pDecoder->onHandshake = _onHandshake;
-	return pDecoder;
-}
-
 RTMFProtocol::~RTMFProtocol() {
 	_onHandshake = nullptr;
 	_onEdgeMember = nullptr;
@@ -108,16 +100,30 @@ RTMFProtocol::~RTMFProtocol() {
 		delete it.second;
 }
 
+
+void RTMFProtocol::manage() {
+	// Every 10 seconds manage RTMFPDecoder!
+	if (++_manageTimes < 5)
+		return;
+	_manageTimes = 0;
+	SocketAddress address(socket()->address());
+	if (!address)
+		return; // RTMFP protocol disabled
+	address.host().set(IPAddress::Loopback());
+	Exception ex;
+	socket()->sendTo(ex, NULL, 0, address);
+}
+
 bool RTMFProtocol::load(Exception& ex) {
 
 	if (!UDProtocol::load(ex))
 		return false;
-	
-	if (getNumber<UInt16,10>("keepalivePeer") < 5) {
+
+	if (getNumber<UInt16, 10>("keepalivePeer") < 5) {
 		WARN("Value of RTMFP.keepalivePeer can't be less than 5 sec")
 		setNumber("keepalivePeer", 5);
 	}
-	if (getNumber<UInt16,15>("keepaliveServer") < 5) {
+	if (getNumber<UInt16, 15>("keepaliveServer") < 5) {
 		WARN("Value of RTMFP.keepaliveServer can't be less than 5 sec")
 		setNumber("keepaliveServer", 5);
 	}
@@ -139,6 +145,15 @@ bool RTMFProtocol::load(Exception& ex) {
 	String::Split(addresses, ";", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
 
 	return true;
+}
+
+
+Socket::Decoder* RTMFProtocol::newDecoder() {
+	RTMFPDecoder* pDecoder = new RTMFPDecoder(_pRendezVous, api.handler, api.threadPool);
+	pDecoder->onSession = _onSession;
+	pDecoder->onEdgeMember = _onEdgeMember;
+	pDecoder->onHandshake = _onHandshake;
+	return pDecoder;
 }
 
 Buffer& RTMFProtocol::initBuffer(shared<Buffer>& pBuffer) {
@@ -169,6 +184,7 @@ void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, set<SocketAddress>&
 	BinaryWriter(pBuffer->data() + 9, 3).write8(type).write16(pBuffer->size() - 12);
 	api.threadPool.queue(new Sender(socket(), pBuffer, addresses, pResponse));
 }
+
 
 
 } // namespace Mona

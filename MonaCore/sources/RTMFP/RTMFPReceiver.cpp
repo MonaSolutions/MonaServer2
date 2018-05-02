@@ -37,15 +37,15 @@ RTMFPReceiver::RTMFPReceiver(const Handler& handler,
 			}) {
 }
 
-bool RTMFPReceiver::obsolete() {
+bool RTMFPReceiver::obsolete(const Time& now) {
 	// Just called by RTFMPDecoder when this is unique!
 	if (!_obsolete) {
 		if (!_died)
-			_died.update(Time::Now()-2001); // to send 0x4C
+			_died.update(now -2001); // to send 0x4C
 		_obsolete.update();
 		return false;
 	}
-	return _obsolete.isElapsed(19000); // 19 seconds!
+	return (now - _obsolete) > 19000; // 19 seconds!
 }
 
 

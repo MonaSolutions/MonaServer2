@@ -40,9 +40,11 @@ struct RTMFProtocol : UDProtocol, virtual Object  {
 
 	std::set<SocketAddress> addresses;
 private:
+	void manage();
 	Socket::Decoder* newDecoder();
 
 
+	UInt8						_manageTimes;
 	RTMFPDecoder::OnHandshake	_onHandshake;
 	RTMFPDecoder::OnEdgeMember	_onEdgeMember;
 	RTMFPDecoder::OnSession		_onSession;

@@ -36,7 +36,7 @@ struct RTMFPReceiver : RTMFP::Session, virtual Object {
 		const SocketAddress& address, const shared<RendezVous>& pRendezVous);
 
 	UInt16					track;
-	bool					obsolete();
+	bool					obsolete(const Time& now = Time::Now());
 	std::set<SocketAddress>	localAddresses;
 	
 	void	receive(Socket& socket, shared<Buffer>& pBuffer, const SocketAddress& address);
