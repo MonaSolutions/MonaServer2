@@ -108,14 +108,22 @@ struct String : std::string, virtual Object {
 	static void ToUTF8(const std::string& value, const String::OnEncoded& onEncoded) { ToUTF8(value.data(), value.size(), onEncoded); }
 	static void ToUTF8(const char* value, std::size_t size, const String::OnEncoded& onEncoded);
 	
-	typedef std::function<bool(UInt32 index,const char* value)> ForEach; /// String::Split function type handler
+	typedef std::function<bool(UInt32 index, const char* value)> ForEach; /// String::Split function type handler
 	static std::size_t Split(const std::string& value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0) { return Split(value.data(), value.size(), separators, forEach, options); }
+	template<typename ListType, typename = typename std::enable_if<is_container<ListType>::value, ListType>::type>
+	static ListType& Split(const std::string& value, const char* separators, ListType& values, SPLIT_OPTIONS options = 0) { return Split(value.data(), value.size(), separators, values, options); }
+	/*!
+	/!\ Can't work on a literal C++ declaration! */
 	static std::size_t Split(const char* value, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0) { return Split(value, std::string::npos, separators, forEach, options); }
+	/*!
+	/!\ Can't work on a literal C++ declaration! */
 	static std::size_t Split(const char* value, std::size_t size, const char* separators, const String::ForEach& forEach, SPLIT_OPTIONS options = 0);
+	/*!
+	/!\ Can't work on a literal C++ declaration! */
 	template<typename ListType, typename = typename std::enable_if<is_container<ListType>::value, ListType>::type>
 	static ListType& Split(const char* value, const char* separators, ListType& values, SPLIT_OPTIONS options = 0) { return Split(value, std::string::npos, separators, values, options); }
-	template<typename ListType, typename = typename std::enable_if<is_container<ListType>::value, ListType>::type>
-	static ListType& Split(const std::string& value, const char* separators, ListType& values, SPLIT_OPTIONS options = 0) { return Split(value.data(), value.size(), separators,values,options); }
+	/*!
+	/!\ Can't work on a literal C++ declaration! */
 	template<typename ListType, typename = typename std::enable_if<is_container<ListType>::value, ListType>::type>
 	static ListType& Split(const char* value, std::size_t size, const char* separators, ListType& values, SPLIT_OPTIONS options = 0) {
 		ForEach forEach([&values](UInt32 index, const char* value) {

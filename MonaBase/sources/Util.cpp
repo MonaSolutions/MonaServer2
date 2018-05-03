@@ -123,7 +123,7 @@ size_t Util::UnpackUrl(const char* url, string& address, string& path, string& q
 		if (!*dot) // no address, no path, just "scheme://"
 			return string::npos;
 		const char* itEnd(dot);
-		while (*itEnd && *itEnd != '/' && *itEnd != '\\')
+		while (*itEnd && *itEnd != '/' && *itEnd != '\\' && *itEnd != '?')
 			++itEnd;
 		address.assign(dot, itEnd);
 		url = itEnd; // on slash after address

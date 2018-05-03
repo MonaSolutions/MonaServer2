@@ -378,7 +378,7 @@ struct Media : virtual Static {
 		Writer => @[address:]port...
 		Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126] 
 		File => @file[.format] [MediaFormat] [parameter] */
-		static Stream* New(Exception& ex, const char* description, const Timer&	timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS);
+		static Stream* New(Exception& ex, const std::string& description, const Timer&	timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS);
 
 		/*!
 		/!\ Implementation have to support a pulse start! */

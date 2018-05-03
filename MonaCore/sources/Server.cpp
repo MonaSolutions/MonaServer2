@@ -73,7 +73,8 @@ bool Server::publish(const char* name, shared<Publish>& pPublish) {
 
 bool Server::run(Exception&, const volatile bool& requestStop) {
 	BufferPool bufferPool(timer);
-	Buffer::SetAllocator(bufferPool);
+	if(getBoolean<true>("poolBuffers"))
+		Buffer::SetAllocator(bufferPool);
 
 	Timer::OnTimer onManage;
 	multimap<string, Media::Stream*>	streams;

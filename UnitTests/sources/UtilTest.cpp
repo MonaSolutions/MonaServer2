@@ -108,6 +108,8 @@ ADD_TEST(UnpackUrl) {
 	DEBUG_CHECK(query == "?name1=value1&name2=value2");
 	DEBUG_CHECK(path=="/path/file.txt");
 	DEBUG_CHECK(address=="127.0.0.1:1234");
+
+	DEBUG_CHECK(Util::UnpackUrl("srt://www.clubic.com?param=value", address, path, query) == string::npos && address=="www.clubic.com" && query=="?param=value" && path.empty());
 }
 
 

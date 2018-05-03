@@ -435,31 +435,31 @@ void Media::Stream::stop(const Exception& ex) {
 UInt32	Media::Stream::RecvBufferSize(0);
 UInt32	Media::Stream::SendBufferSize(0);
 
-Media::Stream* Media::Stream::New(Exception& ex, const char* description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
+Media::Stream* Media::Stream::New(Exception& ex, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
 	// Net => [@][address] [type/TLS][/MediaFormat] [parameter]
 	// File = > @file[.format][MediaFormat][parameter]
 	
-	description = String::TrimLeft(description);
+	const char* line = String::TrimLeft(description.c_str());
 
 	bool isTarget(false);
-	if ((isTarget = (*description == '@')))
-		++description;
+	if ((isTarget = (*line == '@')))
+		++line;
 
 	// remove "" or ''
 	string first;
-	if (*description == '"' || *description=='\'') {
-		const char* end = strchr(description +1, *description);
+	if (*line == '"' || *line =='\'') {
+		const char* end = strchr(line +1, *line);
 		if (end) {
-			++description;
-			first.assign(description, end - description);
-			description = end +1;
+			++line;
+			first.assign(line, end - line);
+			line = end +1;
 		}
 	}
 
 	// isolate first (and remove blank)
 	size_t size = 0;
 	for(;;) {
-		switch (description[size]) {
+		switch (line[size]) {
 			default:
 				++size;
 				continue;
@@ -467,8 +467,8 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 			case '\t':
 			case 0:;
 		}
-		first.append(description, size);
-		description += size;
+		first.append(line, size);
+		line += size;
 		break;
 	}
 
@@ -515,8 +515,8 @@ Media::Stream* Media::Stream::New(Exception& ex, const char* description, const 
 		return false;
 	});
 
-	const char* params = strpbrk(description = String::TrimLeft(description), " \t\r\n\v\f");
-	String::Split(description, params ? (description - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
+	const char* params = strpbrk(line = String::TrimLeft(line), " \t\r\n\v\f");
+	String::Split(line, params ? (line - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
 	
 	Path   path;
 	SocketAddress address;
