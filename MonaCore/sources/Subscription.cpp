@@ -143,7 +143,8 @@ bool Subscription::start() {
 	if (_ejected)
 		return false;
 	if (_streaming) {
-		if (flushProperties()) {
+		if (_timeProperties<timeProperties()) {
+			_timeProperties = timeProperties();
 			DEBUG(name(), " subscription parameters ", self);
 			_target.setMediaParams(self);
 			if(!pPublication)

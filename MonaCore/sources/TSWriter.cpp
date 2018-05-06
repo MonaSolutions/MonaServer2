@@ -292,7 +292,7 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 }
 
 void TSWriter::writeES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, const Packet& packet, UInt32 esSize, bool randomAccess) {
-	Packet playload(packet, packet.data(), packet.size());
+	Packet playload(packet);
 	while (playload) {
 		if (!_toWrite) {
 			if (_canWrite) {

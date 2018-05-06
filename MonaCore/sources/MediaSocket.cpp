@@ -187,7 +187,7 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 	_pStreaming(pStreaming), _pName(pName),
 	onWrite([this, type](const Packet& packet) {
 		UInt32 size = 0;
-		Packet chunk(packet, packet.data(), packet.size());
+		Packet chunk(packet);
 		while (chunk += size) {
 			size = type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
 			DUMP_RESPONSE(_pName->c_str(), chunk.data(), size, _pSocket->peerAddress());

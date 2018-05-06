@@ -213,40 +213,21 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 	return Media::TYPE_DATA;
 }
 
-Media::Data::Data(DataReader& properties, UInt8 track) : Base(TYPE_DATA, *properties, track), isProperties(true), tag(ToType(properties)) {
-	if (tag)
-		return;
-	(Media::Data::Type&)tag = TYPE_AMF;
-	shared<Buffer> pBuffer(new Buffer());
-	AMFWriter writer(*pBuffer);
-	properties.read(writer);
-	set(pBuffer);
-}
-Media::Data::Data(const Properties& properties) : Base(TYPE_DATA, properties((Media::Data::Type&)tag), 0), isProperties(true) {
-}
-
-Media::Properties::Properties(const Media::Data& data) : _newProperties(false) {
-	_packets.emplace_back(move(data));
+Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)), _timeProperties(0) {
 	unique_ptr<DataReader> pReader(Data::NewReader(data.tag, data));
 	MapWriter<Parameters> writer(self);
 	pReader->read(writer);
 }
 
 void Media::Properties::onParamChange(const std::string& key, const std::string* pValue) {
-	_newProperties = true;
 	_packets.clear();
+	_timeProperties.update();
 	Parameters::onParamChange(key, pValue);
 }
 void Media::Properties::onParamClear() {
-	_newProperties = true; 
 	_packets.clear();
+	_timeProperties.update();
 	Parameters::onParamClear();
-}
-bool Media::Properties::flushProperties() {
-	if (!_newProperties)
-		return false;
-	_newProperties = false;
-	return true;
 }
 
 const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
@@ -269,9 +250,13 @@ const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
 	return packet.set(pBuffer);
 }
 
-void Media::Properties::setProperties(UInt8 track, DataReader& reader) {
+void Media::Properties::setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {
 	if (!track)
 		track = 1; // by default use track=1 to never override all properties (let's it to final user in using Media::Properties directly)
+
+	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
+	if (!pReader)
+		pReader.reset(new StringReader(packet.data(), packet.size()));
 
 	// clear in first this track properties!
 	String prefix(track, '.');
@@ -282,9 +267,14 @@ void Media::Properties::setProperties(UInt8 track, DataReader& reader) {
 	MapWriter<Parameters> writer(self);
 	writer.beginObject();
 	writer.writePropertyName(prefix.c_str());
-	reader.read(writer);
+	pReader->read(writer);
 	writer.endObject();
+
+	// Save packet formatted!
+	_packets.resize(type);
+	_packets[type - 1].set(packet);
 }
+
 
 Media::Data::Type Media::Data::ToType(const type_info& info) {
 	static const map<size_t, Media::Data::Type> Types({
@@ -362,6 +352,21 @@ DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer) {
 	return NULL;
 }
 
+
+void Media::Source::setProperties(UInt8 track, const Media::Properties& properties) {
+	MapReader<Parameters> reader(properties);
+	Media::Data::Type type;
+	const Packet& packet = properties(type);
+	setProperties(track, type, packet);
+}
+void Media::Source::setProperties(UInt8 track, DataReader& reader) {
+	shared<Buffer> pBuffer(new Buffer());
+	JSONWriter writer(*pBuffer);
+	reader.read(writer);
+	setProperties(track, Media::Data::TYPE_JSON, Packet(pBuffer));
+}
+
+
 void Media::Source::writeMedia(const Media::Base& media) {
 	switch (media.type) {
 		case Media::TYPE_AUDIO:
@@ -370,10 +375,9 @@ void Media::Source::writeMedia(const Media::Base& media) {
 			return writeVideo(media.track, ((const Media::Video&)media).tag, media);
 		case Media::TYPE_DATA: {
 			const Media::Data& data = (const Media::Data&)media;
-			if (!data.isProperties)
-				return writeData(media.track, ((const Media::Data&)media).tag, media);
-			unique_ptr<DataReader> pReader(Media::Data::NewReader(data.tag, data));
-			return setProperties(media.track, *pReader);
+			if (data.isProperties)
+				return setProperties(media.track, data.tag, media);
+			return writeData(media.track, data.tag, media);
 		}
 		default:
 			WARN(typeof(self), " write a unknown media");
@@ -385,7 +389,7 @@ Media::Source& Media::Source::Null() {
 		void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {}
 		void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {}
 		void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {}
-		void setProperties(UInt8 track, DataReader& reader) {}
+		void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {}
 		void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) {}
 		void flush() {}
 		void reset() {}

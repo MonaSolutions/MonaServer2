@@ -28,9 +28,12 @@ namespace Mona {
 [UInt32=>size][Media::Pack][...data...] */
 
 struct MonaWriter : MediaWriter, virtual Object {
-	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if(onWrite) write(track, tag, packet, onWrite); }
-	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, tag, packet, onWrite); }
-	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { if (onWrite) write(track, type, packet, onWrite); }
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
+		if (track) // ignore data command!
+			write(track, type, packet, onWrite);
+	}
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
 		Media::Data::Type type;
 		const Packet& packet = properties(type);
@@ -40,10 +43,12 @@ private:
 	
 	template<typename TagType>
 	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
-		if (!track)
-			return; // ignore data command!
+		if (!onWrite)
+			return;
 		UInt8 buffer[9];
-		onWrite(Media::Pack(BinaryWriter(buffer, sizeof(buffer)).write32(Media::PackedSize(tag, track) + packet.size()), tag, track));
+		BinaryWriter writer(buffer, sizeof(buffer));
+		Media::Pack(writer.write32(Media::PackedSize(tag, track) + packet.size()), tag, track);
+		onWrite(Packet(writer.data(), writer.size()));
 		onWrite(packet);
 	}
 

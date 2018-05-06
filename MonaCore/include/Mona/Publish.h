@@ -32,10 +32,10 @@ struct Publish : virtual Object {
 
 	operator bool() const { return _pPublishing.unique() ? _pPublishing->operator bool() : true; }
 
-	bool audio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { return queue<Write<Media::Audio>>(tag, packet, track); }
-	bool video(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { return queue<Write<Media::Video>>(tag, packet, track); }
+	bool audio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1)  { return queue<Write<Media::Audio>>(tag, packet, track); }
+	bool video(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1)  { return queue<Write<Media::Video>>(tag, packet, track); }
 	bool data(Media::Data::Type type, const Packet& packet, UInt8 track = 0)		 { return queue<Write<Media::Data>>(type, packet, track); }
-	bool properties(DataReader& reader, UInt8 track = 1)							 { return queue<Write<Media::Data>>(reader, track); }
+	bool properties(Media::Data::Type type, const Packet& packet, UInt8 track = 1)	 { return queue<Write<Media::Data>>(type, packet, track, true); }
 	bool lost(UInt32 lost)															 { return queue<Lost>(Media::TYPE_NONE, lost); }
 	bool lost(Media::Type type, UInt32 lost, UInt8 track = 0)						 { return queue<Lost>(type, lost, track); }
 

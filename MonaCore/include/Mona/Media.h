@@ -93,14 +93,10 @@ struct Media : virtual Static {
 		static DataReader* NewReader(Type type, const Packet& packet);
 		static DataWriter* NewWriter(Type type, Buffer& buffer);
 
-		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0) : Base(TYPE_DATA, packet, track), isProperties(false), tag(type) {}
-		/*!
-		Properties usage! */
-		Data(DataReader& properties, UInt8 track = 1);
-		Data(const Media::Properties& properties);
+		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0, bool isProperties=false) : Base(TYPE_DATA, packet, track), isProperties(isProperties), tag(type) {}
 
 		Media::Data::Type	tag;
-		bool				isProperties;
+		const bool			isProperties;
 	private:
 		static Type ToType(const std::type_info& info);
 	};
@@ -273,19 +269,21 @@ struct Media : virtual Static {
 		const Packet& operator[](Media::Data::Type type) const { return operator()(type); }
 		const Packet& operator()(Media::Data::Type& type) const;
 
+		Properties() : _timeProperties(0) {}
 		Properties(const Media::Data& data);
 
+		const Time& timeProperties() const { return _timeProperties; }
+
+		void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet);
+
 	protected:
-		Properties() : _newProperties(false) {}
 
 		virtual void onParamChange(const std::string& key, const std::string* pValue);
 		virtual void onParamClear();
 
-		void setProperties(UInt8 track, DataReader& reader);
-		bool flushProperties();
 	private:
 		mutable std::deque<Packet>	_packets;
-		bool						_newProperties;
+		Time						_timeProperties;
 	};
 
 
@@ -297,11 +295,13 @@ struct Media : virtual Static {
 		virtual void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) = 0;
 		virtual void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) = 0;
 		virtual void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) = 0;
-		virtual void setProperties(UInt8 track, DataReader& reader) = 0;
+		virtual void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) = 0;
 		virtual void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) = 0;
 		virtual void flush() = 0;
 		virtual void reset() = 0;
 
+		void setProperties(UInt8 track, const Media::Properties& properties);
+		void setProperties(UInt8 track, DataReader& reader);
 		void writeMedia(const Media::Base& media);
 		void writeMedia(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { writeAudio(track, tag, packet); }
 		void writeMedia(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { writeVideo(track, tag, packet); }

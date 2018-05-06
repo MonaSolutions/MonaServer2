@@ -92,7 +92,6 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	bool							subscribed(const Publication& publication) const { return pPublication == &publication || _pNextPublication == &publication; }
 	const std::string&				name() const;
 
-	bool streaming(UInt32 timeout) const { return _streaming ? !_streaming.isElapsed(timeout) : false; }
 	const Time& streaming() const { return _streaming; }
 
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
@@ -113,7 +112,7 @@ private:
 	void setFormat(const char* format);
 
 	// Media::Properties overrides
-	void setProperties(UInt8 track, DataReader& reader) { Properties::setProperties(track, reader); }
+	void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::setProperties(track, type, packet); }
 	void onParamChange(const std::string& key, const std::string* pValue);
 	void onParamClear();
 
@@ -287,6 +286,7 @@ private:
 
 	Time					_streaming;
 	Time					_waitingFirstVideoSync;
+	Time					_timeProperties;
 
 	Time					_queueing;
 	Congestion				_congestion;

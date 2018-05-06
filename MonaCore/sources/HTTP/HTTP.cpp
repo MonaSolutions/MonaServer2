@@ -398,6 +398,7 @@ bool HTTP::WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& on
 HTTP::RendezVous::RendezVous(const Timer& timer) : _timer(timer),
 	_onTimer([this](UInt32)->UInt32 {
 		// remove obsolete handshakes
+		lock_guard<mutex> lock(_mutex);
 		auto it = _remotes.begin();
 		while (it != _remotes.end()) {
 			if (it->second->expired())

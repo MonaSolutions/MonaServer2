@@ -226,7 +226,7 @@ bool HTTPSession::manage() {
 	// If answering waits end of response, usefull for VLC file playing for example (which can to ::recv after a quantity of data in socket.available())
 	// In HTTP we can use some "auto feature" like RDV which doesn't pass over main thread (implemented in HTTPDecoder)
 	// So timeout just on nothing more is sending during timeout (send = valid HTTP response)
-	if (_pSubscription || _pWriter->answering() || !self->sendTime().isElapsed(timeout))
+	if ((_pSubscription && _pSubscription->streaming()) || _pWriter->answering() || !self->sendTime().isElapsed(timeout))
 		(UInt32&)this->timeout = 0;
 		
 	if (!TCPSession::manage())
@@ -234,9 +234,9 @@ bool HTTPSession::manage() {
 	
 	// check subscription
 	if (_pSubscription) {
-		if (!_pSubscription->streaming(timeout)) {
+		if (!this->timeout && !_pSubscription->streaming().isElapsed(timeout)) { // do just if timeout has been cancelled! (otherwise timeout is managed by session class)
 			INFO(name(), " timeout connection");
-			kill(ERROR_IDLE, _pSubscription->name().c_str()); // _pSubscription->name().c_str() to disable kill=ERROR_IDLE possible canceling (see HTTP::kill)
+			kill(ERROR_IDLE);
 			return false;
 		}
 		if(_pSubscription->ejected()) {

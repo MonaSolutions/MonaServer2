@@ -296,7 +296,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 			UInt8			   track;
 			BinaryReader tag(bytes.data(), bytes.size());
 			Media::Type type = Media::Unpack(tag, audio, video, data, track);
-			Packet content(packet.buffer(), packet.data(), packet.size());
+			Packet content(packet);
 			switch (type) {
 				case Media::TYPE_AUDIO:
 					audio.time = timestamp;
@@ -358,7 +358,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 				reader.next(); // @setDataFrame
 				if (reader.nextType() == DataReader::STRING)
 					reader.next(); // remove onMetaData
-				_pPublication->setProperties(_dataTrack, reader);
+				_pPublication->setProperties(_dataTrack, Media::Data::TYPE_AMF, packet + reader->position());
 				return;
 			}
 		}

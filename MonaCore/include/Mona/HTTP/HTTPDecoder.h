@@ -54,7 +54,7 @@ private:
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { receive(new Media::Audio(tag, packet, track)); }
 	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { receive(new Media::Video(tag, packet, track)); }
 	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) { receive(new Media::Data(type, packet, track)); }
-	void setProperties(UInt8 track, DataReader& reader) { receive(new Media::Data(reader, track)); }
+	void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { receive(new Media::Data(type, packet, track, true)); }
 	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { if (lost) receive(type, lost, track); }
 	void reset() { receive(false, false); }
 	void flush() { receive(!_length, true); /* flush + end infos*/ }

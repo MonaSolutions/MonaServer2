@@ -125,13 +125,13 @@ private:
 			Media::Type _type;
 		};
 
-		Track() : _track(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL), propertiesFlushed(false) { lang[0] = 0; }
+		Track() : _track(0), size(0), sample(0), samples(0), chunk(0), time(0), flushProperties(true), timeStep(0), pType(NULL) { lang[0] = 0; }
 
 		operator UInt8() const { return _track; }
 		Track& operator=(UInt8 track) { _track = track; return *this; }
 
 		char						lang[3]; // if lang[0]==0 => undefined!
-		bool						propertiesFlushed;
+		bool						flushProperties;
 
 		double						time;
 		double						timeStep;
@@ -154,25 +154,25 @@ private:
 	};
 
 	template <class VideoType>
-	void	frameToMedias(const Packet& packet, UInt8 track, Track::Type& type, UInt32 time);
+	void	frameToMedias(Track& track, UInt32 time, const Packet& packet);
 
-	UInt32								_sequence;
-	UInt32								_position;
-	UInt64								_offset;
-	bool								_failed;
-	UInt8								_audios;
-	UInt8								_videos;
+	UInt32													_sequence;
+	UInt32													_position;
+	UInt64													_offset;
+	bool													_failed;
+	UInt8													_audios;
+	UInt8													_videos;
 
-	std::map<UInt64, Track*>			_chunks; // stco
-	std::deque<Box>						_boxes;
-	std::deque<Track>					_tracks;
-	std::map<UInt32,Track*>				_ids;
-	std::map<UInt32, UInt32>			_times;
-	std::multimap<UInt32, Media::Base*> _medias;
+	std::map<UInt64, Track*>								_chunks; // stco
+	std::deque<Box>											_boxes;
+	std::deque<Track>										_tracks;
+	std::map<UInt32,Track*>									_ids;
+	std::map<UInt32, UInt32>								_times;
+	std::multimap<UInt32, std::pair<Track*, Media::Base*>>	_medias;
 
-	Track*								_pTrack;
-	Fragment							_fragment;
-	bool								_firstMoov;
+	Track*													_pTrack;
+	Fragment												_fragment;
+	bool													_firstMoov;
 };
 
 

@@ -167,8 +167,8 @@ inline ResultType distance(Type1 value1, Type2 value2) {
 template<typename Type1, typename Type2, typename Type3, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
 inline ResultType distance(Type1 value1, Type2 value2, Type3 max, Type3 min=0) {
 	ResultType result(value2 - value1);
-	max = max - min;
-	if (abs(result) <= ceil(max / 2.0))
+	max = max - min + 1;
+	if (abs(result) <= (max / 2))
 		return result;
 	return result>0 ? (result - max) : (max + result);
 }

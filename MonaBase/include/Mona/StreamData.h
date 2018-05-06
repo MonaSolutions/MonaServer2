@@ -33,7 +33,7 @@ struct StreamData : virtual Object {
 			Packet buffer(pBuffer);
 			rest = min(onStreamData(buffer, std::forward<Args>(args)...), _pBuffer->size());
 		} else {
-			Packet buffer(packet.buffer(), packet.data(), packet.size());
+			Packet buffer(packet);
 			rest = min(onStreamData(buffer, std::forward<Args>(args)...), packet.size());
 		}
 		if (!rest) {

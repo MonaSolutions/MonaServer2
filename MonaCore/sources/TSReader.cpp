@@ -22,7 +22,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/AVC.h"
 #include "Mona/ADTSReader.h"
 #include "Mona/MP3Reader.h"
-#include "Mona/MapReader.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -283,11 +282,11 @@ void TSReader::parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::S
 	// ignore 4 CRC bytes
 
 	// Flush PROPERTIES if changed!
-	for (const auto& it : _properties) {
-		if (!it.second)
+	for (auto& it : _properties) {
+		if (it.second.first>=it.second.second.timeProperties())
 			continue; // no change
-		MapReader<Parameters> reader(it.second);
-		source.setProperties(it.first, reader);
+		it.second.first = it.second.second.timeProperties();
+		source.setProperties(it.first, it.second.second);
 	}
 }
 
@@ -312,7 +311,7 @@ void TSReader::readESI(BinaryReader& reader, Program& program) {
 					--size;
 				}
 				if(size)
-					_properties[program->track].setString("audioLang", STR data, size);
+					_properties[program->track].second.setString("audioLang", STR data, size);
 				break;
 			case 0x86: // Caption service descriptor http://atsc.org/wp-content/uploads/2015/03/Program-System-Information-Protocol-for-Terrestrial-Broadcast-and-Cable.pdf
 				UInt8 count = desc.read8() & 0x1F;
@@ -321,7 +320,7 @@ void TSReader::readESI(BinaryReader& reader, Program& program) {
 					size = desc.next(3);
 					UInt8 channel = desc.read8();
 					if (channel & 0x80)
-						_properties[program->track*4 + (channel & 0x3F)].setString("textLang", STR data, size);
+						_properties[program->track*4 + (channel & 0x3F)].second.setString("textLang", STR data, size);
 					desc.next(2);
 				}
 				break;

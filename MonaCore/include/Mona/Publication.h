@@ -115,7 +115,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	
 	/*!
 	Set properties, prefer the direct publication object access to change properties when done by final user */
-	void setProperties(UInt8 track, DataReader& reader) { Properties::setProperties(track, reader); }
+	void							setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::setProperties(track, type, packet); }
 
 	void							flush();
 	void							flush(UInt16 ping);
@@ -147,6 +147,7 @@ private:
 
 	bool							_new;
 	bool							_newLost;
+	Time							_timeProperties;
 
 	std::unique_ptr<Subscription>   _pRecording;
 };

@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MonaReader.h"
-#include "Mona/StringReader.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -61,15 +60,10 @@ UInt32 MonaReader::parse(Packet& buffer, Media::Source& source) {
 				source.writeVideo(track, video, media);
 				break;
 			case Media::TYPE_DATA: {
-				if (track) {
+				if (track)
 					source.writeData(track, data, media);
-					break;
-				}
-				// properties have been serialized like data with track=0 (see MonaWriter) 
-				unique_ptr<DataReader> pReader(Media::Data::NewReader(data, media));
-				if(!pReader)
-					pReader.reset(new StringReader(media.data(), media.size()));
-				source.setProperties(1, *pReader);
+				else // properties have been serialized like data with track=0 (no RPC in media, see MonaWriter) 
+					source.setProperties(1, data, media);
 				break;
 			}
 			default:

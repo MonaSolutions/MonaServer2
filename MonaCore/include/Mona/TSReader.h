@@ -36,21 +36,6 @@ struct TSReader : virtual Object, MediaReader {
 	
 private:
 
-	struct Properties : Parameters, virtual Object {
-		NULLABLE
-		Properties() : _changed(false) {}
-		operator bool() const { return _changed; }
-	private:
-		void onParamChange(const std::string& key, const std::string* pValue) {
-			_changed = true; Parameters::onParamChange(key, pValue);
-		}
-		void onParamClear() {
-			_changed = true; Parameters::onParamClear();
-		}
-		bool _changed;
-	};
-	
-
 	struct Program : virtual Object {
 		NULLABLE
 		Program() : type(Media::TYPE_NONE), _pReader(NULL), waitHeader(true), sequence(0xFF) {}
@@ -92,15 +77,15 @@ private:
 
 	void    onFlush(Packet& buffer, Media::Source& source);
 
-	std::map<UInt16, Program>   _programs;
-	std::map<UInt8, Properties> _properties;
-	UInt8						_audioTrack;
-	UInt8						_videoTrack;
-	std::map<UInt16, UInt8>		_pmts;
-	UInt32						_crcPAT;
-	bool						_syncFound;
-	bool						_syncError;
-	double						_startTime;
+	std::map<UInt16, Program>							_programs;
+	std::map<UInt8, std::pair<Time, Media::Properties>> _properties;
+	UInt8												_audioTrack;
+	UInt8												_videoTrack;
+	std::map<UInt16, UInt8>								_pmts;
+	UInt32												_crcPAT;
+	bool												_syncFound;
+	bool												_syncError;
+	double												_startTime;
 };
 
 

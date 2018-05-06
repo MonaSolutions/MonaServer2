@@ -280,7 +280,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 /////////////////////////////////////////////////////////////////
 //////////////////// BODY RECEPTION /////////////////////////////
 
-		Packet packet(buffer.buffer(), buffer.data(), buffer.size());
+		Packet packet(buffer);
 
 		if (!_length && !_ex && _stage == CHUNKED) {
 			for (;;) {

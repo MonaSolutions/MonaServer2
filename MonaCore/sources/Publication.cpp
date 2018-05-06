@@ -103,7 +103,7 @@ void Publication::start(MediaFile::Writer* pRecorder, bool append) {
 	if (!_publishing) {
 		_publishing = true;
 		INFO("Publication ", _name, " started");
-		Media::Properties::flushProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
+		_timeProperties = Media::Properties::timeProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	}
 	if(pRecorder)
 		startRecording(*pRecorder, append);
@@ -128,7 +128,7 @@ void Publication::reset() {
 		else
 			++it;
 	}
-	Media::Properties::flushProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
+	_timeProperties = Media::Properties::timeProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 
 	for (Subscription* pSubscription : subscriptions) {
 		if (pSubscription->pPublication != this && pSubscription->pPublication)
@@ -317,7 +317,7 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 			string handler;
 			// for performance reason read just if type is explicity a STRING (not a convertible string as binary etc...)
 			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
-				return setProperties(track, *pReader);
+				return setProperties(track, type, packet + (*pReader)->position());
 			pReader->reset();
 		}
 	}
@@ -371,8 +371,9 @@ void Publication::onParamClear() {
 }
 
 void Publication::flushProperties() {
-	if (!Media::Properties::flushProperties())
+	if (_timeProperties >= Media::Properties::timeProperties())
 		return;
+	_timeProperties = Media::Properties::timeProperties();
 	// Logs before subscription logs!
 	if (self)
 		INFO("Write ", _name, " publication properties ", self)
@@ -380,9 +381,9 @@ void Publication::flushProperties() {
 		INFO("Clear ", _name, " publication properties");
 	for (Subscription* pSubscription : subscriptions) {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
-			pSubscription->writeProperties(*this);
+			pSubscription->writeProperties(self);
 	}
-	onProperties(*this);
+	onProperties(self);
 }
 
 } // namespace Mona

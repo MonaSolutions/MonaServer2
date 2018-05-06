@@ -149,11 +149,9 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 				reader.next(4); // Time!
 				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
-				if (memcmp(reader.current(), EXPAND("\x02\x00\x0AonMetaData")) == 0) {
-					AMFReader amf(reader.current() + 13, _size - 13);
-					if(amf.available())
-						source.setProperties(track, amf);
-				} else
+				if (memcmp(reader.current(), EXPAND("\x02\x00\x0AonMetaData")) == 0)
+					source.setProperties(track, Media::Data::TYPE_AMF, Packet(buffer, reader.current() + 13, _size - 13));
+				else
 					source.writeData(track, Media::Data::TYPE_AMF, Packet(buffer, reader.current(), _size));
 				break;
 			}

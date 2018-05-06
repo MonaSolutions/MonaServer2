@@ -46,8 +46,8 @@ struct Packet: Binary, virtual Object {
 	Reference an immutable area of unbuffered data (explicit to not reference a temporary memory zone) */
 	explicit Packet(const void* data, UInt32 size) : _data(BIN data), _size(size), _ppBuffer(&Null().buffer()), _reference(true) {}
 	/*!
-	Reference an immutable area of unbuffered data (explicit to not reference a temporary memory zone or be auto-selected by a Packet because 'const Packet&' is deleted) */
-	Packet(const Binary& binary) : _data(BIN binary.data()), _size(binary.size()), _ppBuffer(&Null().buffer()), _reference(true) {}
+	Create a copy from packet (explicit to not reference a temporary packet) */
+	explicit Packet(const Packet& packet) : _reference(true) { set(packet); }
 	/*!
 	Create a copy from packet and move area of data referenced, area have to be include inside (explicit to not reference a temporary packet) */
 	explicit Packet(const Packet& packet, const UInt8* data) : _reference(true) { set(packet, data); }
@@ -128,9 +128,6 @@ struct Packet: Binary, virtual Object {
 	Resize the area of data referenced */
 	Packet& operator--() { return operator-=(1); }
 	/*!
-	Reference an immutable area of unbuffered data */
-	Packet& operator=(const Binary& binary) { return set(binary); }
-	/*!
 	Reference a packet */
 	Packet& operator=(const Packet& packet) { return set(packet); }
 	/*!
@@ -156,9 +153,6 @@ struct Packet: Binary, virtual Object {
 	/*!
 	Reference an immutable area of unbuffered data */
 	Packet& set(const void* data, UInt32 size);
-	/*!
-	Reference an immutable area of unbuffered data */
-	Packet& set(const Binary& binary) { return set(binary.data(), binary.size()); }
 	/*!
 	Reference a packet */
 	Packet& set(const Packet& packet);
@@ -218,9 +212,6 @@ struct Packet: Binary, virtual Object {
 	static const Packet& Null() { static Packet Null(nullptr); return Null; }
 
 private:
-	// Keep copy-constructor private because is referencing automatically a packet is not safe (forbid vector<Packet> usage too, prefer rather deque<Packet>)
-	// + keep no-explicit to avoid auto-selection of "const Binary& binary" alternative
-	Packet(const Packet& packet) : _reference(true) { set(packet); }
 	Packet(std::nullptr_t) : _ppBuffer(new shared<const Binary>()), _data(NULL), _size(0), _reference(false) {}
 
 	Packet& setArea(const UInt8* data, UInt32 size);
