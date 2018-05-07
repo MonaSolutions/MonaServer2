@@ -201,7 +201,6 @@ bool Socket::getReusePort() const {
 		return value;;
 #endif
 	return false;
-
 }
 
 bool Socket::joinGroup(Exception& ex, const IPAddress& ip, UInt32 interfaceIndex) {
@@ -228,7 +227,7 @@ void Socket::leaveGroup(const IPAddress& ip, UInt32 interfaceIndex) {
 		struct ipv6_mreq mreq;
 		memcpy(&mreq.ipv6mr_multiaddr, ip.data(), ip.size());
 		mreq.ipv6mr_interface = interfaceIndex;
-		setOption(ex, IPPROTO_IPV6, IP_DROP_MEMBERSHIP, mreq);
+		setOption(ex, IPPROTO_IPV6, IPV6_DROP_MEMBERSHIP, mreq);
 	}
 }
 
