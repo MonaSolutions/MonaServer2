@@ -533,7 +533,7 @@ IPAddress::LocalAddresses::LocalAddresses() {
 		else {
 
 			// Read all addresses
-			struct ifreq * ifr;
+			struct ifreq * ifr = NULL;
 			for (int i = 0; i < ifc.ifc_len; i += sizeof(struct ifreq)) {
 				ifr = (struct ifreq *)(ifc.ifc_buf + i);
 

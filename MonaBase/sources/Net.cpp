@@ -129,7 +129,7 @@ UInt32 Net::GetInterfaceIndex(const SocketAddress& address) {
 #if defined(_WIN32)
 	DWORD index = 0;
 	return GetBestInterfaceEx((sockaddr *)address.data(), &index)==NO_ERROR ? index : 0;
-#else
+#elif !defined(__ANDROID__)
 	ifaddrs* firstNetIf = NULL;
 	getifaddrs(&firstNetIf);
 	ifaddrs* netIf = NULL;
@@ -140,6 +140,33 @@ UInt32 Net::GetInterfaceIndex(const SocketAddress& address) {
 	if (firstNetIf)
 		freeifaddrs(firstNetIf);
 	return netIf ? if_nametoindex(netIf->ifa_name) : 0;
+#else // getifaddrs is not supported on Android so we use ioctl
+	// Create UDP socket
+	int fd = socket(AF_INET6, SOCK_STREAM, 0);
+	if (fd < 0)
+		return 0;
+
+	// Get ip config
+	struct ifconf ifc;
+	memset(&ifc, 0, sizeof(ifconf));
+
+	struct ifreq * ifr = NULL;
+	if (::ioctl(fd, SIOCGIFCONF, &ifc) >= 0) {
+		Buffer buffer(ifc.ifc_len);
+		ifc.ifc_buf = (caddr_t)buffer.data();
+		if (::ioctl(fd, SIOCGIFCONF, &ifc) >= 0) {
+
+			// Read all addresses
+			for (int i = 0; i < ifc.ifc_len; i += sizeof(struct ifreq)) {
+				ifr = (struct ifreq *)(ifc.ifc_buf + i);
+
+				if (ifr->ifr_addr.sa_family == address.family() && memcmp(address.data(), *ifr->ifr_addr, sizeof(sockaddr) - 4) == 0) // -4 trick to compare just host ip (ignore port)
+					break;
+			}
+		}
+	}
+	close(fd); // close socket
+	return ifr ? if_nametoindex(ifr->ifr_name) : 0;
 #endif
 }
 
