@@ -160,7 +160,7 @@ UInt32 Net::GetInterfaceIndex(const SocketAddress& address) {
 			for (int i = 0; i < ifc.ifc_len; i += sizeof(struct ifreq)) {
 				ifr = (struct ifreq *)(ifc.ifc_buf + i);
 
-				if (ifr->ifr_addr.sa_family == address.family() && memcmp(address.data(), *ifr->ifr_addr, sizeof(sockaddr) - 4) == 0) // -4 trick to compare just host ip (ignore port)
+				if (ifr->ifr_addr.sa_family == address.family() && memcmp(address.data(), &ifr->ifr_addr, sizeof(sockaddr) - 4) == 0) // -4 trick to compare just host ip (ignore port)
 					break;
 			}
 		}
