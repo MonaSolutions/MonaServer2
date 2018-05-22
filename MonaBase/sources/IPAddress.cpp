@@ -464,8 +464,7 @@ private:
 // IPAddress
 //
 
-
-IPAddress::LocalAddresses::LocalAddresses() {
+bool IPAddress::Locals(Exception& ex, std::vector<IPAddress>& locals) {
 #if defined (_WIN32)
 	Buffer buffer(sizeof(IP_ADAPTER_ADDRESSES));
 	ULONG size = sizeof(IP_ADAPTER_ADDRESSES);
@@ -478,26 +477,27 @@ IPAddress::LocalAddresses::LocalAddresses() {
 		buffer.resize(size);
 		res = GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, pAddresses = (IP_ADAPTER_ADDRESSES *)buffer.data(), &size);
 	}
-	if (res != NO_ERROR)
+	if (res != NO_ERROR) {
 		ex.set<Ex::Net::System>("Error in GetAdaptersAddresses call : ", res);
-	else {
-
-		for (adapt = pAddresses; adapt; adapt = adapt->Next) {
-			for (aip = adapt->FirstUnicastAddress; aip; aip = aip->Next) {
-				if (aip->DadState != IP_DAD_STATE::IpDadStatePreferred)
-					continue; // useless address
-				if (aip->Address.lpSockaddr->sa_family == AF_INET6)
-					emplace_back(reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_scope_id);
-				else if (aip->Address.lpSockaddr->sa_family == AF_INET)
-					emplace_back(reinterpret_cast<struct sockaddr_in*>(aip->Address.lpSockaddr)->sin_addr);
-			}
+		return false;
+	}
+	for (adapt = pAddresses; adapt; adapt = adapt->Next) {
+		for (aip = adapt->FirstUnicastAddress; aip; aip = aip->Next) {
+			if (aip->DadState != IP_DAD_STATE::IpDadStatePreferred)
+				continue; // useless address
+			if (aip->Address.lpSockaddr->sa_family == AF_INET6)
+				locals.emplace_back(reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(aip->Address.lpSockaddr)->sin6_scope_id);
+			else if (aip->Address.lpSockaddr->sa_family == AF_INET)
+				locals.emplace_back(reinterpret_cast<struct sockaddr_in*>(aip->Address.lpSockaddr)->sin_addr);
 		}
 	}
+	return true;
+
 #elif !defined(__ANDROID__)
 	struct ifaddrs * ifAddrStruct = NULL;
 	if (getifaddrs(&ifAddrStruct) == -1) {
 		ex.set<Ex::Net::System>("Unable to run getifaddrs");
-		return;
+		return false;
 	}
 
 	for (struct ifaddrs * ifa = ifAddrStruct; ifa; ifa = ifa->ifa_next) {
@@ -505,17 +505,19 @@ IPAddress::LocalAddresses::LocalAddresses() {
 			continue;
 
 		if (ifa->ifa_addr->sa_family == AF_INET6)
-			emplace_back(reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_addr)->sin6_scope_id);
+			locals.emplace_back(reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(ifa->ifa_addr)->sin6_scope_id);
 		else if (ifa->ifa_addr->sa_family == AF_INET)
-			emplace_back(reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)->sin_addr);
+			locals.emplace_back(reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr)->sin_addr);
 	}
 	freeifaddrs(ifAddrStruct);
+	return true;
+
 #else // getifaddrs is not supported on Android so we use ioctl
 	// Create UDP socket
 	int fd = socket(AF_INET6, SOCK_STREAM, 0);
 	if (fd < 0) {
-		ex.set<Ex::Net::System>("Error in GetAdaptersAddresses call : ", fd);
-		return;
+		ex.set<Ex::Net::Socket>(Net::ErrorToMessage(fd)).code = fd;
+		return false;
 	}
 
 	// Get ip config
@@ -523,33 +525,32 @@ IPAddress::LocalAddresses::LocalAddresses() {
 	memset(&ifc, 0, sizeof(ifconf));
 
 	int res;
-	if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0)
-		ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF) call : ", res);
-	else {
+	if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) >= 0) {
 		Buffer buffer(ifc.ifc_len);
 		ifc.ifc_buf = (caddr_t)buffer.data();
-		if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) < 0)
-			ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF)  call : ", res);
-		else {
-
+		if ((res = ::ioctl(fd, SIOCGIFCONF, &ifc)) >= 0) {
 			// Read all addresses
 			struct ifreq * ifr = NULL;
 			for (int i = 0; i < ifc.ifc_len; i += sizeof(struct ifreq)) {
 				ifr = (struct ifreq *)(ifc.ifc_buf + i);
 
 				if (ifr->ifr_addr.sa_family == AF_INET6)
-					emplace_back(reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_scope_id);
+					locals.emplace_back(reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(&ifr->ifr_addr)->sin6_scope_id);
 				else if (ifr->ifr_addr.sa_family == AF_INET)
-					emplace_back(reinterpret_cast<struct sockaddr_in*>(&ifr->ifr_addr)->sin_addr);
+					locals.emplace_back(reinterpret_cast<struct sockaddr_in*>(&ifr->ifr_addr)->sin_addr);
 			}
-		}
-	}
+		} else
+			ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF)  call : ", res);
+	} else
+		ex.set<Ex::Net::System>("Error in ioctl(SIOCGIFCONF) call : ", res);
 
 	// close socket
-	if ((res = close(fd)) != 0)
-		ex.set<Ex::Net::System>("Error in Socket close call : ", res);
+	if ((fd = close(fd)))
+		ex.set<Ex::Net::Socket>(Net::ErrorToMessage(fd)).code = fd;
+	return res >= 0;
 #endif
 }
+
 
 struct IPBroadcaster : IPAddress {
 	IPBroadcaster() : IPAddress(IPv4) {
