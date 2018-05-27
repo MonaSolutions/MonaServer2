@@ -234,7 +234,7 @@ bool HTTPSession::manage() {
 	
 	// check subscription
 	if (_pSubscription) {
-		if (!this->timeout && !_pSubscription->streaming().isElapsed(timeout)) { // do just if timeout has been cancelled! (otherwise timeout is managed by session class)
+		if (!this->timeout && _pSubscription->streaming().isElapsed(timeout)) { // do just if timeout has been cancelled! (otherwise timeout is managed by session class)
 			INFO(name(), " timeout connection");
 			kill(ERROR_IDLE);
 			return false;

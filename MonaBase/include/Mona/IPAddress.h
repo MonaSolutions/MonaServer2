@@ -181,7 +181,7 @@ struct IPAddress : virtual Object {
 	/*!
 	Returns a list for all local IP addresses
 	/!\ expensive cost and time method */
-	static bool Locals(Exception& ex, std::vector<IPAddress>& locals);
+	static bool GetLocals(Exception& ex, std::vector<IPAddress>& locals);
 protected:
 	IPAddress(const sockaddr& addr);
 	IPAddress(const IPAddress& other, UInt16 port);

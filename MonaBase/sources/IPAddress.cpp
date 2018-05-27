@@ -464,7 +464,7 @@ private:
 // IPAddress
 //
 
-bool IPAddress::Locals(Exception& ex, std::vector<IPAddress>& locals) {
+bool IPAddress::GetLocals(Exception& ex, std::vector<IPAddress>& locals) {
 #if defined (_WIN32)
 	Buffer buffer(sizeof(IP_ADAPTER_ADDRESSES));
 	ULONG size = sizeof(IP_ADAPTER_ADDRESSES);

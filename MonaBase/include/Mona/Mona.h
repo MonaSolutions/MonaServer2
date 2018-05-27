@@ -164,11 +164,11 @@ inline ResultType distance(Type1 value1, Type2 value2) {
 	return abs(result) > ceil(std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max()/2.0) ? (value1 - value2) : result;
 }
 
-template<typename Type1, typename Type2, typename Type3, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
-inline ResultType distance(Type1 value1, Type2 value2, Type3 max, Type3 min=0) {
+template<typename Type1, typename Type2, typename TypeM = typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type, typename ResultType = typename std::make_signed<TypeM>::type>
+inline ResultType distance(Type1 value1, Type2 value2, TypeM max, TypeM min=0) {
 	ResultType result(value2 - value1);
-	max = max - min + 1;
-	if (abs(result) <= (max / 2))
+	max = TypeM(max - min + 1);
+	if (TypeM(Mona::abs(result)) <= (max / 2))
 		return result;
 	return result>0 ? (result - max) : (max + result);
 }

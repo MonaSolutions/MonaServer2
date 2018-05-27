@@ -230,13 +230,9 @@ void Media::Properties::onParamClear() {
 	Parameters::onParamClear();
 }
 
-const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
-	if (!type) {
-		// give the first available serialization
-		if (!_packets.empty())
-			return _packets[0];
-		type = Media::Data::TYPE_JSON; // JSON by Default!
-	}
+const Packet& Media::Properties::operator[](Media::Data::Type type) const {
+	if (!type)
+		return this->operator()(type);
 	// not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
 	_packets.resize(type);
 	Packet& packet(_packets[type - 1]);
@@ -249,6 +245,19 @@ const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
 	reader.read(*pWriter);
 	return packet.set(pBuffer);
 }
+const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
+	// give the first available serialization or serialize to JSON by default
+	UInt32 i = 0;
+	for (const Packet& packet : _packets) {
+		++i;
+		if (packet) {
+			type = (Media::Data::Type)i;
+			return packet;
+		}
+	}
+	return this->operator[](Media::Data::TYPE_JSON);
+}
+
 
 void Media::Properties::setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {
 	if (!track)
