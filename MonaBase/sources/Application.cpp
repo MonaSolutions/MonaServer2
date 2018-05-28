@@ -124,11 +124,13 @@ bool Application::init(int argc, const char* argv[]) {
 		}
 	}
 	Logs::SetLogger(*this); // Set Logger after opening _logStream!
-	DEBUG(hasKey("application.configPath") ? "Load configuration file " : "Impossible to load configuration file ", configPath)
 
 	// 5 - init version
-	if ((_version = defineVersion()))
+	if ((_version = defineVersion())) {
 		setString("application.version", _version);
+		INFO(file().baseName().c_str(), " v", _version);
+	}		
+	DEBUG(hasKey("application.configPath") ? "Load configuration file " : "Impossible to load configuration file ", configPath)
 
 	// 6 - define options
 	defineOptions(ex, _options);
@@ -139,13 +141,16 @@ bool Application::init(int argc, const char* argv[]) {
 	else if (ex)
 		WARN("Arguments, ",ex," use 'help'")
 
-	// 8 - behavior
+	// 7 - behavior
 	if (hasKey("arguments.help")) {
 		displayHelp();
 		return false;
 	}
-	if (_version && hasKey("arguments.version")) {
-		printf("v%s\n",_version);
+
+	// if "-v" just show version and exit
+	if (hasKey("arguments.version")) {
+		if (!_version)
+			INFO(file().baseName().c_str(), " (no version defined)");
 		return false;
 	}
 
@@ -186,9 +191,7 @@ void Application::defineOptions(Exception& ex, Options& options) {
 		.handler([this](Exception& ex, const string& value) { Logs::SetDumpLimit(String::ToNumber<Int32, -1>(ex, value)); return true; });
 
 	options.add(ex,"help", "h", "Displays help information about command-line usage.");
-
-	if(_version)
-		options.add(ex,"version", "v", "Displays application version.");
+	options.add(ex,"version", "v", "Displays application version.");
 }
 
 int Application::run(int argc, const char* argv[]) {
