@@ -129,10 +129,12 @@ bool Application::init(int argc, const char* argv[]) {
 	if ((_version = defineVersion())) {
 		setString("application.version", _version);
 		INFO(file().baseName().c_str(), " v", _version);
-	}		
+	}
+
+	// 6 - first logs
 	DEBUG(hasKey("application.configPath") ? "Load configuration file " : "Impossible to load configuration file ", configPath)
 
-	// 6 - define options
+	// 7 - define options
 	defineOptions(ex, _options);
 	if (ex)
         FATAL_ERROR(ex);
@@ -141,7 +143,7 @@ bool Application::init(int argc, const char* argv[]) {
 	else if (ex)
 		WARN("Arguments, ",ex," use 'help'")
 
-	// 7 - behavior
+	// 8 - behavior
 	if (hasKey("arguments.help")) {
 		displayHelp();
 		return false;
