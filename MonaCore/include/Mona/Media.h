@@ -266,11 +266,11 @@ struct Media : virtual Static {
 	static Media::Type TagType(const Video::Tag& tag) { return TYPE_VIDEO; }
 
 	struct Properties : Parameters, virtual Object {
-		const Packet& operator[](Media::Data::Type type) const;
-		const Packet& operator()(Media::Data::Type& type) const;
-
 		Properties() : _timeProperties(0) {}
 		Properties(const Media::Data& data);
+
+		const Packet& operator[](Media::Data::Type type) const;
+		const Packet& operator()(Media::Data::Type& type) const;
 
 		const Time& timeProperties() const { return _timeProperties; }
 

@@ -255,7 +255,7 @@ const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
 			return packet;
 		}
 	}
-	return this->operator[](Media::Data::TYPE_JSON);
+	return this->operator[](type=Media::Data::TYPE_JSON);
 }
 
 
