@@ -158,6 +158,11 @@ inline UInt32 abs(Int32 value) { return (UInt32)std::abs(value); }
 inline UInt16 abs(Int16 value) { return (UInt16)std::abs(value); }
 inline UInt8 abs(Int8 value) { return (UInt8)std::abs(value); }
 
+template <typename T>
+inline int sign(T val) {
+	return (T(0) < val) - (val < T(0));
+}
+
 template<typename Type1, typename Type2, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
 inline ResultType distance(Type1 value1, Type2 value2) {
 	ResultType result(value2 - value1);

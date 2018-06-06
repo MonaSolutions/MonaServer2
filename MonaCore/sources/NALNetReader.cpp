@@ -105,11 +105,11 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 			} else
 				flush = true;
 		} else {
-			_tag.frame = VideoType::UpdateFrame(_type, _tag.frame);
-			if (_tag.frame == Media::Video::FRAME_CONFIG)
+			if (VideoType::Frames[_type] == Media::Video::FRAME_CONFIG)
 				flushNal(source); // flush everything and wait the other config type
 			else if (_tag.time != time || _tag.compositionOffset != compositionOffset)
 				flushNal(source); // flush if time change
+			_tag.frame = VideoType::UpdateFrame(_type, _tag.frame);
 		}
 		if (_pNal) { // append to current NAL
 			// write NAL size

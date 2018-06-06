@@ -40,13 +40,13 @@ Media::Video::Frame AVC::UpdateFrame(UInt8 type, Media::Video::Frame frame) {
 	if (!frame)
 		return Media::Video::Frame(type); // change
 	switch (type) {
-	case Media::Video::FRAME_UNSPECIFIED:
-		return frame; // unchange
-	case Media::Video::FRAME_KEY:
-	case Media::Video::FRAME_CONFIG:
-	case Media::Video::FRAME_INTER:
-		return Media::Video::Frame(type); // change
-	default:; // inter, disposable, info (old frame) => disposable, info (new frame)
+		case Media::Video::FRAME_UNSPECIFIED:
+			return frame; // unchange
+		case Media::Video::FRAME_KEY:
+		case Media::Video::FRAME_CONFIG:
+		case Media::Video::FRAME_INTER:
+			return Media::Video::Frame(type); // change
+		default:; // inter, disposable, info (old frame) => disposable, info (new frame)
 	}
 	return (frame == Media::Video::FRAME_INTER || frame == Media::Video::FRAME_DISPOSABLE_INTER) ? frame : Media::Video::Frame(type);
 }
