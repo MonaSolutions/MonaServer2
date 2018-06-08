@@ -202,25 +202,9 @@ BinaryWriter& RTMFP::WriteAddress(BinaryWriter& writer, const SocketAddress& add
 	return writer.write(host.data(), host.size()).write16(address.port());
 }
 
-template<typename AddrType>
-static AddrType& ReadAddr(BinaryReader& reader, AddrType& addr) {
-	if (reader.available() < (sizeof(addr) + 2))
-		memset(&addr, 0, sizeof(addr));
-	else
-		memcpy(&addr, reader.current(), sizeof(addr));
-	reader.next(sizeof(addr));
-	return addr;
-}
-
 RTMFP::Location RTMFP::ReadAddress(BinaryReader& reader, SocketAddress& address) {
 	UInt8 type = reader.read8();
-	if (type & 0x80) {
-		in6_addr addr;
-		address.set(ReadAddr(reader, addr), reader.read16());
-	} else {
-		in_addr addr;
-		address.set(ReadAddr(reader, addr), reader.read16());
-	}
+	address.set(reader, type & 0x80 ? IPAddress::IPv6 : IPAddress::IPv4);
 	return address ? Location(type & 0x7F) : Location::LOCATION_UNSPECIFIED;
 }
 

@@ -43,6 +43,9 @@ struct SocketAddress : private IPAddress, virtual Object {
 	Create a SocketAddress from host and port number */
 	SocketAddress(const IPAddress& host, UInt16 port) : IPAddress(host, port) {}
 	/*!
+	Create a SocketAddress from binary data */
+	SocketAddress(BinaryReader& reader, Family family = IPv4) : IPAddress(reader, family) { setPort(reader.read16()); }
+	/*!
 	Set SocketAddress from a native socket address */
 	SocketAddress& set(const sockaddr& addr) { IPAddress::set(addr); return *this;}
 	/*!
@@ -58,6 +61,9 @@ struct SocketAddress : private IPAddress, virtual Object {
 	set SocketAddress from a given IP and a parsed port */
 	bool set(Exception& ex, const IPAddress& host, const std::string& port) { return set(ex, host, port.c_str()); }
 	bool set(Exception& ex, const IPAddress& host, const char* port);
+	/*!
+	Set SocketAddress from binary data */
+	SocketAddress& set(BinaryReader& reader, Family family = IPv4);
 	/*!
 	set SocketAddress from a parsed IP and a given port */
 	bool set(Exception& ex, const std::string& host, UInt16 port) { return setIntern(ex, host.c_str(), port, false); }

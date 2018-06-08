@@ -18,6 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Net.h"
+#include "Mona/BinaryReader.h"
 
 //
 // Automatically link Base library.
@@ -59,23 +60,27 @@ struct IPAddress : virtual Object {
 	IPAddress(Family family=IPv4);
 
 	IPAddress(const IPAddress& other);
-	IPAddress& set(const IPAddress& other);
+	IPAddress& set(const IPAddress& other) { return set(other, port()); }
 	IPAddress& operator=(const IPAddress& other) { return set(other); }
 
 	// Create/Set an IPAddress from a native internet address. A pointer to a in_addr or a in6_addr structure may be  passed. Additionally, for an IPv6 address, a scope ID may be specified.
 	IPAddress(const in_addr& addr);
 	IPAddress(const in6_addr& addr, UInt32 scope = 0);
-	IPAddress& set(const in_addr& addr);
-	IPAddress& set(const in6_addr& addr, UInt32 scope = 0);
+	IPAddress& set(const in_addr& addr) { return set(addr, port()); }
+	IPAddress& set(const in6_addr& addr, UInt32 scope = 0) { return set(addr, scope, port()); }
+
+	// Set an IPAddress from binary data
+	IPAddress(BinaryReader& reader, Family family = IPv4);
+	IPAddress& set(BinaryReader& reader, Family family = IPv4);
 
 	// Set an IPAddress from the string containing an IP address in presentation format (dotted decimal for IPv4, hex string for IPv6).
-	bool set(Exception& ex, const char* address);
+	bool set(Exception& ex, const char* address) { return set(ex, address, port()); }
 	bool set(Exception& ex, const std::string& address) { return set(ex, address.c_str()); }
 	bool setWithDNS(Exception& ex, const char* address)  { return setInternWithDNS(ex,address); }
 	bool setWithDNS(Exception& ex, const std::string& address)  { return setInternWithDNS(ex,address.c_str()); }
 
 	// Set an IPAddress from the string containing an IP address in presentation format (dotted decimal for IPv4, hex string for IPv6).
-	bool set(Exception& ex, const char* address, Family family);
+	bool set(Exception& ex, const char* address, Family family) { return set(ex, address, family, port()); }
 	bool set(Exception& ex, const std::string& address, Family family) { return set(ex, address.c_str(), family); }
 
 	IPAddress& reset();

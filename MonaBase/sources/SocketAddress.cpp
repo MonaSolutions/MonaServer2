@@ -31,6 +31,12 @@ bool SocketAddress::set(Exception& ex, const IPAddress& host, const char* servic
 	return true;
 }
 
+SocketAddress& SocketAddress::set(BinaryReader& reader, Family family) {
+	IPAddress::set(reader, family);
+	setPort(reader.read16());
+	return self;
+}
+
 bool SocketAddress::setIntern(Exception& ex, const char* host, const char* service, bool resolveHost) {
 	if(!service) // to solve the ambiguitis call between set(..., const char* port) and set(..., UInt16 port) when port = 0
 		return setIntern(ex, host, UInt16(0), resolveHost);

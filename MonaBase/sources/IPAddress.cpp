@@ -92,11 +92,11 @@ struct IPAddress::IPImpl {
 		return _addr;
 	}
 
-	bool portSet() const { return _portSet; }
-
 	bool setPort(UInt16 port) {
 		if (_portSet)
 			return port == this->port();
+		if(!port)
+			return true;
 		lock_guard<mutex> lock(_mutexPort);
 		if (_portSet)
 			return port == this->port();
@@ -125,59 +125,27 @@ protected:
 			computeIPv6(reinterpret_cast<in_addr&>(_addr.sin6_flowinfo));
 		}
 	}
-
-	IPImpl(const sockaddr_in6& addr, const in_addr& addrv4) : _stringized(false), _portSet(true) {
-		memcpy(&_addr, &addr, sizeof(addr));
-		_addr.sin6_flowinfo = addrv4.s_addr;
-	}
-	IPImpl(const in6_addr& addr, UInt32 scope) : _stringized(false), _portSet(false) {
+	IPImpl(const in_addr& addr, UInt16 port = 0) : _stringized(false), _portSet(port ? true : false) {
 		_addr.sin6_family = IPAddress::IPv6;
-		_addr.sin6_scope_id = Byte::To32Network(scope);
-		_addr.sin6_flowinfo = 0;
-		memcpy(&_addr.sin6_addr, &addr, sizeof(addr));
-	}
-	IPImpl(const in6_addr& addr, UInt32 scope, const in_addr& addrv4) : _stringized(false), _portSet(false) {
-		_addr.sin6_family = IPAddress::IPv6;
-		_addr.sin6_scope_id = Byte::To32Network(scope);
-		_addr.sin6_flowinfo = addrv4.s_addr;
-		memcpy(&_addr.sin6_addr, &addr, sizeof(addr));
-	}
-	IPImpl(const in6_addr& addr, UInt32 scope, UInt16 port) : _stringized(false), _portSet(true) {
-		_addr.sin6_family = IPAddress::IPv6;
-		_addr.sin6_port = Byte::To16Network(port);
-		_addr.sin6_scope_id = Byte::To32Network(scope);
-		_addr.sin6_flowinfo = 0;
-		memcpy(&_addr.sin6_addr, &addr, sizeof(addr));
-	}
-	IPImpl(const in6_addr& addr, UInt32 scope, UInt16 port, const in_addr& addrv4) : _stringized(false), _portSet(true) {
-		_addr.sin6_family = IPAddress::IPv6;
-		_addr.sin6_port = Byte::To16Network(port);
-		_addr.sin6_scope_id = Byte::To32Network(scope);
-		_addr.sin6_flowinfo = addrv4.s_addr;
-		memcpy(&_addr.sin6_addr, &addr, sizeof(addr));
-	}
-	IPImpl(const in_addr& addr) : _stringized(false), _portSet(false) {
-		_addr.sin6_family = IPAddress::IPv6;
+		if (port)
+			_addr.sin6_port = Byte::To16Network(port);
 		_addr.sin6_scope_id = 0;
 		_addr.sin6_flowinfo = addr.s_addr; // copy IPv4 in flowinfo!
 		computeIPv6(addr);
 	}
-	IPImpl(const in_addr& addr, UInt16 port) : _stringized(false), _portSet(true) {
+	IPImpl(const in6_addr& addr, UInt32 scope, UInt16 port=0) : _stringized(false), _portSet(port ? true : false) {
 		_addr.sin6_family = IPAddress::IPv6;
-		_addr.sin6_port = Byte::To16Network(port);
-		_addr.sin6_scope_id = 0;
-		_addr.sin6_flowinfo = addr.s_addr; // copy IPv4 in flowinfo!
-		computeIPv6(addr);
+		if (port)
+			_addr.sin6_port = Byte::To16Network(port);
+		_addr.sin6_scope_id = Byte::To32Network(scope);
+		_addr.sin6_flowinfo = 0;
+		memcpy(&_addr.sin6_addr, &addr, sizeof(addr));
 	}
-	IPImpl(const in_addr& addr, const in_addr& mask, const in_addr& set) : _stringized(false), _portSet(false) {
+	
+	IPImpl(const in_addr& addr, const in_addr& mask, const in_addr& set, UInt16 port=0) : _stringized(false), _portSet(port ? true : false) {
 		_addr.sin6_family = IPAddress::IPv6;
-		_addr.sin6_scope_id = 0;
-		_addr.sin6_flowinfo = (addr.s_addr & mask.s_addr) | (set.s_addr & ~mask.s_addr);
-		computeIPv6(addr);
-	}
-	IPImpl(const in_addr& addr, const in_addr& mask, const in_addr& set, UInt16 port) : _stringized(false), _portSet(true) {
-		_addr.sin6_family = IPAddress::IPv6;
-		_addr.sin6_port = Byte::To16Network(port);
+		if (port)
+			_addr.sin6_port = Byte::To16Network(port);
 		_addr.sin6_scope_id = 0;
 		_addr.sin6_flowinfo = (addr.s_addr & mask.s_addr) | (set.s_addr & ~mask.s_addr);
 		computeIPv6(addr);
@@ -222,10 +190,8 @@ private:
 struct IPAddress::IPv4Impl : IPAddress::IPImpl, virtual Object {
 	IPv4Impl() : IPImpl(IPAddress::IPv4) {} // Willcard
 	IPv4Impl(const sockaddr& addr) : IPImpl(addr) {}
-	IPv4Impl(const in_addr& addr) : IPImpl(addr) {}
-	IPv4Impl(const in_addr& addr, UInt16 port) : IPImpl(addr, port) {}
-	IPv4Impl(const in_addr& addr, const in_addr& mask, const in_addr& set) : IPImpl(addr, mask, set) {}
-	IPv4Impl(const in_addr& addr, const in_addr& mask, const in_addr& set, UInt16 port) : IPImpl(addr, mask, set, port) {}
+	IPv4Impl(const in_addr& addr, UInt16 port=0) : IPImpl(addr, port) {}
+	IPv4Impl(const in_addr& addr, const in_addr& mask, const in_addr& set, UInt16 port=0) : IPImpl(addr, mask, set, port) {}
 
 	const void*		data() const { return &ipv4(); }
 	UInt8			size() const { return sizeof(ipv4()); }
@@ -297,8 +263,7 @@ private:
 struct IPAddress::IPv6Impl : IPAddress::IPImpl, virtual Object {
 	IPv6Impl() : IPImpl(IPAddress::IPv6) {} // Willcard
 	IPv6Impl(const sockaddr& addr) : IPImpl(addr) {}
-	IPv6Impl(const in6_addr& addr, UInt32 scope) : IPImpl(addr, scope) {}
-	IPv6Impl(const in6_addr& addr, UInt32 scope, UInt16 port) : IPImpl(addr, scope, port) {}
+	IPv6Impl(const in6_addr& addr, UInt32 scope, UInt16 port=0) : IPImpl(addr, scope, port) {}
 
 	const void*		data() const { return &ipv6(); }
 	UInt8			size() const { return sizeof(ipv6()); }
@@ -582,6 +547,8 @@ IPAddress::IPAddress(Family family) : _pIPAddress(Wildcard(family)._pIPAddress) 
 IPAddress::IPAddress(const IPAddress& other) : _pIPAddress(other._pIPAddress) {}
 IPAddress::IPAddress(const IPAddress& other, UInt16 port) : _pIPAddress(other._pIPAddress) { setPort(port); }
 
+IPAddress::IPAddress(BinaryReader& reader, Family family) { set(reader, family);}
+
 IPAddress::IPAddress(const in_addr& addr) : _pIPAddress(new IPv4Impl(addr)) {}
 IPAddress::IPAddress(const in6_addr& addr, UInt32 scope) : _pIPAddress(new IPv6Impl(addr, scope)) {}
 
@@ -605,49 +572,33 @@ IPAddress& IPAddress::set(const sockaddr& addr) {
 	_pIPAddress.reset(IsIPv4Sock(addr) ? (IPImpl*)new IPv4Impl(addr) : (IPImpl*)new IPv6Impl(addr));
 	return *this;
 }
-
-IPAddress& IPAddress::set(const IPAddress& other) {
-	if (_pIPAddress->portSet())
-		return set(other, _pIPAddress->port());
-	_pIPAddress = other._pIPAddress;
-	return *this;
-}
-
 IPAddress& IPAddress::set(const IPAddress& other, UInt16 port) {
 	_pIPAddress = other._pIPAddress;
 	setPort(port);
-	return *this;
-}
-
-IPAddress& IPAddress::set(const in_addr& addr) {
-	if (_pIPAddress->portSet())
-		return set(addr, _pIPAddress->port());
-	_pIPAddress.reset(new IPv4Impl(addr));
 	return *this;
 }
 IPAddress& IPAddress::set(const in_addr& addr, UInt16 port) {
 	_pIPAddress.reset(new IPv4Impl(addr, port));
 	return *this;
 }
-
-IPAddress& IPAddress::set(const in6_addr& addr, UInt32 scope) {
-	if (_pIPAddress->portSet())
-		return set(addr, scope, _pIPAddress->port());
-	_pIPAddress.reset(new IPv6Impl(addr, scope));
-	return *this;
-}
 IPAddress& IPAddress::set(const in6_addr& addr, UInt32 scope, UInt16 port) {
 	_pIPAddress.reset(new IPv6Impl(addr, scope, port));
 	return *this;
 }
-
-bool IPAddress::set(Exception& ex, const char* address) {
-	if (_pIPAddress->portSet())
-		return set(ex, address, _pIPAddress->port());
-	if (IPv4Impl::Parse(address, _pIPAddress) || IPv6Impl::Parse(address, _pIPAddress))
-		return true;
-	ex.set<Ex::Net::Address::Ip>("Invalid ip ", address);
-	return false;
+IPAddress& IPAddress::set(BinaryReader& reader, Family family) {
+	UInt8 size;
+	if (family == IPv6) {
+		in6_addr addr;
+		memcpy(&addr, reader.current(), size = min(reader.available(), sizeof(addr)));
+		memset(&addr + size, 0, size - reader.next(sizeof(addr)));
+		_pIPAddress.reset(new IPv6Impl(addr, 0, _pIPAddress ? _pIPAddress->port() : 0)); // check _pIPAddress because can be called by constructor
+	} else {
+		in_addr addr;
+		memcpy(&addr, reader.current(), size = min(reader.available(), sizeof(addr)));
+		memset(&addr + size, 0, size - reader.next(sizeof(addr)));
+		_pIPAddress.reset(new IPv4Impl(addr, _pIPAddress ? _pIPAddress->port() : 0)); // check _pIPAddress because can be called by constructor
+	}
+	return self;
 }
 bool IPAddress::set(Exception& ex, const char* address, UInt16 port) {
 	if (!IPv4Impl::Parse(address, _pIPAddress) && !IPv6Impl::Parse(address, _pIPAddress)) {
@@ -656,18 +607,6 @@ bool IPAddress::set(Exception& ex, const char* address, UInt16 port) {
 	}
 	_pIPAddress->setPort(port);
 	return true;
-}
-
-bool IPAddress::set(Exception& ex, const char* address, Family family) {
-	if (_pIPAddress->portSet())
-		return set(ex, address, family, _pIPAddress->port());
-	if (family == IPv6) {
-		if (IPv6Impl::Parse(address, _pIPAddress))
-			return true;
-	} else if (IPv4Impl::Parse(address, _pIPAddress))
-		return true;
-	ex.set<Ex::Net::Address::Ip>("Invalid", family == IPv6 ? " IPv6 " : " IPv4 ", address);
-	return false;
 }
 bool IPAddress::set(Exception& ex, const char* address, Family family, UInt16 port) {
 	if (family == IPv6) {
@@ -708,10 +647,7 @@ bool IPAddress::mask(Exception& ex, const IPAddress& mask, const IPAddress& set)
 		ex.set<Ex::Net::Address::Ip>("IPAddress mask operation is available just between IPv4 addresses (address=", *this, ", mask=", mask, ", set=", set, ")");
 		return false;
 	}
-	if (_pIPAddress->portSet())
-		_pIPAddress.reset(new IPv4Impl(_pIPAddress->ipv4(), mask._pIPAddress->ipv4(), set._pIPAddress->ipv4(), _pIPAddress->port()));
-	else
-		_pIPAddress.reset(new IPv4Impl(_pIPAddress->ipv4(), mask._pIPAddress->ipv4(), set._pIPAddress->ipv4()));
+	_pIPAddress.reset(new IPv4Impl(_pIPAddress->ipv4(), mask._pIPAddress->ipv4(), set._pIPAddress->ipv4(), _pIPAddress->port()));
 	return true;
 }
 
