@@ -40,14 +40,14 @@ Int32 Session::ToError(const Exception& ex) {
 
 Session::Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name) : _pPeer(pPeer), peer(*pPeer),
 	_protocol(protocol), _name(name ? name : ""), api(protocol.api), died(false), _id(0), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
-	init(*this);
+	init(self);
 }
 	
 Session::Session(Protocol& protocol, const SocketAddress& address, const char* name) : peer(*new Peer(protocol.api, protocol.name)),
 	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
 	_pPeer.reset(&peer);
 	peer.setAddress(address);
-	init(*this);
+	init(self);
 }
 
 Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer), peer(*session._pPeer),
@@ -61,7 +61,8 @@ Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer),
 }
 
 void Session::init(Session& session) {
-	peer.setServerAddress(_protocol.address);
+	if(!peer.serverAddress) // set serverAddress if not already set
+		peer.setServerAddress(_protocol.address);
 	peer.onParameters = [this, &session](Parameters& parameters) {
 		struct Params : Parameters {
 			Params(Protocol& protocol, Parameters& parameters) : protocol(protocol), Parameters(move(parameters)) {}
