@@ -40,6 +40,7 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		{ "srt",{ TYPE_TEXT, "plain; charset=utf-8" } },
 		{ "csv",{ TYPE_TEXT, "csv" } },
 		{ "css",{ TYPE_TEXT, "css" } },
+		{ "wasm",{ TYPE_APPLICATION, "wasm" } },
 		{ "js", { TYPE_APPLICATION, "javascript"} }, // utf8 not required, done in HTML inclusion => <script src="/test.js" charset="utf-8"></script>
 		{ "mona", { TYPE_VIDEO, "mona" } },
 		{ "flv", { TYPE_VIDEO, "x-flv"} },
