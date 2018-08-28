@@ -457,7 +457,7 @@ bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& par
 	DataReader* pReader = hasContent ? Media::Data::NewReader(Media::Data::ToType(request->subMime), request) : &parameters;
 	if (!pReader)
 		pReader = new StringReader(request.data(), request.size());
-	else if (!name) {
+	if (!name) {
 		pReader->readString(method);
 		name = method.c_str();
 	}
