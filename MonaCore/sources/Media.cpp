@@ -149,7 +149,9 @@ BinaryWriter& Media::Pack(BinaryWriter& writer, Media::Data::Type type, UInt8 tr
 	// DATA => 0NTTTTTT [NNNNNNNN]
 	/// N = track
 	/// T = type
-	return writer.write8((track ? 0x40 : 0) | (type & 0x3F));
+	if(!track)
+		return writer.write8(type & 0x3F);
+	return writer.write8(0x40 | (type & 0x3F)).write8(track);
 }
 
 Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& video, Data::Type& data, UInt8& track) {
@@ -200,15 +202,15 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 			video.time = reader.read32();
 			return Media::TYPE_VIDEO;
 
+	// DATA => 0NTTTTTT [NNNNNNNN]
+	/// N = track
+	/// T = type
 		case Media::TYPE_DATA:
 			track = reader.read8();
 			break;
 		default:
 			track = 0;
 	}
-	// DATA => 0NTTTTTT [NNNNNNNN]
-	/// N = track
-	/// T = type
 	data = Data::Type(value & 0x3F);
 	return Media::TYPE_DATA;
 }
