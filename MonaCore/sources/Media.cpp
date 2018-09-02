@@ -283,7 +283,7 @@ void Media::Properties::setProperties(UInt8 track, Media::Data::Type type, const
 
 	// Save packet formatted!
 	_packets.resize(type);
-	_packets[type - 1].set(packet);
+	_packets[type - 1].set(move(packet));
 }
 
 
