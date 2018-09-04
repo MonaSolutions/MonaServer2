@@ -22,15 +22,23 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/SocketAddress.h"
 #include "Mona/Packet.h"
 #include "Mona/Entity.h"
+#include "Mona/Timer.h"
 
 namespace Mona {
 
 struct RendezVous : virtual Object {
-	RendezVous();
+	RendezVous(const Timer& timer);
+	virtual ~RendezVous();
 
+	/*!
+	Create manually a redirection to a existing peer */
 	void setRedirection(const UInt8* peerId, std::map<SocketAddress, bool>& addresses);
-	void setRedirection(const Packet& peerId, std::map<SocketAddress, bool>& addresses, UInt32 timeout);
+	/*!
+	Remove manually a redirection to a removing peer */
 	void eraseRedirection(const UInt8* peerId);
+	/*!
+	Create a volatile and temporary redirection */
+	void setRedirection(const Packet& peerId, std::map<SocketAddress, bool>& addresses, UInt32 timeout);
 
 	template<typename DataType=void>
 	void set(const UInt8* peerId, const SocketAddress& address, const SocketAddress& serverAddress, DataType* pData = NULL) { std::set<SocketAddress> addresses; setIntern(peerId, address, serverAddress, addresses, pData); }
@@ -47,14 +55,17 @@ struct RendezVous : virtual Object {
 
 private:
 	struct Redirection : std::map<SocketAddress, bool>, virtual Object {
-		NULLABLE
-		Redirection() : timeout(0) {}
-		operator bool() const { return !timeout || !_time.isElapsed(timeout); }
-		UInt32					timeout;
-		void set(std::map<SocketAddress, bool>& addresses, const Packet& packet = Packet::Null()) { std::map<SocketAddress, bool>::operator=(std::move(addresses)); _packet.set(std::move(packet)); }
+		Redirection() : _timeout(0) {}
+		bool obsolete(const Time& now) const { return _timeout && (now - _time) > _timeout; }
+		void set(std::map<SocketAddress, bool>& addresses, const Packet& packet = Packet::Null(), UInt32 timeout = 0) { 
+			std::map<SocketAddress, bool>::operator=(std::move(addresses)); _packet.set(std::move(packet)); _timeout = timeout; _time.update(); 
+		}
+
 	private:
 		Time   _time;
 		Packet _packet;
+		UInt32	_timeout;
+
 	};
 	struct Peer : virtual Object {
 		SocketAddress			address;
@@ -65,13 +76,12 @@ private:
 	void  setIntern(const UInt8* peerId, const SocketAddress& address, const SocketAddress& serverAddress, std::set<SocketAddress>& addresses, void* pData);
 	void* meetIntern(const SocketAddress& aAddress, const UInt8* bPeerId, std::map<SocketAddress, bool>& aAddresses, SocketAddress& bAddress, std::map<SocketAddress, bool>& bAddresses);
 
-	
-	std::function<bool(const UInt8*, std::map<const UInt8*, Redirection, Entity::Comparator>::iterator&)> _checkRedirection;
-	std::mutex _mutex;
+	std::mutex													_mutex;
 	std::map<const UInt8*, Redirection, Entity::Comparator>		_redirections;
 	std::map<const UInt8*, Peer, Entity::Comparator>			_peers;
 	std::map<SocketAddress, Peer*>								_peersByAddress;
-		
+	const Timer&												_timer;
+	Timer::OnTimer												_onTimer;
 };
 
 }  // namespace Mona

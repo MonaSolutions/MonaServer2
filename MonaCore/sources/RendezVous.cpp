@@ -25,21 +25,37 @@ using namespace std;
 
 namespace Mona {
 
-RendezVous::RendezVous() :
-	_checkRedirection([this](const UInt8* keySearched, map<const UInt8*, Redirection, Entity::Comparator>::iterator& it) {
-		return memcmp(keySearched, it->first, Entity::SIZE) == 0 || it->second; // if current searched or is valid!
+RendezVous::RendezVous(const Timer& timer) : _timer(timer),
+	_onTimer([this](UInt32)->UInt32 {
+		lock_guard<mutex> lock(_mutex);
+
+		Time now; // get time just once for performance
+		// remove obsolete redirections
+		auto it = _redirections.begin();
+		while (it != _redirections.end()) {
+			if (it->second.obsolete(now))
+				it = _redirections.erase(it);
+			else
+				++it;
+		}
+		return 15000;
 	}) {
+	_timer.set(_onTimer, 15000); // 15s is sufficient
+}
+
+RendezVous::~RendezVous() {
+	_timer.set(_onTimer, 0);
 }
 
 void RendezVous::setRedirection(const UInt8* peerId, map<SocketAddress, bool>& addresses) {
 	lock_guard<mutex> lock(_mutex);
 	_redirections[peerId].set(addresses);
 }
+
 void RendezVous::setRedirection(const Packet& peerId, map<SocketAddress, bool>& addresses, UInt32 timeout) {
 	lock_guard<mutex> lock(_mutex);
 	Redirection& redirection = _redirections[peerId.data()];
-	redirection.set(addresses, peerId);
-	redirection.timeout = timeout;
+	redirection.set(addresses, peerId, timeout);
 }
 void RendezVous::eraseRedirection(const UInt8* peerId) {
 	lock_guard<mutex> lock(_mutex);
