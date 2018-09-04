@@ -29,12 +29,12 @@ using namespace std;
 namespace Mona {
 
 FlashStream::FlashStream(UInt16 id, ServerAPI& api, Peer& peer, bool amf0) : amf0(amf0), id(id), api(api), peer(peer), _pPublication(NULL), _pSubscription(NULL), _bufferTime(0) {
-	DEBUG("FlashStream ",id," created")
+	DEBUG("FlashStream ", id," created")
 }
 
 FlashStream::~FlashStream() {
 	disengage(NULL);
-	DEBUG("FlashStream ",id," deleted")
+	DEBUG("FlashStream ", name()," deleted")
 }
 
 void FlashStream::flush() {
@@ -127,22 +127,21 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 
 UInt32 FlashStream::bufferTime(UInt32 ms) {
 	_bufferTime = ms;
-	INFO("setBufferTime ", ms, "ms on stream ",id)
+	INFO("setBufferTime ", ms, "ms on stream ", name())
 	if (_pSubscription)
 		_pSubscription->setNumber("bufferTime", ms);
 	return _bufferTime;
 }
 
-void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWriter& writer, Net::Stats& netStats) {
-	if (name == "play") {
+void FlashStream::messageHandler(const string& method, AMFReader& message, FlashWriter& writer, Net::Stats& netStats) {
+	if (method == "play") {
 		disengage(&writer);
 
-		string stream;
-		message.readString(stream);
+		message.readString(_name);
 		Exception ex;
 		_pSubscription = new Subscription(writer);
 		
-		if (!api.subscribe(ex, stream, peer, *_pSubscription)) {
+		if (!api.subscribe(ex, _name, peer, *_pSubscription)) {
 			if(ex.cast<Ex::Unfound>())
 				writer.writeAMFStatus("NetStream.Play.StreamNotFound", "error", ex);
 			else
@@ -153,8 +152,8 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 		}
 
 		onStart(id, writer); // stream begin
-		writer.writeAMFStatus("NetStream.Play.Reset", "Playing and resetting " + stream); // for entiere playlist
-		writer.writeAMFStatus("NetStream.Play.Start", "Started playing "+ stream); // for item
+		writer.writeAMFStatus("NetStream.Play.Reset", "Playing and resetting " + _name); // for entiere playlist
+		writer.writeAMFStatus("NetStream.Play.Start", "Started playing "+ _name); // for item
 		AMFWriter& amf(writer.writeAMFData("|RtmpSampleAccess"));
 		amf.writeBoolean(true); // audioSampleAccess
 		amf.writeBoolean(true); // videoSampleAccess
@@ -165,38 +164,38 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 		return;
 	}
 	
-	if (name == "closeStream") {
+	if (method == "closeStream") {
 		disengage(&writer);
 		return;
 	}
 	
-	if (name == "publish") {
+	if (method == "publish") {
 
 		disengage(&writer);
 
-		string type, stream;
-		message.readString(stream);
+		string type;
+		message.readString(_name);
 		if (message.readString(type)) {
 			if(String::ICompare(type, EXPAND("append"))==0) {
-				stream += stream.find('?') == string::npos ? '?' : '&';
-				stream += "append=true";
+				_name += _name.find('?') == string::npos ? '?' : '&';
+				_name += "append=true";
 			} else if (String::ICompare(type, EXPAND("record")) == 0) {
 				// if stream has no extension, add a FLV extension!
-				size_t found = stream.find('?');
-				size_t point = stream.find_last_of('.', found);
+				size_t found = _name.find('?');
+				size_t point = _name.find_last_of('.', found);
 				if (point == string::npos) {
 					if (found == string::npos)
-						stream += ".flv";
+						_name += ".flv";
 					else
-						stream.insert(found, ".flv");
+						_name.insert(found, ".flv");
 				}
 			}
 		};
 
 		Exception ex;
-		_pPublication = api.publish(ex, peer, stream);
+		_pPublication = api.publish(ex, peer, _name);
 		if (_pPublication) {
-			writer.writeAMFStatus("NetStream.Publish.Start", stream + " is now published");
+			writer.writeAMFStatus("NetStream.Publish.Start", _name + " is now published");
 			_audioTrack = _videoTrack = 1;
 			_audioConfig.reset();
 			_dataTrack = 0;
@@ -206,7 +205,7 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 					writer.writeAMFStatus("NetStream.Record.Stop", _pPublication->name() + " recording stopped");
 					writer.flush();
 				};
-				writer.writeAMFStatus("NetStream.Record.Start", stream + " recording started");
+				writer.writeAMFStatus("NetStream.Record.Start", _name + " recording started");
 			} else if (ex) {
 				// recording pb!
 				if (ex.cast<Ex::Unsupported>())
@@ -221,21 +220,21 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 	
 	if (_pSubscription) {
 
-		if(name == "receiveAudio") {
+		if(method == "receiveAudio") {
 			bool enable(true);
 			message.readBoolean(enable);
 			_pSubscription->setBoolean("audio", enable);
 			return;
 		}
 		
-		if (name == "receiveVideo") {
+		if (method == "receiveVideo") {
 			bool enable(true);
 			message.readBoolean(enable);
 			_pSubscription->setBoolean("video", enable);
 			return;
 		}
 		
-		if (name == "pause") {
+		if (method == "pause") {
 			bool paused(true);
 			message.readBoolean(paused);
 			// TODO support pause for VOD
@@ -254,7 +253,7 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 			return;
 		}
 		
-		if (name == "seek") {
+		if (method == "seek") {
 			UInt32 position;
 			if (message.readNumber(position)) {
 				_pSubscription->setNumber("time", position);
@@ -268,7 +267,7 @@ void FlashStream::messageHandler(const string& name, AMFReader& message, FlashWr
 		}
 	}
 
-	ERROR("Message '",name,"' unknown on stream ",id);
+	ERROR("Message '", method,"' unknown on stream ", name());
 }
 
 void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
@@ -276,7 +275,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 		return; // to expect recursivity of dataHandler (see code below)
 
 	if(!_pPublication) {
-		ERROR("a data packet has been received on a no publishing stream ",id,", certainly a publication currently closing");
+		ERROR("a data packet has been received on a no publishing stream ", name(),", certainly a publication currently closing");
 		return;
 	}
 
@@ -372,12 +371,12 @@ void FlashStream::rawHandler(UInt16 type, const Packet& packet, FlashWriter& wri
 		//TRACE("Sync ",id," : ",data.read32(),"/",data.read32());
 		return;
 	}
-	ERROR("Raw message ",String::Format<UInt16>("%.4x",type)," unknown on stream ",id);
+	ERROR("Raw message ",String::Format<UInt16>("%.4x",type)," unknown on stream ", name());
 }
 
 void FlashStream::audioHandler(UInt32 timestamp, const Packet& packet) {
 	if(!_pPublication) {
-		WARN("an audio packet has been received on a no publishing stream ",id,", certainly a publication currently closing");
+		WARN("an audio packet has been received on a no publishing stream ", name(),", certainly a publication currently closing");
 		return;
 	}
 
@@ -387,7 +386,7 @@ void FlashStream::audioHandler(UInt32 timestamp, const Packet& packet) {
 
 void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
 	if(!_pPublication) {
-		WARN("a video packet has been received on a no publishing stream ",id,", certainly a publication currently closing");
+		WARN("a video packet has been received on a no publishing stream ", name(),", certainly a publication currently closing");
 		return;
 	}
 

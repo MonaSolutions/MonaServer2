@@ -35,6 +35,7 @@ struct FlashStream : virtual Object {
 
 	const UInt16	id;
 
+	const std::string& name() { return _name.empty()? String::Assign(_name, "id=", id) : _name; }
 	UInt32	bufferTime(UInt32 ms);
 	UInt32	bufferTime() const { return _bufferTime; }
 
@@ -70,6 +71,7 @@ private:
 	Media::Audio::Tag	 _audio;
 	Media::Audio::Config _audioConfig;
 	Media::Video::Tag	 _video;
+	std::string			 _name; // last assigned stream name (publication/subscription)
 
 	// Use class variable for media tag to use the previous value of its properties if packet is empty (can happen for audio for example)
 	
