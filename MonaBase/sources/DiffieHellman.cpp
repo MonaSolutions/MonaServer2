@@ -108,11 +108,11 @@ UInt8 DiffieHellman::computeSecret(Exception& ex, const UInt8* farPubKey, UInt32
 		return 0;
 	BIGNUM *bnFarPubKey = BN_bin2bn(farPubKey,farPubKeySize,NULL);
 	int size = DH_compute_key(sharedSecret, bnFarPubKey, _pDH);
+	BN_free(bnFarPubKey);
 	if (size <= 0) {
 		ex.set<Ex::Extern::Crypto>("Diffie Hellman exchange failed, DH compute key error");
 		return 0;
 	}
-	BN_free(bnFarPubKey);
 	return size;
 }
 
