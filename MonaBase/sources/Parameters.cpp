@@ -111,9 +111,9 @@ Parameters& Parameters::clear(const string& prefix) {
 		auto itEnd = _pMap->lower_bound(end);
 		if (it != _pMap->begin() || itEnd != _pMap->end()) {
 			// partial erase
-			for (; it != itEnd; ++it) {
+			while (it != itEnd) {
 				string key(move(it->first));
-				_pMap->erase(it);
+				it = _pMap->erase(it);
 				onParamChange(key, NULL);
 			}
 			return self;
