@@ -61,7 +61,7 @@ ADD_TEST(parameters) {
 	CHECK(size == 3);
 }
 
-bool TestDistance(UInt32 distance, UInt32 p1, UInt32 p2, UInt32 max, UInt32 min = 0) {
+bool TestDistance(Int32 distance, UInt32 p1, UInt32 p2, UInt32 max, UInt32 min = 0) {
 	Int32 result = Mona::distance(p1, p2, max, min);
 	if (distance == result)
 		return distance == -Mona::distance(p2, p1, max, min);

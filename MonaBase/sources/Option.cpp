@@ -30,20 +30,19 @@ Option::Option(const char* fullName, const char* shortName) :
 }
 
 
-Option::Option(const char* fullName, const char* shortName, const string& description, bool required) :
+Option::Option(const char* fullName, const char* shortName, string&& description, bool required) :
 	_shortName(shortName ? shortName : ""),
 	_fullName(fullName ? fullName : ""),
-	_description(description),
+	_description(move(description)),
 	_required(required),
 	_repeatable(false),
 	_argRequired(false) {
 }
 
-
-Option::Option(const char* fullName, const char* shortName, const string& description, bool required, const string& argName, bool argRequired) :
+Option::Option(const char* fullName, const char* shortName, string&& description, bool required, const string& argName, bool argRequired) :
 	_shortName(shortName),
 	_fullName(fullName),
-	_description(description),
+	_description(move(description)),
 	_required(required),
 	_repeatable(false),
 	_argName(argName),

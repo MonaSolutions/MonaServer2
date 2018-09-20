@@ -21,6 +21,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/ByteRate.h"
 #include "Mona/Packet.h"
 #include "Mona/Handler.h"
+#include "Mona/Parameters.h"
 #include <deque>
 
 namespace Mona {
@@ -82,6 +83,8 @@ struct Socket : virtual Object, Net::Stats {
 	
 	const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }
+
+	bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net");
 
 	bool setSendBufferSize(Exception& ex, int size);
 	bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex,SOL_SOCKET, SO_SNDBUF, size); }

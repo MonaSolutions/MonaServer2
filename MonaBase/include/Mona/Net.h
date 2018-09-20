@@ -202,9 +202,11 @@ struct Net : virtual Object {
 
 
 	static UInt32 GetRecvBufferSize() { return _Net._recvBufferSize; }
-	static void   SetRecvBufferSize(UInt32 size) { _Net._recvBufferSize= size; }
+	static void   SetRecvBufferSize(UInt32 size) { _Net._recvBufferSize = size; }
+	static void	  ResetRecvBufferSize() { _Net._recvBufferSize = _Net._recvBufferDefaultSize; }
 	static UInt32 GetSendBufferSize() { return _Net._sendBufferSize; }
 	static void	  SetSendBufferSize(UInt32 size) { _Net._sendBufferSize = size; }
+	static void	  ResetSendBufferSize() { _Net._sendBufferSize = _Net._sendBufferDefaultSize; }
 
 	static UInt32 GetInterfaceIndex(const SocketAddress& address);
 
@@ -236,6 +238,8 @@ private:
 
 	std::atomic<UInt32> _recvBufferSize;
 	std::atomic<UInt32> _sendBufferSize;
+	int					_recvBufferDefaultSize;
+	int					_sendBufferDefaultSize;
 
 	static Net _Net;
 };

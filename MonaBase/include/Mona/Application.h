@@ -22,6 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/HelpFormatter.h"
 #include "Mona/Logger.h"
 #include "Mona/File.h"
+#include "Mona/Util.h"
 #include <iostream>
 
 namespace Mona {
@@ -47,12 +48,14 @@ struct Application : Parameters, private Logger, virtual Object {
 		EXIT_CONFIG = 78,  /// configuration error
 	};
 
+	const std::string&		name() const { return _name; }
+	const char*				description() const { return _description; }
 
 	const Path&				file() const { return _file; }
 
 	const Options&			options() const { return _options; }
 
-	virtual void			displayHelp() { HelpFormatter::Format(std::cout, _file.c_str(), options()); }
+	virtual void			displayHelp() { HelpFormatter::Format(std::cout, _file.name().c_str(), description(), options()); }
 	const char*				version() { return _version; }
 
     int						run(int argc, const char* argv[]);
@@ -66,32 +69,35 @@ protected:
 	virtual int				main() = 0;
 
 	// Can be override to change load behavior + path location
-	virtual bool			loadConfigurations(Path& path);
-	virtual bool			loadLogFiles(std::string& directory, std::string& fileName, UInt32& sizeByFile, UInt16& rotation);
+	virtual bool			loadConfigurations(Path& path) { return Util::ReadIniFile(path, self); }
+	virtual bool			loadLogFiles(std::string& directory, UInt32& sizeByFile, UInt16& rotation);
 	virtual const char*		defineVersion() { return NULL; }
 	virtual void			defineOptions(Exception& ex, Options& options);
 
 	virtual void			log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
 	virtual void			dump(const std::string& header, const UInt8* data, UInt32 size);
 	
+
+	virtual void			onParamChange(const std::string& key, const std::string* pValue);
+	virtual void			onParamClear();
 private:
 #if !defined(_WIN32)
 	static void HandleSignal(int sig);
 #endif
 
+	void					manageLogFiles(UInt32 written);
 
-	void			manageLogFiles();
-
-	std::vector<std::string>    _args;
 	Options						_options;
 	Path						_file;
 	const char*					_version;
+	std::string					_name;
+	const char*					_description;
 
 	// logs
 	UInt32						_logSizeByFile;
 	UInt16						_logRotation;
-	std::string					_logPath;
 	std::unique_ptr<File>		_pLogFile;
+	UInt32						_logWritten;
 };
 
 

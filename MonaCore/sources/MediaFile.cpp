@@ -105,7 +105,7 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 	_onFileError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 }
 
-void MediaFile::Reader::start() {
+void MediaFile::Reader::start(const Parameters& parameters) {
 	if (!_pSource) {
 		Stream::stop<Ex::Intern>(LOG_ERROR, "call start(Media::Source& source) in first");
 		return;
@@ -162,7 +162,7 @@ MediaFile::Writer::Writer(const Path& path, MediaWriter* pWriter, IOFile& io) :
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 }
  
-void MediaFile::Writer::start() {
+void MediaFile::Writer::start(const Parameters& parameters) {
 	_running = true;
 }
 

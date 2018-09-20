@@ -106,14 +106,13 @@ Net::Net() {
 	NET_SOCKET sockfd;;
 	if ((sockfd = ::socket(AF_INET, SOCK_DGRAM, 0)) == NET_INVALID_SOCKET || ::connect(sockfd, (const sockaddr*)&address, sizeof(address)))
 		FATAL_ERROR("Impossible to initialize socket system, ", Net::LastErrorMessage());
-	int size;
-	NET_SOCKLEN length(sizeof(size));
-	if (::getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<char*>(&size), &length) == -1)
+	NET_SOCKLEN length(sizeof(_recvBufferDefaultSize));
+	if (::getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<char*>(&_recvBufferDefaultSize), &length) == -1)
 		FATAL_ERROR("Impossible to initialize socket receiving buffer size, ", Net::LastErrorMessage());
-	_recvBufferSize = size;
-	if (::getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<char*>(&size), &length) == -1)
+	_recvBufferSize = _recvBufferDefaultSize;
+	if (::getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<char*>(&_sendBufferDefaultSize), &length) == -1)
 		FATAL_ERROR("Impossible to initialize socket sending buffer size, ", Net::LastErrorMessage());
-	_sendBufferSize = size;
+	_sendBufferSize = _sendBufferDefaultSize;
 	NET_CLOSESOCKET(sockfd);
 }
 

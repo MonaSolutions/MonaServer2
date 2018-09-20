@@ -52,7 +52,6 @@ protected:
 	virtual void onParameters(const Parameters& parameters);
 
 private:
-	void setSocketParameters(Socket& socket, const Parameters& parameters);
 
 	UInt16 _sendingTrack;
 };

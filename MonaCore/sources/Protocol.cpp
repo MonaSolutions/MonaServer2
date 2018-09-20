@@ -23,7 +23,6 @@ using namespace std;
 
 namespace Mona {
 
-
 Protocol::Protocol(const char* name, ServerAPI& api, Sessions& sessions) :
 	name(name), api(api), sessions(sessions) {
 }
@@ -43,19 +42,9 @@ const char* Protocol::onParamUnfound(const string& key) const {
 
 bool Protocol::load(Exception& ex) {
 	if (_pSocket) {
-		UInt32 bufferSize;
 		Exception ex;
-		if (getNumber("bufferSize", bufferSize)) {
-			AUTO_ERROR(_pSocket->setRecvBufferSize(ex, bufferSize), name, " receiving buffer setting");
-			AUTO_ERROR(_pSocket->setSendBufferSize(ex = nullptr, bufferSize), name, " sending buffer setting");
-		}
-		if (getNumber("recvBufferSize", bufferSize))
-			AUTO_ERROR(_pSocket->setRecvBufferSize(ex = nullptr, bufferSize), name, " receiving buffer setting");
-		if (getNumber("sendBufferSize", bufferSize))
-			AUTO_ERROR(_pSocket->setSendBufferSize(ex = nullptr, bufferSize), name, " sending buffer setting");
-
-		DEBUG(name, " receiving buffer size of ", _pSocket->recvBufferSize(), " bytes");
-		DEBUG(name, " sending buffer size of ", _pSocket->sendBufferSize(), " bytes");
+		AUTO_ERROR(_pSocket->processParams(ex, self), name, " socket configuration");
+		DEBUG(name, " socket buffers set to ", _pSocket->recvBufferSize(), "B in reception and ", _pSocket->sendBufferSize(),"B in sends");
 	}
 	return true;
 }

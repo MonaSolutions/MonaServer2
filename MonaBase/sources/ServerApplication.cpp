@@ -18,10 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/ServerApplication.h"
 #include "Mona/Exceptions.h"
 #include "Mona/HelpFormatter.h"
-#if defined(_WIN32)
-#include "Mona/WinService.h"
-#include "Mona/WinRegistryKey.h"
-#else
+#if !defined(_WIN32)
 #include "Mona/Process.h"
 #include "Mona/File.h"
 #include <stdlib.h>
@@ -125,26 +122,29 @@ int ServerApplication::run(int argc, const char** argv) {
 #if !defined(_DEBUG)
 	try {
 #endif
-		if (!hasConsole() && isService())
-			return 0;
+		if (argc==2 && FileSystem::IsFolder(argv[1]) && !hasConsole()) {
+			// is service just if no console + argc==2 + arv[1] is the current folder (see WinService::registerService)
+			SERVICE_TABLE_ENTRY svcDispatchTable[2];
+			svcDispatchTable[0].lpServiceName = "";
+			svcDispatchTable[0].lpServiceProc = ServiceMain;
+			svcDispatchTable[1].lpServiceName = NULL;
+			svcDispatchTable[1].lpServiceProc = NULL;
+			// is service, change current directory!
+			if (!SetCurrentDirectory(argv[1]))
+				FATAL_ERROR("Cannot set current directory of ", argv[0]); // useless to continue, the application could not report directory error (no logs, no init, etc...)
+			return StartServiceCtrlDispatcherA(svcDispatchTable) ? EXIT_OK : EXIT_CONFIG;
+		}
 
 		SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
 
 		if (!init(argc, argv))
 			return EXIT_OK;
-		Exception ex;
-		if (hasKey("arguments.registerService")) {
-			bool success = false;
-			AUTO_ERROR(success = registerService(ex), "RegisterService")
-			if (success)
-				NOTE("The application has been successfully registered as a service");
+		if (_service) {
+			registerService();
 			return EXIT_OK;
 		}
 		if (hasKey("arguments.unregisterService")) {
-			bool success = false;
-			AUTO_ERROR(success = unregisterService(ex), "UnregisterService")
-			if (success)
-				NOTE("The application is no more registered as a service");
+			unregisterService();
 			return EXIT_OK;
 		}
 		return main(_TerminateSignal);
@@ -160,61 +160,48 @@ int ServerApplication::run(int argc, const char** argv) {
 }
 
 
-bool ServerApplication::isService() {
-	SERVICE_TABLE_ENTRY svcDispatchTable[2];
-	svcDispatchTable[0].lpServiceName = "";
-	svcDispatchTable[0].lpServiceProc = ServiceMain;
-	svcDispatchTable[1].lpServiceName = NULL;
-	svcDispatchTable[1].lpServiceProc = NULL; 
-	return StartServiceCtrlDispatcherA(svcDispatchTable) != 0; 
-}
-
 bool ServerApplication::hasConsole() {
 	HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
 	return hStdOut != INVALID_HANDLE_VALUE && hStdOut != NULL;
 }
 
 
-bool ServerApplication::registerService(Exception& ex) {
-	WinService service(file().name());
-	if (_displayName.empty())
-		service.registerService(ex,file());
-	else
-		service.registerService(ex, file(), _displayName);
-	if (ex)
-		return false;
-	if (_startup == "auto")
-		service.setStartup(ex,WinService::AUTO_START);
-	else if (_startup == "manual")
-		service.setStartup(ex,WinService::MANUAL_START);
-	if (!_description.empty())
-		service.setDescription(ex, _description);
-	return true;
+void ServerApplication::registerService() {
+	WinService service(name());
+	Exception ex;
+	if (service.registerService(ex, file())) {
+		service.setStartup(ex, _service);
+		if (description())
+			service.setDescription(ex, description());
+		if (ex)
+			WARN(ex);
+		NOTE(name(), " has been successfully registered as a service");
+	} else
+		ERROR(ex);
 }
 
 
-bool ServerApplication::unregisterService(Exception& ex) {
-	WinService service(file().name());
-	return service.unregisterService(ex);
+void ServerApplication::unregisterService() {
+	WinService service(name());
+	Exception ex;
+	if (service.unregisterService(ex)) {
+		if (ex)
+			WARN(ex);
+		NOTE(name(), " is no more registered as a service");
+	} else
+		ERROR(ex);
 }
 
 void ServerApplication::defineOptions(Exception& ex,Options& options) {
 
-	options.add(ex, "registerService", "r", "Register the application as a service.");
+	options.add(ex, "registerService", "r", String("Register ", name()," as a service."))
+		.argument("manual|auto", false)
+		.handler([this](Exception& ex, const string& value) {
+			_service = String::ICompare(value, EXPAND("auto")) == 0 ? WinService::STARTUP_AUTO : WinService::STARTUP_MANUAL;
+			return true;
+		});
 
-	options.add(ex, "unregisterService", "u", "Unregister the application as a service.");
-
-	options.add(ex, "name", "n", "Specify a display name for the service (only with /registerService).")
-		.argument("name")
-		.handler([this](Exception& ex, const string& value) { _displayName = value; return true; });
-
-	options.add(ex, "description", "d", "Specify a description for the service (only with /registerService).")
-		.argument("text")
-		.handler([this](Exception& ex, const string& value) { _description = value; return true; });
-
-	options.add(ex, "startup", "s", "Specify the startup mode for the service (only with /registerService).")
-		.argument("automatic|manual")
-		.handler([this](Exception& ex, const string& value) {_startup = String::ICompare(value, "auto", 4) == 0 ? "auto" : "manual"; return true; });
+	options.add(ex, "unregisterService", "u", String("Unregister ", name(), " as a service."));
 
 	Application::defineOptions(ex, options);
 }
@@ -230,19 +217,19 @@ int ServerApplication::run(int argc, const char** argv) {
 #if !defined(_DEBUG)
 	try {
 #endif
-		bool runAsDaemon = isDaemon(argc, argv);
-		if (runAsDaemon)
-			beDaemon();
-		if(init(argc, argv)) {
-			if (runAsDaemon) {
-				int rc = chdir("/");
-				if (rc != 0)
-					result = EXIT_OSERR;
-			}
-			if(result==EXIT_OK) {
-				result = main(_TerminateSignal);
+		for (int i = 1; i < argc; ++i) {
+			if (String::ICompare("--daemon", argv[i]) == 0 ||
+				String::ICompare("-d", argv[i]) == 0 ||
+				String::ICompare("/daemon", argv[i]) == 0 ||
+				String::ICompare("/d", argv[i]) == 0) {
+				// is daemon!
+				beDaemon();
+				break;
 			}
 		}
+	
+		if(init(argc, argv))
+			result = main(_TerminateSignal);
 #if !defined(_DEBUG)
 	} catch (exception& ex) {
 		FATAL( ex.what());
@@ -261,69 +248,53 @@ int ServerApplication::run(int argc, const char** argv) {
 }
 
 
-
-bool ServerApplication::isDaemon(int argc, const char** argv) {
-	string option1("--daemon");
-	string option2("-d");
-	string option3("/daemon");
-	string option4("/d");
-	for (int i = 1; i < argc; ++i) {
-		if (String::ICompare(option1,argv[i])==0 || String::ICompare(option2,argv[i])==0 || String::ICompare(option3,argv[i])==0 || String::ICompare(option4,argv[i])==0)
-			return true;
-	}
-	return false;
-}
-
-
 void ServerApplication::beDaemon() {
 	pid_t pid;
 	if ((pid = fork()) < 0)
-        FATAL_ERROR("Cannot fork daemon process");
+		FATAL_ERROR("Cannot fork daemon process");
 	if (pid != 0)
 		exit(0);
-	
+
 	setsid();
 	umask(0);
-	
+
 	// attach stdin, stdout, stderr to /dev/null
 	// instead of just closing them. This avoids
 	// issues with third party/legacy code writing
 	// stuff to stdout/stderr.
-	FILE* fin  = freopen("/dev/null", "r+", stdin);
+	FILE* fin = freopen("/dev/null", "r+", stdin);
 	if (!fin)
-        FATAL_ERROR("Cannot attach stdin to /dev/null");
+		FATAL_ERROR("Cannot attach stdin to /dev/null");
 	FILE* fout = freopen("/dev/null", "r+", stdout);
 	if (!fout)
-        FATAL_ERROR("Cannot attach stdout to /dev/null");
+		FATAL_ERROR("Cannot attach stdout to /dev/null");
 	FILE* ferr = freopen("/dev/null", "r+", stderr);
 	if (!ferr)
-        FATAL_ERROR("Cannot attach stderr to /dev/null");
+		FATAL_ERROR("Cannot attach stderr to /dev/null");
 
 	setBoolean("application.runAsDaemon", true);
-	_isInteractive=false;
+	_isInteractive = false;
 }
 
 
 void ServerApplication::defineOptions(Exception& ex, Options& options) {
-    options.add(ex, "daemon", "d", "Run application as a daemon.")
-        .handler([this](Exception& ex, const string& value) { setBoolean("application.runAsDaemon", true); return true; });
-
-    options.add(ex, "pidfile", "p", "Write the process ID of the application to given file.")
-		.argument("path")
-        .handler([this](Exception& ex, const string& value) { return handlePidFile(ex, value); } );
+    options.add(ex, "daemon", "d", String("Run ", name()," as a daemon."))
+		.argument("pidFile")
+        .handler([this](Exception& ex, const string& value) {
+			setBoolean("application.runAsDaemon", true);
+			if (value.empty())
+				return true;
+			File file(value, File::MODE_WRITE);
+			if (!file.load(ex))
+				return false;
+			_pidFile = value;
+			String id(Process::Id());
+			return file.write(ex, id.data(), id.size());
+		});
 
     Application::defineOptions(ex, options);
 }
 
-
-bool ServerApplication::handlePidFile(Exception& ex,const string& value) {
-	File file(value, File::MODE_WRITE);
-	if (!file.load(ex))
-		return false;
-	_pidFile = value;
-	String id(Process::Id());
-	return file.write(ex, id.data(), id.size());
-}
 
 #endif
 

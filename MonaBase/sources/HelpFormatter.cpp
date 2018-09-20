@@ -40,7 +40,7 @@ int HelpFormatter::CalcIndent(const Options& options) {
 	for (const Option& option : options) {
 		int shortLen = option.shortName().length();
 		int fullLen = option.fullName().length();
-		int n = 0;
+		int n = TAB_WIDTH;
 #if !defined(_WIN32)
         n += shortLen + sizeof(SHORT_PREFIX) + 2;
 		if (option.takesArgument())
@@ -55,22 +55,14 @@ int HelpFormatter::CalcIndent(const Options& options) {
 	return indent;
 }
 
-ostream& HelpFormatter::Format(ostream& ostr, const char* command, const char* usage, const char* header, const char* footer, const Options& options) {
+ostream& HelpFormatter::Format(ostream& ostr, const char* command, const char* header, const char* footer, const Options& options) {
 	int indent = CalcIndent(options);
-	ostr << "usage: " << command;
-	if (!usage && options)
-		header = "[options]";
-	if (usage) {
-		ostr << ' ';
-		FormatText(ostr, usage, (int)strlen(command) + 1, indent);
-	}
-	ostr << '\n';
-	if (!header && options)
-		header = "options:";
-	if (header) {
-		FormatText(ostr, header, 0, indent);
-		ostr << "\n\n";
-	}
+	if (header)
+		ostr << header << "\n\n";
+	string name;
+	ostr << "usage: " << FileSystem::GetBaseName(command, name) << '\n';
+	if (options)
+		ostr << "options:\n";
 	for (const Option& option : options) {
 		FormatOption(ostr, option, indent);
 		FormatText(ostr, option.description().c_str(), indent, indent);
@@ -86,7 +78,9 @@ ostream& HelpFormatter::Format(ostream& ostr, const char* command, const char* u
 
 void HelpFormatter::FormatOption(ostream& ostr, const Option& option, int indent) {
 
-	int n = 0;
+	int n = TAB_WIDTH;
+	for(UInt8 i=0; i<TAB_WIDTH; ++i)
+		ostr << ' ';
 
 #if !defined(_WIN32)
     ostr << SHORT_PREFIX << option.shortName();

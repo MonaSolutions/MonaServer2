@@ -28,9 +28,7 @@ using namespace std;
 namespace Mona {
 
 
-Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_application, _www, _handler, _protocols, _timer, cores), _protocols(*this), _handler(wakeUp) {
-	DEBUG("Socket receiving buffer size of ", Net::GetRecvBufferSize(), " bytes");
-	DEBUG("Socket sending buffer size of ", Net::GetSendBufferSize(), " bytes");
+Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_www, _handler, _protocols, _timer, cores), _protocols(*this), _handler(wakeUp) {
 	DEBUG(threadPool.threads(), " threads in server threadPool");
 }
  
@@ -42,19 +40,15 @@ void Server::start(const Parameters& parameters) {
 	if(running())
 		stop();
 
-	// copy parametes on invoker parameters!
+	// copy and load parametes
 	for (auto& it : parameters) {
-		if (!_application && (String::ICompare(it.first, "application.path") == 0 || String::ICompare(it.first, "application") == 0))
-			_application.set(it.second);
-		if (!_www && (String::ICompare(it.first, "www.dir") == 0 || String::ICompare(it.first, "www") == 0))
+		if (!_www && (String::ICompare(it.first, EXPAND("www.dir")) == 0 || String::ICompare(it.first, "www") == 0))
 			_www.set(it.second);
 		setString(it.first, it.second);
 	}
 
-	if (!_application)
-		_application.set(Path::CurrentApp());
 	if(!_www)
-		_www.set(_application.parent(),"www/");
+		_www.set("www/");
 
 	Exception ex;
 	AUTO_ERROR(FileSystem::CreateDirectory(ex, _www), "Application directory creation");
@@ -86,15 +80,16 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 #endif
 	{ // Encapsulate sessions!
 
-		Path cert(application.parent(), "cert.pem");
-		Path key(application.parent(), "key.pem");
-	
 		Exception ex;
+		// SSL client
 		AUTO_ERROR(TLS::Create(ex, pTLSClient), "SSL Client");
+		// SSL server
+		Path cert(getString("TLS.certificat", "cert.pem"));
+		Path key(getString("TLS.key", "key.pem"));
 		if (!cert.exists())
-			WARN("No TLS/SSL server protocols, no cert.pem file")
+			WARN("No TLS/SSL server protocols, no ", cert.name()," file")
 		else if(!key.exists())
-			WARN("No TLS/SSL server protocols, no key.pem file")
+			WARN("No TLS/SSL server protocols, no ", key.name(), " file")
 		else
 			AUTO_ERROR(TLS::Create(ex=nullptr, cert, key, pTLSServer), "SSL Server");
 	
@@ -122,7 +117,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 			}
 			// Pulse streams!
 			for (auto& it : streams)
-				it.second->start();
+				it.second->start(self);
 			
 			manage(); // client manage (script, etc..)
 			if (clients.size() != countClient)
@@ -182,24 +177,12 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	bufferPool.clear();
 
 	NOTE("Server stopped");
-	_application.reset();
 	_www.reset();
 	return true;
 }
 
 void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
 	// Load Streams configs
-	UInt32 bufferSize;
-	if (getNumber("stream.bufferSize", bufferSize)) {
-		Media::Stream::RecvBufferSize = bufferSize;
-		Media::Stream::SendBufferSize = bufferSize;
-	}
-	if (getNumber("stream.recvBufferSize", bufferSize))
-		Media::Stream::RecvBufferSize = bufferSize;
-	if (getNumber("stream.sendBufferSize", bufferSize))
-		Media::Stream::SendBufferSize = bufferSize;
-
-	Exception ex;
 	string temp;
 	vector<const char*> keyToRemove;
 	for (auto& it : *this) {
@@ -212,7 +195,8 @@ void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
 			if (!it2.second.empty())
 				continue;
 			Media::Stream* pStream;
-			AUTO_ERROR(pStream = Media::Stream::New(ex = nullptr, name, timer, ioFile, ioSocket, pTLSClient), name);
+			Exception ex;
+			AUTO_ERROR(pStream = Media::Stream::New(ex, name, timer, ioFile, ioSocket, pTLSClient), name);
 			if (!pStream)
 				continue;
 			streams.emplace(it.first, pStream);
@@ -233,7 +217,7 @@ void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publica
 		if (Media::Target* pTarget = dynamic_cast<Media::Target*>(pStream)) {
 			INFO(pStream->description(), " loaded on publication ", it->first);
 			Subscription* pSubscription(new Subscription(*pTarget));
-			pStream->start(); // Start stream before subscription to call Stream::start before Target::beginMedia
+			pStream->start(self); // Start stream before subscription to call Stream::start before Target::beginMedia
 			if (!subscribe(ex, it->first, *pSubscription, pStream->query.c_str())) {  // logs already displaid by subscribe
 				delete pSubscription;
 				streams.erase(it++);
@@ -254,7 +238,7 @@ void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publica
 			}
 			INFO(pStream->description()," loaded on publication ", it->first);
 			publications.emplace(pLastPublication = pPublication);
-			pStream->start(*pPublication);
+			pStream->start(*pPublication, self);
 		}
 		++it;
 	}

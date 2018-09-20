@@ -111,8 +111,10 @@ bool Options::process(Exception& ex,const char* argument, string& name, string& 
 		if(*itEnd)
 			++itEnd;
 
-		if (*itEnd == 0 && _pOption->argumentRequired())
+		if (*itEnd == 0 && _pOption->argumentRequired()) {
+			ex.set<Ex::Application::Argument>("Argument required for ", name, " option");
 			return false;
+		}
 
 		argument = itEnd;
 	}

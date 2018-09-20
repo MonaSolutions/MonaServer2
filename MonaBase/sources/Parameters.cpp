@@ -58,7 +58,7 @@ Parameters& Parameters::setParams(Parameters&& other) {
 	if(_pMap && !_pMap->empty())
 		other.onParamClear();
 	// onChange!
-	for (auto& it : *this)
+	for (auto& it : self)
 		onParamChange(it.first, &it.second);
 	return *this;
 }
@@ -109,18 +109,19 @@ Parameters& Parameters::clear(const string& prefix) {
 		end.back() = prefix.back() + 1;
 		auto it = _pMap->lower_bound(prefix);
 		auto itEnd = _pMap->lower_bound(end);
-		size_t distance = size_t(std::distance(it, itEnd)); // can be just positive
-		if (distance < _pMap->size()) {
+		if (it != _pMap->begin() || itEnd != _pMap->end()) {
 			// partial erase
-			for (; it != itEnd; ++it)
-				onParamChange(it->first, NULL);
-			_pMap->erase(it, itEnd);
-			return *this;
+			for (; it != itEnd; ++it) {
+				string key(move(it->first));
+				_pMap->erase(it);
+				onParamChange(key, NULL);
+			}
+			return self;
 		}
 	}
 	_pMap->clear();
 	onParamClear();
-	return *this;
+	return self;
 }
 
 bool Parameters::erase(const string& key) {
@@ -130,11 +131,11 @@ bool Parameters::erase(const string& key) {
 	const auto& it(_pMap->find(key));
 	if (it == _pMap->end())
 		return true;
-	if (_pMap->size() > 1) {
-		onParamChange(it->first, NULL);
-		_pMap->erase(it);
-	} else
+	_pMap->erase(it);
+	if (_pMap->empty())
 		clear();
+	else
+		onParamChange(key, NULL);
 	return true;
 }
 

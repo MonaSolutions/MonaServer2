@@ -80,7 +80,7 @@ private:
 	struct Impl : virtual Object {
 
 		template <typename ...Args>
-		Impl(Args&&... args) : _resolved(false), _attributesLoaded(false) {
+		Impl(Args&&... args) : _attributesLoaded(false) {
 			String::Assign(_path, std::forward<Args>(args)...);
 			init();
 		}
@@ -93,8 +93,6 @@ private:
 		const std::string& parent() const { return _parent; }
 		bool			   isFolder() const { return _type == FileSystem::TYPE_FOLDER; }
 		bool			   isAbsolute() const { return _isAbsolute; }
-		bool			   resolved() const { return _resolved; }
-
 
 		bool	exists(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh); }
 		UInt64	size(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).size; }
@@ -113,7 +111,6 @@ private:
 		std::string						_parent;
 		FileSystem::Type				_type;
 		bool							_isAbsolute;
-		bool							_resolved;
 
 		mutable std::mutex				_mutex;
 		mutable FileSystem::Attributes	_attributes;

@@ -525,21 +525,17 @@ Timezone::Timezone() : _offset(0),_dstOffset(3600000) {
 
 #if !defined(_WIN32)
 
-    path.assign("/usr/lib/zoneinfo/").append(_name);
-	if(readTZDatabase(path))
+	if(readTZDatabase(String::Assign(path, "/usr/lib/zoneinfo/", _name)))
 		return;
-
-	path.assign("/usr/share/zoneinfo/").append(_name);
-	if(readTZDatabase(path))
+	if(readTZDatabase(String::Assign(path, "/usr/share/zoneinfo/", _name)))
 		return;
 
 #endif
 
-	path = FileSystem::GetCurrentDir();
-	if (readTZDatabase(path.append("zoneinfo/").append(_name)))
+	if (readTZDatabase(String::Assign(path, "zoneinfo/", _name)))
 		return;
 
-	if (Path::CurrentApp() && readTZDatabase(path.assign(Path::CurrentApp().parent()).append("zoneinfo/").append(_name)))
+	if (Path::CurrentApp() && readTZDatabase(path.insert(0, Path::CurrentApp().parent())))
 		return;
 
 #if !defined(_WIN32)

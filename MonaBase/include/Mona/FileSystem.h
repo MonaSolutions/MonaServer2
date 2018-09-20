@@ -78,15 +78,20 @@ struct FileSystem : virtual Static {
 	static bool			IsFolder(const std::string& path);
 	static bool			IsFolder(const char* path);
 	
-	static std::string  MakeFolder(const std::string& path) { std::string result(path); MakeFolder(result); return result; }
+	static std::string  MakeFolder(const char* path) { std::string result(path); MakeFolder(result); return result; }
+	static std::string	MakeFolder(const std::string& path) { return MakeFolder(path.c_str()); }
 	static std::string&	MakeFolder(std::string& path);
-	static std::string	MakeFile(const std::string& path) { std::string result(path); MakeFile(result); return result; }
+	static std::string	MakeFile(const char* path) { std::string result(path); MakeFile(result); return result; }
+	static std::string	MakeFile(const std::string& path) { return MakeFile(path.c_str()); }
 	static std::string&	MakeFile(std::string& path);
-	static std::string	MakeAbsolute(const std::string& path) { std::string result(path); MakeAbsolute(result); return result; }
+	static std::string	MakeAbsolute(const char* path) { std::string result(path); MakeAbsolute(result); return result; }
+	static std::string	MakeAbsolute(const std::string& path) { return MakeAbsolute(path.c_str()); }
 	static std::string& MakeAbsolute(std::string& path) { if (!IsAbsolute(path)) path.insert(0, "/"); return path; }
-	static std::string	MakeRelative(const std::string& path) { std::string result(path); MakeRelative(result); return result; }
+	static std::string	MakeRelative(const char* path) { std::string result(path); MakeRelative(result); return result; }
+	static std::string	MakeRelative(const std::string& path) { return MakeRelative(path.c_str()); }
 	static std::string& MakeRelative(std::string& path);
-	static std::string	Resolve(const std::string& path) { std::string result(path); Resolve(result); return result; }
+	static std::string	Resolve(const char* path) { std::string result(path); Resolve(result); return result; }
+	static std::string	Resolve(const std::string& path) { return Resolve(path.c_str()); }
 	static std::string& Resolve(std::string& path);
 
 

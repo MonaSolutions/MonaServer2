@@ -130,14 +130,9 @@ const string& WinRegistryKey::getString(Exception& ex,const string& name, string
 		ex.set<Ex::System::Registry>("Key ", _key, '\\', name, " not found");
 		return value;
 	}
-	value.clear();
-	if (size > 0) {
-		char* buffer = new char[size + 1];
-		RegQueryValueExA(_hKey, name.c_str(), NULL, NULL, (BYTE*) buffer, &size);
-		buffer[size] = 0;
-		value.assign(buffer);
-		delete [] buffer;
-	}
+	value.resize(size);
+	if (size)
+		RegQueryValueExA(_hKey, name.c_str(), NULL, NULL, (BYTE*)value.data(), &size);
 	return value;
 }
 
@@ -162,17 +157,15 @@ const string& WinRegistryKey::getStringExpand(Exception& ex, const string& name,
 		return value;
 	}
 	value.clear();
-	if (size > 0) {
+	if (size) {
 		char* buffer = new char[size + 1];
 		RegQueryValueExA(_hKey, name.c_str(), NULL, NULL, (BYTE*) buffer, &size);
 		buffer[size] = 0;
 		char temp;
-		DWORD expSize = ExpandEnvironmentStringsA(buffer, &temp, 1);	
-		char* expBuffer = new char[expSize];
-		ExpandEnvironmentStringsA(buffer, expBuffer, expSize);
-		value.assign(expBuffer);
+		DWORD expSize = ExpandEnvironmentStringsA(buffer, &temp, 1);
+		value.resize(expSize);
+		ExpandEnvironmentStringsA(buffer, (LPSTR)value.data(), value.size());
 		delete [] buffer;
-		delete [] expBuffer;
 	}
 	return value;
 }

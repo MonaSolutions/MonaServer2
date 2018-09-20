@@ -186,11 +186,12 @@ void File::reset() {
 	if(!_loaded)
 		return;
 	_readen = 0;
-	_written = 0;
 #if defined(_WIN32)
-	SetFilePointer((HANDLE)_handle, 0, NULL, FILE_BEGIN);
+	LARGE_INTEGER offset;
+	offset.QuadPart = -(LONGLONG)_written.exchange(0); // move relating APPEND possible mode!
+	SetFilePointerEx((HANDLE)_handle, offset, NULL, FILE_CURRENT);
 #else
-	lseek(_handle, 0, SEEK_SET);
+	lseek64(_handle, -(off64_t )_written.exchange(0), SEEK_CUR);
 #endif
 }
 

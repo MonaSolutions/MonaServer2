@@ -42,7 +42,7 @@ struct Options : virtual Object {
 			ex.set<Ex::Application::Argument>("Invalid option (shortName is empty)");
 			return Option::Null();
 		}
-		const auto& result = _options.emplace(fullName, shortName, args ...);
+		const auto& result = _options.emplace(fullName, shortName, std::forward<Args>(args)...);
 		if (!result.second) {
 			ex.set<Ex::Application::Argument>("Option ", fullName, " (", shortName, ") duplicated with ", result.first->fullName(), " (", result.first->shortName(), ")");
 			return Option::Null();

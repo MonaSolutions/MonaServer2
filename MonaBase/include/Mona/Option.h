@@ -29,10 +29,10 @@ struct Option : virtual Object {
 	Option(const char* fullName, const char* shortName);
 		/// Creates an option with the given properties.
 
-	Option(const char* fullName, const char* shortName, const std::string& description, bool required = false);
+	Option(const char* fullName, const char* shortName, std::string&& description, bool required = false);
 		/// Creates an option with the given properties.
 
-	Option(const char* fullName, const char* shortName, const std::string& description, bool required, const std::string& argName, bool argRequired = false);
+	Option(const char* fullName, const char* shortName, std::string&& description, bool required, const std::string& argName, bool argRequired = false);
 		/// Creates an option with the given properties.
 
 	typedef std::function<bool(Exception& ex, const std::string& value)> Handler;

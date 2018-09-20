@@ -356,9 +356,6 @@ struct Media : virtual Static {
 	struct Stream : virtual Object {
 		typedef Event<void(const Exception&)> ON(Error);
 
-		static UInt32 RecvBufferSize;
-		static UInt32 SendBufferSize;
-
 		enum Type {
 			TYPE_FILE=0,
 			TYPE_UDP,
@@ -378,12 +375,12 @@ struct Media : virtual Static {
 		Writer => @[address:]port...
 		Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126] 
 		File => @file[.format] [MediaFormat] [parameter] */
-		static Stream* New(Exception& ex, const std::string& description, const Timer&	timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS);
+		static Stream* New(Exception& ex, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS);
 
 		/*!
 		/!\ Implementation have to support a pulse start! */
-		virtual void start() = 0;
-		virtual void start(Media::Source& source);
+		virtual void start(const Parameters& parameters = Parameters::Null()) = 0;
+		virtual void start(Media::Source& source, const Parameters& parameters = Parameters::Null());
 		virtual bool running() const = 0;
 		virtual void stop() = 0;
 	protected:

@@ -63,7 +63,6 @@ private:
 	Timer			_timer;
 	Protocols		_protocols;
 	Sessions		_sessions;
-	Path			_application;
 	Path			_www;
 };
 

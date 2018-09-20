@@ -19,12 +19,18 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Application.h"
 #include "Mona/TerminateSignal.h"
+#if defined(_WIN32)
+#include "Mona/WinService.h"
+#endif
 
 namespace Mona {
 
-class ServerApplication : public Application, public virtual Object {
-public:
-	ServerApplication() : _isInteractive(true) { _PThis = this; }
+struct ServerApplication : Application, virtual Object {
+	ServerApplication() : _isInteractive(true)
+#if defined(_WIN32)
+	, _service(WinService::STARTUP_DISABLED)
+#endif
+	{ _PThis = this; }
 
 	bool	isInteractive() const { return _isInteractive; }
 
@@ -48,17 +54,12 @@ private:
 	static void __stdcall ServiceControlHandler(unsigned long control);
 
 	bool hasConsole();
-	bool isService();
-	bool registerService(Exception& ex);
-	bool unregisterService(Exception& ex);
+	void registerService();
+	void unregisterService();
 
-	std::string _displayName;
-	std::string _description;
-	std::string _startup;
+	WinService::Startup _service;
 
 #else
-	bool handlePidFile(Exception& ex,const std::string& value);
-    bool isDaemon(int argc, const char** argv);
 	void beDaemon();
 
 	std::string _pidFile;

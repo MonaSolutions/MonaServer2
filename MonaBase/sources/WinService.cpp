@@ -18,6 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/WinService.h"
 #include "Mona/WinRegistryKey.h"
 #include "Mona/Thread.h"
+#include "Mona/FileSystem.h"
 
 #if !defined(_WIN32_WCE)
 
@@ -52,7 +53,7 @@ bool WinService::open(Exception& ex) const {
 		return false;
 	if (_svcHandle || (_svcHandle = OpenServiceA(_scmHandle, _name.c_str(), SERVICE_ALL_ACCESS)))
 		return true;
-	ex.set<Ex::System::Service>("Service ", _name, " does not exist");
+	ex.set<Ex::System::Service>("Service ", _name, " doesn't exist");
 	return false;
 }
 
@@ -83,6 +84,8 @@ const string& WinService::getDisplayName(Exception& ex, string& name) const {
 }
 
 bool WinService::registerService(Exception& ex,const string& path, const string& displayName) {
+	if (!unregisterService(ex))
+		return false;
 	close();
 	if (!init(ex))
 		return false;
@@ -94,20 +97,22 @@ bool WinService::registerService(Exception& ex,const string& path, const string&
 		SERVICE_WIN32_OWN_PROCESS,
 		SERVICE_DEMAND_START,
 		SERVICE_ERROR_NORMAL,
-		path.c_str(),
+		String(path, ' ', FileSystem::GetCurrentDir()).c_str(), // save the current directory = 2 params!
 		NULL, NULL, NULL, NULL, NULL);
-	if (!_svcHandle)
-		ex.set<Ex::System::Service>("Cannot register service ", _name);
-	return !ex;
+	if (_svcHandle || GetLastError() == ERROR_SERVICE_EXISTS)
+		return true;
+	ex.set<Ex::System::Service>("Cannot register service ", _name);
+	return false;
 }
 
 
 bool WinService::unregisterService(Exception& ex) {
 	if (!open(ex))
-		return false;
-	if (!DeleteService(_svcHandle))
-		ex.set<Ex::System::Service>("Cannot unregister service ", _name);
-	return !ex;
+		return true;
+	if (DeleteService(_svcHandle) || GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE)
+		return true;
+	ex.set<Ex::System::Service>("Cannot unregister service ", _name);
+	return false;
 }
 
 
@@ -169,22 +174,19 @@ bool WinService::stop(Exception& ex) {
 }
 
 
-bool WinService::setStartup(Exception& ex,Startup startup) {
+bool WinService::setStartup(Exception& ex, Startup startup) {
 	if (!open(ex))
 		return false;
 	DWORD startType;
 	switch (startup) {
-	case AUTO_START:
-		startType = SERVICE_AUTO_START;
-		break;
-	case MANUAL_START:
-		startType = SERVICE_DEMAND_START;
-		break;
-	case DISABLED:
-		startType = SERVICE_DISABLED;
-		break;
-	default:
-		startType = SERVICE_NO_CHANGE;
+		case STARTUP_MANUAL:
+			startType = SERVICE_DEMAND_START;
+			break;
+		case STARTUP_AUTO:
+			startType = SERVICE_AUTO_START;
+			break;
+		default:
+			startType = SERVICE_DISABLED;
 	}
 	if (ChangeServiceConfig(_svcHandle, SERVICE_NO_CHANGE, startType, SERVICE_NO_CHANGE, NULL, NULL, NULL, NULL, NULL, NULL, NULL))
 		return true;
@@ -196,23 +198,22 @@ bool WinService::setStartup(Exception& ex,Startup startup) {
 WinService::Startup WinService::getStartup(Exception& ex) const {
 	LPQUERY_SERVICE_CONFIGA pSvcConfig = config(ex);
 	if (!pSvcConfig)
-		return UNKNOWN;
+		return STARTUP_DISABLED;
 	Startup result;
 	switch (pSvcConfig->dwStartType) {
 		case SERVICE_AUTO_START:
 		case SERVICE_BOOT_START:
 		case SERVICE_SYSTEM_START:
-			result = AUTO_START;
-			break;
-		case SERVICE_DEMAND_START:
-			result = MANUAL_START;
+			result = STARTUP_AUTO;
 			break;
 		case SERVICE_DISABLED:
-			result = DISABLED;
+			result = STARTUP_DISABLED;
 			break;
 		default:
 			ex.set<Ex::System::Service>("Unknown startup mode ", pSvcConfig->dwStartType, " for the ", _name, " service");
-			result = MANUAL_START;
+		case SERVICE_DEMAND_START:
+			result = STARTUP_MANUAL;
+			break;
 	}
 	LocalFree(pSvcConfig);
 	return result;

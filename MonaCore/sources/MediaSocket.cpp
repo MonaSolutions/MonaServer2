@@ -77,7 +77,7 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 		_pSource->flush();
 }
 
-void MediaSocket::Reader::start() {
+void MediaSocket::Reader::start(const Parameters& parameters) {
 	if (!_pSource) {
 		Stream::stop<Ex::Intern>(LOG_ERROR, "call start(Media::Source& source) in first");
 		return;
@@ -112,6 +112,7 @@ void MediaSocket::Reader::start() {
 			return Stream::stop(ex);
 		}
 	}
+	AUTO_ERROR(_pSocket->processParams(ex, parameters, "stream"), description());
 
 	bool connected(_pSocket->peerAddress() ? true : false);
 	if (type == TYPE_UDP || (connected && !_onSocketFlush))
@@ -165,11 +166,6 @@ const shared<Socket>& MediaSocket::Reader::socket() {
 			_pSocket.reset(new TLS::Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS));
 		else
 			_pSocket.reset(new Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM));
-		Exception ex;
-		if (RecvBufferSize)
-			AUTO_ERROR(_pSocket->setRecvBufferSize(ex, RecvBufferSize), description(), " receiving buffer setting");
-		if (SendBufferSize)
-			AUTO_ERROR(_pSocket->setSendBufferSize(ex, SendBufferSize), description(), " sending buffer setting");
 	}
 	return _pSocket;
 }
@@ -210,11 +206,6 @@ const shared<Socket>& MediaSocket::Writer::socket() {
 			_pSocket.reset(new TLS::Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS));
 		else
 			_pSocket.reset(new Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM));
-		Exception ex;
-		if (RecvBufferSize)
-			AUTO_ERROR(_pSocket->setRecvBufferSize(ex, RecvBufferSize), description(), " receiving buffer setting");
-		if (SendBufferSize)
-			AUTO_ERROR(_pSocket->setSendBufferSize(ex, SendBufferSize), description(), " sending buffer setting");
 	}
 	return _pSocket;
 }
@@ -225,7 +216,7 @@ MediaSocket::Writer::Writer(Type type, const Path& path, MediaWriter* pWriter, c
 	_onError = [this](const Exception& ex) { Stream::stop(*_pStreaming ? LOG_WARN : LOG_DEBUG, ex); };
 }
 
-void MediaSocket::Writer::start() {
+void MediaSocket::Writer::start(const Parameters& parameters) {
 	Exception ex;
 	if (!_subscribed) {
 		// engine subscription BEFORE connect to be able to detect connection success/failure
@@ -237,6 +228,7 @@ void MediaSocket::Writer::start() {
 			return Stream::stop(ex);
 		}
 	}
+	AUTO_ERROR(_pSocket->processParams(ex, parameters, "stream"), description());
 	if (!_pName)
 		return; // Do nothing if not media beginning
 	bool connected(_pSocket->peerAddress() ? true : false);

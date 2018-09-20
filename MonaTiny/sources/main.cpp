@@ -16,7 +16,7 @@ struct ServerApp : ServerApplication  {
 	int main(TerminateSignal& terminateSignal) {
 
 		// starts the server
-		MonaTiny server(file().parent()+"www", getNumber<UInt32>("cores"), terminateSignal);
+		MonaTiny server(getNumber<UInt32>("cores"), terminateSignal);
 
 		server.start(*this);
 

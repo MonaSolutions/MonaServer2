@@ -23,10 +23,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct HelpFormatter : virtual Static {
-	static std::ostream&  Format(std::ostream& ostr, const char* command, const Options& options = Options::Null()) { return Format(ostr, command, NULL, NULL, NULL, options); }
-	static std::ostream&  Format(std::ostream& ostr, const char* command, const char* usage, const Options& options = Options::Null()) { return Format(ostr, command, usage, NULL, NULL, options); }
-	static std::ostream&  Format(std::ostream& ostr, const char* command, const char* usage, const char* header, const Options& options = Options::Null()) { return Format(ostr, command, usage, header, NULL, options); }
-	static std::ostream&  Format(std::ostream& ostr, const char* command, const char* usage, const char* header, const char* footer, const Options& options = Options::Null());
+	static std::ostream&  Format(std::ostream& ostr, const char* command, const Options& options = Options::Null()) { return Format(ostr, command, NULL, NULL, options); }
+	static std::ostream&  Format(std::ostream& ostr, const char* command, const char* header, const Options& options = Options::Null()) { return Format(ostr, command, header, NULL, options); }
+	static std::ostream&  Format(std::ostream& ostr, const char* command, const char* header, const char* footer, const Options& options = Options::Null());
 		/// Writes the formatted help text to the given stream.
 
 private:

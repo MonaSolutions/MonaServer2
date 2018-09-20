@@ -20,7 +20,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #if !defined(_WIN32)
     #include <signal.h>
 #endif
-#include "Mona/Util.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -28,10 +27,9 @@ using namespace std;
 
 namespace Mona {
 
-
 static const char* LogLevels[] = { "FATAL", "CRITIC", "ERROR", "WARN", "NOTE", "INFO", "DEBUG", "TRACE" };
 
-Application::Application() : _logSizeByFile(1000000), _logRotation(10), _version(NULL) {
+Application::Application() : _logSizeByFile(1000000), _logRotation(10), _version(NULL), _description(NULL) {
 #if defined(_DEBUG)
 #if defined(_WIN32)
 	DetectMemoryLeak();
@@ -66,106 +64,75 @@ void Application::HandleSignal(int sig) {
 #endif
 
 bool Application::init(int argc, const char* argv[]) {
-	// 1 - build _file!
-	string path(argv[0]);
-#if defined(_WIN32)
-	FileSystem::GetCurrentApp(path);
-#else
-	if (!FileSystem::GetCurrentApp(path)) {
-		if (path.find('/') != string::npos) {
-			if (!FileSystem::IsAbsolute(path))
-				path.insert(0, FileSystem::GetCurrentDir());
-		} else {
-			// just file name!
-			if (!FileSystem::Find(path))
-				path.insert(0, FileSystem::GetCurrentDir());
-		}
-	}
-#endif
-	_file.set(path);
+	
+	// 1 - build _file and _name!
+	FileSystem::GetBaseName(argv[0], _name); // assign name before GetCurrentApp because for service the first argument is the instance name!
+	_file.set(FileSystem::GetCurrentApp(argv[0])); // use GetCurrentApp because for service the first argv argument can be the service name and not the executable!
 
-	// 2 - load configurations
-	Path configPath(_file.parent(), _file.baseName(), ".ini");
-	if (loadConfigurations(configPath)) {
-		// Has configPath!
-		setString("application.configPath", configPath);
-		setString("application.configDir", configPath.parent());
-	}
-
-	// 3 - Write common parameters
+	// 2 - Write common parameters
 	setString("application.command", _file);
 	setString("application.path", _file);
 	setString("application.name", _file.name());
 	setString("application.baseName", _file.baseName());
 	setString("application.dir", _file.parent());
-	UInt32 value;
-	if (getNumber("net.bufferSize", value) || getNumber("bufferSize", value)) {
-		Net::SetRecvBufferSize(value);
-		Net::SetSendBufferSize(value);
-	}
-	if (getNumber("net.recvBufferSize", value) || getNumber("recvBufferSize", value))
-		Net::SetRecvBufferSize(value);
-	if (getNumber("net.sendBufferSize", value) || getNumber("sendBufferSize", value))
-		Net::SetSendBufferSize(value);
-	setNumber("net.recvBufferSize", Net::GetRecvBufferSize());
-	setNumber("net.sendBufferSize", Net::GetSendBufferSize());
+	if ((_version = defineVersion()))
+		setString("application.version", _version);
 
-	// 4 - init logs
-	string logDir(_file.parent());
-	logDir.append("logs");
-	string logFileName("log");
+	// 3 - define options (keep options before configurations to load the /name parameter which is used to determine ini file name!)
 	Exception ex;
-	if (loadLogFiles(logDir, logFileName, _logSizeByFile, _logRotation)) {
+	defineOptions(ex, _options);
+	if (ex)
+		FATAL_ERROR(ex);
+	if (!_options.process(ex, argc, argv, [this](const string& name, const string& value) { setString("arguments." + name, value); }))
+		FATAL_ERROR(ex, ", use 'help'");
+
+	// 4 - load configurations
+	Path configPath(name(), ".ini");
+	if (loadConfigurations(configPath)) {
+		setString("application.configPath", configPath);
+		setString("application.configDir", configPath.parent());
+	} else
+		configPath.reset();
+
+	// 5 - init logs
+	String logDir(name(), ".log/");
+	if (loadLogFiles(logDir, _logSizeByFile, _logRotation)) {
 		bool success;
+		Exception ex;
 		AUTO_CRITIC(success=FileSystem::CreateDirectory(ex, logDir),"Log system")
 		if (success) {
-			_logPath.assign(FileSystem::MakeFolder(logDir)).append(logFileName);
-			_pLogFile.reset(new File(_logRotation > 0 ? ((_logPath += '.') + '0') : _logPath, File::MODE_APPEND));
+			_pLogFile.reset(new File(Path(FileSystem::MakeFolder(logDir), "0.log"), File::MODE_APPEND));
+			_logWritten = Mona::range<UInt32>(_pLogFile->size());
+			setString("logs.directory", logDir);
+			setNumber("logs.rotation", _logRotation);
+			setNumber("logs.maxSize", _logSizeByFile);
 		}
 	}
 	Logs::SetLogger(*this); // Set Logger after opening _logStream!
 
-	// 5 - init version
-	if ((_version = defineVersion())) {
-		setString("application.version", _version);
-		INFO(file().baseName().c_str(), " v", _version);
-	}
-
 	// 6 - first logs
-	DEBUG(hasKey("application.configPath") ? "Load configuration file " : "Impossible to load configuration file ", configPath)
-
-	// 7 - define options
-	defineOptions(ex, _options);
+	if (_version)
+		INFO(name(), " v", _version);
 	if (ex)
-        FATAL_ERROR(ex);
-	if (!_options.process(ex, argc, argv, [this](const string& name, const string& value) { setString("arguments." + name, value); }))
-        FATAL_ERROR("Arguments, ",ex," use 'help'")
-	else if (ex)
-		WARN("Arguments, ",ex," use 'help'")
+		WARN(ex, ", use 'help'")
+	DEBUG(configPath ? "Load configuration file " : "Impossible to load configuration file ", configPath);
 
-	// 8 - behavior
+	// 7 - behavior
 	if (hasKey("arguments.help")) {
 		displayHelp();
 		return false;
 	}
-
-	// if "-v" just show version and exit
 	if (hasKey("arguments.version")) {
+		// just show version and exit
 		if (!_version)
-			INFO(file().baseName().c_str(), " (no version defined)");
+			INFO(name(), " (no version defined)");
 		return false;
 	}
-
 	return true;
 }
 
-bool Application::loadConfigurations(Path& path) {
-	return Util::ReadIniFile(path, *this);
-}
-
-bool Application::loadLogFiles(string& directory, string& fileName, UInt32& sizeByFile, UInt16& rotation) {
+bool Application::loadLogFiles(string& directory, UInt32& sizeByFile, UInt16& rotation) {
 	getString("logs.directory", directory);
-	getString("logs.name", fileName);
 	getNumber("logs.rotation", rotation);
 	getNumber("logs.maxSize", sizeByFile);
 	return true;
@@ -193,7 +160,49 @@ void Application::defineOptions(Exception& ex, Options& options) {
 		.handler([this](Exception& ex, const string& value) { Logs::SetDumpLimit(String::ToNumber<Int32, -1>(ex, value)); return true; });
 
 	options.add(ex,"help", "h", "Displays help information about command-line usage.");
-	options.add(ex,"version", "v", "Displays application version.");
+	options.add(ex,"version", "v", String("Displays ", name()," version."));
+
+	options.add(ex, "name", "n", "Give a name to the application instance")
+		.argument("name")
+		.handler([this](Exception& ex, const string& value) { FileSystem::GetBaseName(value, _name); return true; });
+}
+
+void Application::onParamChange(const string& key, const string* pValue) {
+	if (String::ICompare(key, EXPAND("net.bufferSize")) == 0 ||
+		String::ICompare(key, EXPAND("net.recvBufferSize")) == 0 ||
+		String::ICompare(key, EXPAND("net.sendBufferSize")) == 0 ||
+		String::ICompare(key, EXPAND("bufferSize")) == 0 ||
+		String::ICompare(key, EXPAND("recvBufferSize")) == 0 ||
+		String::ICompare(key, EXPAND("sendBufferSize")) == 0) {
+
+		UInt32 value;
+		if (getNumber("net.recvBufferSize", value) ||
+			getNumber("net.bufferSize", value) ||
+			getNumber("recvBufferSize", value) ||
+			getNumber("bufferSize", value)) {
+			Net::SetRecvBufferSize(value);
+		} else
+			Net::ResetRecvBufferSize();
+
+		if (getNumber("net.sendBufferSize", value) ||
+			getNumber("net.bufferSize", value) ||
+			getNumber("sendBufferSize", value) ||
+			getNumber("bufferSize", value)) {
+			Net::SetSendBufferSize(value);
+		} else
+			Net::ResetSendBufferSize();
+
+		DEBUG("Defaut socket buffers set to ", Net::GetRecvBufferSize(), "B in reception and ", Net::GetSendBufferSize(), "B in sends");
+	} else if (String::ICompare(key, EXPAND("description")) == 0)
+		_description = pValue ? pValue->c_str() : NULL;
+		
+	Parameters::onParamChange(key, pValue);
+}
+void Application::onParamClear() {
+	_description = NULL;
+	Net::ResetRecvBufferSize();
+	Net::ResetSendBufferSize();
+	Parameters::onParamClear();
 }
 
 int Application::run(int argc, const char* argv[]) {
@@ -238,7 +247,7 @@ void Application::log(LOG_LEVEL level, const Path& file, long line, const string
 		Logger::log(LOG_CRITIC, __FILE__, __LINE__, ex);
 		return _pLogFile.reset();
 	}
-	manageLogFiles();
+	manageLogFiles(Buffer.size());
 }
 
 void Application::dump(const string& header, const UInt8* data, UInt32 size) {
@@ -250,24 +259,33 @@ void Application::dump(const string& header, const UInt8* data, UInt32 size) {
 	Exception ex;
 	if (!_pLogFile->write(ex, buffer.data(), buffer.size()) || !_pLogFile->write(ex, data, size))
 		return log(LOG_ERROR, __FILE__, __LINE__, ex);
-	manageLogFiles();
+	manageLogFiles(buffer.size() + size);
 }
 
-void Application::manageLogFiles() {
-	if (_logSizeByFile == 0 || _pLogFile->size(true) <= _logSizeByFile)
+void Application::manageLogFiles(UInt32 written) {
+	if (!_logSizeByFile || (_logWritten += written) <= _logSizeByFile) // don't use _pLogFile->size(true) to avoid disk access on every file log!
 		return; // _logSizeByFile==0 => inifinite log file! (user choice..)
 
-	_pLogFile.reset(new File(_logRotation>0 ? (_logPath + '0') : _logPath, File::MODE_APPEND)); // close old handle!
-	int num = _logRotation;
-	string path(_logPath);
-	if (num > 0)
-		String::Append(path,num);
+	_logWritten = 0;
+	_pLogFile.reset(new File(Path(_pLogFile->parent(), "0.log"), File::MODE_WRITE)); // override 0.log file!
+
+	// delete more older file + search the older file name (usefull when _logRotation==0 => no rotation!) 
+	string name;
+	UInt32 maxNum(0);
 	Exception ex;
-	FileSystem::Delete(ex, path);
-	// rotate
-	string newPath;
-	while(--num>=0)
-		FileSystem::Rename(String::Assign(path, _logPath, num), String::Assign(newPath, _logPath, num + 1));
+	FileSystem::ForEach forEach([this, &ex, &name, &maxNum](const string& path, UInt16 level) {
+		UInt16 num = String::ToNumber<UInt16, 0>(FileSystem::GetBaseName(path, name));
+		if (_logRotation && num>=(_logRotation-1))
+			FileSystem::Delete(ex, String(_pLogFile->parent(), num, ".log"));
+		else if (num > maxNum)
+			maxNum = num;
+	});
+	FileSystem::ListFiles(ex, _pLogFile->parent(), forEach);
+	// rename log files
+	do {
+		FileSystem::Rename(String(_pLogFile->parent(), maxNum, ".log"), String(_pLogFile->parent(), maxNum + 1, ".log"));
+	} while (maxNum--);
+
 }
 
 } // namespace Mona

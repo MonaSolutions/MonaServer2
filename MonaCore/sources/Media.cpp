@@ -438,17 +438,14 @@ bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet,
 }
 
 
-void Media::Stream::start(Source& source) {
+void Media::Stream::start(Source& source, const Parameters& parameters) {
 	WARN(typeof(*this), " is a target stream, call start(Exception& ex) rather");
-	return start();
+	return start(parameters);
 }
 void Media::Stream::stop(const Exception& ex) {
 	stop(); 
 	onError(ex);
 }
-
-UInt32	Media::Stream::RecvBufferSize(0);
-UInt32	Media::Stream::SendBufferSize(0);
 
 Media::Stream* Media::Stream::New(Exception& ex, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
 	// Net => [@][address] [type/TLS][/MediaFormat] [parameter]

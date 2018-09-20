@@ -37,8 +37,8 @@ struct MediaFile : virtual Static  {
 		static MediaFile::Reader* New(const Path& path, const char* subMime, const Timer& timer, IOFile& io);
 		static MediaFile::Reader* New(const Path& path, const Timer& timer, IOFile& io) { return New(path, path.extension().c_str(), timer, io); }
 
-		void start();
-		void start(Media::Source& source) { _pSource = &source; return start(); }
+		void start(const Parameters& parameters = Parameters::Null());
+		void start(Media::Source& source, const Parameters& parameters = Parameters::Null()) { _pSource = &source; return start(parameters); }
 		bool running() const { return _pFile.operator bool(); }
 		void stop();
 
@@ -104,7 +104,7 @@ struct MediaFile : virtual Static  {
 		static MediaFile::Writer* New(const Path& path, const char* subMime, IOFile& io);
 		static MediaFile::Writer* New(const Path& path, IOFile& io) { return New(path, path.extension().c_str(), io); }
 
-		void start();
+		void start(const Parameters& parameters = Parameters::Null());
 		bool running() const { return _running; }
 		void stop();
 

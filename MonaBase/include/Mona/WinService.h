@@ -25,10 +25,9 @@ namespace Mona {
 
 struct WinService : virtual Object {
 	enum Startup {
-		UNKNOWN,
-		AUTO_START,
-		MANUAL_START,
-		DISABLED
+		STARTUP_DISABLED=0,
+		STARTUP_MANUAL,
+		STARTUP_AUTO
 	};
 	
 	WinService(const std::string& name);

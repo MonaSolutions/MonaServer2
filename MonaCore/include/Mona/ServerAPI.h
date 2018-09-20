@@ -45,7 +45,6 @@ struct ServerAPI : virtual Object, Parameters {
 	const Handler&			handler;
 	const Timer&			timer;
 
-	const Path&				application;
 	const Path&				www;
 
 	const Protocols&			protocols;
@@ -104,7 +103,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient){}
 
 protected:
-	ServerAPI(const Path& application, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
+	ServerAPI(const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
 
 private:
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription, Client* pClient);

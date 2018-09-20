@@ -34,8 +34,8 @@ struct MediaSocket : virtual Static {
 		static MediaSocket::Reader* New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		static MediaSocket::Reader* New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
 
-		void start();
-		void start(Media::Source& source) { _pSource = &source; return start(); }
+		void start(const Parameters& parameters = Parameters::Null());
+		void start(Media::Source& source, const Parameters& parameters = Parameters::Null()) { _pSource = &source; return start(parameters); }
 		bool running() const { return _subscribed; }
 		void stop();
 
@@ -86,7 +86,7 @@ struct MediaSocket : virtual Static {
 		static MediaSocket::Writer* New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		static MediaSocket::Writer* New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
 
-		void start();
+		void start(const Parameters& parameters = Parameters::Null());
 		bool running() const { return _subscribed; }
 		void stop();
 
