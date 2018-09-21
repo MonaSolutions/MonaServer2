@@ -77,6 +77,10 @@ ADD_TEST(MapParameters) {
 	CHECK(params.count() == 0);
 	params.setString("hello", EXPAND("mona"));
 	CHECK(params.count() == 1);
+	params.clear("hel");
+	CHECK(params.count() == 0);
+	params.setString("hello", EXPAND("mona"));
+	CHECK(params.count() == 1);
 	params.clear();
 	CHECK(params.count() == 0);
 }
