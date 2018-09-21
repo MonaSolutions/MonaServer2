@@ -203,7 +203,7 @@ DataWriter& HTTPWriter::writeResponse(const char* subMime) {
 void HTTPWriter::writeRaw(DataReader& arguments, const Packet& packet) {
 	// Take the entiere control
 	// first parameter is HTTP headers in a object view
-	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN);
+	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN, NULL, packet);
 	if (!pSender)
 		return;
 	RawWriter writer(pSender->writer()->buffer());
