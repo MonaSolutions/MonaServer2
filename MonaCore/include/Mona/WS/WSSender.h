@@ -29,12 +29,10 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct WSSender : Runner, virtual Object {
-	WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& packet);
-	~WSSender() { delete &writer; }
-	
-	DataWriter&		writer;
+	WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& packet = Packet::Null());
 
-	const WS::Type  type;
+	DataWriter&		writer();
+
 
 protected:
 	virtual bool run(Exception&);
@@ -43,8 +41,10 @@ protected:
 private:
 	bool send(const Packet& packet);
 
-	shared<Buffer>	_pBuffer;
-	shared<Socket>	_pSocket;
+	unique<DataWriter>	_pWriter;
+	shared<Buffer>		_pBuffer;
+	shared<Socket>		_pSocket;
+	WS::Type			_type;
 };
 
 struct WSDataSender : WSSender, virtual Object {

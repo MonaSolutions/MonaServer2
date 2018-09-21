@@ -42,7 +42,10 @@ void WSWriter::flushing() {
 void WSWriter::writeRaw(DataReader& arguments, const Packet& packet) {
 	UInt8 type(WS::TYPE_BINARY);
 	arguments.readNumber(type);
-	StringWriter<> writer(write(WS::Type(type), packet)->buffer());
+	WSSender* pSender = newSender(WS::Type(type), packet);
+	if (!pSender || !arguments.available())
+		return;
+	StringWriter<> writer(pSender->writer()->buffer());
 	arguments.read(writer);
 }
 
@@ -75,7 +78,7 @@ bool WSWriter::writeData(Media::Data::Type type, const Packet& packet, bool reli
 	// JSON => Data from server/publication
 	if (type == Media::Data::TYPE_MEDIA) {
 		// binary => means "format" option choosen by the client (client doesn't get more of writeAudio or writeVideo)
-		write(WS::TYPE_BINARY, packet);
+		newSender(WS::TYPE_BINARY, packet);
 		return true;
 	}
 	DataWriter& writer(writeJSON(type, packet));

@@ -39,7 +39,7 @@ struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	void			writeRaw(DataReader& arguments, const Packet& packet = Packet::Null());
 
 	void			writePing() { write(WS::TYPE_PING)->write32(UInt32(_session.peer.connection.elapsed())); }
-	void			writePong(const Packet& packet) { write(WS::TYPE_PONG, packet); }
+	void			writePong(const Packet& packet) { newSender(WS::TYPE_PONG, packet); }
 
 	bool			beginMedia(const std::string& name);
 	bool			writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
@@ -54,15 +54,15 @@ private:
 	void			flushing();
 	void			closing(Int32 error, const char* reason = NULL);
 
-	DataWriter&		writeJSON(const Packet& packet = Packet::Null()) { return write<WSSender>(WS::TYPE_NIL, packet); }
-	DataWriter&		writeJSON(Media::Data::Type packetType, const Packet& packet) { return write<WSDataSender>(packetType, packet); }
-	DataWriter&		write(WS::Type type, const Packet& packet = Packet::Null()) { return write<WSSender>(type, packet); }
-	template<typename SenderType, typename ...Args>
-	DataWriter&		write(Args&&... args) {
+	DataWriter&		writeJSON(const Packet& packet = Packet::Null()) { return write(WS::TYPE_NIL, packet); }
+	DataWriter&		writeJSON(Media::Data::Type packetType, const Packet& packet) { return closed() ? DataWriter::Null() : newSender<WSDataSender>(packetType, packet)->writer(); }
+	DataWriter&		write(WS::Type type, const Packet& packet = Packet::Null()) { return closed() ? DataWriter::Null() : newSender(type, packet)->writer(); }
+	template<typename SenderType=WSSender, typename ...Args>
+	WSSender*		newSender(Args&&... args) {
 		if (closed())
-			return DataWriter::Null();
+			return NULL;
 		_senders.emplace_back(new SenderType(_session, std::forward<Args>(args)...));
-		return _senders.back()->writer;
+		return _senders.back().get();
 	}
 
 	TCPSession&						_session;
