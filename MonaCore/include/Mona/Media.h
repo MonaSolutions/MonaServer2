@@ -90,8 +90,8 @@ struct Media : virtual Static {
 		static Type ToType(const std::string& subMime) { return ToType(subMime.c_str()); }
 		static Type ToType(const char* subMime);
 
-		static DataReader* NewReader(Type type, const Packet& packet);
-		static DataWriter* NewWriter(Type type, Buffer& buffer);
+		static DataReader* NewReader(Type type, const Packet& packet, Type alternateType= Media::Data::Type::TYPE_UNKNOWN);
+		static DataWriter* NewWriter(Type type, Buffer& buffer, Type alternateType = Media::Data::Type::TYPE_UNKNOWN);
 
 		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0, bool isProperties=false) : Base(TYPE_DATA, packet, track), isProperties(isProperties), tag(type) {}
 

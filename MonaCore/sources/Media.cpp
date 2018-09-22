@@ -216,7 +216,7 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 }
 
 Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)), _timeProperties(0) {
-	unique_ptr<DataReader> pReader(Data::NewReader(data.tag, data));
+	unique_ptr<DataReader> pReader(Data::NewReader(data.tag, data, Media::Data::TYPE_TEXT));
 	MapWriter<Parameters> writer(self);
 	pReader->read(writer);
 }
@@ -265,9 +265,7 @@ void Media::Properties::setProperties(UInt8 track, Media::Data::Type type, const
 	if (!track)
 		track = 1; // by default use track=1 to never override all properties (let's it to final user in using Media::Properties directly)
 
-	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
-	if (!pReader)
-		pReader.reset(new StringReader(packet.data(), packet.size()));
+	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet, Media::Data::TYPE_TEXT));
 
 	// clear in first this track properties!
 	String prefix(track, '.');
@@ -313,7 +311,7 @@ Media::Data::Type Media::Data::ToType(const char* subMime) {
 	return TYPE_UNKNOWN;
 }
 
-DataReader* Media::Data::NewReader(Type type, const Packet& packet) {
+DataReader* Media::Data::NewReader(Type type, const Packet& packet, Type alternateType) {
 	switch (type) {
 		case TYPE_JSON: {
 			JSONReader* pReader = new JSONReader(packet.data(), packet.size());
@@ -335,14 +333,15 @@ DataReader* Media::Data::NewReader(Type type, const Packet& packet) {
 		case TYPE_QUERY:
 			return new QueryReader(packet.data(), packet.size());
 		case TYPE_TEXT:
-		case TYPE_MEDIA:
 			return new StringReader(packet.data(), packet.size());
-		default: break;
+		case TYPE_MEDIA:
+		case TYPE_UNKNOWN:;
+		// do default to be warned if we have added a Media::Date::Type and we have forgotten to add the related switch/case
 	}
-	return NULL;
+	return alternateType ? NewReader(alternateType, packet) : NULL;
 }
 
-DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer) {
+DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer, Type alternateType) {
 	switch (type) {
 		case TYPE_JSON:
 			return new JSONWriter(buffer);
@@ -354,13 +353,13 @@ DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer) {
 			return new AMFWriter(buffer, true);
 		case TYPE_QUERY:
 			return new QueryWriter(buffer);
-		case TYPE_MEDIA:
 		case TYPE_TEXT:
 			return new StringWriter<>(buffer);
-		case TYPE_UNKNOWN:
-			break;
+		case TYPE_MEDIA:
+		case TYPE_UNKNOWN:;
+		// do default to be warned if we have added a Media::Date::Type and we have forgotten to add the related switch/case
 	}
-	return NULL;
+	return alternateType ? NewWriter(alternateType, buffer) : NULL;
 }
 
 

@@ -272,7 +272,7 @@ Media::Data::Type AMFWriter::convert(Media::Data::Type type, Packet& packet) {
 		return amfType;
 	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
 	if (pReader)
-		pReader->read(*this); // Convert to AMF
+		pReader->read(self); // Convert to AMF
 	else
 		writeBytes(packet.data(), packet.size()); // Write Raw
 	packet = nullptr;

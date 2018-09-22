@@ -318,7 +318,6 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 			// for performance reason read just if type is explicity a STRING (not a convertible string as binary etc...)
 			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
 				return setProperties(track, type, packet + (*pReader)->position());
-			pReader->reset();
 		}
 	}
 

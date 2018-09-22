@@ -27,17 +27,24 @@ namespace Mona {
 
 struct HTTPDataSender : HTTPSender, virtual Object {
 	HTTPDataSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
-		const char* code, MIME::Type mime=MIME::TYPE_UNKNOWN, const char* subMime=NULL, const Packet& packet = Packet::Null()) : _packet(std::move(packet)), _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest, pSocket) {
-		if (!mime || !subMime || !(_pWriter = Media::Data::NewWriter(Media::Data::ToType(subMime), buffer())))
-			_pWriter = new StringWriter<>(buffer());
-		else
-			mime = MIME::TYPE_APPLICATION; // Fix mime => Media::Data::ToType success just for APPLICATION submime!
+		const char* code, MIME::Type mime=MIME::TYPE_UNKNOWN, const char* subMime=NULL, const Packet& packet = Packet::Null()) :
+		_packet(std::move(packet)), _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest, pSocket) {
 	}
 
-	virtual ~HTTPDataSender() { delete _pWriter; }
 
-
-	DataWriter& writer() { return *_pWriter; }
+	DataWriter& writer() {
+		if (!_pWriter) {
+			if (_mime && _subMime) {
+				_pWriter.reset(Media::Data::NewWriter(Media::Data::ToType(_subMime), buffer()));
+				if (_pWriter) {
+					_mime = MIME::TYPE_APPLICATION; // Fix mime => Media::Data::ToType success just for APPLICATION submime!
+					return *_pWriter;
+				}
+			}
+			_pWriter.reset(new StringWriter<>(buffer()));
+		}
+		return *_pWriter;
+	}
 
 private:
 	void run() {
@@ -48,7 +55,7 @@ private:
 	const char*				_code;
 	MIME::Type				_mime;
 	const char*				_subMime;
-	DataWriter*				_pWriter;
+	unique<DataWriter>		_pWriter;
 	Packet					_packet;
 };
 

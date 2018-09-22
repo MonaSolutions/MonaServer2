@@ -203,8 +203,8 @@ DataWriter& HTTPWriter::writeResponse(const char* subMime) {
 void HTTPWriter::writeRaw(DataReader& arguments, const Packet& packet) {
 	// Take the entiere control
 	// first parameter is HTTP headers in a object view
-	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN, NULL, packet);
-	if (!pSender)
+	shared<HTTPDataSender> pSender = newSender<HTTPDataSender>(HTTP_CODE_200, MIME::TYPE_UNKNOWN, nullptr, packet); // null mime => raw format and no content_type (can be to set in arguments or directly in packets)
+	if (!pSender || !arguments.available())
 		return;
 	RawWriter writer(pSender->writer()->buffer());
 	arguments.read(writer);

@@ -1,1 +1,1 @@
-#define MONA_VERSION 246
+#define MONA_VERSION 247

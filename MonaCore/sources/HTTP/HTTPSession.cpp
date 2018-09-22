@@ -454,9 +454,7 @@ bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& par
 
 	bool hasContent = request->hasKey("content-length");
 	string method;
-	DataReader* pReader = hasContent ? Media::Data::NewReader(Media::Data::ToType(request->subMime), request) : &parameters;
-	if (!pReader)
-		pReader = new StringReader(request.data(), request.size());
+	DataReader* pReader = hasContent ? Media::Data::NewReader(Media::Data::ToType(request->subMime), request, Media::Data::TYPE_TEXT) : &parameters;
 	if (!name) {
 		pReader->readString(method);
 		name = method.c_str();
