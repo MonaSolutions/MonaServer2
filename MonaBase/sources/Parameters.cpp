@@ -112,6 +112,7 @@ Parameters& Parameters::clear(const string& prefix) {
 		if (it != _pMap->begin() || itEnd != _pMap->end()) {
 			// partial erase
 			while (it != itEnd) {
+				// move key because "key" parameter because must stay valid for onParamChange call!
 				string key(move(it->first));
 				it = _pMap->erase(it);
 				onParamChange(key, NULL);
@@ -131,11 +132,15 @@ bool Parameters::erase(const string& key) {
 	const auto& it(_pMap->find(key));
 	if (it == _pMap->end())
 		return true;
-	_pMap->erase(it);
-	if (_pMap->empty())
-		clear();
-	else
-		onParamChange(key, NULL);
+	{
+		// move key because "key" parameter can be a "it->first" too, and must stay valid for onParamChange call!
+		string key(move(it->first));
+		_pMap->erase(it);
+		if (_pMap->empty())
+			clear();
+		else
+			onParamChange(key, NULL);
+	}
 	return true;
 }
 
