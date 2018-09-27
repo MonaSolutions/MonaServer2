@@ -43,6 +43,9 @@
     <Filter Include="Protocols\HTTP\Senders">
       <UniqueIdentifier>{ad34639b-01cf-4ca0-ac1a-4a31e8a309e0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Protocols\STUN">
+      <UniqueIdentifier>{ed773fe2-d4cd-4974-9d75-405a7a16e4b3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\Protocol.h">
@@ -334,6 +337,9 @@
     <ClInclude Include="include\Mona\SplitReader.h">
       <Filter>Serializers</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\STUN\STUNProtocol.h">
+      <Filter>Protocols\STUN</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -565,6 +571,9 @@
     </ClCompile>
     <ClCompile Include="sources\HTTP\HTTPFolderSender.cpp">
       <Filter>Protocols\HTTP\Senders</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\STUN\STUNProtocol.cpp">
+      <Filter>Protocols\STUN</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
