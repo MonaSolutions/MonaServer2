@@ -17,7 +17,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/STUN/STUNProtocol.h"
 #include "Mona/BinaryWriter.h"
-#include "Mona/ServerAPI.h"
 #include "Mona/Logs.h"
 
 
@@ -28,9 +27,7 @@ namespace Mona {
 
 
 struct Decoder : Socket::Decoder, virtual Object {
-	typedef Socket::OnError			ON(Error);
-
-	Decoder(const shared<Socket>& pSocket, const SocketAddress& address) : _pSocket(pSocket), _address(address) {}
+	Decoder(const shared<Socket>& pSocket) : _pSocket(pSocket) {}
 
 private:
 	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
@@ -79,7 +76,6 @@ private:
 		}
 	}
 	shared<Socket> _pSocket;
-	SocketAddress  _address;
 };
 
 STUNProtocol::STUNProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions) {
@@ -88,7 +84,7 @@ STUNProtocol::STUNProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 }
 
 Socket::Decoder* STUNProtocol::newDecoder() { 
-	return new Decoder(socket(), socket()->address());
+	return new Decoder(socket());
 }
 
 } // namespace Mona
