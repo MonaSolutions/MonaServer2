@@ -39,7 +39,7 @@ private:
 		}
 		BinaryReader reader(pBuffer->data(), pBuffer->size());
 		UInt16 type = reader.read16();
-		UInt16 size = reader.read16();
+		reader.next(2); // size
 		switch (type) {
 		case 0x01: { // Binding Request
 			if (reader.available() != 16) {
