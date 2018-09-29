@@ -16,6 +16,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Net.h"
 #include "Mona/Application.h"
+#include "Mona/HelpFormatter.h"
 #include "Mona/Date.h"
 #if !defined(_WIN32)
     #include <signal.h>
@@ -29,7 +30,7 @@ namespace Mona {
 
 static const char* LogLevels[] = { "FATAL", "CRITIC", "ERROR", "WARN", "NOTE", "INFO", "DEBUG", "TRACE" };
 
-Application::Application() : _logSizeByFile(1000000), _logRotation(10), _version(NULL), _description(NULL) {
+Application::Application() : _logSizeByFile(1000000), _logRotation(10), _version(NULL) {
 #if defined(_DEBUG)
 #if defined(_WIN32)
 	DetectMemoryLeak();
@@ -64,12 +65,35 @@ void Application::HandleSignal(int sig) {
 #endif
 
 bool Application::init(int argc, const char* argv[]) {
-	
-	// 1 - build _file and _name!
-	FileSystem::GetBaseName(argv[0], _name); // assign name before GetCurrentApp because for service the first argument is the instance name!
+	// 1 - build _file, _name and configPath
+	FileSystem::GetBaseName(argv[0], _name); // in service mode first argument is the service name
 	_file.set(FileSystem::GetCurrentApp(argv[0])); // use GetCurrentApp because for service the first argv argument can be the service name and not the executable!
+	Path configPath;
+	for (int i = 1; i < argc; ++i) {
+		// search File.ini in arguments!
+		if (!configPath) {
+			_version = Option::Parse(argv[i]);
+			if (_version || !configPath.set(argv[i]))
+				continue;
+			--argc;
+		}
+		argv[i] = argv[i - 1];
+	}
+	if (configPath) {
+		// Set the current directory to the configuration file => forced to work with "dir/file.ini" argument (and win32 double click on ini file)
+		_name = configPath.baseName(); // not make configuration "name" in ini file otherwise in service mode impossible to refind the correct ini file to load: service name must stay the base name of ini file!
+		if (!SetCurrentDirectory(configPath.parent().c_str()))
+			FATAL_ERROR("Cannot set current directory of ", name()); // useless to continue, the application could not report directory error (no logs, no init, etc...)
+	} else
+		configPath.set(_name, ".ini");
 
-	// 2 - Write common parameters
+	// 2 - load configurations + write common parameters
+	if (loadConfigurations(configPath)) {
+		setString("application.configPath", configPath);
+		setString("application.configDir", configPath.parent());
+	} else
+		configPath.reset();
+	setString("name", _name);
 	setString("application.command", _file);
 	setString("application.path", _file);
 	setString("application.name", _file.name());
@@ -77,29 +101,14 @@ bool Application::init(int argc, const char* argv[]) {
 	setString("application.dir", _file.parent());
 	if ((_version = defineVersion()))
 		setString("application.version", _version);
+	// not assign "logs.level" because is not mandatory beause can be assigned everywhere by Logs::SetLevel!
 
-	// 3 - define options (keep options before configurations to load the /name parameter which is used to determine ini file name!)
-	Exception ex;
-	defineOptions(ex, _options);
-	if (ex)
-		FATAL_ERROR(ex);
-	if (!_options.process(ex, argc, argv, [this](const string& name, const string& value) { setString("arguments." + name, value); }))
-		FATAL_ERROR(ex, ", use 'help'");
-
-	// 4 - load configurations
-	Path configPath(name(), ".ini");
-	if (loadConfigurations(configPath)) {
-		setString("application.configPath", configPath);
-		setString("application.configDir", configPath.parent());
-	} else
-		configPath.reset();
-
-	// 5 - init logs
-	String logDir(name(), ".log/");
+	// 3 - init logs
+	String logDir(_name, ".log/");
 	if (loadLogFiles(logDir, _logSizeByFile, _logRotation)) {
 		bool success;
 		Exception ex;
-		AUTO_CRITIC(success=FileSystem::CreateDirectory(ex, logDir),"Log system")
+		AUTO_CRITIC(success = FileSystem::CreateDirectory(ex, logDir), "Log system");
 		if (success) {
 			_pLogFile.reset(new File(Path(FileSystem::MakeFolder(logDir), "0.log"), File::MODE_APPEND));
 			_logWritten = Mona::range<UInt32>(_pLogFile->size());
@@ -110,14 +119,22 @@ bool Application::init(int argc, const char* argv[]) {
 	}
 	Logs::SetLogger(*this); // Set Logger after opening _logStream!
 
-	// 6 - first logs
+	// 4 - first logs
 	if (_version)
 		INFO(name(), " v", _version);
-	if (ex)
-		WARN(ex, ", use 'help'")
 	DEBUG(configPath ? "Load configuration file " : "Impossible to load configuration file ", configPath);
 
-	// 7 - behavior
+	// 5 - define options
+	Exception ex;
+	defineOptions(ex, _options);
+	if (ex)
+		FATAL_ERROR(ex);
+	if (!_options.process(ex, argc, argv, [this](const string& name, const string& value) { setString("arguments." + name, value); }))
+		FATAL_ERROR(ex, ", use 'help'")
+	else if(ex)
+		WARN(ex, ", use 'help'")
+
+	// 6 - behavior
 	if (hasKey("arguments.help")) {
 		displayHelp();
 		return false;
@@ -129,6 +146,13 @@ bool Application::init(int argc, const char* argv[]) {
 		return false;
 	}
 	return true;
+}
+
+void Application::displayHelp() {
+	HelpFormatter::Description description(_file.name().c_str(), _options);
+	String::Append(description.usage, " [", _file.baseName(), ".ini]");
+	description.header = getString("description");
+	HelpFormatter::Format(std::cout, description);
 }
 
 bool Application::loadLogFiles(string& directory, UInt32& sizeByFile, UInt16& rotation) {
@@ -143,13 +167,9 @@ void Application::defineOptions(Exception& ex, Options& options) {
 	options.add(ex, "log", "l", "Log level argument, must be beetween 0 and 8 : nothing, fatal, critic, error, warn, note, info, debug, trace. Default value is 6 (info), all logs until info level are displayed.")
 		.argument("level")
 		.handler([this](Exception& ex, const string& value) {
-#if defined(_DEBUG)
-		Logs::SetLevel(String::ToNumber<UInt8, LOG_DEBUG>(ex, value));
-#else
-		Logs::SetLevel(String::ToNumber<UInt8, LOG_INFO>(ex, value));
-#endif
-		return true;
-	});
+			Logs::SetLevel(String::ToNumber<UInt8, LOG_DEFAULT>(value));
+			return true;
+		});
 
 	options.add(ex, "dump", "d", "Enables packet traces in logs. Optional argument is a string filter to dump just packet which matchs this expression. If no argument is given, all the dumpable packet are gotten.")
 		.argument("filter", false)
@@ -161,10 +181,6 @@ void Application::defineOptions(Exception& ex, Options& options) {
 
 	options.add(ex,"help", "h", "Displays help information about command-line usage.");
 	options.add(ex,"version", "v", String("Displays ", name()," version."));
-
-	options.add(ex, "name", "n", "Give a name to the application instance")
-		.argument("name")
-		.handler([this](Exception& ex, const string& value) { FileSystem::GetBaseName(value, _name); return true; });
 }
 
 void Application::onParamChange(const string& key, const string* pValue) {
@@ -193,13 +209,17 @@ void Application::onParamChange(const string& key, const string* pValue) {
 			Net::ResetSendBufferSize();
 
 		DEBUG("Defaut socket buffers set to ", Net::GetRecvBufferSize(), "B in reception and ", Net::GetSendBufferSize(), "B in sends");
-	} else if (String::ICompare(key, EXPAND("description")) == 0)
-		_description = pValue ? pValue->c_str() : NULL;
+	} else if (String::ICompare(key, EXPAND("logs.level")) == 0) {
+		UInt8 level = getNumber<UInt8, LOG_DEFAULT>("arguments.log");
+		if (pValue)
+			String::ToNumber(*pValue, level);
+		Logs::SetLevel(level);
+	}
 		
 	Parameters::onParamChange(key, pValue);
 }
 void Application::onParamClear() {
-	_description = NULL;
+	Logs::SetLevel(getNumber<UInt8, LOG_DEFAULT>("arguments.log"));
 	Net::ResetRecvBufferSize();
 	Net::ResetSendBufferSize();
 	Parameters::onParamClear();

@@ -55,22 +55,23 @@ int HelpFormatter::CalcIndent(const Options& options) {
 	return indent;
 }
 
-ostream& HelpFormatter::Format(ostream& ostr, const char* command, const char* header, const char* footer, const Options& options) {
-	int indent = CalcIndent(options);
-	if (header)
-		ostr << header << "\n\n";
-	string name;
-	ostr << "usage: " << FileSystem::GetBaseName(command, name) << '\n';
-	if (options)
+ostream& HelpFormatter::Format(ostream& ostr, const Description& description) {
+	int indent = CalcIndent(description.options);
+	if (description.header) {
+		FormatText(ostr, description.header, 0, indent);
+		ostr << "\n\n";
+	}
+	ostr << "usage: " << description.usage << '\n';
+	if (description.options)
 		ostr << "options:\n";
-	for (const Option& option : options) {
+	for (const Option& option : description.options) {
 		FormatOption(ostr, option, indent);
 		FormatText(ostr, option.description().c_str(), indent, indent);
 		ostr << '\n';
 	}
-	if (footer) {
+	if (description.footer) {
 		ostr << '\n';
-		FormatText(ostr, footer, 0, indent);
+		FormatText(ostr, description.footer, 0, indent);
 		ostr << '\n';
 	}
 	return ostr;

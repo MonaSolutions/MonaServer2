@@ -18,14 +18,20 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Options.h"
+#include "Mona/FileSystem.h"
 #include <ostream>
 
 namespace Mona {
 
 struct HelpFormatter : virtual Static {
-	static std::ostream&  Format(std::ostream& ostr, const char* command, const Options& options = Options::Null()) { return Format(ostr, command, NULL, NULL, options); }
-	static std::ostream&  Format(std::ostream& ostr, const char* command, const char* header, const Options& options = Options::Null()) { return Format(ostr, command, header, NULL, options); }
-	static std::ostream&  Format(std::ostream& ostr, const char* command, const char* header, const char* footer, const Options& options = Options::Null());
+	struct Description : virtual Object {
+		Description(const char* command, const Options& options = Options::Null()) : header(NULL), footer(NULL), options(options) { FileSystem::GetBaseName(command, usage); }
+		const char*    header; // optional
+		std::string    usage;
+		const char*    footer; // optional
+		const Options& options;
+	};
+	static std::ostream&  Format(std::ostream& ostr, const Description& description);
 		/// Writes the formatted help text to the given stream.
 
 private:

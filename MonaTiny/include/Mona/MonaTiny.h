@@ -29,7 +29,7 @@ namespace Mona {
 
 struct MonaTiny : Server {
 	MonaTiny(UInt16 cores, TerminateSignal& terminateSignal) :
-		Server(cores), _terminateSignal(terminateSignal) { }
+		Server(cores), _terminateSignal(terminateSignal) {}
 
 	virtual ~MonaTiny() { stop(); }
 

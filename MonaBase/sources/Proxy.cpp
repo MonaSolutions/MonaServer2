@@ -43,7 +43,7 @@ Proxy::~Proxy() {
 		io.unsubscribe(_pSocket);
 }
 
-const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressFrom, const SocketAddress& addressTo) {
+const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressTo, const SocketAddress& addressFrom) {
 	if (_pSocket && _pSocket->peerAddress() != addressTo)
 		close(); // destinator has changed!
 	if (!_pSocket) {
@@ -66,7 +66,7 @@ const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket,
 		}
 	}
 	Exception exWrite;
-	if (_pSocket->write(exWrite, packet)<0 || ex)
+	if (_pSocket->write(exWrite, packet)<0 || exWrite)
 		onError(exWrite);
 	return _pSocket;
 }

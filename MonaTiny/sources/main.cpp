@@ -10,6 +10,8 @@ using namespace Mona;
 
 struct ServerApp : ServerApplication  {
 
+	ServerApp() { setString("description", "MonaTiny server"); }
+
 	const char* defineVersion() { return VERSION; }
 
 ///// MAIN

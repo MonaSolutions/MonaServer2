@@ -151,7 +151,7 @@ bool Socket::setSendBufferSize(Exception& ex, int size) {
 
 bool Socket::processParams(Exception& ex, const Parameters& parameters, const char* prefix) {
 	UInt32 value;
-	bool result;
+	bool result(true);
 	string superKey;
 	size_t prefixLen = prefix ? strlen(prefix) : 0;
 	// search always in priority with net. prefix to be prioritary on general common version (ex: search in Session params, then in [Protocol] params, and finally in general common where .net is prioritary!)

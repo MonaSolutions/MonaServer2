@@ -31,11 +31,7 @@ string					Logs::_Dump;
 Int32					Logs::_DumpLimit(-1);
 volatile bool			Logs::_DumpRequest(true);
 volatile bool			Logs::_DumpResponse(true);
-#if defined(_DEBUG)
-atomic<LOG_LEVEL>		Logs::_Level(LOG_DEBUG); // default log level
-#else
-atomic<LOG_LEVEL>		Logs::_Level(LOG_INFO); // default log level
-#endif
+atomic<LOG_LEVEL>		Logs::_Level(LOG_DEFAULT); // default log level
 Logger*					Logs::_PLogger(&DefaultLogger());
 
 

@@ -33,7 +33,7 @@ struct Proxy : virtual Object {
 
 	IOSocket&				io;
 
-	const shared<Socket>&	relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressFrom, const SocketAddress& addressTo);
+	const shared<Socket>&	relay(Exception& ex, const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& addressTo, const SocketAddress& addressFrom = SocketAddress::Wildcard());
 	void					close();
 
 private:

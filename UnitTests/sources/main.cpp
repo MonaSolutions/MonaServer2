@@ -26,7 +26,7 @@ using namespace Mona;
 using namespace std;
 
 struct TestApp : Application  {
-	TestApp() : _loop(1) {}
+	TestApp() : _loop(1) { setString("description", "Unit tests"); }
 private:
 	const char* defineVersion() { return STRINGIZE(MONA_VERSION); }
 

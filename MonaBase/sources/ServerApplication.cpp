@@ -70,7 +70,6 @@ BOOL ServerApplication::ConsoleCtrlHandler(unsigned long ctrlType) {
 }
 
 void ServerApplication::ServiceMain(unsigned long argc, char** argv) {
-
 	_PThis->setBoolean("application.runAsService", true);
 	_PThis->_isInteractive = false;
 
@@ -171,8 +170,9 @@ void ServerApplication::registerService() {
 	Exception ex;
 	if (service.registerService(ex, file())) {
 		service.setStartup(ex, _service);
-		if (description())
-			service.setDescription(ex, description());
+		const char* description = getString("description");
+		if (description)
+			service.setDescription(ex, description);
 		if (ex)
 			WARN(ex);
 		NOTE(name(), " has been successfully registered as a service");

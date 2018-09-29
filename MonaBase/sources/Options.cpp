@@ -58,13 +58,14 @@ bool Options::process(Exception& ex, int argc, const char* argv[], const ForEach
 bool Options::process(Exception& ex,const char* argument, string& name, string& value, set<string>& alreadyReaden) {
 
 	if (!_pOption) {
-		if (!*argument || (*argument != '-' && *argument != '/') || !*++argument || (*argument == '-' && !*++argument)) {
-			ex.set<Ex::Application::Argument>("Malformed ", argument," argument");
+		
+		argument = Option::Parse(argument);
+		if (!argument) {
+			ex.set<Ex::Application::Argument>("Malformed ", argument, " argument");
 			return false;
 		}
-		
-		const char* itEnd = argument;
 
+		const char* itEnd = argument;
 		while (*itEnd && *itEnd != ':' && *itEnd != '=')
 			++itEnd;
 

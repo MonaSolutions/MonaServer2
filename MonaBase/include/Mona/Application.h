@@ -19,7 +19,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Parameters.h"
 #include "Mona/Options.h"
-#include "Mona/HelpFormatter.h"
 #include "Mona/Logger.h"
 #include "Mona/File.h"
 #include "Mona/Util.h"
@@ -49,13 +48,12 @@ struct Application : Parameters, private Logger, virtual Object {
 	};
 
 	const std::string&		name() const { return _name; }
-	const char*				description() const { return _description; }
 
 	const Path&				file() const { return _file; }
 
 	const Options&			options() const { return _options; }
 
-	virtual void			displayHelp() { HelpFormatter::Format(std::cout, _file.name().c_str(), description(), options()); }
+	virtual void			displayHelp();
 	const char*				version() { return _version; }
 
     int						run(int argc, const char* argv[]);
@@ -91,7 +89,6 @@ private:
 	Path						_file;
 	const char*					_version;
 	std::string					_name;
-	const char*					_description;
 
 	// logs
 	UInt32						_logSizeByFile;

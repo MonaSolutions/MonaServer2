@@ -26,6 +26,8 @@ namespace Mona {
 struct Option : virtual Object {
 	NULLABLE
 
+	static const char* Parse(const char* argument) { return *argument && (*argument == '-' || *argument == '/') && *++argument && (*argument != '-' || *++argument) ? argument : NULL; }
+
 	Option(const char* fullName, const char* shortName);
 		/// Creates an option with the given properties.
 
