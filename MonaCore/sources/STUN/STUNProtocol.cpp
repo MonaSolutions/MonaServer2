@@ -66,8 +66,7 @@ private:
 				writer.write8((*((UInt8*)pAdd + i)) ^ transactionId[i]);
 
 			Exception ex;
-			if (!_pSocket->write(ex, Packet(pBufferOut), address))
-				WARN("Unable to write the STUN message, ", ex)
+			AUTO_WARN(_pSocket->write(ex, Packet(pBufferOut), address), "STUN response");
 			break;
 		}
 		default:
