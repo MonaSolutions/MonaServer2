@@ -256,6 +256,7 @@
     <ClInclude Include="include\Mona\SRTWriter.h" />
     <ClInclude Include="include\Mona\StringReader.h" />
     <ClInclude Include="include\Mona\StringWriter.h" />
+    <ClInclude Include="include\Mona\STUN\STUNProtocol.h" />
     <ClInclude Include="include\Mona\Subscription.h" />
     <ClInclude Include="include\Mona\TCProtocol.h" />
     <ClInclude Include="include\Mona\TSReader.h" />
@@ -339,6 +340,7 @@
     <ClCompile Include="sources\RTP_MPEG.cpp" />
     <ClCompile Include="sources\MediaSocket.cpp" />
     <ClCompile Include="sources\SRTWriter.cpp" />
+    <ClCompile Include="sources\STUN\STUNProtocol.cpp" />
     <ClCompile Include="sources\Subscription.cpp" />
     <ClCompile Include="sources\Peer.cpp" />
     <ClCompile Include="sources\QueryReader.cpp" />
