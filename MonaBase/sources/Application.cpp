@@ -20,7 +20,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Date.h"
 #if !defined(_WIN32)
 #include <signal.h>
-#define SetCurrentDirectory chdir
+#define SetCurrentDirectory !chdir
 #endif
 #include "Mona/Logs.h"
 
