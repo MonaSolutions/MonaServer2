@@ -279,7 +279,7 @@ void ServerApplication::beDaemon() {
 
 void ServerApplication::defineOptions(Exception& ex, Options& options) {
     options.add(ex, "daemon", "d", String("Run ", name()," as a daemon."))
-		.argument("pidFile")
+		.argument("pidFile", false)
         .handler([this](Exception& ex, const string& value) {
 			setBoolean("application.runAsDaemon", true);
 			if (value.empty())
