@@ -33,7 +33,7 @@ OBJECT = $(SOURCES:sources/%.cpp=tmp/release/%.o)
 OBJECTD = $(SOURCES:sources/%.cpp=tmp/debug/%.o)
 
 # pre-build => versionning
-$(shell if [ -d "../.git/hooks" ]; then ln -s -f "../git.hooks.pre-commit" "../.git/hooks/pre-commit"; fi;)
+$(shell if [ -d "../.git/hooks" ]; then ln -s -f "../hooks/pre-commit" "../.git/hooks/pre-commit"; fi;)
 
 # This line is used to ignore possibly existing folders release/debug
 .PHONY: release debug

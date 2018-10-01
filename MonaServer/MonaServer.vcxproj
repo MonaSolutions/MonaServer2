@@ -116,7 +116,7 @@
       <Profile>false</Profile>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
@@ -147,7 +147,7 @@
       <Profile>false</Profile>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
@@ -185,7 +185,7 @@
       <GenerateMapFile>false</GenerateMapFile>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
@@ -226,7 +226,7 @@
       <GenerateMapFile>false</GenerateMapFile>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

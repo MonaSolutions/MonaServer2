@@ -112,7 +112,7 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
@@ -134,7 +134,7 @@
       <AdditionalDependencies>MonaBase64d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
@@ -165,7 +165,7 @@
       <AdditionalDependencies>MonaBase.lib; %(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>
@@ -200,7 +200,7 @@
       <AdditionalDependencies>MonaBase64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
