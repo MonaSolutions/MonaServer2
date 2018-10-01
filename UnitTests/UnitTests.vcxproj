@@ -112,7 +112,7 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" if not exist "$(SolutionDir).git\\hooks\\pre-commit" (copy "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
@@ -133,6 +133,9 @@
       <AdditionalLibraryDirectories>../External/lib64;../MonaBase/lib;</AdditionalLibraryDirectories>
       <AdditionalDependencies>MonaBase64d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
     <ClCompile>
@@ -162,7 +165,7 @@
       <AdditionalDependencies>MonaBase.lib; %(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" if not exist "$(SolutionDir).git\\hooks\\pre-commit" (copy "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>
@@ -196,6 +199,9 @@
       <AdditionalLibraryDirectories>../External/lib64;../MonaBase/lib;</AdditionalLibraryDirectories>
       <AdditionalDependencies>MonaBase64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)git.hooks.pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="sources\BaseTest.cpp" />
