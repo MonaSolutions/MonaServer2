@@ -125,7 +125,7 @@ bool Application::init(int argc, const char* argv[]) {
 		INFO(name(), " v", _version);
 	DEBUG(configPath ? "Load configuration file " : "Impossible to load configuration file ", configPath);
 
-	// 5 - define options
+	// 5 - define options: after configurations to override configurations (for logs.level for example) and to allow log in defineOptions
 	Exception ex;
 	defineOptions(ex, _options);
 	if (ex)

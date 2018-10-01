@@ -217,17 +217,53 @@ int ServerApplication::run(int argc, const char** argv) {
 #if !defined(_DEBUG)
 	try {
 #endif
-		for (int i = 1; i < argc; ++i) {
-			if (String::ICompare("--daemon", argv[i]) == 0 ||
-				String::ICompare("-d", argv[i]) == 0 ||
-				String::ICompare("/daemon", argv[i]) == 0 ||
-				String::ICompare("/d", argv[i]) == 0) {
-				// is daemon!
-				beDaemon();
-				break;
-			}
-		}
-	
+		// define l'option daemon now! to fork on low level process!
+		Exception ex;
+		Options& options = (Options&)this->options();
+		string name;
+		Option& option = options.add(ex, "daemon", "d", String("Run ", FileSystem::GetName(argv[0], name), " as a daemon."))
+			.argument("pidFile", false)
+			.handler([this](Exception& ex, const string& value) {
+			// become daemon!
+			pid_t pid;
+			if ((pid = fork()) < 0)
+				FATAL_ERROR("Cannot fork daemon process");
+			if (pid != 0)
+				exit(0);
+
+			setsid();
+			umask(0);
+
+			// attach stdin, stdout, stderr to /dev/null
+			// instead of just closing them. This avoids
+			// issues with third party/legacy code writing
+			// stuff to stdout/stderr.
+			FILE* fin = freopen("/dev/null", "r+", stdin);
+			if (!fin)
+				FATAL_ERROR("Cannot attach stdin to /dev/null");
+			FILE* fout = freopen("/dev/null", "r+", stdout);
+			if (!fout)
+				FATAL_ERROR("Cannot attach stdout to /dev/null");
+			FILE* ferr = freopen("/dev/null", "r+", stderr);
+			if (!ferr)
+				FATAL_ERROR("Cannot attach stderr to /dev/null");
+
+			setBoolean("application.runAsDaemon", true);
+			_isInteractive = false;
+			// write PID?
+			if (value.empty())
+				return true;
+			File file(value, File::MODE_WRITE);
+			if (!file.load(ex))
+				return false;
+			_pidFile = value;
+			String id(Process::Id());
+			return file.write(ex, id.data(), id.size());
+		});
+		if (!options.process(ex, argc, argv))
+			FATAL_ERROR(ex, ", use 'help'")
+		option.handler(nullptr); // remove the handler!
+
 		if(init(argc, argv))
 			result = main(_TerminateSignal);
 #if !defined(_DEBUG)
@@ -247,52 +283,9 @@ int ServerApplication::run(int argc, const char** argv) {
 	return result;
 }
 
-
-void ServerApplication::beDaemon() {
-	pid_t pid;
-	if ((pid = fork()) < 0)
-		FATAL_ERROR("Cannot fork daemon process");
-	if (pid != 0)
-		exit(0);
-
-	setsid();
-	umask(0);
-
-	// attach stdin, stdout, stderr to /dev/null
-	// instead of just closing them. This avoids
-	// issues with third party/legacy code writing
-	// stuff to stdout/stderr.
-	FILE* fin = freopen("/dev/null", "r+", stdin);
-	if (!fin)
-		FATAL_ERROR("Cannot attach stdin to /dev/null");
-	FILE* fout = freopen("/dev/null", "r+", stdout);
-	if (!fout)
-		FATAL_ERROR("Cannot attach stdout to /dev/null");
-	FILE* ferr = freopen("/dev/null", "r+", stderr);
-	if (!ferr)
-		FATAL_ERROR("Cannot attach stderr to /dev/null");
-
-	setBoolean("application.runAsDaemon", true);
-	_isInteractive = false;
-}
-
-
 void ServerApplication::defineOptions(Exception& ex, Options& options) {
-    options.add(ex, "daemon", "d", String("Run ", name()," as a daemon."))
-		.argument("pidFile", false)
-        .handler([this](Exception& ex, const string& value) {
-			setBoolean("application.runAsDaemon", true);
-			if (value.empty())
-				return true;
-			File file(value, File::MODE_WRITE);
-			if (!file.load(ex))
-				return false;
-			_pidFile = value;
-			String id(Process::Id());
-			return file.write(ex, id.data(), id.size());
-		});
 
-    Application::defineOptions(ex, options);
+	Application::defineOptions(ex, options);
 }
 
 

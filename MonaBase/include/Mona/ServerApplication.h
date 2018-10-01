@@ -60,7 +60,6 @@ private:
 	WinService::Startup _service;
 
 #else
-	void beDaemon();
 
 	std::string _pidFile;
 #endif
