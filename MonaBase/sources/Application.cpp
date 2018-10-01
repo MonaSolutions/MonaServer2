@@ -76,11 +76,11 @@ bool Application::init(int argc, const char* argv[]) {
 			_version = Option::Parse(argv[i]);
 			if (_version || !configPath.set(argv[i]))
 				continue;
-			--argc;
 		}
-		argv[i] = argv[i - 1];
+		argv[i-1] = argv[i];
 	}
 	if (configPath) {
+		--argc;
 		// Set the current directory to the configuration file => forced to work with "dir/file.ini" argument (and win32 double click on ini file)
 		_name = configPath.baseName(); // not make configuration "name" in ini file otherwise in service mode impossible to refind the correct ini file to load: service name must stay the base name of ini file!
 		if (!SetCurrentDirectory(configPath.parent().c_str()))
@@ -123,7 +123,7 @@ bool Application::init(int argc, const char* argv[]) {
 	// 4 - first logs
 	if (_version)
 		INFO(name(), " v", _version);
-	DEBUG(configPath ? "Load configuration file " : "Impossible to load configuration file ", configPath);
+	DEBUG(configPath ? "Load configuration file " : "Impossible to load configuration file ", name(), ".ini");
 
 	// 5 - define options: after configurations to override configurations (for logs.level for example) and to allow log in defineOptions
 	Exception ex;
@@ -131,9 +131,9 @@ bool Application::init(int argc, const char* argv[]) {
 	if (ex)
 		FATAL_ERROR(ex);
 	if (!_options.process(ex, argc, argv, [this](const string& name, const string& value) { setString("arguments." + name, value); }))
-		FATAL_ERROR(ex, ", use 'help'")
+		FATAL_ERROR(ex, ", use --help")
 	else if(ex)
-		WARN(ex, ", use 'help'")
+		WARN(ex, ", use --help")
 
 	// 6 - behavior
 	if (hasKey("arguments.help")) {

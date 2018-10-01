@@ -217,7 +217,17 @@ int ServerApplication::run(int argc, const char** argv) {
 #if !defined(_DEBUG)
 	try {
 #endif
+		
+
 		// define l'option daemon now! to fork on low level process!
+		const char** argV = argv;
+		int argC = argc;
+		for (int i = 1; i < argc; ++i) {
+			if (Option::Parse(argv[i]))
+				break;
+			++argV;
+			--argC;
+		}
 		Exception ex;
 		Options& options = (Options&)this->options();
 		string name;
@@ -260,8 +270,7 @@ int ServerApplication::run(int argc, const char** argv) {
 			String id(Process::Id());
 			return file.write(ex, id.data(), id.size());
 		});
-		if (!options.process(ex, argc, argv))
-			FATAL_ERROR(ex, ", use 'help'")
+		options.process(ex, argC, argV); // ignore error, will be better reported on the upper level
 		option.handler(nullptr); // remove the handler!
 
 		if(init(argc, argv))

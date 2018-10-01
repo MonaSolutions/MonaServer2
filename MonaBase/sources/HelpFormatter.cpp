@@ -26,13 +26,8 @@ namespace Mona {
 #define TAB_WIDTH		4
 #define WIDTH			78
 
-#if defined(_WIN32)
-#define LONG_PREFIX		"/"
-#define SHORT_PREFIX	"/"
-#else
 #define LONG_PREFIX		"--"
 #define SHORT_PREFIX	"-"
-#endif
 
 
 int HelpFormatter::CalcIndent(const Options& options) {
@@ -83,9 +78,8 @@ void HelpFormatter::FormatOption(ostream& ostr, const Option& option, int indent
 	for(UInt8 i=0; i<TAB_WIDTH; ++i)
 		ostr << ' ';
 
-#if !defined(_WIN32)
     ostr << SHORT_PREFIX << option.shortName();
-    n += sizeof(SHORT_PREFIX) + option.shortName().length()+2;
+    n += sizeof(SHORT_PREFIX) + option.shortName().length();
 	if (option.takesArgument()) {
 		if (!option.argumentRequired()) {
 			ostr << '[';
@@ -99,12 +93,8 @@ void HelpFormatter::FormatOption(ostream& ostr, const Option& option, int indent
 		}
 	}
 
-	ostr << ", ";
-	n += 2;
-#endif
-
-	ostr << LONG_PREFIX << option.fullName();
-	n += sizeof(LONG_PREFIX)-1+option.fullName().length();
+	ostr << ", " << LONG_PREFIX << option.fullName();
+	n += sizeof(LONG_PREFIX)+option.fullName().length();
 	if (option.takesArgument()) {
 		if (!option.argumentRequired()) {
 			ostr << '[';
@@ -120,10 +110,9 @@ void HelpFormatter::FormatOption(ostream& ostr, const Option& option, int indent
 		}
 	}
 
-	while (n < indent) {
+	do {
 		ostr << ' ';
-		++n;
-	}
+	} while (++n < indent);
 }
 
 

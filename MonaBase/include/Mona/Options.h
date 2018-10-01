@@ -28,7 +28,7 @@ struct Options : virtual Object {
 
 	typedef std::set<Option>::const_iterator const_iterator;
 
-	Options() : _pOption(NULL) {}
+	Options() : _pOption(NULL), acceptUnknownOption(false) {}
 
 	bool acceptUnknownOption;
 

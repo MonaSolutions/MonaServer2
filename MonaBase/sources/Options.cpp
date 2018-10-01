@@ -59,13 +59,12 @@ bool Options::process(Exception& ex,const char* argument, string& name, string& 
 
 	if (!_pOption) {
 		
-		argument = Option::Parse(argument);
-		if (!argument) {
+		const char* itEnd = Option::Parse(argument);
+		if (!itEnd) {
 			ex.set<Ex::Application::Argument>("Malformed ", argument, " argument");
 			return false;
 		}
-
-		const char* itEnd = argument;
+		argument = itEnd;
 		while (*itEnd && *itEnd != ':' && *itEnd != '=')
 			++itEnd;
 
