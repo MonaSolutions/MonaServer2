@@ -30,107 +30,72 @@ const Option& Options::get(const string& name) const {
 }
 
 bool Options::process(Exception& ex, int argc, const char* argv[], const ForEach& forEach) {
-	_pOption = NULL;
-	string name, value;
-	set<string> alreadyReaden;
+	set<string, String::IComparator> alreadyReaden;
 	for (int i = 1; i < argc; ++i) {
-		if (!process(ex, argv[i], name, value, alreadyReaden))
+		if (!process(ex, argv[i], forEach, alreadyReaden))
 			return false;
-		if (forEach)
-			forEach(name, value);
 	}
-
-	if (_pOption) {
-		ex.set<Ex::Application::Argument>(_pOption->fullName(), " requires ", _pOption->argumentName());
-		return false;
-	}
-		
+	// check if all required option have been gotten!
 	for (const Option& option : _options) {
-		string lowerName(option.fullName());
-		if (option.required() && alreadyReaden.find(String::ToLower(lowerName)) == alreadyReaden.end()) {
-			ex.set<Ex::Application::Argument>("Option ", option.fullName(), " required");
+		if (option.required() && alreadyReaden.find(option) == alreadyReaden.end()) {
+			ex.set<Ex::Application::Argument>("Option ", option, " required");
 			return false;
 		}
 	}
 	return true;
 }
 
-bool Options::process(Exception& ex,const char* argument, string& name, string& value, set<string>& alreadyReaden) {
-
-	if (!_pOption) {
-		
-		const char* itEnd = Option::Parse(argument);
-		if (!itEnd) {
-			ex.set<Ex::Application::Argument>("Malformed ", argument, " argument");
-			return false;
-		}
-		argument = itEnd;
-		while (*itEnd && *itEnd != ':' && *itEnd != '=')
-			++itEnd;
-
-		if (argument == itEnd) {
-			ex.set<Ex::Application::Argument>("Empty option");
-			return false;
-		}
-			
-		name.assign(argument, itEnd);
-
-		auto itOption = _options.find(Option(name.c_str(),""));
-		if (itOption == _options.end()) {
-			Option shortOption("", name.c_str());
-			for (itOption = _options.begin(); itOption != _options.end(); ++itOption) {
-				if (*itOption == shortOption)
-					break;
-			}
-			if (itOption == _options.end()) {
-				if (!acceptUnknownOption) {
-					ex.set<Ex::Application::Argument>("Unknown ", name, " option");
-					return false;
-				}
+bool Options::process(Exception& ex, const char* argument, const ForEach& forEach, set<string, String::IComparator>& alreadyReaden) {
 	
-				// name is necessary the full name here!
-				auto result = _options.emplace(name.c_str(), name.c_str());
-				if (!result.second) {
-					ex.set<Ex::Application::Argument>("Option ", name," duplicated with ", result.first->fullName(), " (", result.first->shortName(), ")");
-					return false;
-				}
-				itOption = result.first;
-			} else
-				name.assign(itOption->fullName());
+	const char* itArg = Option::Parse(argument);
+	if (!itArg) {
+		ex.set<Ex::Application::Argument>("Malformed ", argument, " argument");
+		return NULL;
+	}
+	argument = itArg;
+	while (*itArg && *itArg != ':' && *itArg != '=')
+		++itArg;
+
+	if (argument == itArg) {
+		ex.set<Ex::Application::Argument>("Empty option");
+		return NULL;
+	}
+		
+
+	string name(argument, itArg);
+	const Option* pOption = NULL;
+	auto itOption = _options.find(Option(name.c_str(),""));
+	if (itOption == _options.end()) {
+		Option shortOption("", name.c_str());
+		for (itOption = _options.begin(); itOption != _options.end(); ++itOption) {
+			if (*itOption == shortOption) {
+				name = *(pOption = &*itOption); // fix name with full name!
+				break;
+			}
 		}
-
-		_pOption = &*itOption;
-		string lowerName(_pOption->fullName());
-		if (alreadyReaden.find(String::ToLower(lowerName)) != alreadyReaden.end() && !_pOption->repeatable()) {
-			_pOption = NULL;
-			ex.set<Ex::Application::Argument>("Option ", name, " duplicated");
-			return false;
+		if (!pOption && !ignoreUnknown) {
+			ex.set<Ex::Application::Argument>("Unknown ", name, " option");
+			return NULL;
 		}
-		alreadyReaden.insert(lowerName);
+	} else
+		pOption = &*itOption;
 
-		if(*itEnd)
-			++itEnd;
-
-		if (*itEnd == 0 && _pOption->argumentRequired()) {
-			ex.set<Ex::Application::Argument>("Argument required for ", name, " option");
-			return false;
-		}
-
-		argument = itEnd;
+	if (!alreadyReaden.emplace(name).second && (!pOption || !pOption->repeatable())) {
+		ex.set<Ex::Application::Argument>("Option ", name, " duplicated");
+		return NULL;
 	}
 
-	if (*argument == 0 && _pOption->argumentRequired()) {
-		_pOption = NULL;
-		ex.set<Ex::Application::Argument>(_pOption->fullName(), " requires ", _pOption->argumentName());
-		return false;
+	argument = !*itArg ? NULL : ++itArg;
+	if(pOption) {
+		if (!argument && pOption->argumentRequired()) {
+			ex.set<Ex::Application::Argument>(*pOption, " requires ", pOption->argumentName());
+			return NULL;
+		}
+		if (pOption->_handler && !pOption->_handler(ex, argument))
+			return false;
 	}
-
-	value.assign(argument);
-	bool result(true);
-	if (_pOption->_handler)
-		result = _pOption->_handler(ex, value);
-	_pOption = NULL;
-	return result;
+	forEach(name, argument);
+	return true;
 }
 
 

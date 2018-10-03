@@ -196,8 +196,8 @@ void ServerApplication::defineOptions(Exception& ex,Options& options) {
 
 	options.add(ex, "registerService", "r", String("Register ", name()," as a service."))
 		.argument("manual|auto", false)
-		.handler([this](Exception& ex, const string& value) {
-			_service = String::ICompare(value, EXPAND("auto")) == 0 ? WinService::STARTUP_AUTO : WinService::STARTUP_MANUAL;
+		.handler([this](Exception& ex, const char* value) {
+			_service =( value && String::ICompare(value, EXPAND("auto")) == 0) ? WinService::STARTUP_AUTO : WinService::STARTUP_MANUAL;
 			return true;
 		});
 
@@ -270,8 +270,11 @@ int ServerApplication::run(int argc, const char** argv) {
 			String id(Process::Id());
 			return file.write(ex, id.data(), id.size());
 		});
-		options.process(ex, argC, argV); // ignore error, will be better reported on the upper level
-		option.handler(nullptr); // remove the handler!
+		{
+			Util::Scoped<bool> scoped(options.ignoreUnknown, true);
+			options.process(ex, argC, argV); // ignore error, will be better reported on the upper level
+			option.handler(nullptr); // remove the handler!
+		}
 
 		if(init(argc, argv))
 			result = main(_TerminateSignal);

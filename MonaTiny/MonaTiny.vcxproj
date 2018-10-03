@@ -118,7 +118,7 @@
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(ProjectDir)..\hooks" (copy /Y "$(ProjectDir)..\hooks\pre-commit" "$(ProjectDir)..\.git\hooks\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
@@ -187,7 +187,7 @@
       <GenerateMapFile>false</GenerateMapFile>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(SolutionDir).git\\hooks" (copy /Y "$(SolutionDir)hooks\\pre-commit" "$(SolutionDir).git\\hooks\\pre-commit")</Command>
+      <Command>if exist "$(ProjectDir)..\hooks" (copy /Y "$(ProjectDir)..\hooks\pre-commit" "$(ProjectDir)..\.git\hooks\pre-commit")</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">

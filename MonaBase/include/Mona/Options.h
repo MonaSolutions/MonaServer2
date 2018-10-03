@@ -28,9 +28,9 @@ struct Options : virtual Object {
 
 	typedef std::set<Option>::const_iterator const_iterator;
 
-	Options() : _pOption(NULL), acceptUnknownOption(false) {}
+	Options() : ignoreUnknown(false) {}
 
-	bool acceptUnknownOption;
+	bool ignoreUnknown;
 
 	template <typename ...Args>
 	Option& add(Exception& ex, const char* fullName, const char* shortName, Args&&... args) {
@@ -61,18 +61,17 @@ struct Options : virtual Object {
 	UInt32			count() const { return _options.size(); }
 	bool			empty() const { return _options.empty(); }
 
-	typedef std::function<void(const std::string&, const std::string&)> ForEach;
+	typedef std::function<void(const std::string&, const char*)> ForEach;
     bool			process(Exception& ex, int argc, const char* argv[], const ForEach& forEach = nullptr);
 
 	operator bool() const { return count() ? true : false; }
 
 	static const Options& Null() { static Options Options; return Options; }
 private:
-	bool			process(Exception& ex, const char* argument, std::string& name, std::string& value, std::set<std::string>& alreadyReaden);
+	bool			process(Exception& ex, const char* argument, const ForEach& forEach, std::set<std::string, String::IComparator>& alreadyReaden);
 	void			handleOption(const std::string& name,const std::string& value) {}
 	
 	std::set<Option>	_options;
-	const Option* 		_pOption;
 };
 
 

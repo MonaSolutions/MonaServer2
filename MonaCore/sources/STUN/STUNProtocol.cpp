@@ -31,47 +31,45 @@ struct Decoder : Socket::Decoder, virtual Object {
 
 private:
 	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
-		//DEBUG("STUN Message received from ", address, " size : ", pBuffer->size());
+		Packet packet(move(pBuffer)); // capture pBuffer to not call onReception event (see Socket::decode comments)
+		DUMP_REQUEST("STUN", packet.data(), packet.size(), address);
 
-		if (pBuffer->size() < 4) {
-			ERROR("Unexpected STUN message size ", pBuffer->size(), " from ", address);
-			return;
-		}
-		BinaryReader reader(pBuffer->data(), pBuffer->size());
+		BinaryReader reader(packet.data(), packet.size());
 		UInt16 type = reader.read16();
 		reader.next(2); // size
 		switch (type) {
-		case 0x01: { // Binding Request
-			if (reader.available() != 16) {
-				ERROR("Unexpected size ", reader.size(), " received in Binding Request from ", address);
-				return;
+			case 0x01: { // Binding Request
+				if (reader.available() != 16) {
+					ERROR("Unexpected size ", reader.size(), " received in Binding Request from ", address);
+					return;
+				}
+				string transactionId;
+				reader.read(16, transactionId); // cookie & transaction ID
+
+				shared<Buffer> pBufferOut(new Buffer());
+				BinaryWriter writer(*pBufferOut);
+				writer.write16(0x0101); // Binding Success response
+				writer.write16(address.host().size() + 8); // size of the message
+				writer.write(transactionId);
+
+				writer.write16(0x0020); // XOR Mapped Address
+				writer.write16(address.host().size() + 4); // size
+				writer.write8(0); // reserved
+				writer.write8(address.family() == IPAddress::IPv4 ? 1 : 2); // @ family
+				writer.write16(address.port() ^ ((transactionId[0] << 8) + transactionId[1])); // port XOR 1st bytes of cookie
+
+				const void* pAdd = address.host().data();
+				for (int i = 0; i < address.host().size(); ++i)
+					writer.write8((*((UInt8*)pAdd + i)) ^ transactionId[i]);
+
+				Exception ex;
+				DUMP_RESPONSE("STUN", pBufferOut->data(), pBufferOut->size(), address);
+				AUTO_WARN(_pSocket->write(ex, Packet(pBufferOut), address), "STUN response");
+				break;
 			}
-			string transactionId;
-			reader.read(16, transactionId); // cookie & transaction ID
-
-			shared<Buffer> pBufferOut(new Buffer());
-			BinaryWriter writer(*pBufferOut);
-			writer.write16(0x0101); // Binding Success response
-			writer.write16(address.host().size() + 8); // size of the message
-			writer.write(transactionId);
-
-			writer.write16(0x0020); // XOR Mapped Address
-			writer.write16(address.host().size() + 4); // size
-			writer.write8(0); // reserved
-			writer.write8(address.family() == IPAddress::IPv4 ? 1 : 2); // @ family
-			writer.write16(address.port() ^ ((transactionId[0] << 8) + transactionId[1])); // port XOR 1st bytes of cookie
-
-			const void* pAdd = address.host().data();
-			for (int i = 0; i < address.host().size(); ++i)
-				writer.write8((*((UInt8*)pAdd + i)) ^ transactionId[i]);
-
-			Exception ex;
-			AUTO_WARN(_pSocket->write(ex, Packet(pBufferOut), address), "STUN response");
-			break;
-		}
-		default:
-			WARN("Unknown message type ", type," from ", address);
-			break;
+			default:
+				WARN("Unknown message type ", type," from ", address, " (size=", packet.size(), ")");
+				break;
 		}
 	}
 	shared<Socket> _pSocket;

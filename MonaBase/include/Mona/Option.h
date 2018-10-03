@@ -24,6 +24,7 @@ namespace Mona {
 
 
 struct Option : virtual Object {
+	CONST_STRING(fullName().empty() ? shortName() : fullName());
 	NULLABLE
 
 	static const char* Parse(const char* argument) { return *argument && *argument == '-' && *++argument && (*argument != '-' || *++argument) ? argument : NULL; }
@@ -37,7 +38,7 @@ struct Option : virtual Object {
 	Option(const char* fullName, const char* shortName, std::string&& description, bool required, const std::string& argName, bool argRequired = false);
 		/// Creates an option with the given properties.
 
-	typedef std::function<bool(Exception& ex, const std::string& value)> Handler;
+	typedef std::function<bool(Exception& ex, const char* value)> Handler;
 
 	Option& handler(const Handler& function);
 		/// Sets the handler option
@@ -91,7 +92,7 @@ struct Option : virtual Object {
 	bool operator<(const Option& other) const { return _fullName < other._fullName; }
 	bool operator>(const Option& other) const { return _fullName > other._fullName; }
 
-	operator bool() const { return !_fullName.empty() && !_shortName.empty(); }
+	explicit operator bool() const { return !_fullName.empty() && !_shortName.empty(); }
 
 	static Option& Null() { static Option Option(NULL, NULL); return Option; }
 private:
