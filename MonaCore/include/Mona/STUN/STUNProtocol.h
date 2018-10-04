@@ -23,11 +23,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct STUNProtocol : UDProtocol, virtual Object {
-	STUNProtocol(const char* name, ServerAPI& api, Sessions& sessions);
-	virtual ~STUNProtocol() {}
+	STUNProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions) {
+		setNumber("port", 3478);
+	}
 
 private:
-	virtual Socket::Decoder* newDecoder();
+	Socket::Decoder* newDecoder();
 };
 
 

@@ -66,9 +66,9 @@ protected:
     bool					init(int argc, const char* argv[]);
 	virtual int				main() = 0;
 
-	// Can be override to change load behavior + path location
+	// Can be override to change load behavior + path location + mono instnce (with initLogs)
 	virtual bool			loadConfigurations(Path& path) { return Util::ReadIniFile(path, self); }
-	virtual bool			loadLogFiles(std::string& directory, UInt32& sizeByFile, UInt16& rotation);
+	virtual bool			initLogs(std::string& directory, UInt32& sizeByFile, UInt16& rotation);
 	virtual const char*		defineVersion() { return NULL; }
 	virtual void			defineOptions(Exception& ex, Options& options);
 

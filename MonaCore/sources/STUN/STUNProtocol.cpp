@@ -25,19 +25,17 @@ using namespace std;
 
 namespace Mona {
 
+Socket::Decoder* STUNProtocol::newDecoder() {
+	struct Decoder : Socket::Decoder, virtual Object {
+	private:
+		void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+			Packet packet(pBuffer); // capture pBuffer to not call onReception event (see Socket::decode comments)
+			DUMP_REQUEST("STUN", packet.data(), packet.size(), address);
 
-struct Decoder : Socket::Decoder, virtual Object {
-	Decoder(const shared<Socket>& pSocket) : _pSocket(pSocket) {}
-
-private:
-	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
-		Packet packet(move(pBuffer)); // capture pBuffer to not call onReception event (see Socket::decode comments)
-		DUMP_REQUEST("STUN", packet.data(), packet.size(), address);
-
-		BinaryReader reader(packet.data(), packet.size());
-		UInt16 type = reader.read16();
-		reader.next(2); // size
-		switch (type) {
+			BinaryReader reader(packet.data(), packet.size());
+			UInt16 type = reader.read16();
+			reader.next(2); // size
+			switch (type) {
 			case 0x01: { // Binding Request
 				if (reader.available() != 16) {
 					ERROR("Unexpected size ", reader.size(), " received in Binding Request from ", address);
@@ -45,6 +43,7 @@ private:
 				}
 				string transactionId;
 				reader.read(16, transactionId); // cookie & transaction ID
+				DEBUG("STUN ", address, " address resolution ", transactionId);
 
 				shared<Buffer> pBufferOut(new Buffer());
 				BinaryWriter writer(*pBufferOut);
@@ -59,29 +58,21 @@ private:
 				writer.write16(address.port() ^ ((transactionId[0] << 8) + transactionId[1])); // port XOR 1st bytes of cookie
 
 				const void* pAdd = address.host().data();
-				for (int i = 0; i < address.host().size(); ++i)
+				for (UInt8 i = 0; i < address.host().size(); ++i)
 					writer.write8((*((UInt8*)pAdd + i)) ^ transactionId[i]);
 
 				Exception ex;
 				DUMP_RESPONSE("STUN", pBufferOut->data(), pBufferOut->size(), address);
-				AUTO_WARN(_pSocket->write(ex, Packet(pBufferOut), address), "STUN response");
+				AUTO_WARN(pSocket->write(ex, Packet(pBufferOut), address), "STUN response");
 				break;
 			}
 			default:
-				WARN("Unknown message type ", type," from ", address, " (size=", packet.size(), ")");
+				WARN("Unknown message type ", type, " from ", address, " (size=", packet.size(), ")");
 				break;
+			}
 		}
-	}
-	shared<Socket> _pSocket;
-};
-
-STUNProtocol::STUNProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions) {
-
-	setNumber("port", 3478);
-}
-
-Socket::Decoder* STUNProtocol::newDecoder() { 
-	return new Decoder(socket());
+	};
+	return new Decoder();
 }
 
 } // namespace Mona

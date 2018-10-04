@@ -121,6 +121,7 @@ private:
 #define DEBUG(...)	LOG(Mona::LOG_DEBUG, __VA_ARGS__)
 #define TRACE(...)	LOG(Mona::LOG_TRACE, __VA_ARGS__)
 
+#define AUTO_FATAL(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { FATAL_ERROR( __VA_ARGS__,", ", ex) } }
 #define AUTO_CRITIC(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { CRITIC( __VA_ARGS__,", ", ex) } }
 #define AUTO_ERROR(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { ERROR( __VA_ARGS__,", ", ex) } }
 #define AUTO_WARN(FUNCTION,...) { if((FUNCTION)) { if(ex)  WARN( __VA_ARGS__,", ", ex); } else { WARN( __VA_ARGS__,", ", ex) } }

@@ -70,12 +70,14 @@ bool Application::init(int argc, const char* argv[]) {
 	FileSystem::GetBaseName(argv[0], _name); // in service mode first argument is the service name
 	_file.set(FileSystem::GetCurrentApp(argv[0])); // use GetCurrentApp because for service the first argv argument can be the service name and not the executable!
 	Path configPath;
+	bool iniParam = false;
 	for (int i = 1; i < argc; ++i) {
 		// search File.ini in arguments!
 		if (!configPath) {
 			_version = Option::Parse(argv[i]);
 			if (_version || !configPath.set(argv[i]))
 				continue;
+			iniParam = true;
 		}
 		argv[i-1] = argv[i];
 	}
@@ -92,8 +94,11 @@ bool Application::init(int argc, const char* argv[]) {
 	if (loadConfigurations(configPath)) {
 		setString("application.configPath", configPath);
 		setString("application.configDir", configPath.parent());
-	} else
+	} else {
+		if (iniParam)
+			FATAL_ERROR("Impossible to load configuration file ", name(), ".ini");
 		configPath.reset();
+	}
 	setString("name", _name);
 	setString("application.command", _file);
 	setString("application.path", _file);
@@ -106,24 +111,25 @@ bool Application::init(int argc, const char* argv[]) {
 
 	// 3 - init logs
 	String logDir(_name, ".log/");
-	if (loadLogFiles(logDir, _logSizeByFile, _logRotation)) {
-		bool success;
+	if (initLogs(logDir, _logSizeByFile, _logRotation)) {
 		Exception ex;
-		AUTO_CRITIC(success = FileSystem::CreateDirectory(ex, logDir), "Log system");
-		if (success) {
-			_pLogFile.reset(new File(Path(FileSystem::MakeFolder(logDir), "0.log"), File::MODE_APPEND));
-			_logWritten = Mona::range<UInt32>(_pLogFile->size());
-			setString("logs.directory", logDir);
-			setNumber("logs.rotation", _logRotation);
-			setNumber("logs.maxSize", _logSizeByFile);
-		}
+		if (!FileSystem::CreateDirectory(ex, logDir))
+			FATAL_ERROR(name(), " already running, ", ex);
+		if(ex)
+			WARN(ex);
+		_pLogFile.reset(new File(Path(FileSystem::MakeFolder(logDir), "0.log"), File::MODE_APPEND));
+		_logWritten = Mona::range<UInt32>(_pLogFile->size());
+		setString("logs.directory", logDir);
+		setNumber("logs.rotation", _logRotation);
+		setNumber("logs.maxSize", _logSizeByFile);
 	}
-	Logs::SetLogger(*this); // Set Logger after opening _logStream!
+	Logs::SetLogger(self); // Set Logger after opening _logStream!
 
 	// 4 - first logs
 	if (_version)
 		INFO(name(), " v", _version);
-	DEBUG(configPath ? "Load configuration file " : "Impossible to load configuration file ", name(), ".ini");
+	if(configPath)
+		INFO("Load configuration file ", name(), ".ini");
 
 	// 5 - define options: after configurations to override configurations (for logs.level for example) and to allow log in defineOptions
 	Exception ex;
@@ -156,7 +162,7 @@ void Application::displayHelp() {
 	HelpFormatter::Format(std::cout, description);
 }
 
-bool Application::loadLogFiles(string& directory, UInt32& sizeByFile, UInt16& rotation) {
+bool Application::initLogs(string& directory, UInt32& sizeByFile, UInt16& rotation) {
 	getString("logs.directory", directory);
 	getNumber("logs.rotation", rotation);
 	getNumber("logs.maxSize", sizeByFile);
@@ -264,10 +270,8 @@ void Application::log(LOG_LEVEL level, const Path& file, long line, const string
 		Buffer.append(60 - Buffer.size(), ' ');
 	String::Append(Buffer, message, '\n');
 
-	if (!_pLogFile->write(ex, Buffer.data(), Buffer.size())) {
-		Logger::log(LOG_CRITIC, __FILE__, __LINE__, ex);
-		return _pLogFile.reset();
-	}
+	if (!_pLogFile->write(ex, Buffer.data(), Buffer.size()))
+		FATAL_ERROR(name(), " already running, ", ex);
 	manageLogFiles(Buffer.size());
 }
 
@@ -279,7 +283,7 @@ void Application::dump(const string& header, const UInt8* data, UInt32 size) {
 	String buffer(String::Date("%d/%m %H:%M:%S.%c  "), header, '\n');
 	Exception ex;
 	if (!_pLogFile->write(ex, buffer.data(), buffer.size()) || !_pLogFile->write(ex, data, size))
-		return log(LOG_ERROR, __FILE__, __LINE__, ex);
+		FATAL_ERROR(name(), " already running, ", ex);
 	manageLogFiles(buffer.size() + size);
 }
 

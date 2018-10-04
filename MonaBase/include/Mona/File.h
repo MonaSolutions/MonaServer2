@@ -20,6 +20,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Path.h"
 #include "Mona/ThreadQueue.h"
 #include "Mona/Event.h"
+#if !defined(_WIN32)
+#include <fcntl.h>
+#endif
 
 namespace Mona {
 
@@ -103,6 +106,9 @@ private:
 	long				_handle;
 	std::atomic<UInt64>	_readen;
 	std::atomic<UInt64>	_written;
+#if !defined(_WIN32)
+	struct flock		_lock;
+#endif
 
 	//// Used by IOFile /////////////////////
 	Decoder*					pDecoder;

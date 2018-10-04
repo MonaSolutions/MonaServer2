@@ -44,6 +44,9 @@ namespace Mona {
 File::File(const Path& path, Mode mode) : _flushing(0), _loaded(false),
 	_written(0), _readen(0), _path(path), mode(mode), _decodingTrack(0),
 	_queueing(0), _ioTrack(0), _handle(-1), externDecoder(false) {
+#if !defined(_WIN32)
+	memset(&_lock, 0, sizeof(_lock));
+#endif
 }
 
 File::~File() {
@@ -57,6 +60,11 @@ File::~File() {
 #if defined(_WIN32)
 	CloseHandle((HANDLE)_handle);
 #else
+	if (_lock.l_type) {
+		// release lock
+		_lock.l_type = F_UNLCK;
+		fcntl(_handle, F_SETLKW, &_lock);
+	}
 	::close(_handle);
 #endif
 }
@@ -95,7 +103,7 @@ bool File::load(Exception& ex) {
 	} else
 		flags = OPEN_EXISTING;
 	
-	_handle = (long)CreateFileW(wFile, mode ? GENERIC_WRITE : GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, flags, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+	_handle = (long)CreateFileW(wFile, mode ? GENERIC_WRITE : GENERIC_READ, FILE_SHARE_READ, NULL, flags, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 	if (_handle != -1) {
 		if(mode==File::MODE_APPEND)
 			SetFilePointer((HANDLE)_handle, 0, NULL, FILE_END);
@@ -128,7 +136,19 @@ bool File::load(Exception& ex) {
 	} else
 		flags = O_RDONLY;
 	_handle = ::open(_path.c_str(), flags, S_IRWXU);
-	if (_handle != -1) {
+	while (_handle != -1) {
+		if (mode) {
+			// exclusive write!
+			_lock.l_type = F_WRLCK;
+			if (fcntl(_handle, F_SETLK, &_lock) != 0) {
+				// fail to lock!
+				_lock.l_type = 0;
+				::close(_handle);
+				_handle = -1;
+				break;
+			}
+		}
+
 #if !defined(__APPLE__)
 		posix_fadvise(_handle, 0, 0, 1);  // ADVICE_SEQUENTIAL
 #endif
