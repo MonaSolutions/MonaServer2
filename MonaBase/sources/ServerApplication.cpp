@@ -272,7 +272,7 @@ int ServerApplication::run(int argc, const char** argv) {
 		});
 		{
 			Util::Scoped<bool> scoped(options.ignoreUnknown, true);
-			options.process(ex, argC, argV); // ignore error, will be better reported on the upper level
+			options.process(ex, argC, argV, [this](const string& name, const char* value) {}); // ignore error, will be better reported on the upper level
 			option.handler(nullptr); // remove the handler!
 		}
 
