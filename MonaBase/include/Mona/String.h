@@ -353,7 +353,7 @@ struct String : std::string, virtual Object {
 	/// \brief match "Int64" case
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, long long value, Args&&... args) {
-		char buffer[64];
+		char buffer[32];
 		sprintf(buffer, "%lld", value);
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
@@ -361,7 +361,7 @@ struct String : std::string, virtual Object {
 	/// \brief match "UInt64" case
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, unsigned long long value, Args&&... args) {
-		char buffer[64];
+		char buffer[32];
 		sprintf(buffer, "%llu", value);
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
@@ -369,7 +369,7 @@ struct String : std::string, virtual Object {
 	/// \brief match "float" case
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, float value, Args&&... args) {
-		char buffer[64];
+		char buffer[32];
 		sprintf(buffer, "%.8g", value);
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
@@ -377,7 +377,7 @@ struct String : std::string, virtual Object {
 	/// \brief match "double" case
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, double value, Args&&... args) {
-		char buffer[64];
+		char buffer[32];
 		sprintf(buffer, "%.16g", value);
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
@@ -393,7 +393,7 @@ struct String : std::string, virtual Object {
 	/// \brief match pointer case
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, const void* value, Args&&... args)	{
-		char buffer[64];
+		char buffer[32];
 		sprintf(buffer,"%p", value);
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}

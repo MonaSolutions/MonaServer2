@@ -35,11 +35,6 @@ Peer::Peer(ServerAPI& api, const char* protocol) : pingTime(0), // pingTime to 0
 Peer::~Peer() {
 	if (connection)
 		CRITIC("Client ", String::Hex(id, Entity::SIZE), " deleting whereas connected, onDisconnection forgotten");
-	// Ices subscription can happen on peer not connected (virtual member for group for example)
-	for(const auto& it: _ices) {
-		((Peer*)it.first)->_ices.erase(this);
-		delete it.second;
-	}
 }
 
 void Peer::setAddress(const SocketAddress& address) {
@@ -117,29 +112,6 @@ void Peer::setPath(const string& value) {
 		return;
 	((string&)Client::path).assign(value);
 	onDisconnection(); // disconnected if path change!
-}
-
-ICE& Peer::ice(const Peer& peer) {
-	map<const Peer*,ICE*>::iterator it = _ices.begin();
-	while(it!=_ices.end()) {
-		if(it->first == &peer) {
-			it->second->setCurrent(*this);
-			return *it->second;
-		}
-		if(it->second->obsolete()) {
-			delete it->second;
-			_ices.erase(it++);
-			continue;
-		}
-		if(it->first>&peer)
-			break;
-		++it;
-	}
-	if(it!=_ices.begin())
-		--it;
-	ICE& ice = *_ices.emplace_hint(it,&peer,new ICE(*this,peer))->second; // is offer
-	((Peer&)peer)._ices[this] = &ice;
-	return ice;
 }
 
 /// EVENTS ////////

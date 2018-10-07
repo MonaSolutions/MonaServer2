@@ -19,7 +19,6 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/ICE.h"
 #include "Mona/ServerAPI.h"
 
 
@@ -62,9 +61,6 @@ struct Peer : Client, virtual Object {
 
 	UInt64						queueing() const { return _pNetStats ? _pNetStats->queueing() : 0; }
 
-	
-	ICE&	ice(const Peer& peer);
-
 	// events
 	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters) { onConnection(ex, writer, netStats, parameters, DataWriter::Null()); }
 	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response);
@@ -85,7 +81,6 @@ private:
 	bool onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties);
 
 	ServerAPI&						_api;
-	std::map<const Peer*,ICE*>		_ices;
 	Parameters						_properties;
 
 	Net::Stats*						_pNetStats;
