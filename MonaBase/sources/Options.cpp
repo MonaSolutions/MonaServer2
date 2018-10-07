@@ -94,7 +94,8 @@ bool Options::process(Exception& ex, const char* argument, const ForEach& forEac
 		if (pOption->_handler && !pOption->_handler(ex, argument))
 			return false;
 	}
-	forEach(name, argument);
+	if(forEach)
+		forEach(name, argument);
 	return true;
 }
 
