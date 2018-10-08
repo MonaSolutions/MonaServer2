@@ -219,13 +219,13 @@ int ServerApplication::run(int argc, const char** argv) {
 #endif
 		
 
-		// define l'option daemon now! to fork on low level process!
+		// define the "daemon" option now to fork on low level process!
 		const char** argV = argv;
 		int argC = argc;
 		for (int i = 1; i < argc; ++i) {
 			if (Option::Parse(argv[i]))
 				break;
-			++argV;
+			++argV; // ignore the process fileName & the configuration path if set
 			--argC;
 		}
 		Exception ex;
@@ -233,7 +233,7 @@ int ServerApplication::run(int argc, const char** argv) {
 		string name;
 		Option& option = options.add(ex, "daemon", "d", String("Run ", FileSystem::GetName(argv[0], name), " as a daemon."))
 			.argument("pidFile", false)
-			.handler([this](Exception& ex, const string& value) {
+			.handler([this](Exception& ex, const char* value) {
 			// become daemon!
 			pid_t pid;
 			if ((pid = fork()) < 0)
@@ -261,7 +261,7 @@ int ServerApplication::run(int argc, const char** argv) {
 			setBoolean("application.runAsDaemon", true);
 			_isInteractive = false;
 			// write PID?
-			if (value.empty())
+			if (!value)
 				return true;
 			File file(value, File::MODE_WRITE);
 			if (!file.load(ex))
