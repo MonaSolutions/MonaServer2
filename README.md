@@ -6,7 +6,7 @@ The MonaServer project is not compiling for now because we are concentrated on t
 
 # Windows Binary
 
-A [Windows 32-bit](https://sourceforge.net/projects/monaserver/files/MonaTiny/MonaTiny_1.106_Win32.zip/download) and a [ Windows 64-bit](https://sourceforge.net/projects/monaserver/files/MonaTiny/MonaTiny_1.106_Win64.zip/download) zipped packages are provided to quickly test *MonaTiny*.
+A [Windows 32-bit](https://sourceforge.net/projects/monaserver/files/MonaTiny/MonaTiny_Win32.zip/download) and a [ Windows 64-bit](https://sourceforge.net/projects/monaserver/files/MonaTiny/MonaTiny_Win64.zip/download) zipped packages are provided to quickly test *MonaTiny*.
 We recommend you to clone the github version from the sources for production use.
 
 In order to use it you need to install the [C++ vc_redist.x86 Visual Studio 2015 package](https://www.microsoft.com/it-it/download/details.aspx?id=48145).
