@@ -137,8 +137,6 @@ private:
 		pProtocol->getString("publicHost", buffer);
 		if (!buffer.empty())
 			AUTO_WARN(address.host().setWithDNS(ex, buffer), "Impossible to resolve publicHost ", buffer, " of ", name, " server");
-		if (!address.host()) // 0.0.0.0 => 127.0.0.1
-			address.host().set(IPAddress::Loopback());
 		UInt16 port;
 		if (pProtocol->getNumber("publicPort", port))
 			address.setPort(port);

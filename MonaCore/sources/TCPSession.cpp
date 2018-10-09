@@ -26,6 +26,8 @@ namespace Mona {
 TCPSession::TCPSession(Protocol& protocol) : TCPClient(api.ioSocket), onData(TCPClient::onData), _sendingTrack(0), Session(protocol, SocketAddress::Wildcard()) {}
 
 void TCPSession::connect(const shared<Socket>& pSocket) {
+	if(!peer.serverAddress.host()) // use TCP client bind to determine server address if need (can have been assigned already by a protocol publicHost, not override in this case)
+		peer.setServerAddress(SocketAddress(pSocket->address().host(), 0));
 	peer.setAddress(pSocket->peerAddress());
 	// don't SetSocketParameters here, wait peer connection to allow it!
 
