@@ -1,3 +1,6 @@
+- MonaBase: DNS asynchrone => https://www.binarytides.com/dns-query-code-in-c-with-winsock/, https://skarnet.org/software/s6-dns/getaddrinfo.html
+
+
 Big Merge=>
 - SCRIPT_CALLBACK => SCRIPT_CALLBACK_TRY quand exception (faire lde tour des SCRIPT_ERROR)
 - Eliminer LUA::Set et créer LUA::IndexConst et LUA::Index

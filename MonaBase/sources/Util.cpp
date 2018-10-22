@@ -218,13 +218,12 @@ UInt32 Util::UnpackQuery(const char* query, size_t count, const ForEachParameter
 				name.clear();
 				return true;
 			}
-			if (c == '=') {
-				if (isName) {
-					isName = false;
-					return true;
-				}
-			} else if (c == '+')
-				c = ' ';
+			if (c == '=' && isName) {
+				isName = false;
+				return true;
+			}
+			// not considerate '+' char to replace by ' ', because it affects Base64 value in query which includes '+',
+			// a space must be in a legal %20 format!
 		}
 		if (isName) {
 			if(countPairs || c != '?') // ignore first '?'!

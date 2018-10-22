@@ -120,7 +120,7 @@ bool Session::manage() {
 	// Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
 	if (!timeout || (peer && (!peer.recvTime().isElapsed(timeout) || !peer.sendTime().isElapsed(timeout))) || !peer.disconnection.isElapsed(timeout))
 		return true;
-	INFO(name(), " timeout connection");
+	LOG(String::ICompare(_protocol.name, EXPAND("HTTP"))==0 ? LOG_DEBUG : LOG_INFO, name(), " timeout connection");
 	kill(ERROR_IDLE);
 	return false;
 }
