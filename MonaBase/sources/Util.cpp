@@ -15,7 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/Util.h"
-#include <fstream>
+#include "Mona/File.h"
 #if !defined(_WIN32)
 #include <sys/times.h>
 	#include <unistd.h>
@@ -343,16 +343,18 @@ void Util::Dump(const UInt8* data, UInt32 size, Buffer& buffer) {
 
 
 bool Util::ReadIniFile(const string& path, Parameters& parameters) {
-	ifstream ifile(path, ios::in | ios::binary | ios::ate);
-	if (!ifile.good())
+	Exception ex;
+	File file(path, File::MODE_READ);
+	if (!file.load(ex))
 		return false;
-	UInt32 size = (UInt32)ifile.tellg();
+	UInt32 size = (UInt32)file.size();
 	if (size == 0)
 		return true;
-	vector<char> buffer(size);
-	ifile.seekg(0);
-	ifile.read(buffer.data(), size);
-	char* cur = buffer.data();
+	Buffer buffer(size);
+	if (file.read(ex, buffer.data(), size) < 0)
+		return false;
+
+	char* cur = STR buffer.data();
 	const char* end = cur+size;
 	const char* key, *value;
 	string section;
