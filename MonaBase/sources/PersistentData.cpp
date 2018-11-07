@@ -146,7 +146,7 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 		File reader(file, File::MODE_READ);
 		if (!reader.load(ex))
 			return;
-		Buffer buffer((UInt32)reader.size());
+		Buffer buffer(range<UInt32>(reader.size()));
 		if (buffer.size() > 0 && reader.read(ex, buffer.data(), buffer.size()) < 0)
 			return;
 

@@ -347,7 +347,7 @@ bool Util::ReadIniFile(const string& path, Parameters& parameters) {
 	File file(path, File::MODE_READ);
 	if (!file.load(ex))
 		return false;
-	UInt32 size = (UInt32)file.size();
+	UInt32 size = range<UInt32>(file.size());
 	if (size == 0)
 		return true;
 	Buffer buffer(size);
