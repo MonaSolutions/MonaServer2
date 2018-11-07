@@ -24,15 +24,16 @@ struct IOFile::Action : Runner, virtual Object {
 	Action(const char* name, const Handler& handler, const shared<File>& pFile) : handler(handler), _pFile(pFile), Runner(name) {}
 
 	struct Handle : Runner, virtual Object {
-		Handle(const char* name, const shared<File>& pFile) : Runner(name), _pFile(pFile) {}
+		Handle(const char* name, const shared<File>& pFile) : Runner(name), _weakFile(pFile) {}
 	private:
 		bool run(Exception& ex) {
-			if (!_pFile.unique())
-				handle(*_pFile);
+			shared<File> pFile(_weakFile.lock());
+			if (pFile)
+				handle(*pFile);
 			return true;
 		}
 		virtual void handle(File& file) = 0;
-		shared<File>	_pFile;
+		weak<File>	_weakFile;
 	};
 
 protected:
