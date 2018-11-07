@@ -50,7 +50,7 @@ ADD_TEST(UnpackQuery) {
 	properties.clear();
 
 
-	string test("name1=one%20space&name2=%22one+double quotes%22&name3=percent:%25&name4=%27simple quotes%27");
+	string test("name1=one%20space&name2=%22one double quotes%22&name3=percent:%25&name4=%27simple quotes%27");
 	CHECK(Util::UnpackQuery(test, properties).count()==4); // test "count" + DecodeUrI
 	DEBUG_CHECK(properties.getString("name1", value) && value == "one space");
 	DEBUG_CHECK(properties.getString("name2", value) && value == "\"one double quotes\"");
