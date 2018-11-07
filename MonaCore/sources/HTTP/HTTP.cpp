@@ -315,15 +315,15 @@ struct SetCookieWriter : DataWriter, virtual Object {
 	void	writeBoolean(bool value) {
 		if ((_option <= 2 || value) && writeHeader()) {
 			if(value)
-				writeContent(EXPAND("true"));
+				writeContent("true");
 			else
-				writeContent(EXPAND("false"));
+				writeContent("false");
 		}
 		_option = NO;
 	}
 	void	writeNull() {
 		if (_option <= 2 && writeHeader())
-			writeContent(EXPAND("null"));
+			writeContent("null");
 		_option = NO;
 	}
 	UInt64	writeBytes(const UInt8* data, UInt32 size) { writeString((const char*)data, size); return 0; }
@@ -332,7 +332,7 @@ struct SetCookieWriter : DataWriter, virtual Object {
 			_key.assign(value, size);
 			String::Append(_buffer, _key, "=");
 		} else if ((_option <= 2 || !String::IsFalse(value)) && writeHeader()) {
-			writeContent(value, size);
+			writeContent(String::Data(value, size));
 			_option = NO;
 		}
 	}
@@ -355,10 +355,10 @@ private:
 		return _option<=2;
 	}
 
-	template <typename ...Args>
-	void writeContent(Args&&... args) {
+	template<typename ValueType>
+	void writeContent(const ValueType& value) {
 		UInt32 size = _buffer.size();
-		String::Append(_buffer, args ...);
+		String::Append(_buffer, value);
 		if (_option == VALUE && _onCookie)
 			_onCookie(_key.c_str(), STR _buffer.data()+size, _buffer.size()-size);
 	}
