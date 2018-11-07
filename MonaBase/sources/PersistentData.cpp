@@ -17,7 +17,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/PersistentData.h"
 #include "Mona/FileSystem.h"
 #include "Mona/Util.h"
-#include <fstream>
+#include "Mona/File.h"
 #include <openssl/evp.h>
 
 
@@ -88,18 +88,10 @@ void PersistentData::processEntry(Exception& ex,Entry& entry) {
 
 		// write the file
 		file.assign(directory).append(name);
-#if defined(_WIN32)
-		wchar_t wFile[PATH_MAX];
-		MultiByteToWideChar(CP_UTF8, 0, file.c_str(), -1, wFile, sizeof(wFile));
-		ofstream ofile(wFile, ios::out | ios::binary);
-#else
-		ofstream ofile(file.c_str(), ios::out | ios::binary);
-#endif
-		if (!ofile.good()) {
-			ex.set<Ex::System::File>("Impossible to write file ", file);
+		File writer(file, File::MODE_WRITE);
+		if (!writer.load(ex))
 			return;
-		}
-		ofile.write(STR entry.data(), entry.size());
+		writer.write(ex, entry.data(), entry.size());
 	}
 
 	// remove possible old value after writing to be safe!
@@ -151,25 +143,16 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 		}
 
 		// read the file
-		#if defined(_WIN32)
-			wchar_t wFile[PATH_MAX];
-			MultiByteToWideChar(CP_UTF8, 0, file.c_str(), -1, wFile, sizeof(wFile));
-			ifstream ifile(wFile, ios::in | ios::binary | ios::ate);
-		#else
-			ifstream ifile(file, ios::in | ios::binary | ios::ate);
-		#endif
-		if (!ifile.good()) {
-			ex.set<Ex::System::File>("Impossible to read file ", file);
+		File reader(file, File::MODE_READ);
+		if (!reader.load(ex))
 			return;
-		}
-		UInt32 size = (UInt32)ifile.tellg();
-		ifile.seekg(0);
-		vector<char> buffer(size);
-		if (size>0)
-			ifile.read(buffer.data(), size);
+		Buffer buffer((UInt32)reader.size());
+		if (buffer.size() > 0 && reader.read(ex, buffer.data(), buffer.size()) < 0)
+			return;
+
 		// compute md5
 		UInt8 result[16];
-		EVP_Digest(buffer.data(), size, result, NULL, EVP_md5(), NULL);
+		EVP_Digest(buffer.data(), buffer.size(), result, NULL, EVP_md5(), NULL);
 		String::Assign(value, String::Hex(result, sizeof(result)));  // HEX lower case
 		// compare with file name
 		if (value != name) {
