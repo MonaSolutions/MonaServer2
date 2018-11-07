@@ -332,7 +332,8 @@ struct SetCookieWriter : DataWriter, virtual Object {
 			_key.assign(value, size);
 			String::Append(_buffer, _key, "=");
 		} else if ((_option <= 2 || !String::IsFalse(value)) && writeHeader()) {
-			writeContent(value, size);
+			String::Scoped scoped(value + size);
+			writeContent(value);
 			_option = NO;
 		}
 	}
