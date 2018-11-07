@@ -21,7 +21,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Thread.h"
 #include "Mona/ThreadPool.h"
 #include "Mona/Socket.h"
-#include "Mona/Handler.h"
 
 namespace Mona {
 

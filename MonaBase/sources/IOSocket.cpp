@@ -37,7 +37,7 @@ using namespace std;
 namespace Mona {
 
 struct IOSocket::Action : Runner, virtual Object {
-	Action(const char* name, int error, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket), _handler(*pSocket->_pHandler) {
+	Action(const char* name, int error, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket) {
 		if (error)
 			Socket::SetException(_ex, error);
 	}
@@ -66,7 +66,8 @@ protected:
 
 	template<typename HandleType, typename ...Args>
 	void handle(const shared<Socket>& pSocket, Args&&... args) {
-		_handler.queue(new HandleType(name, pSocket, _ex, std::forward<Args>(args)...));
+		if(!pSocket.unique())
+			pSocket->_pHandler->queue(new HandleType(name, pSocket, _ex, std::forward<Args>(args)...));
 		_ex = NULL;
 	}
 
@@ -86,7 +87,6 @@ private:
 	
 	weak<Socket>	_weakSocket;
 	Exception		_ex;
-	const Handler&  _handler;
 };
 
 

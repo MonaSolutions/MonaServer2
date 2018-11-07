@@ -233,7 +233,7 @@ private:
 	UInt16						_threadReceive;
 	std::atomic<UInt32>			_receiving;
 	std::atomic<UInt8>			_reading;
-	const Handler*				_pHandler;
+	const Handler*				_pHandler; // to diminue size of Action+Handle
 	bool						_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
 
 #if !defined(_WIN32)

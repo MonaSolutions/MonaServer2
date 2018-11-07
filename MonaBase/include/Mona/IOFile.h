@@ -20,7 +20,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/File.h"
 #include "Mona/ThreadPool.h"
 #include "Mona/Packet.h"
-#include "Mona/Handler.h"
 
 namespace Mona {
 
@@ -84,6 +83,8 @@ struct IOFile : virtual Object {
 	void join();
 private:
 	struct Action;
+	struct WAction;
+	struct SAction;
 
 	ThreadPool	_threadPool;
 };

@@ -21,7 +21,9 @@ using namespace std;
 namespace Mona {
 
 struct IOFile::Action : Runner, virtual Object {
-	Action(const char* name, const Handler& handler, const shared<File>& pFile) : handler(handler), _pFile(pFile), Runner(name) {}
+	Action(const char* name, const Handler& handler, const shared<File>& pFile) : Runner(name) {
+		pFile->_pHandler = &handler;
+	}
 
 	struct Handle : Runner, virtual Object {
 		Handle(const char* name, const shared<File>& pFile) : Runner(name), _weakFile(pFile) {}
@@ -38,12 +40,13 @@ struct IOFile::Action : Runner, virtual Object {
 
 protected:
 	template<typename HandleType, typename ...Args>
-	void handle(Args&&... args) { if(!_pFile.unique()) handler.queue(new HandleType(name, _pFile, forward<Args>(args)...)); }
+	void handle(const shared<File>& pFile, Args&&... args) {
+		if(!pFile.unique())
+			pFile->_pHandler->queue(new HandleType(name, pFile, forward<Args>(args)...));
+	}
 
-	const Handler&	handler;
-private:
-	bool run(Exception& ex) {
-		if (run(ex, _pFile))
+	bool run(Exception& ex, const shared<File>& pFile) {
+		if (process(ex, pFile))
 			return true;
 		struct ErrorHandle : Handle, virtual Object {
 			ErrorHandle(const char* name, const shared<File>& pFile, Exception& ex) : Handle(name, pFile), _ex(move(ex)) {}
@@ -51,12 +54,28 @@ private:
 			void handle(File& file) { file.onError(_ex); }
 			Exception		_ex;
 		};
-		handle<ErrorHandle>(ex);
+		handle<ErrorHandle>(pFile, ex);
 		return true;
 	}
-	virtual bool run(Exception& ex, const shared<File>& pFile) { return pFile->load(ex); }
+private:
+	
+	virtual bool process(Exception& ex, const shared<File>& pFile) { return pFile->load(ex); }
+};
 
-	shared<File> _pFile; // shared and not weak to allow to detect current reading/writing process to avoid to recall ioFile.read/write if it's useless!
+struct IOFile::WAction : IOFile::Action, virtual Object {
+	WAction(const char* name, const Handler& handler, const shared<File>& pFile) : Action(name, handler, pFile), _weakFile(pFile) {}
+private:
+	bool run(Exception& ex) {
+		shared<File> pFile(_weakFile.lock());
+		return !pFile || Action::run(ex, pFile);
+	}
+	weak<File> _weakFile;
+};
+struct IOFile::SAction : IOFile::Action, virtual Object {
+	SAction(const char* name, const Handler& handler, const shared<File>& pFile) : Action(name, handler, pFile), _pFile(pFile) {}
+private:
+	bool run(Exception& ex) { return Action::run(ex, _pFile); }
+	shared<File> _pFile;
 };
 
 IOFile::IOFile(const Handler& handler, const ThreadPool& threadPool, UInt16 cores) :
@@ -81,13 +100,15 @@ void IOFile::subscribe(const shared<File>& pFile, const File::OnError& onError, 
 }
 
 void IOFile::load(const shared<File>& pFile) {
-	if (!*pFile)
-		_threadPool.queue(new Action("LoadFile", handler, pFile), pFile->_ioTrack);
+	if (*pFile)
+		return;
+	// SAction to allow file creation full asynchronous (without any other hand on the file)
+	_threadPool.queue(new SAction("LoadFile", handler, pFile), pFile->_ioTrack);
 }
 
 void IOFile::read(const shared<File>& pFile, UInt32 size) {
-	struct ReadFile : Action {
-		ReadFile(const Handler& handler, const shared<File>& pFile, const ThreadPool& threadPool, UInt32 size) : Action("ReadFile", handler, pFile), _threadPool(threadPool), _size(size) {}
+	struct ReadFile : WAction {
+		ReadFile(const Handler& handler, const shared<File>& pFile, const ThreadPool& threadPool, UInt32 size) : WAction("ReadFile", handler, pFile), _threadPool(threadPool), _size(size) {}
 	private:
 		struct Handle : Action::Handle, virtual Object {
 			Handle(const char* name, const shared<File>& pFile, shared<Buffer>& pBuffer, bool end) :
@@ -97,7 +118,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 			shared<Buffer>	_pBuffer;
 			bool   _end;
 		};
-		bool run(Exception& ex, const shared<File>& pFile) {
+		bool process(Exception& ex, const shared<File>& pFile) {
 			if (pFile.unique())
 				return true; // useless to read here, nobody to receive it!
 			// take the required size just if not exceeds file size to avoid to allocate a too big buffer (expensive)
@@ -110,18 +131,18 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 			if ((_size=readen) < pBuffer->size())
 				pBuffer->resize(readen, true);
 			if (pFile->pDecoder) {
-				struct Decoding : Action {
-					Decoding(const Handler& handler, const shared<File>& pFile, const ThreadPool& threadPool, shared<Buffer>& pBuffer, bool end) :
-						_pThread(ThreadQueue::Current()), _threadPool(threadPool), _end(end), Action("DecodingFile", handler, pFile), _pBuffer(move(pBuffer)) {
+				struct Decoding : WAction, virtual Object {
+					Decoding(const shared<File>& pFile, const ThreadPool& threadPool, shared<Buffer>& pBuffer, bool end) :
+						_pThread(ThreadQueue::Current()), _threadPool(threadPool), _end(end), WAction("DecodingFile", *pFile->_pHandler, pFile), _pBuffer(move(pBuffer)) {
 					}
 				private:
-					bool run(Exception& ex, const shared<File>& pFile) {
+					bool process(Exception& ex, const shared<File>& pFile) {
 						UInt32 decoded = pFile->pDecoder->decode(_pBuffer, _end);
 						if (_pBuffer)
-							handle<ReadFile::Handle>(_pBuffer, _end);
+							handle<ReadFile::Handle>(pFile, _pBuffer, _end);
 						// decoded=wantToRead!
 						if(decoded && !_end)
-							_pThread->queue(new ReadFile(handler, pFile, _threadPool, decoded));
+							_pThread->queue(new ReadFile(*pFile->_pHandler, pFile, _threadPool, decoded));
 						return true;
 					}
 					shared<Buffer>		_pBuffer;
@@ -129,9 +150,9 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 					const ThreadPool&	_threadPool;
 					ThreadQueue*		_pThread;
 				};
-				_threadPool.queue(new Decoding(handler, pFile, _threadPool, pBuffer, _size == available), pFile->_decodingTrack);
+				_threadPool.queue(new Decoding(pFile, _threadPool, pBuffer, _size == available), pFile->_decodingTrack);
 			} else
-				handle<Handle>(pBuffer, _size == available);
+				handle<Handle>(pFile, pBuffer, _size == available);
 			return true;
 		}
 		UInt32				_size;
@@ -142,8 +163,8 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 }
 
 void IOFile::write(const shared<File>& pFile, const Packet& packet) {
-	struct WriteFile : Action {
-		WriteFile(const Handler& handler, const shared<File>& pFile, const Packet& packet) : _packet(move(packet)), Action("WriteFile", handler, pFile) {
+	struct WriteFile : SAction { // SAction to allow file writing full asynchronous (without any other hand on the file)
+		WriteFile(const Handler& handler, const shared<File>& pFile, const Packet& packet) : _packet(move(packet)), SAction("WriteFile", handler, pFile) {
 			pFile->_queueing += _packet.size();
 		}
 	private:
@@ -155,14 +176,14 @@ void IOFile::write(const shared<File>& pFile, const Packet& packet) {
 					file.onFlush(!file.loaded());
 			}
 		};
-		bool run(Exception& ex, const shared<File>& pFile) {
+		bool process(Exception& ex, const shared<File>& pFile) {
 			UInt64 queueing = (pFile->_queueing -= _packet.size());
 			if (!pFile->write(ex, _packet.data(), _packet.size()))
 				return false;
 			if (queueing)
 				return true;
 			if(!pFile->_flushing++) // To signal end of write!
-				handle<Handle>();
+				handle<Handle>(pFile);
 			else
 				--pFile->_flushing;
 			return true;
@@ -176,8 +197,8 @@ void IOFile::write(const shared<File>& pFile, const Packet& packet) {
 }
 
 void IOFile::erase(const shared<File>& pFile) {
-	struct EraseFile : Action {
-		EraseFile(const Handler& handler, const shared<File>& pFile) : Action("EraseFile", handler, pFile) {}
+	struct EraseFile : SAction { // SAction to allow file writing full asynchronous (without any other hand on the file)
+		EraseFile(const Handler& handler, const shared<File>& pFile) : SAction("EraseFile", handler, pFile) {}
 	private:
 		struct Handle : Action::Handle, virtual Object {
 			Handle(const char* name, const shared<File>& pFile) : Action::Handle(name, pFile) {}
@@ -187,11 +208,11 @@ void IOFile::erase(const shared<File>& pFile) {
 					file.onFlush(!file.loaded());
 			}
 		};
-		bool run(Exception& ex, const shared<File>& pFile) {
+		bool process(Exception& ex, const shared<File>& pFile) {
 			if (!pFile->erase(ex))
 				return false;
 			if (!pFile->_flushing++) // To signal end of write!
-				handle<Handle>();
+				handle<Handle>(pFile);
 			else
 				--pFile->_flushing;
 			return true;
