@@ -23,13 +23,13 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Entity.h"
 #include "Mona/Writer.h"
 #include "Mona/Parameters.h"
-#include "Mona/DataReader.h"
+#include "Mona/StringReader.h"
 #include <vector>
 
 namespace Mona {
 
 struct Client : Entity, virtual Object, Net::Stats {
-	typedef Event<bool(DataReader& reader, std::string& value)> ON(CallProperties);
+	typedef Event<const char*(const char* key, DataReader& reader)> ON(SetProperty);
 	NULLABLE
 
 	const SocketAddress			address;
@@ -37,6 +37,11 @@ struct Client : Entity, virtual Object, Net::Stats {
 
 	const std::string			protocol;
 
+	/*! Can be usefull in some protocol implementation to allow to change client property (like HTTP and Cookie) */
+	virtual const char*			setProperty(const char* key, DataReader& reader) {
+		const char* value = onSetProperty(key, reader);
+		return value ? ((Parameters&)properties()).setString(key, value).c_str() : NULL;
+	}
 	virtual const Parameters&	properties() const = 0;
 
 	operator bool() const		{ return connection ? true : false; }

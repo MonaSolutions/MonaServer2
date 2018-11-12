@@ -26,23 +26,29 @@ namespace Mona {
 
 
 struct QueryWriter : DataWriter, virtual Object {
-	QueryWriter(Buffer& buffer) : DataWriter(buffer), _query(NULL), _first(true), _isProperty(false) {}
+	QueryWriter(Buffer& buffer) : DataWriter(buffer), _query(NULL), _first(true), _isProperty(false),
+		separator("&"), dateFormat(Date::FORMAT_ISO8601_SHORT), uriChars(true) {}
+
+	bool  uriChars;
+	const char* dateFormat;
+	const char*	separator;
 
 	const char* query() const;
 
 	void   writePropertyName(const char* value);
 
-	void   writeNumber(double value) { String::Append(writer(), value); }
-	void   writeString(const char* value, UInt32 size) { Util::EncodeURI(value,size, writer()); }
-	void   writeBoolean(bool value) { writer().write(value ? "true" : "false"); }
-	void   writeNull() { writer().write("null",4); }
-	UInt64 writeDate(const Date& date) { String::Append(writer(), String::Date(date, Date::FORMAT_ISO8601_SHORT)); return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size) { Util::ToBase64(data, size, writer()); return 0; }
+	void   writeNumber(double value) { String::Append(write(), value); }
+	void   writeString(const char* value, UInt32 size);
+	void   writeBoolean(bool value) { write().write(value ? "true" : "false"); }
+	void   writeNull() { write().write(EXPAND("null")); }
+	UInt64 writeDate(const Date& date) { date.format(dateFormat, write()); return 0; }
+	UInt64 writeBytes(const UInt8* data, UInt32 size) { Util::ToBase64(data, size, write()); return 0; }
 
 	void clear() { _isProperty = false; _first = true; _query = NULL;  DataWriter::clear(); }
-	
+
+
 private:
-	BinaryWriter& writer();
+	BinaryWriter& write();
 
 	bool				_isProperty;
 	bool				_first;

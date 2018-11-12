@@ -125,8 +125,6 @@ bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& resul
 	bool beginning = true, negative = false;
 	long double number(0);
 	UInt64 comma(0);
-	
-	Type max = numeric_limits<Type>::max();
 
 	const char* current(value);
 	if (size == string::npos)
@@ -198,7 +196,7 @@ bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& resul
 	if (comma)
 		number /= comma;
 
-	if (number > max) {
+	if (number > numeric_limits<Type>::max()) {
 		ex.set<Ex::Format>(value, " exceeds maximum number capacity");
 		return false;
 	}

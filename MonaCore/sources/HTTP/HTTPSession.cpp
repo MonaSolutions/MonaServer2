@@ -157,12 +157,12 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 	}) {
 	
 	// subscribe to client.properties(...)
-	peer.onCallProperties = [this](DataReader& reader,string& value) {
-		HTTP::OnCookie onCookie([this,&value](const char* key, const char* data, UInt32 size) {
-			peer.properties().setString(key, data, size);
-			value.assign(data,size);
-		});
-		return _pWriter->writeSetCookie(reader, onCookie);
+	peer.onSetProperty = [this](const char* key, DataReader& reader)->const char* {
+		string value;
+		if (!reader.readString(value))
+			return NULL;
+		_pWriter->writeSetCookie(key, value, reader);
+		return value.c_str();
 	};
 
 	_fileWriter.onError = [this](const Exception& ex) {
@@ -260,7 +260,7 @@ void HTTPSession::flush() {
 }
 
 void HTTPSession::close() {
-	peer.onCallProperties = nullptr;
+	peer.onSetProperty = nullptr;
 	// unpublish and unsubscribe
 	unpublish();
 	unsubscribe();

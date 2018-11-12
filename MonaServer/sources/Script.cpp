@@ -128,19 +128,17 @@ void Script::CloseState(lua_State* pState) {
 }
 
 void Script::PushValue(lua_State* pState,const char* value) {
+	if(!value || String::ICompare(value, "null") == 0)
+		return lua_pushnil(pState);
 	if (String::ICompare(value, "false") == 0)
-		lua_pushboolean(pState, 0);
-	else if (String::ICompare(value, "true") == 0)
-		lua_pushboolean(pState, 1);
-	else if (String::ICompare(value, "null") == 0)
-		lua_pushnil(pState);
-	else {
-		double result(0);
-		if (String::ToNumber(value, result))
-			lua_pushnumber(pState, result);
-		else
-			lua_pushstring(pState, value);
-	}
+		return lua_pushboolean(pState, 0);
+	if (String::ICompare(value, "true") == 0)
+		return lua_pushboolean(pState, 1);
+	double result(0);
+	if (String::ToNumber(value, result))
+		lua_pushnumber(pState, result);
+	else
+		lua_pushstring(pState, value);
 }
 
 void Script::PushValue(lua_State* pState,const UInt8* value, UInt32 size) {

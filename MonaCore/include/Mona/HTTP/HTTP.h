@@ -172,9 +172,6 @@ struct HTTP : virtual Static {
 
 	static bool			 WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const std::string& fullPath, const std::string& path, SortBy sortBy = SORTBY_NAME, Sort sort = SORT_ASC);
 
-	typedef std::function<void(const char* key, const char* data, UInt32 size)> OnCookie;
-	static bool			 WriteSetCookie(DataReader& reader, Buffer& buffer, const OnCookie& onCookie=nullptr);
-
 	struct Header : Parameters, virtual Object {
 		Header(const Socket& socket, bool rendezVous=false);
 

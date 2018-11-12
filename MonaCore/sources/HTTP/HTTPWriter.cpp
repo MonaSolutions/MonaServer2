@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/HTTP/HTTPWriter.h"
+#include "Mona/QueryWriter.h"
 
 using namespace std;
 
@@ -177,6 +178,20 @@ void HTTPWriter::flushing() {
 	// continue to read the file if paused on congestion
 	if (flushing && !_session->queueing() && _flushings.front().unique()) // if !_flushings.front().unique() => is reading (+ can cause a double call to _onFileReaden)
 		_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front()));
+}
+
+void HTTPWriter::writeSetCookie(const char* key, const string& value, DataReader& params) {
+	if (!_pSetCookie)
+		_pSetCookie.reset(new Buffer());
+	QueryWriter writer(*_pSetCookie);
+	writer.separator = "; ";
+	writer.dateFormat = Date::FORMAT_RFC1123;
+	writer.uriChars = false;
+
+	writer->write(EXPAND("\r\nSet - Cookie: "));
+	writer.writePropertyName(key);
+	writer.writeString(value.data(), value.size());
+	params.read(writer);
 }
 
 void HTTPWriter::writeFile(const Path& file, Parameters& properties) {

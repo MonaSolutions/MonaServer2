@@ -45,7 +45,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	DataWriter&		writeResponse(UInt8 type=0) { return writeMessage(true); }
 	void			writeRaw(DataReader& arguments, const Packet& packet = Packet::Null());
 
-	bool			writeSetCookie(DataReader& reader, const HTTP::OnCookie& onCookie = nullptr) { if (!_pSetCookie) _pSetCookie.reset(new Buffer()); return HTTP::WriteSetCookie(reader, *_pSetCookie, onCookie); }
+	void			writeSetCookie(const char* key, const std::string& value, DataReader& params);
 	void			writeFile(const Path& file, Parameters& properties);
 	BinaryWriter&   writeRaw(const char* code);
 	DataWriter&     writeResponse(const char* subMime);

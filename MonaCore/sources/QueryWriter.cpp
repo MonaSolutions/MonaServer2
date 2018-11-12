@@ -33,25 +33,32 @@ const char* QueryWriter::query() const {
 	return _query = STR writer.data();
 }
 
-BinaryWriter& QueryWriter::writer() {
+BinaryWriter& QueryWriter::write() {
 	_query = NULL;
 	if (_isProperty) {
-		DataWriter::writer.write("=");
+		writer.write('=');
 		_isProperty = false;
 	} else if (!_first)
-		DataWriter::writer.write("&");
+		writer.write(separator); // &
 	else
 		_first = false;
-	return DataWriter::writer;
+	return writer;
 }
 
 void QueryWriter::writePropertyName(const char* value) {
 	if (!_first)
-		DataWriter::writer.write("&"); 
+		writer.write(separator); // &
 	else
 		_first = false;
-	Util::EncodeURI(value, DataWriter::writer);
+	writeString(value, strlen(value));
 	_isProperty = true;
+}
+
+void QueryWriter::writeString(const char* value, UInt32 size) {
+	if (uriChars)
+		Util::EncodeURI(value, size, write());
+	else
+		write().write(value, size);
 }
 
 
