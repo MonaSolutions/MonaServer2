@@ -62,7 +62,7 @@ struct Util : virtual Static {
 	template<typename Type1, typename Type2, typename TypeM = typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type, typename ResultType = typename std::make_signed<TypeM>::type>
 	static ResultType AddDistance(Type1 pt, Type2 distance, TypeM max, TypeM min = 0) {
 		ResultType deltaMax(max - pt);
-		if (distance<deltaMax) {
+		if (distance<=deltaMax) {
 			pt += distance; // distance can be negative
 			if ((TypeM)pt<(TypeM)min)
 				pt += max;
