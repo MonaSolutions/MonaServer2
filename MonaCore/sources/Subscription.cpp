@@ -549,8 +549,8 @@ void Subscription::Medias::setNext(Publication* pNextPublication) {
 	if (!pNextPublication)
 		return;
 	// use minimum lastTime of pNextPublication to compute timestamp aligment
-	UInt32 alignment = abs(distance(
-		distance(pNextPublication->audios.lastTime, pNextPublication->videos.lastTime) >= 0 ? pNextPublication->audios.lastTime : pNextPublication->videos.lastTime,
+	UInt32 alignment = abs(Util::Distance(
+		Util::Distance(pNextPublication->audios.lastTime, pNextPublication->videos.lastTime) >= 0 ? pNextPublication->audios.lastTime : pNextPublication->videos.lastTime,
 		_subscription._lastTime)
 	);
 	DEBUG(_subscription.name()," setNext ", pNextPublication->name()," with timestamp distance of ", alignment);
@@ -582,7 +582,7 @@ bool Subscription::Medias::add(UInt32 time, UInt8 track, const typename MediaTyp
 	if (_nextSize) {
 		if (!_nextTimeout)
 			return true; // already joined
-		if (distance(time, at(size() - _nextSize)->time()) > 0) // time() is necessary on an audio or video media which is not a config packet (so media has valid time())
+		if (Util::Distance(time, at(size() - _nextSize)->time()) > 0) // time() is necessary on an audio or video media which is not a config packet (so media has valid time())
 			return false; // can be play now!
 		DEBUG(_subscription.name(), " sync with ", _pNextSubscription->name(), " (", time, ")");
 		_nextTimeout = 0; // join! no more updating!
@@ -590,7 +590,7 @@ bool Subscription::Medias::add(UInt32 time, UInt8 track, const typename MediaTyp
 	}
 	if (_pNextSubscription && _pNextSubscription->pPublication) {
 		UInt32 lastTime = typeid(MediaType) == typeid(Media::Audio) ? _pNextSubscription->pPublication->audios.lastTime : _pNextSubscription->pPublication->videos.lastTime;
-		if (distance(time, lastTime) > 0)
+		if (Util::Distance(time, lastTime) > 0)
 			return false; // no join, can play now!
 	}
 	emplace(begin() + size() - _nextSize, new MediaType(tag, packet, track));
@@ -603,13 +603,13 @@ bool Subscription::Medias::flush(Media::Source& source) {
 	unique<UInt32> pLimit;
 	if (!_nextSize && _pNextSubscription && _pNextSubscription->pPublication) {
 		// take the minimum lastTime limit (audio or video!)
-		if(distance(_pNextSubscription->pPublication->audios.lastTime, _pNextSubscription->pPublication->videos.lastTime)>=0)
+		if(Util::Distance(_pNextSubscription->pPublication->audios.lastTime, _pNextSubscription->pPublication->videos.lastTime)>=0)
 			pLimit.reset(new UInt32(_pNextSubscription->pPublication->audios.lastTime));
 		else
 			pLimit.reset(new UInt32(_pNextSubscription->pPublication->videos.lastTime));
 	}
 	while (size() > _nextSize) {
-		if (pLimit && front()->hasTime() && distance(front()->time(), *pLimit) <= 0)
+		if (pLimit && front()->hasTime() && Util::Distance(front()->time(), *pLimit) <= 0)
 			return _flushing = false; // rest to flush => false!
 	//	DEBUG(_subscription.name(), &source == &Source::Null() ?  " medias remove " : " medias flush ", Media::TypeToString(front()->type), " - ", front()->time());
 		if (front()->type)

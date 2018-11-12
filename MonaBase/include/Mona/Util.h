@@ -44,6 +44,32 @@ struct Util : virtual Static {
 
 	static const UInt8 UInt8Generators[];
 
+	template<typename Type1, typename Type2, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
+	static ResultType Distance(Type1 value1, Type2 value2) {
+		ResultType result(value2 - value1);
+		return abs(result) > std::ceil(std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max() / 2.0) ? (value1 - value2) : result;
+	}
+
+	template<typename Type1, typename Type2, typename TypeM = typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type, typename ResultType = typename std::make_signed<TypeM>::type>
+	static ResultType Distance(Type1 value1, Type2 value2, TypeM max, TypeM min = 0) {
+		ResultType result(value2 - value1);
+		max = TypeM(max - min + 1);
+		if (TypeM(Mona::abs(result)) <= (max / 2))
+			return result;
+		return result>0 ? (result - max) : (max + result);
+	}
+
+	template<typename Type1, typename Type2, typename TypeM = typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type, typename ResultType = typename std::make_signed<TypeM>::type>
+	static ResultType AddDistance(Type1 pt, Type2 distance, TypeM max, TypeM min = 0) {
+		ResultType deltaMax(max - pt);
+		if (distance<deltaMax) {
+			pt += distance; // distance can be negative
+			if ((TypeM)pt<(TypeM)min)
+				pt += max;
+		} else
+			pt = distance - deltaMax;
+		return pt;
+	}
 
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
 

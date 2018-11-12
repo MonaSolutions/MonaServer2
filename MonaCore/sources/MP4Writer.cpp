@@ -20,6 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
 #include "Mona/Logs.h"
+#include "Mona/Util.h"
 
 using namespace std;
 
@@ -84,7 +85,7 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 	}
 
 	Frames& audios = _audios[track - 1];
-	if (distance(audios.empty() ? audios.lastTime : audios.back()->time(), tag.time)<0) {
+	if (Util::Distance(audios.empty() ? audios.lastTime : audios.back()->time(), tag.time)<0) {
 		WARN("Non-monotonic audio timestamp, packet ignored");
 		return;
 	}
@@ -127,7 +128,7 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 
 	Frames& videos = _videos[track - 1];
 	// NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.frame, ' ', tag.time, " (", tag.time - (videos.empty() ? videos.lastTime : videos.back()->time()), ")");
-	if (distance(videos.empty() ? videos.lastTime : videos.back()->time(), tag.time) < 0) {
+	if (Util::Distance(videos.empty() ? videos.lastTime : videos.back()->time(), tag.time) < 0) {
 		WARN("Non-monotonic video timestamp, packet ignored");
 		return;
 	}
@@ -159,7 +160,7 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 		_firstTime = false;
 		return;
 	}
-	Int32 delta = distance(_timeFront, _timeBack);
+	Int32 delta = Util::Distance(_timeFront, _timeBack);
 	if (!delta)
 		return; // no medias!
 	if (!_reset &&  delta < ((_buffering && !_sequence)  ? 1000 : 100)) // wait one second to get at less one video frame the first time (1fps is the min possibe for video)

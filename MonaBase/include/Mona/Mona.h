@@ -163,21 +163,6 @@ inline int sign(T val) {
 	return (T(0) < val) - (val < T(0));
 }
 
-template<typename Type1, typename Type2, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
-inline ResultType distance(Type1 value1, Type2 value2) {
-	ResultType result(value2 - value1);
-	return abs(result) > ceil(std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max()/2.0) ? (value1 - value2) : result;
-}
-
-template<typename Type1, typename Type2, typename TypeM = typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type, typename ResultType = typename std::make_signed<TypeM>::type>
-inline ResultType distance(Type1 value1, Type2 value2, TypeM max, TypeM min=0) {
-	ResultType result(value2 - value1);
-	max = TypeM(max - min + 1);
-	if (TypeM(Mona::abs(result)) <= (max / 2))
-		return result;
-	return result>0 ? (result - max) : (max + result);
-}
-
 inline bool isalnum(char value) { return ASCII::Is(value, ASCII::ALPHA | ASCII::DIGIT); }
 inline bool isalpha(char value) { return ASCII::Is(value,ASCII::ALPHA); }
 inline bool isblank(char value) { return ASCII::Is(value,ASCII::BLANK); }
@@ -222,6 +207,23 @@ template<typename ObjectType>
 inline const std::string& typeof() {
 	static struct Type : std::string { Type() : std::string(typeof(typeid(ObjectType))) {} } Type;
 	return Type;
+}
+
+template<typename MapType, typename ValType, typename Comparator>
+inline typename MapType::const_iterator lower_bound(MapType& map, const ValType& value, Comparator& compare) {
+	typename MapType::const_iterator it, result(map.begin());
+	UInt32 count(map.size()), step;
+	while (count) {
+		it = result;
+		step = count / 2;
+		std::advance(it, step);
+		if (compare(it, value)) {
+			result = ++it;
+			count -= step + 1;
+		} else
+			count = step;
+	}
+	return result;
 }
 
 template <typename Type>
