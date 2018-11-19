@@ -20,7 +20,7 @@ ifeq ($(OS),Darwin)
 	SHARED=-dynamiclib -install_name ./../MonaBase/$(LIB)
 else
 	LIB=lib/libMonaBase.so
-	AR=lib/libMonaBase.ar
+	AR=lib/libMonaBase.a
 	SHARED=-shared
 endif
 
@@ -34,8 +34,10 @@ release:
 	@$(MAKE) -k $(OBJECT)
 	@echo creating dynamic lib $(LIB)
 	@$(CXX) $(CFLAGS) -O3 -fPIC $(SHARED) -o $(LIB) $(OBJECT) $(LIBS)
-	@echo creating static lib $(AR)
-	@ar rcs $(AR) $(OBJECT)
+	@if [ "$(OS)" != "Darwin" ]; then\
+		echo "creating static lib $(AR)";\
+		ar rcs $(AR) $(OBJECT);\
+	fi
 
 debug:
 	mkdir -p tmp/debug
@@ -43,9 +45,11 @@ debug:
 	@$(MAKE) -k $(OBJECTD)
 	@echo creating dynamic debug lib $(LIB)
 	@$(CXX) -g -D_DEBUG $(CFLAGS) -Og -fPIC $(SHARED) -o $(LIB) $(OBJECTD) $(LIBS)
-	@echo creating static lib $(AR)
-	@ar rcs $(AR) $(OBJECTD)
-
+	@if [ "$(OS)" != "Darwin" ]; then\
+		echo "creating static lib $(AR)";\
+		ar rcs $(AR) $(OBJECTD);\
+	fi
+   
 $(OBJECT): tmp/release/%.o: sources/%.cpp
 	@echo compiling $(@:tmp/release/%.o=sources/%.cpp)
 	@$(CXX) $(CFLAGS) -fpic $(INCLUDES) -c -o $(@) $(@:tmp/release/%.o=sources/%.cpp)
