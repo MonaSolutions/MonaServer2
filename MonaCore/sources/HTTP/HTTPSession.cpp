@@ -423,7 +423,7 @@ void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader&
 	MapWriter<Parameters> props(properties);
 	bool append(request->type == HTTP::TYPE_POST);
 	struct AppendReader : WriterReader {
-		bool write(DataWriter& writer) {
+		bool writeOne(DataWriter& writer) {
 			writer.writeString(EXPAND("append"));
 			return false;
 		}

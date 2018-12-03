@@ -27,7 +27,7 @@ namespace Mona {
 /*!
 Help to custom writing operation for method which require a DataReader like Writer::writeRaw =>
 struct HTTPHeader : WriterReader {
-	bool write(DataWriter& writer) {
+	bool writeOne(DataWriter& writer) {
 		writer.beginObject();
 		writer.writeStringProperty("content-type", EXPAND("html"));
 		writer.endObject();
@@ -37,16 +37,20 @@ struct HTTPHeader : WriterReader {
 } reader;
 client.writer().writeRaw(reader); */
 struct WriterReader : DataReader, virtual Object {
-	WriterReader() : _rest(true) {}
+	WriterReader() : _rest(true), _written(0) {}
 
-	void reset() { _rest = true; }
+	void reset() { _rest = true; _written = 0; }
+
+protected:
+	virtual UInt8 followingType() { return _rest ? OTHER : END; }
+	UInt8 written() const { return _written; }
 private:
-	virtual bool write(DataWriter& writer) = 0;
+	virtual bool writeOne(DataWriter& writer) = 0;
 
-	UInt8 followingType() { return _rest ? OTHER : END; }
-	bool readOne(UInt8 type, DataWriter& writer) { return _rest = write(writer); }
+	bool readOne(UInt8 type, DataWriter& writer) { _rest = writeOne(writer);  ++_written; return _rest; }
 
-	bool _rest;
+	bool  _rest;
+	UInt8 _written;
 };
 
 

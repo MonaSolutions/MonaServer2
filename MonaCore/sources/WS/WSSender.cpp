@@ -84,7 +84,7 @@ bool WSSender::send(const Packet& packet) {
 	DUMP_RESPONSE(_pSocket->isSecure() ? "WSS" : "WS", packet.data(), packet.size(), _pSocket->peerAddress());
 	int result = _pSocket->write(ex, packet);
 	if (ex || result<0)
-		WARN(ex);
+		DEBUG(ex);
 	return result >= 0;
 }
 

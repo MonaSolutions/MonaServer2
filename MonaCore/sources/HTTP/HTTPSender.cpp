@@ -65,7 +65,7 @@ bool HTTPSender::socketSend(const Packet& packet) {
 	DUMP_RESPONSE(pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), pSocket->peerAddress());
 	int result = pSocket->write(ex, packet);
 	if (ex || result<0)
-		WARN(ex);
+		DEBUG(ex);
 	// no shutdown required, already done by write!
 	return result >= 0;
 }

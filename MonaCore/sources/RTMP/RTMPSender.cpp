@@ -110,10 +110,11 @@ bool RTMPSender::run(Exception&) {
 		DUMP_RESPONSE(_pSocket->isSecure() ? "RTMPS" : "RTMP", _pBuffer->data(), _pBuffer->size(), _pSocket->peerAddress());
 
 	Exception ex;
-	if (_pSocket->write(ex, Packet(_pBuffer)) < 0) {
-		WARN(ex);
+	int result = _pSocket->write(ex, Packet(_pBuffer));
+	if (ex || result<0)
+		DEBUG(ex);
+	if (result < 0)
 		return true;
-	}
 
 	if (_packet) {
 		if (_pEncryptKey) {
@@ -124,11 +125,11 @@ bool RTMPSender::run(Exception&) {
 		} else
 			DUMP_RESPONSE(_pSocket->isSecure() ? "RTMPS" : "RTMP", _packet.data(), _packet.size(), _pSocket->peerAddress());
 		if(_pSocket->write(ex, _packet)<0 && !ex)
-			WARN(ex);
+			DEBUG(ex);
 	}
 	
 	if (ex)
-		WARN(ex);
+		DEBUG(ex);
 
 	return true;
 }

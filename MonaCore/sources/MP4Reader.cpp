@@ -972,7 +972,7 @@ void MP4Reader::flushMedias(Media::Source& source) {
 				struct TrackReader : WriterReader {
 					TrackReader(Track& track) : _track(track) {}
 				private:
-					bool write(DataWriter& writer) {
+					bool writeOne(DataWriter& writer) {
 						writer.beginObject();
 						if (_track.lang[0]) {
 							writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
