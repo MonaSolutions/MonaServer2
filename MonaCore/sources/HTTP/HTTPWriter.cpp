@@ -188,7 +188,7 @@ void HTTPWriter::writeSetCookie(const char* key, const string& value, DataReader
 	writer.dateFormat = Date::FORMAT_RFC1123;
 	writer.uriChars = false;
 
-	writer->write(EXPAND("\r\nSet - Cookie: "));
+	writer->write(EXPAND("\r\nSet-Cookie: "));
 	writer.writePropertyName(key);
 	writer.writeString(value.data(), value.size());
 	params.read(writer);

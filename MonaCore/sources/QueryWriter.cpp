@@ -46,10 +46,6 @@ BinaryWriter& QueryWriter::write() {
 }
 
 void QueryWriter::writePropertyName(const char* value) {
-	if (!_first)
-		writer.write(separator); // &
-	else
-		_first = false;
 	writeString(value, strlen(value));
 	_isProperty = true;
 }
