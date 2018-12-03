@@ -64,7 +64,7 @@ private:
 		explicit operator bool() const { return _pBuffer.operator bool() && !_pBuffer->empty(); }
 		Buffer* operator->() { return _pBuffer.get(); }
 
-		Track& operator=(nullptr_t) { _flags = FLAG_SKIP; _pBuffer.reset();  return self; }
+		Track& operator=(std::nullptr_t) { _flags = FLAG_SKIP; _pBuffer.reset();  return self; }
 		Track& operator=(FLAGS flags) { _flags = flags; return self; }
 		Track& operator&=(FLAGS flags) { _flags &= flags; return self; }
 		Track& operator|=(FLAGS flags) { _flags |= flags; return self; }

@@ -83,7 +83,7 @@ private:
 		operator UInt32() const { return _rest; }
 		UInt32 size() const { return _size; }
 		Box& operator=(BinaryReader& reader); // assign _type, _rest and _size
-		Box& operator=(nullptr_t) { _type = UNDEFINED; _rest = 0; return *this; }
+		Box& operator=(std::nullptr_t) { _type = UNDEFINED; _rest = 0; return *this; }
 		Box& operator-=(UInt32 readen);
 		Box& operator-=(BinaryReader& reader);
 	private:
@@ -115,7 +115,7 @@ private:
 			Type(Media::Video::Codec codec) : _type(Media::TYPE_VIDEO), video(codec) {}
 			~Type() {}
 			operator Media::Type() const { return _type; }
-			Type& operator=(nullptr_t) { _type = Media::TYPE_NONE; return *this; }
+			Type& operator=(std::nullptr_t) { _type = Media::TYPE_NONE; return *this; }
 			Packet config;
 			union {
 				Media::Audio::Tag audio;
