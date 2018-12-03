@@ -18,15 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#if defined(__ANDROID__)
-#include <sys/syscall.h>
-#include <linux/fadvise.h>
-#if defined(__NR_arm_fadvise64_64)
-	#define posix_fadvise(fd, offset, len, advise) syscall(__NR_arm_fadvise64_64, fd, offset, len, advise)
-#elif defined(__NR_fadvise64_64)
-	#define posix_fadvise(fd, offset, len, advise) syscall(__NR_fadvise64_64, fd, offset, len, advise)
-#endif
-#elif !defined(_WIN32)
+#if !defined(_WIN32)
 #include <unistd.h>
 #if defined(_BSD)
 	#define lseek64 lseek
@@ -149,7 +141,7 @@ bool File::load(Exception& ex) {
 			}
 		}
 
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(__ANDROID__)
 		posix_fadvise(_handle, 0, 0, 1);  // ADVICE_SEQUENTIAL
 #endif
 		struct stat status;
