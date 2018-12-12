@@ -345,8 +345,9 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 		}
 	} // else pass in force! (audio track = 0)
 
-	if (_congestion) {
-		if (_datas.reliable || _congestion(Net::RTO_MAX)) {
+	UInt32 congestion = _congestion();
+	if (congestion) {
+		if (_datas.reliable || congestion>=Net::RTO_MAX) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Data timeout, insufficient bandwidth to play ", name());
 			return;
@@ -384,8 +385,9 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 		}
 	} // else pass in force! (audio track = 0)
 	
-	if (_congestion) {
-		if (_audios.reliable || _congestion(Net::RTO_MAX)) {
+	UInt32 congestion = _congestion();
+	if (congestion) {
+		if (_audios.reliable || congestion>=Net::RTO_MAX) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Audio timeout, insufficient bandwidth to play ", name());
 			return;
@@ -454,8 +456,9 @@ void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const P
 		}
 	}
 
-	if (_congestion) {
-		if (_videos.reliable || _congestion(Net::RTO_MAX)) {
+	UInt32 congestion = _congestion();
+	if (congestion) {
+		if (_videos.reliable || congestion >= Net::RTO_MAX) {
 			_ejected = EJECTED_BANDWITDH;
 			WARN("Video timeout, insufficient bandwidth to play ", name());
 			return;

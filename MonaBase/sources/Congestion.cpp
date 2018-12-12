@@ -20,6 +20,13 @@ using namespace std;
 
 namespace Mona {
 
+UInt32 Congestion::operator()(UInt32 duration) const {
+	if (!_congested)
+		return 0;
+	UInt64 elapsed = _congested.elapsed();
+	return elapsed > duration ? range<UInt32>(elapsed) : 0;
+}
+
 Congestion& Congestion::operator=(UInt64 queueing) {
 	bool congested(queueing && queueing>_lastQueueing);
 	_lastQueueing = queueing;
