@@ -32,7 +32,7 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(new HTTPWriter(*this)), _fileWriter(protocol.api.ioFile),
+HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pUpgradeSession(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(new HTTPWriter(*this)), _fileWriter(protocol.api.ioFile),
 	_onResponse([this](HTTP::Response& response) {
 		kill(ERROR_PROTOCOL, "A HTTP response has been received instead of request");
 	}),
@@ -46,16 +46,13 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 			_pWriter->beginRequest(request);
 
-			//// Disconnection if requested or query changed (path changed is done in setPath)
-			if (request->connection&HTTP::CONNECTION_UPGRADE || String::ICompare(peer.query, request->query) != 0) {
-				unpublish();
-				unsubscribe();
-				peer.onDisconnection();
-			}
-
 			////  Fill peers infos
-			peer.setPath(request->path);
-			peer.setQuery(request->query);
+			if (String::ICompare(peer.query, request->query) != 0 || String::ICompare(peer.path, request->path) != 0) {
+				//// Disconnection if path or query changed
+				disconnection();
+				peer.setPath(request->path);
+				peer.setQuery(request->query);
+			}
 			peer.setServerAddress(request->host);
 			// properties = version + headers + cookies
 			peer.properties().setParams(move(request));
@@ -73,17 +70,17 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 						Protocol* pProtocol(this->api.protocols.find(self->isSecure() ? "WSS" : "WS"));
 						if (pProtocol) {
 							// Close HTTP
-							close();
+							disconnection();
 		
 							// Create WSSession
 							WSSession* pSession = new WSSession(*pProtocol, *this, move(request->pWSDecoder));
-							_pUpgradeSession.reset(pSession);
+							_pUpgradeSession = pSession;
 							HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
 								HTTP_ADD_HEADER("Upgrade", "WebSocket")
 								WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
 							HTTP_END_HEADER
 
-							// SebSocket connection
+							// WebSocket connection
 							peer.onConnection(ex, pSession->writer, *self, parameters); // No response in WebSocket handshake (fail for few clients)
 						} else
 							ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
@@ -94,6 +91,16 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 
 				// onConnection
 				if (!peer && handshake(request)) {
+					if(!peer.onSetProperty) {
+						// subscribe to client.properties(...)
+						peer.onSetProperty = [this](const char* key, DataReader& reader)->const char* {
+							string value;
+							if (!reader.readString(value))
+								return NULL;
+							_pWriter->writeSetCookie(key, value, reader);
+							return value.c_str();
+						};
+					}
 					peer.onConnection(ex, *_pWriter, *self, parameters);
 					parameters.reset();
 				}
@@ -155,15 +162,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 		if (request.flush && !died) // if died _pWriter is null and useless to flush!
 			flush();
 	}) {
-	
-	// subscribe to client.properties(...)
-	peer.onSetProperty = [this](const char* key, DataReader& reader)->const char* {
-		string value;
-		if (!reader.readString(value))
-			return NULL;
-		_pWriter->writeSetCookie(key, value, reader);
-		return value.c_str();
-	};
+
 
 	_fileWriter.onError = [this](const Exception& ex) {
 		_pWriter->writeError(ex); // keep session alive, normal error!
@@ -259,11 +258,13 @@ void HTTPSession::flush() {
 		_pPublication->flush();
 }
 
-void HTTPSession::close() {
+void HTTPSession::disconnection() {
 	peer.onSetProperty = nullptr;
 	// unpublish and unsubscribe
 	unpublish();
 	unsubscribe();
+	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.close() to allow last message
+	peer.onDisconnection();
 }
 
 void HTTPSession::kill(Int32 error, const char* reason){
@@ -274,13 +275,12 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	_onRequest = nullptr;
 	_onResponse = nullptr;
 
-	if(_pUpgradeSession)
+	if (_pUpgradeSession) {
 		_pUpgradeSession->kill(error, reason);
-	else
-		close();
-
-	// onDisconnection after "unpublish or unsubscribe", but BEFORE _writers.close() to allow last message
-	peer.onDisconnection();
+		delete _pUpgradeSession;
+		_pUpgradeSession = NULL;
+	} else
+		disconnection();
 
 	// close writer (flush)
 	_pWriter->close(error, reason);

@@ -111,13 +111,6 @@ UInt16 Peer::setPing(UInt64 value) {
 	return _ping;
 }
 
-void Peer::setPath(const string& value) {
-	if (String::ICompare(path, value) == 0)
-		return;
-	((string&)Client::path).assign(value);
-	onDisconnection(); // disconnected if path change!
-}
-
 /// EVENTS ////////
 
 SocketAddress& Peer::onHandshake(SocketAddress& redirection) {

@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-UInt16 WS::ErrorToCode(Int32 error) {
+UInt16 WS::ErrorToCode(UInt32 error) {
 	if (!error)
 		return WS::CODE_NORMAL_CLOSE;
 	switch (error) {
@@ -43,7 +43,7 @@ UInt16 WS::ErrorToCode(Int32 error) {
 		case Session::ERROR_UNEXPECTED:
 			return WS::CODE_UNEXPECTED_CONDITION; // Expectation failed
 		default: // User close
-			return UInt16(error);
+			return range<UInt16>(error);
 	}
 }
 

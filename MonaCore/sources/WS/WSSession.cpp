@@ -47,30 +47,30 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> 
 					case 0: // no error code
 					case WS::CODE_NORMAL_CLOSE:
 						// normal error
-						kill();
+						close();
 						break;
 					case WS::CODE_ENDPOINT_GOING_AWAY:
 						// client is dying
-						kill(ERROR_SOCKET);
+						close(ERROR_SOCKET);
 						break;
 					case WS::CODE_POLICY_VIOLATION:
 						// no permission
-						kill(ERROR_REJECTED);
+						close(ERROR_REJECTED);
 						break;
 					case WS::CODE_PROTOCOL_ERROR:
 					case WS::CODE_PAYLOAD_NOT_ACCEPTABLE:
 					case WS::CODE_MALFORMED_PAYLOAD:
 					case WS::CODE_PAYLOAD_TOO_BIG:
 						// protocol error
-						kill(ERROR_PROTOCOL);
+						close(ERROR_PROTOCOL);
 						break;
 					case WS::CODE_EXTENSION_REQUIRED:
 						// Unsupported
-						kill(ERROR_UNSUPPORTED);
+						close(ERROR_UNSUPPORTED);
 						break;
 					default:
 						// unexpected
-						kill(ERROR_UNEXPECTED);
+						close(ERROR_UNEXPECTED);
 						break;
 				}
 				return;
@@ -93,7 +93,7 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> 
 
 		// Close the session on exception beause nothing is expected in WebSocket to send an error excepting in "close" message (has a code and a string)
 		if (ex)
-			return kill(ToError(ex), ex.c_str());
+			return close(ToError(ex), ex.c_str());
 
 		if (request.flush)
 			flush();

@@ -22,7 +22,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Socket.h"
 #include "Mona/Logs.h"
 #include "Mona/Entity.h"
-#include <set>
 
 namespace Mona {
 
@@ -70,24 +69,14 @@ struct Sessions : virtual Object {
 	template<typename SessionType, SESSION_OPTIONS options = SESSION_BYADDRESS, typename ...Args>
 	SessionType& create(Args&&... args) {
 		SessionType* pSession = new SessionType(std::forward<Args>(args)...);
-		UInt32& id(pSession->_id);
-		const auto& it = _freeIds.begin();
-		if (it != _freeIds.end()) {
-			id = *it;
-			_freeIds.erase(it);
-		} else {
-			if (_sessions.empty())
-				id = 1;
-			else
-				id = _sessions.rbegin()->first + 1;
-		}
-
-		while (!_sessions.emplace(id, pSession).second) {
-			CRITIC("Bad computing session id, id ", id, " already exists");
-			do {
-				++id;
-			} while (find(id));
-		}
+		if (!_freeIds.empty()) {
+			pSession->_id = _freeIds.front()-1;
+			_freeIds.pop_front();
+		} else if (!_sessions.empty())
+			pSession->_id = _sessions.rbegin()->first;
+		
+		while (!_sessions.emplace(++pSession->_id, pSession).second)
+			CRITIC("Bad computing session id, id ", pSession->_id, " already exists");
 
 		pSession->_sessionsOptions = options;
 		addByPeer(*pSession);
@@ -110,7 +99,7 @@ private:
 	void	removeByAddress(const SocketAddress& address, Session& session);
 
 	std::map<UInt32, Session*>			_sessions;
-	std::set<UInt32>					_freeIds;
+	std::deque<UInt32>					_freeIds;
 	Entity::Map<Session>				_sessionsByPeerId;
 	std::map<SocketAddress, Session*>	_sessionsByAddress[2]; // 0 - UDP, 1 - TCP
 };

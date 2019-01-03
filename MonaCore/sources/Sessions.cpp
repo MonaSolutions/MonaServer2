@@ -129,7 +129,7 @@ void Sessions::remove(const map<UInt32, Session*>::iterator& it, SESSION_OPTIONS
 	// Here it means an obsolete session, we can kill it
 	session.kill(Session::ERROR_ZOMBIE);
 
-	_freeIds.emplace(session._id);
+	_freeIds.emplace_back(session._id);
 	delete &session;
 	_sessions.erase(it);
 }

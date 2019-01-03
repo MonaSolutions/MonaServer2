@@ -51,7 +51,7 @@ struct WS : virtual Static {
 		CODE_UNEXPECTED_CONDITION		= 1011
 	};
 
-	static UInt16			ErrorToCode(Int32 error);
+	static UInt16			ErrorToCode(UInt32 error);
 
 	static BinaryWriter&	WriteKey(BinaryWriter& writer, const std::string& key);
 	static BinaryReader&	Unmask(BinaryReader& reader);

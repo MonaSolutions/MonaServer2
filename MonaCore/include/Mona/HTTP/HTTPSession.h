@@ -37,7 +37,7 @@ private:
 	bool			manage();
 	void			flush();
 
-	void			close(); // usefull for Protocol upgrade like WebSocket upgrade
+	void			disconnection(); // usefull for Protocol upgrade like WebSocket upgrade
 	void			kill(Int32 error=0, const char* reason = NULL);
 
 	bool			handshake(HTTP::Request& request);
@@ -67,7 +67,7 @@ private:
 	FileWriter			_fileWriter;
 	UInt8				_EOWFlags; // 1 = end of write, 2 = has been created
 
-	unique<Session>		_pUpgradeSession;
+	Session*			_pUpgradeSession;
 
 	// options
 	std::string			_index;

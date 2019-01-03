@@ -61,10 +61,10 @@ struct Session : virtual Object {
 
 	operator const UInt8*() const { return peer.id; }
 	
+	virtual void onParameters(const Parameters& parameters);
 	/*!
 	implement it to flush writers to avoid message queue exceed! */
 	virtual void flush() = 0;
-	virtual void onParameters(const Parameters& parameters);
 	/*!
 	Manage every 2 seconds */
 	virtual bool manage();
@@ -78,9 +78,10 @@ protected:
 	Session morphing */
 	Session(Protocol& protocol, Session& session);
 	
+	void close(Int32 error = 0, const char* reason = NULL) { peer.onClose(error, reason); } // to fix morphing issue with kill intern call!
 private:
 	void init(Session& session);
-
+	
 	shared<Peer>				_pPeer;
 	UInt32						_id;
 	mutable std::string			_name;

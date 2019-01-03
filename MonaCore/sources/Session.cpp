@@ -71,7 +71,7 @@ void Session::init(Session& session) {
 		};
 		session.onParameters(Params(_protocol, parameters));
 	};
-	if(!peer.onClose) // in morphing case it's already subscribed
+	if (!peer.onClose) // in morphing case it's already subscribed
 		peer.onClose = [this](Int32 error, const char* reason) { kill(error ? error : ERROR_REJECTED, reason); };
 }
 
@@ -110,10 +110,10 @@ bool Session::manage() {
 		return false;
 	// Congestion timeout to avoid to saturate a client saturating ressource + PULSE congestion variable of peer!
 	_congestion = peer.queueing();
-	if (_congestion(Net::RTO_MAX)) {
+	if (_congestion(Net::RTO_MAX + Net::RTO_INIT)) {
 		// Control sending and receiving for protocol like HTTP which can streaming always in the same way (sending), without never more request (receiving)
 		WARN(name(), " congested");
-		kill(ERROR_CONGESTED);
+		close(ERROR_CONGESTED);
 		return false;
 	}
 	// Connection timeout to liberate useless socket ressource (usually used just for TCP session)
@@ -121,7 +121,7 @@ bool Session::manage() {
 	if (!timeout || (peer && (!peer.recvTime().isElapsed(timeout) || !peer.sendTime().isElapsed(timeout))) || !peer.disconnection.isElapsed(timeout))
 		return true;
 	LOG(String::ICompare(_protocol.name, EXPAND("HTTP"))==0 ? LOG_DEBUG : LOG_INFO, name(), " timeout connection");
-	kill(ERROR_IDLE);
+	close(ERROR_IDLE);
 	return false;
 }
 

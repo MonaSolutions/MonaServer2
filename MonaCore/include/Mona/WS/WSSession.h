@@ -33,7 +33,6 @@ struct WSSession : Session, virtual Object {
 
 	bool		manage();
 	void		flush();
-	void		kill(Int32 error=0, const char* reason = NULL);
 
 private:
 
@@ -42,6 +41,9 @@ private:
 
 	void		publish(Exception& ex, std::string& stream);
 	void		unpublish();
+
+	void		kill(Int32 error = 0, const char* reason = NULL);
+	void		close(Int32 error = 0, const char* reason = NULL) { Session::close(error, reason); }
 
 	/// \brief Read message and call method if needed
 	/// \param packet Content message to read
