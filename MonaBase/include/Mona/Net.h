@@ -193,11 +193,9 @@ struct Net : virtual Object {
 	enum {
 		RTO_MIN = 1000u, // see https://tools.ietf.org/html/rfc2988
 		RTO_INIT = 3000u,
-		RTO_MAX = 10000u
-	};
-
-	enum {
-		MTU_RELIABLE_SIZE = 1280u
+		RTO_MAX = 10000u,
+		MTU_RELIABLE_SIZE = 1200u, // 1280 - ~30 for DTLS - 40 for IPv6 - 8 for UDP
+		SCTP_HEADER_SIZE = 28u
 	};
 
 

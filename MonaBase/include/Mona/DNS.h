@@ -23,14 +23,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-	/// This class provides an interface to the
-	/// domain name service.
-	///
-	/// An internal DNS cache is used to speed up name lookups.
-
-class DNS : virtual Static {
-public:
-
+/*!
+This class provides an interface to the domain name service.
+An internal DNS cache is used to speed up name lookups. */
+struct DNS : virtual Static {
 	// Returns a HostEntry object containing the DNS information for the host with the given name
 	static bool HostByName(Exception& ex, const std::string& hostname, HostEntry& host) { return HostByName(ex, hostname.data(), host); }
 	static bool HostByName(Exception& ex, const char* hostname, HostEntry& host);
