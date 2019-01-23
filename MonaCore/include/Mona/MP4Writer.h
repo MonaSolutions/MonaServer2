@@ -35,6 +35,10 @@ struct MP4Writer : MediaWriter, virtual Object {
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
 
+	MP4Writer(UInt16 bufferTime=1000) : bufferTime(bufferTime) {}
+
+	const UInt16 bufferTime;
+
 	void beginMedia(const OnWrite& onWrite);
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite);
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite);

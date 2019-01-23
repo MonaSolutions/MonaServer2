@@ -163,7 +163,7 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 	Int32 delta = Util::Distance(_timeFront, _timeBack);
 	if (!delta)
 		return; // no medias!
-	if (!_reset &&  delta < ((_buffering && !_sequence)  ? 1000 : 100)) // wait one second to get at less one video frame the first time (1fps is the min possibe for video)
+	if (!_reset &&  delta < ((_buffering && !_sequence)  ? bufferTime : 100)) // wait one second to get at less one video frame the first time (1fps is the min possibe for video)
 		return;
 
 	shared<Buffer> pBuffer(new Buffer());
