@@ -93,21 +93,19 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 			return flushNal(source); // flush possible NAL waiting and ignore current NAL (_pNal is reseted)
 		
 		if (_tag.frame == Media::Video::FRAME_CONFIG) {
-			if (_pNal) {
-				UInt8 prevType = VideoType::NalType(_pNal->data()[_position + 4]);
-				if (_type == prevType) {
-					_pNal.reset();  // erase repeated config type and wait the other config type!
-				}
-				else if (VideoType::Frames[_type] != Media::Video::FRAME_CONFIG) {
-					if (prevType == VideoType::NAL_SPS)
-						flushNal(source); // flush alone SPS config (valid)
-					else
-						_pNal.reset();  // erase alone VPS or PPS config (invalid)
-					_tag.frame = VideoType::UpdateFrame(_type);
-				}
-				else
-					flush = true;
+			UInt8 prevType = VideoType::NalType(_pNal->data()[_position + 4]); // _pNal can't be null here when _tag.frame is initialized
+			if (_type == prevType) {
+				_pNal.reset();  // erase repeated config type and wait the other config type!
 			}
+			else if (VideoType::Frames[_type] != Media::Video::FRAME_CONFIG) {
+				if (prevType == VideoType::NAL_SPS)
+					flushNal(source); // flush alone SPS config (valid)
+				else
+					_pNal.reset();  // erase alone VPS or PPS config (invalid)
+				_tag.frame = VideoType::UpdateFrame(_type);
+			}
+			else
+				flush = true;
 		} else {
 			if (VideoType::Frames[_type] == Media::Video::FRAME_CONFIG)
 				flushNal(source); // flush everything and wait the other config type
@@ -132,6 +130,7 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 		if ((_pNal->size() + size) > 0xA00000) {
 			// Max slice size (0x900000 + 4 + some SEI)
 			WARN("NALNetReader buffer exceeds maximum slice size");
+			_tag.frame = Media::Video::FRAME_UNSPECIFIED;
 			return _pNal.reset(); // release huge buffer! (and allow to wait next 0000001)
 		}
 	}
