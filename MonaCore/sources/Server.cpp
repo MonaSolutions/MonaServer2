@@ -116,7 +116,6 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 			// Pulse streams!
 			for (auto& it : streams)
 				it.second->start(self);
-			
 			manage(); // client manage (script, etc..)
 			if (clients.size() != countClient)
 				INFO((countClient = clients.size()), " clients");
@@ -152,6 +151,10 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	}
 	for (auto& it : streams)
 		delete it.second;
+	for (auto& it : _streams)
+		it->stop();
+	_streams.clear();
+	// delete publications
 	for (Publication* pPublication : publications)
 		unpublish(*pPublication);
 
@@ -240,6 +243,13 @@ void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publica
 		}
 		++it;
 	}
+}
+
+shared<Media::Stream> Server::stream(const string& description) {
+	Exception ex;
+	Media::Stream* pStream;
+	AUTO_ERROR(pStream = Media::Stream::New(ex, description, timer, ioFile, ioSocket, pTLSClient), description);
+	return pStream ? *_streams.emplace(pStream).first : nullptr;
 }
 
 

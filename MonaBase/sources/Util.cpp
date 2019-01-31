@@ -406,25 +406,23 @@ bool Util::ReadIniFile(const string& path, Parameters& parameters) {
 		if (kSize) {
 			kSize = String::TrimRight(key, kSize);
 
-			if(kSize>1) {
-				if (*key == '[' && ((vSize && value[vSize - 1] == ']') || (!value && key[kSize - 1] == ']'))) {
-					// section
-					// remove [
+			if (*key == '[' && ((vSize && value[vSize - 1] == ']') || (!value && key[kSize - 1] == ']'))) {
+				// section
+				// remove [
+				--kSize;
+				++key;
+				// remove ]
+				if (value)
+					--vSize;
+				else
 					--kSize;
-					++key;
-					// remove ]
-					if (value)
-						--vSize;
-					else
-						--kSize;
-					isSection = true;
-				}
+				isSection = true;
+			}
 
-				// remove quote on key
-				if (key[0] == key[kSize - 1] && (key[0] == '"' || key[0] == '\'')) {
-					kSize -= 2;
-					++key;
-				}
+			// remove quote on key
+			if (kSize>1 && key[0] == key[kSize - 1] && (key[0] == '"' || key[0] == '\'')) {
+				kSize -= 2;
+				++key;
 			}
 		}
 

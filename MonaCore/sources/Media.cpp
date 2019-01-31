@@ -606,7 +606,10 @@ Media::Stream* Media::Stream::New(Exception& ex, const string& description, cons
 				}
 				if (!isTarget && type == TYPE_HTTP)
 					break; // HTTP source allow empty format (will be determinate with content-type)
-				ex.set<Ex::Format>(TypeToString(type), " stream description have to indicate a media format");
+				if(path.extension().empty())
+					ex.set<Ex::Format>(TypeToString(type), " stream description have to indicate a media format");
+				else
+					ex.set<Ex::Format>(TypeToString(type), " stream file has a format ", path.extension(), " unknown or not supported");
 				return NULL;
 			}
 		}

@@ -44,7 +44,12 @@ struct Server : protected ServerAPI, private Thread {
 	template<typename ActionType>
 	bool queue(const shared<ActionType>& pAction) { return ServerAPI::queue(pAction); }
 
-	Publish* publish(const char* name);
+	/*!
+	Publish a publication, stays valid until !*Publish */
+	Publish*			  publish(const char* name);
+	/*!
+	Create a media stream, stays valid until pStream.unique() */
+	shared<Media::Stream> stream(const std::string& description);
 
 protected:
 	template<typename  ...Args>
@@ -64,6 +69,7 @@ private:
 	Protocols		_protocols;
 	Sessions		_sessions;
 	Path			_www;
+	std::set<shared<Media::Stream>> _streams;
 };
 
 

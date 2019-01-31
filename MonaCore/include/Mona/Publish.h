@@ -27,7 +27,7 @@ namespace Mona {
 /*!
 Publish a publication by the code, externally to the server:
 1 - Publish* pPublish = server.publish(name)
-2 - Use its functions to write medias and flush
+2 - Use pPublish methods to write medias and flush
 3 - Check *pPublish to test if publication is still active (not failed)
 4 - Start again at point 2 or delete pPublish to terminate publication	*/
 struct Publish : Media::Source, virtual Object {

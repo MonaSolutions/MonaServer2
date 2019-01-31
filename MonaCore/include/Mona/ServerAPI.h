@@ -65,9 +65,9 @@ struct ServerAPI : virtual Object, Parameters {
 	Query parameters will be passed to publication properties (metadata)
 	To change properties dynamically, send a @properties command, with a track it writes properties related one track, without track it overloads all */
 	Publication*			publish(Exception& ex, std::string& stream) { return publish(ex, stream, NULL); }
-	Publication*			publish(Exception& ex, const Path& stream, const char* query = NULL) { return publish(ex, stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), query, NULL); }
+	Publication*			publish(Exception& ex, const Path& stream, const char* query = NULL) { return publish(ex, stream.isFolder() ? String::Empty() : stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), query, NULL); }
 	Publication*			publish(Exception& ex, Client& client, std::string& stream) { return publish(ex, stream, &client); }
-	Publication*			publish(Exception& ex, Client& client, const Path& stream, const char* query = NULL) { return publish(ex, stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), query, &client); }
+	Publication*			publish(Exception& ex, Client& client, const Path& stream, const char* query = NULL) { return publish(ex, stream.isFolder() ? String::Empty() : stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), query, &client); }
 
 	void					unpublish(Publication& publication) { unpublish(publication, NULL); }
 	void					unpublish(Publication& publication, Client& client) { unpublish(publication, &client);  }

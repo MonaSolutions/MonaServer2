@@ -52,7 +52,7 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<S
 MediaSocket::Reader::Reader(Type type, const Path& path, MediaReader* pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	Media::Stream(type, path), _streaming(false), io(io), _pTLS(pTLS), address(address), _pReader(pReader), _subscribed(false) {
 	_onSocketDisconnection = [this]() { Stream::stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
-	_onSocketError = [this](const Exception& ex) { Stream::stop(_streaming ? LOG_WARN : LOG_DEBUG, ex); };
+	_onSocketError = [this](const Exception& ex) { Stream::stop(LOG_WARN, ex); };
 }
 
 void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
