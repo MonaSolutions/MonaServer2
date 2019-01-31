@@ -983,7 +983,7 @@ void MP4Reader::flushMedias(Media::Source& source) {
 					}
 					Track&				_track;
 				} reader(track);
-				source.setProperties(track, reader);
+				source.setProperties(reader, track);
 			}
 			source.writeMedia(media);
 		} else

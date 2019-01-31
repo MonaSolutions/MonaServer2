@@ -286,7 +286,7 @@ void TSReader::parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::S
 		if (it.second.first>=it.second.second.timeProperties())
 			continue; // no change
 		it.second.first = it.second.second.timeProperties();
-		source.setProperties(it.first, it.second.second);
+		source.setProperties(it.second.second, it.first);
 	}
 }
 

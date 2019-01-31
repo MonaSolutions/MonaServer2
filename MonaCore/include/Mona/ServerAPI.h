@@ -33,12 +33,12 @@ namespace Mona {
 struct ServerAPI : virtual Object, Parameters {
 	template<typename RunnerType>
 	bool queue(RunnerType&& pRunner) {
-		if (!running()) {
-			ERROR("Start ", typeof(*this), " before to queue ", pRunner->name);
-			return false;
+		if (running()) {
+			handler.queue(std::forward<RunnerType>(pRunner));
+			return true;
 		}
-		handler.queue(std::forward<RunnerType>(pRunner));
-		return true;
+		ERROR("Start ", typeof(self), " before to queue ", pRunner->name);
+		return false;
 	}
 
 	// invocations

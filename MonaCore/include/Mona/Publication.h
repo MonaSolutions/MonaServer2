@@ -97,33 +97,29 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	MediaFile::Writer*				recorder();
 	bool							recording() const { return _pRecording && _pRecording->target<MediaFile::Writer>().running(); }
 
-	void							reportLost(UInt32 lost) { reportLost(Media::TYPE_NONE, lost); }
 	void							reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 
 	/*! 
 	Push audio packet, an empty audio "isConfig" packet is required by some protocol to signal "audio end".
 	Good practice would be to send an audio empty "isConfig" packet for publishers which can stop "dynamically" just audio track.
 	/!\ Audio timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
-	void							writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { writeAudio(track, tag, packet); }
+	void							writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1);
 	/*!
 	Push video packet
 	Video timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
-	void							writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { writeVideo(track, tag, packet); }
+	void							writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1);
 	/*!
 	Push data packet */
-	void							writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { writeData(track, type, packet); }
+	void							writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0);
 	
 	/*!
 	Set properties, prefer the direct publication object access to change properties when done by final user */
-	void							setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::setProperties(track, type, packet); }
+	void							setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) { Properties::setProperties(type, packet, track); }
 
 	void							flush();
 	void							flush(UInt16 ping);
 
 private:
-	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
-	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
-	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet);
 	void flushProperties();
 
 	void startRecording(MediaFile::Writer& recorder, bool append);

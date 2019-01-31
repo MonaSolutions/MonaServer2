@@ -106,7 +106,7 @@ UInt32 ADTSReader::parse(Packet& buffer, Media::Source& source) {
 				UInt8 config[2];
 				// ADTS profile 2 first bits => MPEG-4 Audio Object Type minus 1
 				MPEG4::WriteAudioConfig((header[2] >> 6) + 1, value, _tag.channels, config);
-				source.writeAudio(track, _tag, Packet(config, 2));
+				source.writeAudio(_tag, Packet(config, 2), track);
 				_tag.isConfig = false; // just one time
 			}
 			
@@ -115,7 +115,7 @@ UInt32 ADTSReader::parse(Packet& buffer, Media::Source& source) {
 		if(reader.available()<_size)
 			return reader.available();
 	
-		source.writeAudio(track, _tag, Packet(buffer, reader.current(), _size));
+		source.writeAudio(_tag, Packet(buffer, reader.current(), _size), track);
 		reader.next(_size);
 		_size = 0;
 	};
@@ -125,7 +125,7 @@ UInt32 ADTSReader::parse(Packet& buffer, Media::Source& source) {
 
 void ADTSReader::onFlush(Packet& buffer, Media::Source& source) {
 	if (_size)
-		source.writeAudio(track, _tag, buffer);
+		source.writeAudio(_tag, buffer, track);
 	_size = 0;
 	_infos = 0;
 	_syncError = false;

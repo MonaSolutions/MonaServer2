@@ -34,9 +34,9 @@ Publication::~Publication() {
 	stopRecording();
 	// delete _listeners!
 	if (!subscriptions.empty())
-		CRITIC("Publication ",_name," with subscribers is deleting")
+		CRITIC("Publication ", _name, " with subscribers is deleting");
 	if (_publishing)
-		CRITIC("Publication ",_name," running is deleting")
+		ERROR("Publication ",_name," running is deleting"); // ERROR because can happen on server shutdown + server.publish (extern)
 	DEBUG("Publication ",_name," deleted");
 }
 
@@ -207,7 +207,7 @@ void Publication::flush() {
 }
 
 
-void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
+void Publication::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track) {
 	if (!_publishing) {
 		ERROR("Audio packet on publication ", _name, " stopped");
 		return;
@@ -229,7 +229,7 @@ void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pa
 	//	DEBUG(name()," audio ",tag.time);
 	for (Subscription* pSubscription : subscriptions) {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
-			pSubscription->writeAudio(track, tag, packet);
+			pSubscription->writeAudio(tag, packet, track);
 	}
 	onAudio(track, tag, packet);
 	
@@ -238,7 +238,7 @@ void Publication::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pa
 		pAudio->config.set(tag, packet);
 }
 
-void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
+void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track) {
 	if (!_publishing) {
 		ERROR("Video packet on stopped ", _name, " publication");
 		return;
@@ -262,7 +262,7 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 			}
 			CCaption::OnText onText([this, track](UInt8 channel, shared<Buffer>& pBuffer) {
 			//	DEBUG("cc", channel, " => ", String::Data(pBuffer->data(), pBuffer->size()));
-				writeData((track - 1) * 4 + channel, Media::Data::TYPE_TEXT, Packet(pBuffer));
+				writeData(Media::Data::TYPE_TEXT, Packet(pBuffer), (track - 1) * 4 + channel);
 			});
 			CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {
 				if (lang) {
@@ -290,9 +290,9 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 			continue; // subscriber not yet subscribed
 		if (offsetCC && (pSubscription->datas.pSelection || pSubscription->datas.multiTracks)) { // if a data track is selected (or data track is disabled when track data=0) => send without CC!
 			if (offsetCC<packet.size())
-				pSubscription->writeVideo(track, tag, packet + offsetCC); // without CC
+				pSubscription->writeVideo(tag, packet + offsetCC, track); // without CC
 		} else
-			pSubscription->writeVideo(track, tag, packet); // with CC
+			pSubscription->writeVideo(tag, packet, track); // with CC
 	}
 	if (offsetCC && onData) {
 		if(offsetCC<packet.size())
@@ -305,7 +305,7 @@ void Publication::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pa
 		pVideo->config.set(tag, packet);
 }
 
-void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {
+void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 track) {
 	if (!_publishing) {
 		ERROR("Data packet on ", _name, " publication stopped");
 		return;
@@ -317,7 +317,7 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 			string handler;
 			// for performance reason read just if type is explicity a STRING (not a convertible string as binary etc...)
 			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
-				return setProperties(track, type, packet + (*pReader)->position());
+				return setProperties(type, packet + (*pReader)->position(), track);
 		}
 	}
 
@@ -341,7 +341,7 @@ void Publication::writeData(UInt8 track, Media::Data::Type type, const Packet& p
 	_new = true;
 	for (Subscription* pSubscription : subscriptions) {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
-			pSubscription->writeData(track, type, packet);
+			pSubscription->writeData(type, packet, track);
 	}
 	onData(track, type, packet);
 }

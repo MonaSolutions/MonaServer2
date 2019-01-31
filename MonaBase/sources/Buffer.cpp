@@ -45,7 +45,7 @@ Buffer::~Buffer() {
 }
 
 void Buffer::computeCapacity(UInt32 size) {
-	_capacity = size - 1;
+	_capacity = max(size, 16u) - 1; // at minimum allocate 16 bytes!
 	_capacity |= _capacity >> 1;
 	_capacity |= _capacity >> 2;
 	_capacity |= _capacity >> 4;
@@ -99,7 +99,7 @@ Buffer& Buffer::resize(UInt32 size, bool preserveData) {
 		_offset = 0;
 		if (size <= _capacity) {
 			if (preserveData)
-				memmove(_data,oldData,_size);
+				memmove(_data, oldData, _size);
 			_size = size;
 			return *this;
 		}

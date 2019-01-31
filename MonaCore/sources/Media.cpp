@@ -261,7 +261,7 @@ const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
 }
 
 
-void Media::Properties::setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {
+void Media::Properties::setProperties(Media::Data::Type type, const Packet& packet, UInt8 track) {
 	if (!track)
 		track = 1; // by default use track=1 to never override all properties (let's it to final user in using Media::Properties directly)
 
@@ -363,31 +363,31 @@ DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer, Type alternateType
 }
 
 
-void Media::Source::setProperties(UInt8 track, const Media::Properties& properties) {
+void Media::Source::setProperties(const Media::Properties& properties, UInt8 track) {
 	MapReader<Parameters> reader(properties);
 	Media::Data::Type type;
 	const Packet& packet = properties(type);
-	setProperties(track, type, packet);
+	setProperties(type, packet, track);
 }
-void Media::Source::setProperties(UInt8 track, DataReader& reader) {
+void Media::Source::setProperties(DataReader& reader, UInt8 track) {
 	shared<Buffer> pBuffer(new Buffer());
 	JSONWriter writer(*pBuffer);
 	reader.read(writer);
-	setProperties(track, Media::Data::TYPE_JSON, Packet(pBuffer));
+	setProperties(Media::Data::TYPE_JSON, Packet(pBuffer), track);
 }
 
 
 void Media::Source::writeMedia(const Media::Base& media) {
 	switch (media.type) {
 		case Media::TYPE_AUDIO:
-			return writeAudio(media.track, ((const Media::Audio&)media).tag, media);
+			return writeAudio(((const Media::Audio&)media).tag, media, media.track);
 		case Media::TYPE_VIDEO:
-			return writeVideo(media.track, ((const Media::Video&)media).tag, media);
+			return writeVideo(((const Media::Video&)media).tag, media, media.track);
 		case Media::TYPE_DATA: {
 			const Media::Data& data = (const Media::Data&)media;
 			if (data.isProperties)
-				return setProperties(media.track, data.tag, media);
-			return writeData(media.track, data.tag, media);
+				return setProperties(data.tag, media, media.track);
+			return writeData(data.tag, media, media.track);
 		}
 		default:
 			WARN(typeof(self), " write a unknown media ", media.type);
@@ -396,10 +396,10 @@ void Media::Source::writeMedia(const Media::Base& media) {
 
 Media::Source& Media::Source::Null() {
 	static struct Null : Media::Source {
-		void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {}
-		void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {}
-		void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {}
-		void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {}
+		void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track=1) {}
+		void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track=1) {}
+		void writeData(Media::Data::Type type, const Packet& packet, UInt8 track=0) {}
+		void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track=1) {}
 		void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) {}
 		void flush() {}
 		void reset() {}

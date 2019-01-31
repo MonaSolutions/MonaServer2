@@ -56,13 +56,11 @@ void Server::start(const Parameters& parameters) {
 	Thread::start();
 }
 
-bool Server::publish(const char* name, shared<Publish>& pPublish) {
-	if (!running()) {
-		ERROR("Start ", typeof(*this), " before to publish ", name);
-		return false;
-	}
-	pPublish.reset(new Publish(*this, name));
-	return true;
+Publish* Server::publish(const char* name) {
+	if (running())
+		return  new Publish(self, name);
+	ERROR("Start ", typeof(self), " before to publish ", name);
+	return NULL;
 }
 
 bool Server::run(Exception&, const volatile bool& requestStop) {

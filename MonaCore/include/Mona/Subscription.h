@@ -94,9 +94,9 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 
 	const Time& streaming() const { return _streaming; }
 
-	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
-	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
-	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet);
+	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1);
+	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1);
+	void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0);
 	void writeProperties(const Media::Properties& properties);
 	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 	void flush();
@@ -112,7 +112,7 @@ private:
 	void setFormat(const char* format);
 
 	// Media::Properties overrides
-	void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::setProperties(track, type, packet); }
+	void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track=1) { Properties::setProperties(type, packet, track); }
 	void onParamChange(const std::string& key, const std::string* pValue);
 	void onParamClear();
 
@@ -125,7 +125,7 @@ private:
 	bool start(UInt8 track, const TagType& tag, const Packet& packet) {
 		if (_pNextPublication && !_medias.flushing()) {
 			_medias.flush(self);
-			if(_medias.add(track, tag, packet))
+			if(_medias.add(tag, packet, track))
 				return false;
 		}
 		return start(tag);
@@ -208,12 +208,12 @@ private:
 
 		bool synchronizing() const;
 
-		bool add(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { return tag.isConfig ? add<Media::Audio>(track, tag, packet) : add<Media::Audio>(tag.time, track, tag, packet); }
-		bool add(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { return tag.frame==Media::Video::FRAME_CONFIG ? add<Media::Video>(track, tag, packet) : add<Media::Video>(tag.time, track, tag, packet); }
-		bool add(UInt8 track, Media::Data::Type type, const Packet& packet) { return add<Media::Data>(track, type, packet); }
+		bool add(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track) { return tag.isConfig ? add<Media::Audio>(tag, packet, track) : add<Media::Audio>(tag.time, tag, packet, track); }
+		bool add(const Media::Video::Tag& tag, const Packet& packet, UInt8 track) { return tag.frame==Media::Video::FRAME_CONFIG ? add<Media::Video>(tag, packet, track) : add<Media::Video>(tag.time, tag, packet, track); }
+		bool add(Media::Data::Type type, const Packet& packet, UInt8 track) { return add<Media::Data>(type, packet, track); }
 	private:
 		template<typename MediaType>
-		bool add(UInt8 track, const typename MediaType::Tag& tag, const Packet& packet) {
+		bool add(const typename MediaType::Tag& tag, const Packet& packet, UInt8 track) {
 			// Time has not progressed here!
 			if (_nextSize && !_nextTimeout)
 				return true; // already joined OR must be buffered as previous (no time progress, same behavior than prev media)
@@ -223,7 +223,7 @@ private:
 			return true;
 		}
 		template<typename MediaType>
-		bool add(UInt32 time, UInt8 track, const typename MediaType::Tag& tag, const Packet& packet);
+		bool add(UInt32 time, const typename MediaType::Tag& tag, const Packet& packet, UInt8 track);
 
 		bool beginMedia(const std::string& name) { return true; }
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {

@@ -54,16 +54,16 @@ UInt32 MonaReader::parse(Packet& buffer, Media::Source& source) {
 		Packet media(buffer, content.current(), content.available());
 		switch (type) {
 			case Media::TYPE_AUDIO:
-				source.writeAudio(track, audio, media);
+				source.writeAudio(audio, media, track);
 				break;
 			case Media::TYPE_VIDEO:
-				source.writeVideo(track, video, media);
+				source.writeVideo(video, media, track);
 				break;
 			case Media::TYPE_DATA: {
 				if (track)
-					source.writeData(track, data, media);
+					source.writeData(data, media, track);
 				else // properties have been serialized like data with track=0 (no RPC in media, see MonaWriter) 
-					source.setProperties(1, data, media);
+					source.setProperties(data, media);
 				break;
 			}
 			default:

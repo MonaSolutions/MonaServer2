@@ -131,10 +131,10 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 						content += HEVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
 					else
 						content += AVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
-					source.writeVideo(track ? track : 1, _video, Packet(pBuffer));
+					source.writeVideo(_video, Packet(pBuffer), track ? track : 1);
 				}
 				if(content) // because if was just a config packet, there is no more data!
-					source.writeVideo(track ? track : 1, _video, content);
+					source.writeVideo(_video, content, track ? track : 1);
 				break;
 			}
 			case AMF::TYPE_AUDIO: {
@@ -142,7 +142,7 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
 				Packet content(buffer, reader.current(), _size);
-				source.writeAudio(track ? track : 1, _audio, content += ReadMediaHeader(content.data(), content.size(), _audio, _audioConfig));
+				source.writeAudio(_audio, content += ReadMediaHeader(content.data(), content.size(), _audio, _audioConfig), track ? track : 1);
 				break;
 			}
 			case AMF::TYPE_DATA: {
@@ -150,9 +150,9 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 				UInt8 track = UInt8(reader.read24());
 				_size -= 7;
 				if (memcmp(reader.current(), EXPAND("\x02\x00\x0AonMetaData")) == 0)
-					source.setProperties(track, Media::Data::TYPE_AMF, Packet(buffer, reader.current() + 13, _size - 13));
+					source.setProperties(Media::Data::TYPE_AMF, Packet(buffer, reader.current() + 13, _size - 13), track);
 				else
-					source.writeData(track, Media::Data::TYPE_AMF, Packet(buffer, reader.current(), _size));
+					source.writeData(Media::Data::TYPE_AMF, Packet(buffer, reader.current(), _size), track);
 				break;
 			}
 			default:

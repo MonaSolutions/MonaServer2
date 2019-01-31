@@ -99,7 +99,7 @@ UInt32 MP3Reader::parse(Packet& buffer, Media::Source& source) {
 			return reader.available();
 
 		// AAC packet
-		source.writeAudio(track, _tag, Packet(buffer, reader.current(),_size));
+		source.writeAudio(_tag, Packet(buffer, reader.current(),_size), track);
 		reader.next(_size);
 		_size = 0;
 	};
@@ -109,7 +109,7 @@ UInt32 MP3Reader::parse(Packet& buffer, Media::Source& source) {
 
 void MP3Reader::onFlush(Packet& buffer, Media::Source& source) {
 	if (_size)
-		source.writeAudio(track, _tag, buffer);
+		source.writeAudio(_tag, buffer, track);
 	_size = 0;
 	_syncError = false;
 	MediaTrackReader::onFlush(buffer, source);

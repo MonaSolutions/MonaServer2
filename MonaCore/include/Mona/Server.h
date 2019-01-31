@@ -44,7 +44,7 @@ struct Server : protected ServerAPI, private Thread {
 	template<typename ActionType>
 	bool queue(const shared<ActionType>& pAction) { return ServerAPI::queue(pAction); }
 
-	bool publish(const char* name, shared<Publish>& pPublish);
+	Publish* publish(const char* name);
 
 protected:
 	template<typename  ...Args>

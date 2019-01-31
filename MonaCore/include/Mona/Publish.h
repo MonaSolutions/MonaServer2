@@ -20,41 +20,60 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/ServerAPI.h"
+#include "Mona/Media.h"
 
 namespace Mona {
 
-
-struct Publish : virtual Object {
+/*!
+Class to publish from exterior, call server.publish(name) to instanciate it */
+struct Publish : Media::Source, virtual Object {
 	NULLABLE
-
 	Publish(ServerAPI& api, const char* name);
 	~Publish();
-
-	operator bool() const { return _pPublishing.unique() ? _pPublishing->operator bool() : true; }
-
-	bool audio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1)  { return queue<Write<Media::Audio>>(tag, packet, track); }
-	bool video(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1)  { return queue<Write<Media::Video>>(tag, packet, track); }
-	bool data(Media::Data::Type type, const Packet& packet, UInt8 track = 0)		 { return queue<Write<Media::Data>>(type, packet, track); }
-	bool properties(Media::Data::Type type, const Packet& packet, UInt8 track = 1)	 { return queue<Write<Media::Data>>(type, packet, track, true); }
-	bool lost(UInt32 lost)															 { return queue<Lost>(Media::TYPE_NONE, lost); }
-	bool lost(Media::Type type, UInt32 lost, UInt8 track = 0)						 { return queue<Lost>(type, lost, track); }
-
-	bool reset();
-	bool flush(UInt16 ping=0);
-
-
+	/*!
+	Publication name */
+	const std::string& name() const { return _pPublishing->name; }
+	/*!
+	Test if publication is always valid (not failed) */
+	operator bool() const { return _pPublishing->api.running() && *_pPublishing; }
+	/*!
+	Write audio packet */
+	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track=1) { queue<Write<Media::Audio>>(tag, packet, track); }
+	/*!
+	Write video packet */
+	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track=1) { queue<Write<Media::Video>>(tag, packet, track); };
+	/*!
+	Write data packet, used for subtitle, CC or RPC when client compatible */
+	void writeData(Media::Data::Type type, const Packet& packet, UInt8 track=0) { queue<Write<Media::Data>>(type, packet, track); }
+	/*!
+	Set metadata to the stream */
+	void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track=1) { queue<Write<Media::Data>>(type, packet, track, true); }
+	/*!
+	Report lost detection, allow to displays stats and repair the stream in waiting next key frame when happen */
+	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { queue<Lost>(type, lost, track); }
+	/*!
+	Flush writing, call one time writing queue empty (with optional publisher current ping to give publication latency information) */
+	void flush(UInt16 ping=0);
+	/*!
+	Reset the stream, usefull when a new stream will start on same publication */
+	void reset();
 
 private:
+	void flush() { flush(0); }
+
 	struct Publishing : Runner, virtual Object {
 		NULLABLE
-		Publishing(ServerAPI& api, const char* name) : Runner("Publishing"), _name(name), _pPublication(NULL), api(api) {}
-		operator Publication&() { return *_pPublication; }
-		operator bool() const { return _pPublication ? true : false; }
+		Publishing(ServerAPI& api, const char* name) : _failed(false), Runner("Publishing"), name(name), api(api) {}
+		const std::string name;
+		operator bool() const { return !_failed; }
+
 		ServerAPI& api;
+		explicit operator Publication*() { return _failed ? NULL : _pPublication; }
 	private:
-		bool run(Exception& ex) { return (_pPublication = api.publish(ex, _name)) ? true : false; }
-		std::string	 _name;
+		bool run(Exception& ex);
+
 		Publication* _pPublication;
+		volatile bool _failed;
 	};
 
 	struct Action : Runner, virtual Object {
@@ -63,7 +82,12 @@ private:
 		ServerAPI& api() { return _pPublishing->api; }
 	private:
 		virtual void run(Publication& publication) = 0;
-		bool run(Exception& ex) { if (*_pPublishing) run(*_pPublishing); return true; }
+		bool run(Exception& ex) { 
+			Publication* pPublication(*_pPublishing);
+			if(pPublication)
+				run(*pPublication);
+			return true;
+		}
 		shared<Publishing> _pPublishing;
 	};
 
@@ -72,7 +96,7 @@ private:
 		template<typename ...Args>
 		Write(const shared<Publishing>& pPublishing, Args&&... args) : Action(typeof<Write<MediaType>>().c_str(), pPublishing), MediaType(args ...) {}
 	private:
-		void run(Publication& publication) { publication.writeMedia(*this); }
+		void run(Publication& publication) { publication.writeMedia(self); }
 	};
 
 	struct Lost : Action, private Media::Base, virtual Object {
@@ -84,16 +108,15 @@ private:
 
 
 	template<typename Type, typename ...Args>
-	bool queue(Args&&... args) {
-		if (!operator bool())
-			return false;
-		if (_pPublishing->api.queue(new Type(_pPublishing, args ...)))
-			return true;
-		_pPublishing.reset(); // server stopped!
-		return false;
+	void queue(Args&&... args) {
+		if (!*_pPublishing) {
+			ERROR("Publication ", _pPublishing->name, " has failed, impossible to ", typeof<Type>());
+			return;
+		}
+		_pPublishing->api.queue(new Type(_pPublishing, args ...));
 	}
 
-	mutable shared<Publishing>	_pPublishing;
+	shared<Publishing> _pPublishing;
 };
 
 

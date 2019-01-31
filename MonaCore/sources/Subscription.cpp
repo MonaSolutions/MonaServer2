@@ -225,7 +225,7 @@ bool Subscription::start() {
 	for (const Publication::AudioTrack& audio : pPublication->audios) {
 		++track;
 		if (audio.config)
-			writeAudio(track, audio.config, audio.config);
+			writeAudio(audio.config, audio.config, track);
 		if (_ejected)
 			return false;
 		
@@ -234,7 +234,7 @@ bool Subscription::start() {
 	for (const Publication::VideoTrack& video : pPublication->videos) {
 		++track;
 		if (video.config)
-			writeVideo(track, video.config, video.config);
+			writeVideo(video.config, video.config, track);
 		if (_ejected)
 			return false;
 	}
@@ -326,7 +326,7 @@ void Subscription::writeProperties(const Media::Properties& properties) {
 		_ejected = EJECTED_ERROR;
 }
 
-void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& packet) {
+void Subscription::writeData(Media::Data::Type type, const Packet& packet, UInt8 track) {
 	if (!start(track, type, packet) || !_datas.selected(track))
 		return;
 
@@ -337,7 +337,7 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 		if (_waitingFirstVideoSync) {
 			if (!_waitingFirstVideoSync.isElapsed(1000)) {
 				if (_medias.count()) // has audio, data has the same timestamp than prev audio packet!
-					_medias.add(track, type, packet);
+					_medias.add(type, packet, track);
 				return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
 			}
 			_waitingFirstVideoSync = 0;
@@ -364,7 +364,7 @@ void Subscription::writeData(UInt8 track, Media::Data::Type type, const Packet& 
 		_ejected = EJECTED_ERROR;
 }
 
-void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
+void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track) {
 	bool progress = tag.time>_lastTime;
 	if (!start(track, tag, packet) || !_audios.selected(track))
 		return;
@@ -377,7 +377,7 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 			if (progress)
 				_medias.flush(Source::Null());
 			if (!_waitingFirstVideoSync.isElapsed(1000)) {
-				_medias.add(track, tag, packet);
+				_medias.add(tag, packet, track);
 				return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
 			}
 			_waitingFirstVideoSync = 0;
@@ -413,7 +413,7 @@ void Subscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const P
 		_ejected = EJECTED_ERROR;
 }
 
-void Subscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
+void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track) {
 	bool progress = tag.time>_lastTime;
 	if (!start(track, tag, packet))
 		return;
@@ -580,7 +580,7 @@ void Subscription::Medias::setNext(Publication* pNextPublication) {
 }
 
 template<typename MediaType>
-bool Subscription::Medias::add(UInt32 time, UInt8 track, const typename MediaType::Tag& tag, const Packet& packet) {
+bool Subscription::Medias::add(UInt32 time, const typename MediaType::Tag& tag, const Packet& packet, UInt8 track) {
 	// Must return TRUE if buffered OR if hit next publication!
 	if (_nextSize) {
 		if (!_nextTimeout)
@@ -664,7 +664,7 @@ Publication* Subscription::setNext(Publication* pPublication) {
 }
 
 
-template bool Subscription::Medias::add<Media::Audio>(UInt32 time, UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
-template bool Subscription::Medias::add<Media::Video>(UInt32 time, UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
+template bool Subscription::Medias::add<Media::Audio>(UInt32 time, const Media::Audio::Tag& tag, const Packet& packet, UInt8 track);
+template bool Subscription::Medias::add<Media::Video>(UInt32 time, const Media::Video::Tag& tag, const Packet& packet, UInt8 track);
 
 } // namespace Mona

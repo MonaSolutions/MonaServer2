@@ -23,6 +23,7 @@ using namespace std;
 
 namespace Mona {
 
+
 Publish::Publish(ServerAPI& api, const char* name) : _pPublishing(new Publishing(api, name)) {
 	api.queue(_pPublishing);
 }
@@ -33,26 +34,37 @@ Publish::~Publish() {
 	private:
 		void run(Publication& publication) { api().unpublish(publication); }
 	};
-	queue<Unpublishing>();
+	if(_pPublishing->api.running())
+		queue<Unpublishing>();
 }
 
-bool Publish::reset() {
+void Publish::reset() {
 	struct Reset : Action, virtual Object {
 		Reset(const shared<Publishing>& pPublishing) : Action("Publish::Reset", pPublishing) {}
 	private:
 		void run(Publication& publication) { publication.reset(); }
 	};
-	return queue<Reset>();
+	queue<Reset>();
 }
 
-bool Publish::flush(UInt16 ping) {
+void Publish::flush(UInt16 ping) {
 	struct Flush : Action, virtual Object {
 		Flush(const shared<Publishing>& pPublishing, UInt16 ping) : Action("Publish::Flush", pPublishing), _ping(ping) {}
 	private:
 		void run(Publication& publication) { publication.flush(_ping); }
 		UInt16			_ping;
 	};
-	return queue<Flush>(ping);
+	queue<Flush>(ping);
+}
+
+bool Publish::Publishing::run(Exception& ex) {
+	if (_failed)
+		return false;
+	_pPublication = api.publish(ex, name);
+	if (_pPublication)
+		return true;
+	_failed = true;
+	return false;
 }
 
 

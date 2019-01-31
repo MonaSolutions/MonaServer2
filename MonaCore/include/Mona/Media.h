@@ -274,7 +274,7 @@ struct Media : virtual Static {
 
 		const Time& timeProperties() const { return _timeProperties; }
 
-		void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet);
+		void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1);
 
 	protected:
 
@@ -292,20 +292,22 @@ struct Media : virtual Static {
 	struct Source : virtual Object {
 		virtual const std::string&	name() const { static std::string Name("?");  return Name; }
 
-		virtual void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) = 0;
-		virtual void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) = 0;
-		virtual void writeData(UInt8 track, Media::Data::Type type, const Packet& packet) = 0;
-		virtual void setProperties(UInt8 track, Media::Data::Type type, const Packet& packet) = 0;
+		virtual void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;
+		virtual void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;
+		virtual void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) = 0;
+		virtual void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) = 0;
 		virtual void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) = 0;
 		virtual void flush() = 0;
 		virtual void reset() = 0;
 
-		void setProperties(UInt8 track, const Media::Properties& properties);
-		void setProperties(UInt8 track, DataReader& reader);
+		void setProperties(const Media::Properties& properties, UInt8 track = 1);
+		void setProperties(DataReader& reader, UInt8 track = 1);
+		void reportLost(UInt32 lost) { reportLost(Media::TYPE_NONE, lost); }
+
 		void writeMedia(const Media::Base& media);
-		void writeMedia(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { writeAudio(track, tag, packet); }
-		void writeMedia(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { writeVideo(track, tag, packet); }
-		void writeMedia(UInt8 track, Media::Data::Type type, const Packet& packet) { writeData(track, type, packet); }
+		void writeMedia(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { writeAudio(tag, packet, track); }
+		void writeMedia(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { writeVideo(tag, packet, track); }
+		void writeMedia(UInt8 track, Media::Data::Type type, const Packet& packet) { writeData(type, packet, track); }
 
 		static Source& Null();
 	};

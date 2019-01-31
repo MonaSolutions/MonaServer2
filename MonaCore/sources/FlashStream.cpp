@@ -357,7 +357,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 				reader.next(); // @setDataFrame
 				if (reader.nextType() == DataReader::STRING)
 					reader.next(); // remove onMetaData
-				_pPublication->setProperties(_dataTrack, Media::Data::TYPE_AMF, packet + reader->position());
+				_pPublication->setProperties(Media::Data::TYPE_AMF, packet + reader->position(), _dataTrack);
 				return;
 			}
 		}

@@ -148,7 +148,7 @@ void NALNetReader<VideoType>::flushNal(Media::Source& source) {
 	// transfer _pNal and reset _tag.frame
 	Packet nal(_pNal);
 	if (_tag.frame == Media::Video::FRAME_CONFIG || nal.size() > 4) // empty NAL valid just for CONFIG frame (useless for INTER, KEY, INFOS, etc...)
-		source.writeVideo(track, _tag, nal);
+		source.writeVideo(_tag, nal, track);
 	_tag.frame = Media::Video::FRAME_UNSPECIFIED;
 }
 
