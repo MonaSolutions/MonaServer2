@@ -130,8 +130,8 @@ struct Media : virtual Static {
 			FRAME_CONFIG = 7
 		};
 		struct Tag : virtual Object {
-			explicit Tag() : frame(FRAME_UNSPECIFIED), compositionOffset(0) {}
-			explicit Tag(Media::Video::Codec codec) : codec(codec), frame(FRAME_UNSPECIFIED), compositionOffset(0) {}
+			explicit Tag() : frame(FRAME_UNSPECIFIED), compositionOffset(0), time(0) {}
+			explicit Tag(Media::Video::Codec codec) : codec(codec), frame(FRAME_UNSPECIFIED), compositionOffset(0), time(0) {}
 			explicit Tag(const Tag& other) { set(other); }
 
 			Tag& set(const Tag& other) {

@@ -26,10 +26,10 @@ using namespace std;
 namespace Mona {
 
 template <>
-NALNetReader<AVC>::NALNetReader(UInt8 track) : MediaTrackReader(track), _tag(Media::Video::CODEC_H264), _state(0), _type(0xFF) {}
+NALNetReader<AVC>::NALNetReader(UInt8 track) : MediaTrackReader(track), _tag(Media::Video::CODEC_H264), _state(0), _type(0xFF), _position(0) {}
 
 template <>
-NALNetReader<HEVC>::NALNetReader(UInt8 track) : MediaTrackReader(track), _tag(Media::Video::CODEC_HEVC), _state(0), _type(0xFF) {}
+NALNetReader<HEVC>::NALNetReader(UInt8 track) : MediaTrackReader(track), _tag(Media::Video::CODEC_HEVC), _state(0), _type(0xFF), _position(0) {}
 
 template <class VideoType>
 UInt32 NALNetReader<VideoType>::parse(Packet& buffer, Media::Source& source) {
@@ -93,16 +93,18 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 			return flushNal(source); // flush possible NAL waiting and ignore current NAL (_pNal is reseted)
 		
 		if (_tag.frame == Media::Video::FRAME_CONFIG) {
-			UInt8 prevType = VideoType::NalType(_pNal->data()[_position+4]);
+			UInt8 prevType = VideoType::NalType(_pNal->data()[_position + 4]); // _pNal can't be null here when _tag.frame is initialized
 			if (_type == prevType) {
 				_pNal.reset();  // erase repeated config type and wait the other config type!
-			} else if (VideoType::Frames[_type] != Media::Video::FRAME_CONFIG) {
+			}
+			else if (VideoType::Frames[_type] != Media::Video::FRAME_CONFIG) {
 				if (prevType == VideoType::NAL_SPS)
 					flushNal(source); // flush alone SPS config (valid)
 				else
 					_pNal.reset();  // erase alone VPS or PPS config (invalid)
 				_tag.frame = VideoType::UpdateFrame(_type);
-			} else
+			}
+			else
 				flush = true;
 		} else {
 			if (VideoType::Frames[_type] == Media::Video::FRAME_CONFIG)
@@ -115,8 +117,7 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 			// write NAL size
 			BinaryWriter(_pNal->data() + _position, 4).write32(_pNal->size() - _position - 4); 
 			// reserve size for AVC header
-			_position = _pNal->size();
-			_pNal->resize(_position + 4, true); 
+			_pNal->resize((_position=_pNal->size()) + 4, true);
 		} else {
 			_tag.time = time;
 			_tag.compositionOffset = compositionOffset;
@@ -129,6 +130,7 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 		if ((_pNal->size() + size) > 0xA00000) {
 			// Max slice size (0x900000 + 4 + some SEI)
 			WARN("NALNetReader buffer exceeds maximum slice size");
+			_tag.frame = Media::Video::FRAME_UNSPECIFIED;
 			return _pNal.reset(); // release huge buffer! (and allow to wait next 0000001)
 		}
 	}
