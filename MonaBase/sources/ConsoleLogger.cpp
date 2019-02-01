@@ -14,10 +14,13 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 */
 
-#include "Mona/Logger.h"
+#include "Mona/ConsoleLogger.h"
 #include <iostream>
-#include <mutex>
-
+#if defined(_WIN32)
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 using namespace std;
 
@@ -53,17 +56,27 @@ static int			LevelColors[] = { FATAL_COLOR, CRITIC_COLOR, ERROR_COLOR, WARN_COLO
 static const char*  LevelColors[] = { FATAL_COLOR, CRITIC_COLOR, ERROR_COLOR, WARN_COLOR, NOTE_COLOR, INFO_COLOR, DEBUG_COLOR, TRACE_COLOR };
 #endif
 
-void Logger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
+ConsoleLogger::ConsoleLogger() {
+#if defined(_WIN32)
+	_isInteractive = _isatty(_fileno(stdout)) ? true : false;
+#else
+	_isInteractive = isatty(STDOUT_FILENO) ? true : false;
+#endif
+}
+
+ConsoleLogger& ConsoleLogger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
 	BEGIN_CONSOLE_TEXT_COLOR(LevelColors[level - 1]);
 	printf("%s[%ld] %s", file.name().c_str(), line, message.c_str());
 	END_CONSOLE_TEXT_COLOR;
 	printf("\n"); // flush after color change, required especially over unix/linux
+	return self;
 }
 
-void Logger::dump(const string& header, const UInt8* data, UInt32 size) {
+ConsoleLogger& ConsoleLogger::dump(const string& header, const UInt8* data, UInt32 size) {
 	if(!header.empty())
 		printf("%.*s\n", (int)header.size(), header.c_str());
 	fwrite(data, sizeof(char), size, stdout);
+	return self;
 }
 
 } // namespace Mona

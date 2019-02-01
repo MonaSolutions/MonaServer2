@@ -25,6 +25,9 @@
     <Filter Include="Disk">
       <UniqueIdentifier>{882ba37b-3eba-42c1-97a2-b6eb4f3bb6bf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Logs">
+      <UniqueIdentifier>{33d9a9db-ee9b-4771-88ad-70c7718c0d3c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\BinaryReader.cpp">
@@ -89,9 +92,6 @@
     </ClCompile>
     <ClCompile Include="sources\SocketAddress.cpp">
       <Filter>Net</Filter>
-    </ClCompile>
-    <ClCompile Include="sources\Logs.cpp">
-      <Filter>Application</Filter>
     </ClCompile>
     <ClCompile Include="sources\FileWatcher.cpp">
       <Filter>Disk</Filter>
@@ -166,9 +166,6 @@
     <ClCompile Include="sources\Congestion.cpp">
       <Filter>Util</Filter>
     </ClCompile>
-    <ClCompile Include="sources\Logger.cpp">
-      <Filter>Application</Filter>
-    </ClCompile>
     <ClCompile Include="sources\Proxy.cpp">
       <Filter>Net</Filter>
     </ClCompile>
@@ -180,6 +177,15 @@
     </ClCompile>
     <ClCompile Include="sources\ThreadPool.cpp">
       <Filter>Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\ConsoleLogger.cpp">
+      <Filter>Logs</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\FileLogger.cpp">
+      <Filter>Logs</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\Logs.cpp">
+      <Filter>Logs</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -248,9 +254,6 @@
     </ClInclude>
     <ClInclude Include="include\Mona\SocketAddress.h">
       <Filter>Net</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\Logs.h">
-      <Filter>Application</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\FileWatcher.h">
       <Filter>Disk</Filter>
@@ -361,9 +364,6 @@
     <ClInclude Include="include\Mona\ByteRate.h">
       <Filter>Util</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\Logger.h">
-      <Filter>Application</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\Proxy.h">
       <Filter>Net</Filter>
     </ClInclude>
@@ -375,6 +375,18 @@
     </ClInclude>
     <ClInclude Include="include\Mona\StreamData.h">
       <Filter>Net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\ConsoleLogger.h">
+      <Filter>Logs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\FileLogger.h">
+      <Filter>Logs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Logger.h">
+      <Filter>Logs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Logs.h">
+      <Filter>Logs</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

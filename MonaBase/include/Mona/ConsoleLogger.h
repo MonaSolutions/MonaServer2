@@ -17,36 +17,19 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Path.h"
+#include "Mona/Logger.h"
 
 namespace Mona {
 
-typedef UInt8 LOG_LEVEL;
+struct ConsoleLogger : Logger, virtual Object {
+	ConsoleLogger();
 
-enum {
-	LOG_FATAL = 1,
-	LOG_CRITIC = 2,
-	LOG_ERROR = 3,
-	LOG_WARN = 4,
-	LOG_NOTE = 5,
-	LOG_INFO = 6,
-	LOG_DEBUG = 7,
-	LOG_TRACE = 8,
-#if defined(_DEBUG)
-	LOG_DEFAULT = LOG_DEBUG
-#else
-	LOG_DEFAULT = LOG_INFO
-#endif
-};
+	operator bool() const { return _isInteractive; }
 
-struct Logger : virtual Object {
-	NULLABLE
-	/*!
-	Test if always valid */
-	virtual operator bool() const { return true; }
-
-	virtual Logger& log(LOG_LEVEL level, const Path& file, long line, const std::string& message) = 0;
-	virtual Logger& dump(const std::string& header, const UInt8* data, UInt32 size) = 0;
+	ConsoleLogger& log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
+	ConsoleLogger& dump(const std::string& header, const UInt8* data, UInt32 size);
+private:
+	bool _isInteractive;
 };
 
 } // namespace Mona

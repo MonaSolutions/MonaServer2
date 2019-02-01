@@ -203,10 +203,12 @@
     <ClCompile Include="sources\BufferPool.cpp" />
     <ClCompile Include="sources\Cache.cpp" />
     <ClCompile Include="sources\Congestion.cpp" />
+    <ClCompile Include="sources\ConsoleLogger.cpp" />
     <ClCompile Include="sources\Crypto.cpp" />
     <ClCompile Include="sources\Date.cpp" />
     <ClCompile Include="sources\DNS.cpp" />
     <ClCompile Include="sources\File.cpp" />
+    <ClCompile Include="sources\FileLogger.cpp" />
     <ClCompile Include="sources\IOFile.cpp" />
     <ClCompile Include="sources\FileSystem.cpp" />
     <ClCompile Include="sources\FileWatcher.cpp" />
@@ -215,7 +217,6 @@
     <ClCompile Include="sources\HostEntry.cpp" />
     <ClCompile Include="sources\IOSocket.cpp" />
     <ClCompile Include="sources\IPAddress.cpp" />
-    <ClCompile Include="sources\Logger.cpp" />
     <ClCompile Include="sources\Mona.cpp" />
     <ClCompile Include="sources\BinaryReader.cpp" />
     <ClCompile Include="sources\BinaryWriter.cpp" />
@@ -259,12 +260,14 @@
     <ClInclude Include="include\Mona\Byte.h" />
     <ClInclude Include="include\Mona\Cache.h" />
     <ClInclude Include="include\Mona\Congestion.h" />
+    <ClInclude Include="include\Mona\ConsoleLogger.h" />
     <ClInclude Include="include\Mona\Crypto.h" />
     <ClInclude Include="include\Mona\Date.h" />
     <ClInclude Include="include\Mona\Event.h" />
     <ClInclude Include="include\Mona\DNS.h" />
     <ClInclude Include="include\Mona\Exceptions.h" />
     <ClInclude Include="include\Mona\File.h" />
+    <ClInclude Include="include\Mona\FileLogger.h" />
     <ClInclude Include="include\Mona\FileWriter.h" />
     <ClInclude Include="include\Mona\IOFile.h" />
     <ClInclude Include="include\Mona\FileReader.h" />

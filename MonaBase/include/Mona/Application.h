@@ -27,7 +27,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
-struct Application : Parameters, private Logger, virtual Object {
+struct Application : Parameters, virtual Object {
 	enum ExitCode {
 		EXIT_OK = 0,  /// successful termination
 		EXIT_USAGE = 64, /// command line usage error
@@ -72,10 +72,6 @@ protected:
 	virtual const char*		defineVersion() { return NULL; }
 	virtual void			defineOptions(Exception& ex, Options& options);
 
-	virtual void			log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
-	virtual void			dump(const std::string& header, const UInt8* data, UInt32 size);
-	
-
 	virtual void			onParamChange(const std::string& key, const std::string* pValue);
 	virtual void			onParamClear();
 private:
@@ -83,18 +79,10 @@ private:
 	static void HandleSignal(int sig);
 #endif
 
-	void					manageLogFiles(UInt32 written);
-
 	Options						_options;
 	Path						_file;
 	const char*					_version;
 	std::string					_name;
-
-	// logs
-	UInt32						_logSizeByFile;
-	UInt16						_logRotation;
-	std::unique_ptr<File>		_pLogFile;
-	UInt32						_logWritten;
 };
 
 

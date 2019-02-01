@@ -22,6 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <signal.h>
 #define SetCurrentDirectory !chdir
 #endif
+#include "Mona/FileLogger.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -29,9 +30,7 @@ using namespace std;
 
 namespace Mona {
 
-static const char* LogLevels[] = { "FATAL", "CRITIC", "ERROR", "WARN", "NOTE", "INFO", "DEBUG", "TRACE" };
-
-Application::Application() : _logSizeByFile(1000000), _logRotation(10), _version(NULL) {
+Application::Application() : _version(NULL) {
 #if defined(_DEBUG)
 #if defined(_WIN32)
 	DetectMemoryLeak();
@@ -66,6 +65,7 @@ void Application::HandleSignal(int sig) {
 #endif
 
 bool Application::init(int argc, const char* argv[]) {
+	Logs::AddLogger<ConsoleLogger>("console");
 	// 1 - build _file, _name and configPath
 	FileSystem::GetBaseName(argv[0], _name); // in service mode first argument is the service name
 	_file.set(FileSystem::GetCurrentApp(argv[0])); // use GetCurrentApp because for service the first argv argument can be the service name and not the executable!
@@ -111,19 +111,20 @@ bool Application::init(int argc, const char* argv[]) {
 
 	// 3 - init logs
 	String logDir(_name, ".log/");
-	if (initLogs(logDir, _logSizeByFile, _logRotation)) {
+	UInt16 rotation;
+	UInt32 sizeByFile;
+	if (initLogs(logDir, sizeByFile, rotation)) {
 		Exception ex;
 		if (!FileSystem::CreateDirectory(ex, logDir))
 			FATAL_ERROR(name(), " already running, ", ex);
 		if(ex)
 			WARN(ex);
-		_pLogFile.reset(new File(Path(FileSystem::MakeFolder(logDir), "0.log"), File::MODE_APPEND));
-		_logWritten = Mona::range<UInt32>(_pLogFile->size());
 		setString("logs.directory", logDir);
-		setNumber("logs.rotation", _logRotation);
-		setNumber("logs.maxSize", _logSizeByFile);
+		setNumber("logs.rotation", rotation);
+		setNumber("logs.maxSize", sizeByFile);
+		// Set Logger after opening _logStream!
+		Logs::AddLogger<FileLogger>("file", logDir, sizeByFile, rotation);
 	}
-	Logs::SetLogger(self); // Set Logger after opening _logStream!
 
 	// 4 - first logs
 	if (_version)
@@ -248,69 +249,6 @@ int Application::run(int argc, const char* argv[]) {
 		return EXIT_SOFTWARE;
 	}
 #endif
-}
-
-void Application::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
-	if (isInteractive())
-		Logger::log(level, file, line, message);
-	if (!_pLogFile)
-		return;
-	static string Buffer; // max size controlled by Logs system!
-	static string temp;
-	static Exception ex;
-
-	String::Assign(Buffer, String::Date("%d/%m %H:%M:%S.%c  "), LogLevels[level - 1]);
-	Buffer.append(25-Buffer.size(),' ');
-	
-	String::Append(Buffer, Thread::CurrentId(), ' ');
-	if (String::ICompare(FileSystem::GetName(file.parent(), temp), "sources") != 0 && String::ICompare(temp, "mona") != 0)
-		String::Append(Buffer, temp,'/');
-	String::Append(Buffer, file.name(), '[' , line , "] ");
-	if (Buffer.size() < 60)
-		Buffer.append(60 - Buffer.size(), ' ');
-	String::Append(Buffer, message, '\n');
-
-	if (!_pLogFile->write(ex, Buffer.data(), Buffer.size()))
-		FATAL_ERROR(name(), " already running, ", ex);
-	manageLogFiles(Buffer.size());
-}
-
-void Application::dump(const string& header, const UInt8* data, UInt32 size) {
-	if (isInteractive())
-		Logger::dump(header, data, size);
-	if (!_pLogFile)
-		return;
-	String buffer(String::Date("%d/%m %H:%M:%S.%c  "), header, '\n');
-	Exception ex;
-	if (!_pLogFile->write(ex, buffer.data(), buffer.size()) || !_pLogFile->write(ex, data, size))
-		FATAL_ERROR(name(), " already running, ", ex);
-	manageLogFiles(buffer.size() + size);
-}
-
-void Application::manageLogFiles(UInt32 written) {
-	if (!_logSizeByFile || (_logWritten += written) <= _logSizeByFile) // don't use _pLogFile->size(true) to avoid disk access on every file log!
-		return; // _logSizeByFile==0 => inifinite log file! (user choice..)
-
-	_logWritten = 0;
-	_pLogFile.reset(new File(Path(_pLogFile->parent(), "0.log"), File::MODE_WRITE)); // override 0.log file!
-
-	// delete more older file + search the older file name (usefull when _logRotation==0 => no rotation!) 
-	string name;
-	UInt32 maxNum(0);
-	Exception ex;
-	FileSystem::ForEach forEach([this, &ex, &name, &maxNum](const string& path, UInt16 level) {
-		UInt16 num = String::ToNumber<UInt16, 0>(FileSystem::GetBaseName(path, name));
-		if (_logRotation && num>=(_logRotation-1))
-			FileSystem::Delete(ex, String(_pLogFile->parent(), num, ".log"));
-		else if (num > maxNum)
-			maxNum = num;
-	});
-	FileSystem::ListFiles(ex, _pLogFile->parent(), forEach);
-	// rename log files
-	do {
-		FileSystem::Rename(String(_pLogFile->parent(), maxNum, ".log"), String(_pLogFile->parent(), maxNum + 1, ".log"));
-	} while (maxNum--);
-
 }
 
 } // namespace Mona

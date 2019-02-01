@@ -17,18 +17,23 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Logger.h"
+#include "Mona/ConsoleLogger.h"
 #include "Mona/String.h"
 #include "Mona/Thread.h"
 
 namespace Mona {
 
 struct Logs : virtual Static {
-	static Logger&		DefaultLogger() { static Logger Logger; return Logger; }
-	static void			SetLogger(Logger& logger) { std::lock_guard<std::mutex> lock(_Mutex); _PLogger = &logger; }
+	template <typename LoggerType, typename ...Args>
+	static bool			AddLogger(const char* name, Args&&... args) { std::lock_guard<std::mutex> lock(_Mutex); return _Loggers.emplace(name, new LoggerType(std::forward<Args>(args) ...)).second; }
+	static void			RemoveLogger(const char* name) { std::lock_guard<std::mutex> lock(_Mutex); _Loggers.erase(name); }
 
 	static void			SetLevel(LOG_LEVEL level) { _Level = level; }
 	static LOG_LEVEL	GetLevel() { return _Level; }
+	static const char*  LevelToString(LOG_LEVEL level) {
+		static const char* Strings[] = { "NONE", "FATAL", "CRITIC", "ERROR", "WARN", "NOTE", "INFO", "DEBUG", "TRACE" };
+		return Strings[level];
+	}
 
 	static void			SetDumpLimit(Int32 limit) { std::lock_guard<std::mutex> lock(_Mutex); _DumpLimit = limit; }
 	static void			SetDump(const char* name); // if null, no dump, otherwise dump name, and if name is empty everything is dumped
@@ -43,8 +48,12 @@ struct Logs : virtual Static {
 		static String Message;
 		File.set(file);
 		String::Assign(Message, std::forward<Args>(args)...);
-
-		_PLogger->log(level, File, line, Message);
+		if (_Loggers.empty())
+			DefaultLogger().log(level, File, line, Message);
+		else for (auto& it : _Loggers) {
+			if(*it.second)
+				it.second->log(level, File, line, Message);
+		}
 		if(Message.size()>0xFF) {
 			Message.resize(0xFF);
 			Message.shrink_to_fit();
@@ -83,12 +92,13 @@ struct Logs : virtual Static {
 
 private:
 	static void		Dump(const std::string& header, const UInt8* data, UInt32 size);
+	static Logger&	DefaultLogger() { static ConsoleLogger Logger; return Logger; }
 
 
 	static std::mutex				_Mutex;
 
 	static std::atomic<LOG_LEVEL>	_Level;
-	static Logger*					_PLogger;
+	static std::map<const char*, unique<Logger>> _Loggers;
 
 	static volatile bool	_Dumping;
 	static std::string		_Dump; // empty() means all dump, otherwise is a dump filter
