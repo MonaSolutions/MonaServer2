@@ -48,9 +48,7 @@ struct Logs : virtual Static {
 		static String Message;
 		File.set(file);
 		String::Assign(Message, std::forward<Args>(args)...);
-		if (_Loggers.empty())
-			DefaultLogger().log(level, File, line, Message);
-		else for (auto& it : _Loggers) {
+		for (auto& it : _Loggers) {
 			if(*it.second)
 				it.second->log(level, File, line, Message);
 		}
@@ -92,13 +90,13 @@ struct Logs : virtual Static {
 
 private:
 	static void		Dump(const std::string& header, const UInt8* data, UInt32 size);
-	static Logger&	DefaultLogger() { static ConsoleLogger Logger; return Logger; }
-
 
 	static std::mutex				_Mutex;
 
 	static std::atomic<LOG_LEVEL>	_Level;
-	static std::map<const char*, unique<Logger>> _Loggers;
+	static struct Loggers : std::map<const char*, unique<Logger>>, virtual Object {
+		Loggers() { emplace("console", new ConsoleLogger()); }
+	}								_Loggers;
 
 	static volatile bool	_Dumping;
 	static std::string		_Dump; // empty() means all dump, otherwise is a dump filter

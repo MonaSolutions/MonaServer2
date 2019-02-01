@@ -65,7 +65,6 @@ void Application::HandleSignal(int sig) {
 #endif
 
 bool Application::init(int argc, const char* argv[]) {
-	Logs::AddLogger<ConsoleLogger>("console");
 	// 1 - build _file, _name and configPath
 	FileSystem::GetBaseName(argv[0], _name); // in service mode first argument is the service name
 	_file.set(FileSystem::GetCurrentApp(argv[0])); // use GetCurrentApp because for service the first argv argument can be the service name and not the executable!

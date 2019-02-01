@@ -14,9 +14,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 */
 
-#include "Mona/Util.h"
-#include <iostream>
 #include "Mona/Logs.h"
+#include "Mona/Util.h"
 
 using namespace std;
 
@@ -32,8 +31,7 @@ Int32					Logs::_DumpLimit(-1);
 volatile bool			Logs::_DumpRequest(true);
 volatile bool			Logs::_DumpResponse(true);
 atomic<LOG_LEVEL>		Logs::_Level(LOG_DEFAULT); // default log level
-map<const char*, unique<Logger>> Logs::_Loggers;
-
+Logs::Loggers			Logs::_Loggers;
 
 void Logs::SetDump(const char* name) {
 	lock_guard<mutex> lock(_Mutex);
@@ -60,9 +58,7 @@ void Logs::SetDump(const char* name) {
 void Logs::Dump(const string& header, const UInt8* data, UInt32 size) {
 	Buffer out;
 	Util::Dump(data, (_DumpLimit<0 || size<UInt32(_DumpLimit)) ? size : _DumpLimit, out);
-	if (_Loggers.empty())
-		DefaultLogger().dump(header, out.data(), out.size());
-	else for (auto& it : _Loggers) {
+	for (auto& it : _Loggers) {
 		if(*it.second)
 			it.second->dump(header, out.data(), out.size());
 	}
