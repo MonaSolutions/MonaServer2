@@ -23,12 +23,21 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
+/*!
+Mona Logs API, contains statis methods to manage logs */
 struct Logs : virtual Static {
+	/*!
+	Add a logger target, must implements Logger.h interface */
 	template <typename LoggerType, typename ...Args>
 	static bool			AddLogger(const char* name, Args&&... args) { std::lock_guard<std::mutex> lock(_Mutex); return _Loggers.emplace(name, new LoggerType(std::forward<Args>(args) ...)).second; }
+	/*!
+	Remove a logger */
 	static void			RemoveLogger(const char* name) { std::lock_guard<std::mutex> lock(_Mutex); _Loggers.erase(name); }
-
+	/*!
+	Set LOG level */
 	static void			SetLevel(LOG_LEVEL level) { _Level = level; }
+	/*!
+	Get LOG level  */
 	static LOG_LEVEL	GetLevel() { return _Level; }
 	static const char*  LevelToString(LOG_LEVEL level) {
 		static const char* Strings[] = { "NONE", "FATAL", "CRITIC", "ERROR", "WARN", "NOTE", "INFO", "DEBUG", "TRACE" };
