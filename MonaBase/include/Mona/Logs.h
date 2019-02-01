@@ -33,7 +33,7 @@ struct Logs : virtual Static {
 	static bool			AddLogger(const char* name, Args&&... args) { return AddLogger<LoggerType>(std::string(name), std::forward<Args>(args) ...); }
 	template <typename LoggerType, typename ...Args>
 	static bool			AddLogger(std::string&& name, Args&&... args) {
-		size_t fatalPos = name.find('!');
+		std::size_t fatalPos = name.find('!');
 		if (fatalPos != std::string::npos)
 			name[fatalPos] = 0;
 		std::lock_guard<std::mutex> lock(_Mutex);
