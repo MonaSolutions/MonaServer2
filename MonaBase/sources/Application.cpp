@@ -110,8 +110,8 @@ bool Application::init(int argc, const char* argv[]) {
 
 	// 3 - init logs
 	String logDir(_name, ".log/");
-	UInt16 rotation;
-	UInt32 sizeByFile;
+	UInt16 rotation(FileLogger::DEFAULT_ROTATION);
+	UInt32 sizeByFile(FileLogger::DEFAULT_SIZE_BY_FILE);
 	if (initLogs(logDir, sizeByFile, rotation)) {
 		Exception ex;
 		if (!FileSystem::CreateDirectory(ex, logDir))
@@ -122,7 +122,7 @@ bool Application::init(int argc, const char* argv[]) {
 		setNumber("logs.rotation", rotation);
 		setNumber("logs.maxSize", sizeByFile);
 		// Set Logger after opening _logStream!
-		Logs::AddLogger<FileLogger>("file", logDir, sizeByFile, rotation);
+		Logs::AddLogger<FileLogger>(String("file!", name(), " already running?"), logDir, sizeByFile, rotation);
 	}
 
 	// 4 - first logs

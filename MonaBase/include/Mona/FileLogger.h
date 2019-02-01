@@ -23,12 +23,16 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct FileLogger : Logger, virtual Object {
-	FileLogger(const std::string dir, UInt32 sizeByFile = 1000000, UInt16 rotation = 10);
+	enum {
+		DEFAULT_SIZE_BY_FILE = 1000000,
+		DEFAULT_ROTATION = 10
+	};
+	FileLogger(const std::string dir, UInt32 sizeByFile = DEFAULT_SIZE_BY_FILE, UInt16 rotation = DEFAULT_ROTATION);
 
 	operator bool() const { return _pFile.operator bool(); }
 
-	FileLogger& log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
-	FileLogger& dump(const std::string& header, const UInt8* data, UInt32 size);
+	bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
+	bool dump(const std::string& header, const UInt8* data, UInt32 size);
 private:
 	void manage(UInt32 written);
 

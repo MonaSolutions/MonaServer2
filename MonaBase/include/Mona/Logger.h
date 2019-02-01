@@ -41,12 +41,16 @@ enum {
 
 struct Logger : virtual Object {
 	NULLABLE
+	Logger() : fatal(NULL) {}
 	/*!
 	Test if always valid */
 	virtual operator bool() const { return true; }
 
-	virtual Logger& log(LOG_LEVEL level, const Path& file, long line, const std::string& message) = 0;
-	virtual Logger& dump(const std::string& header, const UInt8* data, UInt32 size) = 0;
+	const char* name;
+	const char* fatal;
+
+	virtual bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message) = 0;
+	virtual bool dump(const std::string& header, const UInt8* data, UInt32 size) = 0;
 };
 
 } // namespace Mona

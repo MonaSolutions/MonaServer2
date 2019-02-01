@@ -27,9 +27,22 @@ namespace Mona {
 Mona Logs API, contains statis methods to manage logs */
 struct Logs : virtual Static {
 	/*!
-	Add a logger target, must implements Logger.h interface */
+	Add a logger target, must implements Logger.h interface
+	If name have a suffix with the form ![error] then the application shutdown on failure and displays error if set */
 	template <typename LoggerType, typename ...Args>
-	static bool			AddLogger(const char* name, Args&&... args) { std::lock_guard<std::mutex> lock(_Mutex); return _Loggers.emplace(name, new LoggerType(std::forward<Args>(args) ...)).second; }
+	static bool			AddLogger(const char* name, Args&&... args) { return AddLogger<LoggerType>(std::string(name), std::forward<Args>(args) ...); }
+	template <typename LoggerType, typename ...Args>
+	static bool			AddLogger(std::string&& name, Args&&... args) {
+		size_t fatalPos = name.find('!');
+		if (fatalPos != std::string::npos)
+			name[fatalPos] = 0;
+		std::lock_guard<std::mutex> lock(_Mutex);
+		auto& it = _Loggers.emplace(std::move(name), make_unique<LoggerType>(std::forward<Args>(args) ...));
+		it.first->second->name = it.first->first.c_str();
+		if (fatalPos != std::string::npos)
+			it.first->second->fatal = it.first->first.c_str() + fatalPos + 1;
+		return it.second;
+	}
 	/*!
 	Remove a logger */
 	static void			RemoveLogger(const char* name) { std::lock_guard<std::mutex> lock(_Mutex); _Loggers.erase(name); }
@@ -58,13 +71,14 @@ struct Logs : virtual Static {
 		File.set(file);
 		String::Assign(Message, std::forward<Args>(args)...);
 		for (auto& it : _Loggers) {
-			if(*it.second)
-				it.second->log(level, File, line, Message);
+			if (*it.second && !it.second->log(level, File, line, Message))
+				_Loggers.fail(*it.second);
 		}
 		if(Message.size()>0xFF) {
 			Message.resize(0xFF);
 			Message.shrink_to_fit();
 		}
+		_Loggers.flush();
 	}
 
 	template <typename ...Args>
@@ -103,8 +117,12 @@ private:
 	static std::mutex				_Mutex;
 
 	static std::atomic<LOG_LEVEL>	_Level;
-	static struct Loggers : std::map<const char*, unique<Logger>>, virtual Object {
+	static struct Loggers : std::map<std::string, unique<Logger>, String::IComparator>, virtual Object {
 		Loggers() { emplace("console", new ConsoleLogger()); }
+		void fail(Logger& logger) { _failed.emplace_back(&logger); }
+		void flush();
+	private:
+		std::vector<Logger*> _failed;
 	}								_Loggers;
 
 	static volatile bool	_Dumping;

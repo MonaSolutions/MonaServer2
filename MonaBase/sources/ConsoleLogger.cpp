@@ -64,19 +64,19 @@ ConsoleLogger::ConsoleLogger() {
 #endif
 }
 
-ConsoleLogger& ConsoleLogger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
+bool ConsoleLogger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
 	BEGIN_CONSOLE_TEXT_COLOR(LevelColors[level - 1]);
 	printf("%s[%ld] %s", file.name().c_str(), line, message.c_str());
 	END_CONSOLE_TEXT_COLOR;
 	printf("\n"); // flush after color change, required especially over unix/linux
-	return self;
+	return true;
 }
 
-ConsoleLogger& ConsoleLogger::dump(const string& header, const UInt8* data, UInt32 size) {
+bool ConsoleLogger::dump(const string& header, const UInt8* data, UInt32 size) {
 	if(!header.empty())
 		printf("%.*s\n", (int)header.size(), header.c_str());
 	fwrite(data, sizeof(char), size, stdout);
-	return self;
+	return true;
 }
 
 } // namespace Mona

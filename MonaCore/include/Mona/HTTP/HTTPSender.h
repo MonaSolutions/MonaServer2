@@ -44,9 +44,8 @@ struct HTTPSender : Runner, virtual Object {
 	/*!
 	If extraSize=UINT64_MAX + (path() || !mime): Transfer-Encoding: chunked
 	If extraSize=UINT64_MAX + !path(): live streaming => no content-length, live attributes and close on end of response */
-	bool send(const char* code, MIME::Type mime, const char* subMime, UInt64 extraSize = 0);
+	bool send(const char* code, MIME::Type mime = MIME::TYPE_UNKNOWN, const char* subMime = NULL, UInt64 extraSize = 0);
 	bool send(const Packet& content);
-	bool send(const char* code, bool chunked=false) { return send(code, MIME::TYPE_UNKNOWN, NULL, chunked ? UINT64_MAX : 0); }
 
 	template <typename ...Args>
 	bool sendError(const char* code, Args&&... args) {

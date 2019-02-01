@@ -26,8 +26,8 @@ struct ConsoleLogger : Logger, virtual Object {
 
 	operator bool() const { return _isInteractive; }
 
-	ConsoleLogger& log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
-	ConsoleLogger& dump(const std::string& header, const UInt8* data, UInt32 size);
+	bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
+	bool dump(const std::string& header, const UInt8* data, UInt32 size);
 private:
 	bool _isInteractive;
 };

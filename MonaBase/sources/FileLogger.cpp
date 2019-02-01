@@ -27,7 +27,7 @@ FileLogger::FileLogger(const string dir, UInt32 sizeByFile, UInt16 rotation) : _
 	_written = range<UInt32>(_pFile->size());
 }
 
-FileLogger& FileLogger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
+bool FileLogger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
 	static string Buffer; // max size controlled by Logs system!
 	static string temp;
 	static Exception ex;
@@ -43,21 +43,23 @@ FileLogger& FileLogger::log(LOG_LEVEL level, const Path& file, long line, const 
 		Buffer.append(60 - Buffer.size(), ' ');
 	String::Append(Buffer, message, '\n');
 
-	if (_pFile->write(ex, Buffer.data(), Buffer.size()))
-		manage(Buffer.size());
-	else
+	if (!_pFile->write(ex, Buffer.data(), Buffer.size())) {
 		_pFile.reset();
-	return self;
+		return false;
+	}
+	manage(Buffer.size());
+	return true;
 }
 
-FileLogger& FileLogger::dump(const string& header, const UInt8* data, UInt32 size) {
+bool FileLogger::dump(const string& header, const UInt8* data, UInt32 size) {
 	String buffer(String::Date("%d/%m %H:%M:%S.%c  "), header, '\n');
 	Exception ex;
-	if (_pFile->write(ex, buffer.data(), buffer.size()) || !_pFile->write(ex, data, size))
-		manage(buffer.size() + size);
-	else
+	if (!_pFile->write(ex, buffer.data(), buffer.size()) || !_pFile->write(ex, data, size)) {
 		_pFile.reset();
-	return self;
+		return false;
+	}
+	manage(buffer.size() + size);
+	return true;
 }
 
 void FileLogger::manage(UInt32 written) {

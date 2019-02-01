@@ -59,8 +59,29 @@ void Logs::Dump(const string& header, const UInt8* data, UInt32 size) {
 	Buffer out;
 	Util::Dump(data, (_DumpLimit<0 || size<UInt32(_DumpLimit)) ? size : _DumpLimit, out);
 	for (auto& it : _Loggers) {
-		if(*it.second)
-			it.second->dump(header, out.data(), out.size());
+		if (*it.second && !it.second->dump(header, out.data(), out.size()))
+			_Loggers.fail(*it.second);
+	}
+	_Loggers.flush();
+}
+
+void Logs::Loggers::flush() {
+	while (!_failed.empty()) {
+		Logger& logger(*_failed.front());
+		String message(logger.name, " log has failed");
+		const char* fatal = logger.fatal;
+		if (fatal) {
+			if (*fatal)
+				String::Append(message, ", ", fatal);
+		}
+		_failed.pop_back();
+		erase(logger.name); // erase here to remove it from _Loggers before dispatching loop
+		for (auto& it : _Loggers) {
+			if (*it.second && !it.second->log(LOG_ERROR, __FILE__, __LINE__, message))
+				_failed.emplace_back(it.second.get());
+		}
+		if (fatal) // fatal is last to get logs on the other targets
+			FATAL_ERROR(message);
 	}
 }
 

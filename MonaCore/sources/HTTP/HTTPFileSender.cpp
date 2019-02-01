@@ -100,7 +100,7 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 				return 0;
 		}
 		if(!end)
-			return pSocket->queueing() ? 0 : 0xFFFF;
+			return pSocket->queueing() ? 0 : 0xFFFF; // wait next!
 	}
 	// END
 	send(Packet::Null()); // to end possible chunked transfer

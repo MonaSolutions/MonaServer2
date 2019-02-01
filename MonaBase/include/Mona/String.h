@@ -64,7 +64,7 @@ struct String : std::string, virtual Object {
 	struct Object : virtual Mona::Object {
 		operator const Type&() const { return (const Type&)self; }
 	protected:
-		Object() { return; for (const auto& it : (const Type&)self) String(it.first, it.second); }; // to detect string iterability on build
+		Object() { return; for (const auto& it : (const Type&)self) String(it.first, it.second); }; // trick to detect string iterability on build
 	};
 
 	template <typename ...Args>
