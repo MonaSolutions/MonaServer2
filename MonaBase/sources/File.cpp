@@ -194,16 +194,16 @@ UInt64 File::size(bool refresh) const {
 	return _path.size(refresh);
 }
 
-void File::reset() {
+void File::reset(UInt64 position) {
 	if(!_loaded)
 		return;
-	_readen = 0;
+	_readen = position;
 #if defined(_WIN32)
 	LARGE_INTEGER offset;
-	offset.QuadPart = -(LONGLONG)_written.exchange(0); // move relating APPEND possible mode!
+	offset.QuadPart = -(LONGLONG)_written.exchange(position) + position; // move relating APPEND possible mode!
 	SetFilePointerEx((HANDLE)_handle, offset, NULL, FILE_CURRENT);
 #else
-	lseek64(_handle, -(off64_t )_written.exchange(0), SEEK_CUR);
+	lseek64(_handle, -(off64_t )_written.exchange(position) + position, SEEK_CUR);
 #endif
 }
 

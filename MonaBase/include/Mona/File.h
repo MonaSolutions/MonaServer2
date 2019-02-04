@@ -98,7 +98,7 @@ struct File : virtual Object {
 	Create file or folder */
 	bool				create(Exception& ex) { return write(ex, NULL, 0); }
 
-	void				reset();
+	void				reset(UInt64 position = 0);
 
 private:
 	Path				_path;

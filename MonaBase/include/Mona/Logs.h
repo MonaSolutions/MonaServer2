@@ -37,7 +37,7 @@ struct Logs : virtual Static {
 		if (fatalPos != std::string::npos)
 			name[fatalPos] = 0;
 		std::lock_guard<std::mutex> lock(_Mutex);
-		auto& it = _Loggers.emplace(std::move(name), make_unique<LoggerType>(std::forward<Args>(args) ...));
+		auto& it = _Loggers.emplace(std::move(name), unique<Logger>(new LoggerType(std::forward<Args>(args) ...)));
 		it.first->second->name = it.first->first.c_str();
 		if (fatalPos != std::string::npos)
 			it.first->second->fatal = it.first->first.c_str() + fatalPos + 1;
