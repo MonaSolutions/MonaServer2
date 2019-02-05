@@ -221,7 +221,7 @@ void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
 				unique<Publish> _pPublish;
 				Media::Source* _pSource;
 			};
-			streams.emplace(it.first, new Stream(self));
+			streams.emplace("logs", new Stream(self));
 		}
 			
 		for (auto& it2 : range(temp.assign(it.first) += '.')) {

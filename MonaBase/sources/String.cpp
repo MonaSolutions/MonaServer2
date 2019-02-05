@@ -248,15 +248,14 @@ const char* String::ShortPath(const string& path) {
 	const char* name = NULL;
 	while (cur-- > path.c_str()) {
 		if (*cur == '/' || *cur == '\\') {
-			if (name) { // end!
-				++cur;
-				if (String::ICompare(cur, "sources", name-cur) == 0 || String::ICompare(cur, "mona", name - cur) == 0)
-					return name+1;
-				return cur;
-			}
+			if (name) // end!
+				break;
 			name = cur;
 		}
 	}
+	++cur;
+	if (name && (String::ICompare(cur, "sources", name - cur) == 0 || String::ICompare(cur, "mona", name - cur) == 0))
+		return name + 1;
 	return cur;
 }
 
