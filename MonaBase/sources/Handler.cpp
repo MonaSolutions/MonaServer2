@@ -16,7 +16,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 
 #include "Mona/Handler.h"
-#include "Mona/Logs.h"
 
 
 using namespace std;
@@ -41,10 +40,8 @@ UInt32 Handler::flush() {
 		lock_guard<mutex> lock(_mutex);
 		runners = move(_runners);
 	}
-	Exception ex;
 	for (shared<Runner>& pRunner : runners) {
-		Thread::ChangeName newName('.',pRunner->name); // '.' to signal that its a sub-runner, wait the name of the thread in htop
-		AUTO_ERROR(pRunner->run(ex=nullptr), newName);
+		pRunner->run('.', pRunner->name); // '.' to signal that its a sub-runner, wait the name of the thread in htop
 		pRunner.reset(); // release resources
 	}
 	return runners.size();

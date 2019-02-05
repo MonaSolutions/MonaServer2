@@ -18,7 +18,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Path.h"
-#include "Mona/ThreadQueue.h"
 #include "Mona/Handler.h"
 #if !defined(_WIN32)
 #include <fcntl.h>

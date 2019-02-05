@@ -50,21 +50,28 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<S
 }
 
 MediaSocket::Reader::Reader(Type type, const Path& path, MediaReader* pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(type, path), _streaming(false), io(io), _pTLS(pTLS), address(address), _pReader(pReader), _subscribed(false) {
+	Media::Stream(type, path), _streaming(0), io(io), _pTLS(pTLS), address(address), _pReader(pReader), _subscribed(false) {
 	_onSocketDisconnection = [this]() { Stream::stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
-	_onSocketError = [this](const Exception& ex) { Stream::stop(LOG_WARN, ex); };
+	_onSocketError = [this](const Exception& ex) {
+		if (_streaming >= 0) { // on first time OR when streaming!
+			if (!_streaming)
+				_streaming = -1;
+			Stream::stop(LOG_WARN, ex);	
+		} else
+			Stream::stop(LOG_DEBUG, ex);
+	};
 }
 
 void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 	if (message.ex)
 		return Stream::stop<Ex::Protocol>(LOG_ERROR, message.ex);
 	if (!message.pMedia) {
-		if (_streaming)
+		if (_streaming>0)
 			return Stream::stop<Ex::Net::Socket>(LOG_DEBUG, "end of stream");
 		return Stream::stop<Ex::Protocol>(LOG_ERROR, "HTTP response is not a media");
 	}
-	if (!_streaming) {
-		_streaming = true;
+	if (_streaming<=0) {
+		_streaming = 1;
 		INFO(description(), " starts");
 	}
 	if (message.lost)
@@ -147,13 +154,13 @@ void MediaSocket::Reader::stop() {
 	_onRequest = nullptr;
 	_onResponse = nullptr;
 	_subscribed = false;
-	if (_streaming) {
+	if (_streaming>0) {
 		if (_pReader.unique()) // works also when _pReader is null (unique()==false)
 			_pReader->flush(*_pSource);
 		else
 			_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
 		INFO(description(), " stops");
-		_streaming = false;
+		_streaming = 0;
 	}
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if(_pReader)

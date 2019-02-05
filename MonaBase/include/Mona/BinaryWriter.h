@@ -29,6 +29,7 @@ struct BinaryWriter : Binary, virtual Object {
 	virtual ~BinaryWriter();
 
 	BinaryWriter& append(const void* data, UInt32 size) { _pBuffer->append(data, size); return *this; }
+	BinaryWriter& append(UInt32 count, UInt8 value) { _pBuffer->append(count, value); return *this; }
 	BinaryWriter& write(const void* data, UInt32 size) {return append(data, size); }
 	BinaryWriter& write(const char* value) { return write(value, strlen(value)); }
 	BinaryWriter& write(const std::string& value) { return write(value.data(), (UInt32)value.size()); }

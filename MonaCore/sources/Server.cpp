@@ -58,7 +58,7 @@ void Server::start(const Parameters& parameters) {
 
 Publish* Server::publish(const char* name) {
 	if (running())
-		return  new Publish(self, name);
+		return new Publish(self, name);
 	ERROR("Start ", typeof(self), " before to publish ", name);
 	return NULL;
 }
@@ -144,20 +144,6 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	// Close server sockets to stop reception
 	_protocols.stop();
 
-	// delete streams
-	for (Subscription* pSubscription : subscriptions) {
-		unsubscribe(*pSubscription);
-		delete pSubscription;
-	}
-	for (auto& it : streams)
-		delete it.second;
-	for (auto& it : _streams)
-		it->stop();
-	_streams.clear();
-	// delete publications
-	for (Publication* pPublication : publications)
-		unpublish(*pPublication);
-
 	// TODO? terminate relay server ((RelayServer&)relayer).stop();
 
 	// stop event to unload children resource (before to release sockets, threads, and buffers)
@@ -171,6 +157,20 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 
 	// empty handler!
 	_handler.flush();
+
+	// delete streams after handler flush
+	for (Subscription* pSubscription : subscriptions) {
+		unsubscribe(*pSubscription);
+		delete pSubscription;
+	}
+	for (auto& it : streams)
+		delete it.second;
+	for (auto& it : _streams)
+		it->stop();
+	_streams.clear();
+	// delete intern publications after handler flush
+	for (Publication* pPublication : publications)
+		unpublish(*pPublication);
 
 	// release memory
 	INFO("Server memory release");
@@ -191,6 +191,39 @@ void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
 		if (it.first.find('.') != string::npos || String::ICompare(it.second, EXPAND("publication")) != 0)
 			continue;
 
+		if (String::ICompare(it.first, "logs") == 0) {
+			// publication with in entry the logs!
+			struct Stream : Media::Stream, virtual Object {
+				Stream(ServerAPI& api) : _api(api), Media::Stream(Media::Stream::TYPE_FILE,"logs") {}
+				~Stream() { stop(); }
+				void start(const Parameters& parameters = Parameters::Null()) {
+					if (_pPublish)
+						Logs::RemoveLogger("logs");
+					_pPublish.reset(new Publish(_api, *_pSource));
+					if (!Logs::AddLogger<Publish::Logger>("logs", *_pPublish)) {
+						ERROR("Duplicated logs logger");
+						_pPublish.reset();
+					}
+				}
+				void start(Media::Source& source, const Parameters& parameters = Parameters::Null()) {
+					_pSource = &source;
+					start(parameters);
+				}
+				bool running() const { return _pPublish ? true : false; }
+				void stop() {
+					if (_pPublish)
+						Logs::RemoveLogger("logs");
+					_pPublish.reset();
+				}
+			private:
+				string& buildDescription(string& description) { return description.assign("Logger source"); }
+				ServerAPI& _api;
+				unique<Publish> _pPublish;
+				Media::Source* _pSource;
+			};
+			streams.emplace(it.first, new Stream(self));
+		}
+			
 		for (auto& it2 : range(temp.assign(it.first) += '.')) {
 			const char* name(it2.first.c_str() + temp.size());
 			if (!it2.second.empty())

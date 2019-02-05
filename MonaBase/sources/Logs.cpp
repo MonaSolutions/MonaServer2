@@ -24,7 +24,7 @@ namespace Mona {
 
 mutex					Logs::_Mutex;
 
-volatile bool			Logs::_Dumping(false);
+volatile bool			Logs::_IsDumping(false);
 string					Logs::_Dump;
 
 Int32					Logs::_DumpLimit(-1);
@@ -32,17 +32,18 @@ volatile bool			Logs::_DumpRequest(true);
 volatile bool			Logs::_DumpResponse(true);
 atomic<LOG_LEVEL>		Logs::_Level(LOG_DEFAULT); // default log level
 Logs::Loggers			Logs::_Loggers;
+thread_local bool		Logs::_Logging(false);
 
 void Logs::SetDump(const char* name) {
 	lock_guard<mutex> lock(_Mutex);
 	_DumpResponse = _DumpRequest = true;
 	if (!name) {
-		_Dumping = false;
+		_IsDumping = false;
 		_Dump.clear();
 		_Dump.shrink_to_fit();
 		return;
 	}
-	_Dumping = true;
+	_IsDumping = true;
 	_Dump = name;
 	if (_Dump.empty())
 		return;

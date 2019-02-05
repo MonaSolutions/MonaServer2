@@ -29,21 +29,9 @@ FileLogger::FileLogger(const string dir, UInt32 sizeByFile, UInt16 rotation) : _
 
 bool FileLogger::log(LOG_LEVEL level, const Path& file, long line, const string& message) {
 	static string Buffer; // max size controlled by Logs system!
-	static string temp;
-	static Exception ex;
-
-	String::Assign(Buffer, String::Date("%d/%m %H:%M:%S.%c  "), Logs::LevelToString(level));
-	Buffer.append(25 - Buffer.size(), ' ');
-
-	String::Append(Buffer, Thread::CurrentId(), ' ');
-	if (String::ICompare(FileSystem::GetName(file.parent(), temp), "sources") != 0 && String::ICompare(temp, "mona") != 0)
-		String::Append(Buffer, temp, '/');
-	String::Append(Buffer, file.name(), '[', line, "] ");
-	if (Buffer.size() < 60)
-		Buffer.append(60 - Buffer.size(), ' ');
-	String::Append(Buffer, message, '\n');
-
-	if (!_pFile->write(ex, Buffer.data(), Buffer.size())) {
+	static Exception Ex;
+	String::Assign(Buffer, String::Log(Logs::LevelToString(level), file, line, message));
+	if (!_pFile->write(Ex, Buffer.data(), Buffer.size())) {
 		_pFile.reset();
 		return false;
 	}

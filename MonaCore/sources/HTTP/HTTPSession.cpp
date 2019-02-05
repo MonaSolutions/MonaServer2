@@ -362,30 +362,36 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 			switch (request->mime) {
 				case MIME::TYPE_TEXT:
 					// subtitle?
-					if (String::ICompare(file.extension(), "srt") != 0 && String::ICompare(file.extension(), "vtt") != 0)
-						break;
+					if (String::ICompare(file.extension(), "vtt") != 0 && String::ICompare(file.extension(), "dat") != 0)
+						return _pWriter->writeFile(file, fileProperties);
 				case MIME::TYPE_VIDEO:
 				case MIME::TYPE_AUDIO:
-					if (file.exists())
-						break; // VOD!
-					if (request->query == "?") {
-						// request publication properties!
-						const auto& it = api.publications.find(file.baseName());
-						if (it == api.publications.end())
-							_pWriter->writeError(HTTP_CODE_404, "Publication ", file.baseName(), " unfound");
-						else
-							MapReader<Parameters>(it->second).read(_pWriter->writeResponse("json"));
-					} else if (request->type == HTTP::TYPE_HEAD) {
-						// HEAD, want just immediatly the header format of audio/video live streaming!
-						HTTP_BEGIN_HEADER(*_pWriter->writeResponse())
-							HTTP_ADD_HEADER_LINE(HTTP_LIVE_HEADER)
-						HTTP_END_HEADER
-					} else
-						subscribe(ex, file.baseName());
-					return;
+					break;
+				case MIME::TYPE_APPLICATION:
+					// subtitle?
+					if (String::ICompare(file.extension(), "srt") == 0)
+						break;
 				default:;
+					return _pWriter->writeFile(file, fileProperties);
 			}
-			return _pWriter->writeFile(file, fileProperties);
+			// LIVE SUBSCRIPTION?
+			if (file.exists())
+				return _pWriter->writeFile(file, fileProperties); // VOD
+			if (request->query == "?") {
+				// request publication properties!
+				const auto& it = api.publications.find(file.baseName());
+				if (it == api.publications.end())
+					_pWriter->writeError(HTTP_CODE_404, "Publication ", file.baseName(), " unfound");
+				else
+					MapReader<Parameters>(it->second).read(_pWriter->writeResponse("json"));
+			} else if (request->type == HTTP::TYPE_HEAD) {
+				// HEAD, want just immediatly the header format of audio/video live streaming!
+				HTTP_BEGIN_HEADER(*_pWriter->writeResponse())
+					HTTP_ADD_HEADER_LINE(HTTP_LIVE_HEADER)
+				HTTP_END_HEADER
+			} else
+				subscribe(ex, file.baseName());
+			return;
 		}
 	}
 

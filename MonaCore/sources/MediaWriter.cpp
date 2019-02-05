@@ -26,6 +26,7 @@ details (or else see http://www.gnu.org/licenses/).
 //#include "Mona/MP3Writer.h"
 #include "Mona/SRTWriter.h"
 #include "Mona/VTTWriter.h"
+#include "Mona/DATWriter.h"
 #include "Mona/MonaWriter.h"
 #include "Mona/RTPWriter.h"
 #include "Mona/RTP_MPEG.h"
@@ -55,8 +56,9 @@ static const map<size_t, Format> _Formats({
 	{ typeid(NALNetWriter<HEVC>).hash_code(), Format("HEVC", MIME::TYPE_VIDEO, "hevc") },
 	{ typeid(ADTSWriter).hash_code(), Format("ADTS", MIME::TYPE_AUDIO, "aac") },
 	// { typeid(MP3Writer).hash_code(), Format("MP3", MIME::TYPE_AUDIO, "mp3") },
-	{ typeid(SRTWriter).hash_code(), Format("SRT", MIME::TYPE_TEXT, "plain; charset=utf-8") },
+	{ typeid(SRTWriter).hash_code(), Format("SRT", MIME::TYPE_APPLICATION, "application/x-subrip; charset=utf-8") },
 	{ typeid(VTTWriter).hash_code(), Format("VTT", MIME::TYPE_TEXT, "vtt; charset=utf-8") },
+	{ typeid(DATWriter).hash_code(), Format("DAT", MIME::TYPE_TEXT, "plain; charset=utf-8") },
 	{ typeid(MonaWriter).hash_code(), Format("MONA", MIME::TYPE_VIDEO, "mona") },
 	{ typeid(RTPWriter<RTP_MPEG>).hash_code(), Format("RTP_MPEG", MIME::TYPE_VIDEO, NULL) }, // Keep NULL to force RTPReader to redefine mime()!
 	{ typeid(RTPWriter<RTP_H264>).hash_code(), Format("RTP_H264", MIME::TYPE_VIDEO, NULL) } // Keep NULL to force RTPReader to redefine mime()!
@@ -86,10 +88,12 @@ MediaWriter* MediaWriter::New(const char* subMime) {
 		return new ADTSWriter();
 //	if (String::ICompare(subMime, EXPAND("mp3")) == 0)
 //		return new MP3Writer();
-	if (String::ICompare(subMime, EXPAND("plain")) == 0) // if "subMime=plain" it requests "text data" (srt for example)
+	if (String::ICompare(subMime, EXPAND("x-subrip")) == 0)
 		return new SRTWriter();
-	if (String::ICompare(subMime, EXPAND("vtt")) == 0) // if "subMime=plain" it requests "text data" (srt for example)
+	if (String::ICompare(subMime, EXPAND("vtt")) == 0)
 		return new VTTWriter();
+	if (String::ICompare(subMime, EXPAND("plain")) == 0)
+		return new DATWriter();
 	if (String::ICompare(subMime, EXPAND("mona")) == 0)
 		return new MonaWriter();
 	return NULL;

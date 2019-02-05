@@ -420,11 +420,21 @@ struct String : std::string, virtual Object {
 		Data(const char* value,        std::size_t size) : value(value), size(size==std::string::npos ? strlen(value) : size) {}
 		Data(const UInt8* value, UInt32 size) : value(STR value), size(size) {}
 		const char*	value;
-		UInt32 size;
+		const UInt32 size;
 	};
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, const Data& data, Args&&... args) {
 		return Append<OutType>((OutType&)out.append(data.value, data.size), std::forward<Args>(args)...);
+	}
+
+	struct Repeat : virtual Mona::Object {
+		Repeat(UInt32 count, char value) : value(value), count(count) {}
+		const char value;
+		const UInt32 count;
+	};
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const Repeat& repeat, Args&&... args) {
+		return Append<OutType>((OutType&)out.append(repeat.count, repeat.value), std::forward<Args>(args)...);
 	}
 
 	struct Date : virtual Mona::Object {
@@ -496,12 +506,29 @@ struct String : std::string, virtual Object {
 		out.append(EXPAND("}"));
 		return Append<OutType>(out, std::forward<Args>(args)...);
 	}
+	struct Log : virtual Mona::Object {
+		Log(const char* level, const std::string& file, long line, const std::string& message) : level(level), file(file), line(line), message(message) {}
+		const char*			level;
+		const std::string&	file;
+		const long			line;
+		const std::string&	message;
+	};
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const Log& log, Args&&... args) {
+		UInt32 size = Mona::Date().format("%d/%m %H:%M:%S.%c  ", out).size();
+		out.append(7 - (Append<OutType>(out,log.level).size() - size), ' ');
+		size = Append<OutType>(out, Thread::CurrentId(), ' ', ShortPath(log.file), '[', log.line, "] ").size() - size;
+		if (size < 42)
+			out.append(42 - size, ' ');
+		return Append<OutType>(out.append(log.message.data(), log.message.size()).append(EXPAND("\n")), std::forward<Args>(args)...);
+	}
+
 
 	template <typename OutType>
 	static OutType& Append(OutType& out) { return out; }
 
 private:
-
+	static const char* ShortPath(const std::string& path);
 #if defined(_WIN32)
 	static const char* ToUTF8(const wchar_t* value, char buffer[PATH_MAX]);
 #endif

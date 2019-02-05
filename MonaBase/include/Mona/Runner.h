@@ -17,16 +17,27 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Exceptions.h"
+#include "Mona/Thread.h"
+#include "Mona/Logs.h"
 
 namespace Mona {
 
 
 struct Runner : virtual Object {
-	Runner(const char* name) : name(name) {}
+	Runner(const char* name) : name(name), noLogs(Logs::Logging())  {}
 
 	const char* name;
+	bool noLogs;
 
+	template <typename ...Args>
+	void run(Args&&... args) {
+		Thread::ChangeName newName(std::forward<Args>(args)...);
+		Exception ex;
+		Logs::Disable disableLogs(noLogs);
+		AUTO_ERROR(run(ex), newName);
+	}
+
+private:
 	// If ex is raised, an error is displayed if the operation has returned false
 	// otherwise a warning is displayed
 	virtual bool run(Exception& ex) = 0;

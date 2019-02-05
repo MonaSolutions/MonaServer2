@@ -160,7 +160,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 							_lastRequest.update(pSocket->sendTime() + 1); // to do working 204 response (see HTTPDecoder::onRelease)
 							break;
 						case HTTP::TYPE_GET:
-							if (_pHeader->mime == MIME::TYPE_TEXT || _pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO)
+							if (_pHeader->mime)
 								_path.exists(); // preload disk attributes now in the thread!
 						case HTTP::TYPE_DELETE:
 							invocation = true; // must not have progressive content!

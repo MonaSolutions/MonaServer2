@@ -24,7 +24,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 	#define lseek64 lseek
 #endif
 #endif
-#include "Mona/ThreadQueue.h"
 
 
 

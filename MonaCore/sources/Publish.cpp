@@ -27,6 +27,8 @@ namespace Mona {
 Publish::Publish(ServerAPI& api, const char* name) : _pPublishing(new Publishing(api, name)) {
 	api.queue(_pPublishing);
 }
+Publish::Publish(ServerAPI& api, Media::Source& source) : _pPublishing(new Publishing(api, source)) {
+}
  
 Publish::~Publish() {
 	struct Unpublishing : Action, virtual Object {
@@ -34,7 +36,7 @@ Publish::~Publish() {
 	private:
 		void run(Publication& publication) { api().unpublish(publication); }
 	};
-	if(_pPublishing->api.running())
+	if(_pPublishing->isPublication() && _pPublishing->api.running())
 		queue<Unpublishing>();
 }
 
@@ -42,7 +44,7 @@ void Publish::reset() {
 	struct Reset : Action, virtual Object {
 		Reset(const shared<Publishing>& pPublishing) : Action("Publish::Reset", pPublishing) {}
 	private:
-		void run(Publication& publication) { publication.reset(); }
+		void run(Source& source) { source.reset(); }
 	};
 	queue<Reset>();
 }
@@ -52,6 +54,7 @@ void Publish::flush(UInt16 ping) {
 		Flush(const shared<Publishing>& pPublishing, UInt16 ping) : Action("Publish::Flush", pPublishing), _ping(ping) {}
 	private:
 		void run(Publication& publication) { publication.flush(_ping); }
+		void run(Source& source) { source.flush(); }
 		UInt16			_ping;
 	};
 	queue<Flush>(ping);
@@ -60,8 +63,8 @@ void Publish::flush(UInt16 ping) {
 bool Publish::Publishing::run(Exception& ex) {
 	if (_failed)
 		return false;
-	_pPublication = api.publish(ex, name);
-	if (_pPublication)
+	_pSource = api.publish(ex, name);
+	if (_pSource)
 		return true;
 	_failed = true;
 	return false;

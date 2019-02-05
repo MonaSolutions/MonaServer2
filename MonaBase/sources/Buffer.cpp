@@ -45,7 +45,11 @@ Buffer::~Buffer() {
 }
 
 void Buffer::computeCapacity(UInt32 size) {
-	_capacity = max(size, 16u) - 1; // at minimum allocate 16 bytes!
+	if (size < 16) { // at minimum allocate 16 bytes!
+		_capacity = 16;
+		return;
+	}
+	_capacity = size - 1; // at minimum allocate 16 bytes!
 	_capacity |= _capacity >> 1;
 	_capacity |= _capacity >> 2;
 	_capacity |= _capacity >> 4;
@@ -57,11 +61,19 @@ void Buffer::computeCapacity(UInt32 size) {
 
 Buffer& Buffer::append(const void* data, UInt32 size) {
 	if (!_data) // to expect null Buffer 
-		return *this;
+		return self;
 	UInt32 oldSize(_size);
 	resize(_size + size);
 	memcpy(_data + oldSize, data, size);
-	return *this;
+	return self;
+}
+Buffer& Buffer::append(UInt32 count, UInt8 value) {
+	if (!_data) // to expect null Buffer 
+		return self;
+	UInt32 oldSize(_size);
+	resize(_size + count);
+	memset(_data + oldSize, value, count);
+	return self;
 }
 
 Buffer& Buffer::clip(UInt32 offset) {

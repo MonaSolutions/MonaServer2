@@ -24,7 +24,7 @@ namespace Mona {
 void ThreadPool::init(UInt16 threads, Thread::Priority priority) {
 	_threads.resize(_size = threads ? threads : Thread::ProcessorCount());
 	for (UInt16 i = 0; i < _size; ++i)
-		_threads[i].reset(new ThreadQueue("ThreadPool", priority));
+		_threads[i].reset(new ThreadQueue(priority));
 }
 
 UInt16 ThreadPool::join() {

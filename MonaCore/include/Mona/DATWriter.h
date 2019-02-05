@@ -24,19 +24,17 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 /*!
-SRT subtitles compatible VTT */
-struct SRTWriter : MediaWriter, virtual Object {
-	SRTWriter(const char* timeFormat = "%TH:%M:%S,%i") : _timeFormat(timeFormat) {}
+DAT format => write just command Data channel (track=0) in a raw format => usefull to get logs for example */
+struct DATWriter : MediaWriter, virtual Object {
+	DATWriter() {}
 
-	void beginMedia(const OnWrite& onWrite);
-	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { _time = tag.time; }
-	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { _time = tag.time; }
-	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
-	
-private:
-	UInt32			_index;
-	UInt32			_time;
-	const char*		_timeFormat;
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {}
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {}
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
+		if (Media::Data::TYPE_TEXT == type && !track && onWrite)
+			onWrite(packet);
+	}
+
 };
 
 

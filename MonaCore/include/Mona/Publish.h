@@ -33,6 +33,7 @@ Publish a publication by the code, externally to the server:
 struct Publish : Media::Source, virtual Object {
 	NULLABLE
 	Publish(ServerAPI& api, const char* name);
+	Publish(ServerAPI& api, Media::Source& source);
 	~Publish();
 	/*!
 	Publication name */
@@ -62,21 +63,42 @@ struct Publish : Media::Source, virtual Object {
 	Reset the stream, usefull when a new stream will start on same publication */
 	void reset();
 
+	struct Logger : virtual Object, Mona::Logger {
+		Logger(Publish& publish) : _publish(publish) {}
+		bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message) { return writeData(String::Log(Logs::LevelToString(level), file, line, message)); }
+		bool dump(const  std::string& header, const UInt8* data, UInt32 size) { return writeData(String::Date("%d/%m %H:%M:%S.%c  "), header, '\n'); }
+	private:
+		template<typename ...Args>
+		bool writeData(Args&&... args) {
+			if (!_publish)
+				return true;
+			shared<Buffer> pBuffer(new Buffer());
+			String::Append(*pBuffer, forward<Args>(args)...);
+			_publish.writeData(Media::Data::TYPE_TEXT, Packet(pBuffer));
+			return true;
+		}
+		Publish& _publish;
+	};
 private:
 	void flush() { flush(0); }
 
 	struct Publishing : Runner, virtual Object {
 		NULLABLE
 		Publishing(ServerAPI& api, const char* name) : _failed(false), Runner("Publishing"), name(name), api(api) {}
+		Publishing(ServerAPI& api, Source& source) : _failed(false), _pSource(&source), Runner(NULL), name(source.name()), api(api) {}
+
 		const std::string name;
 		operator bool() const { return !_failed; }
+		bool isPublication() const { return Runner::name && !_failed; }
 
 		ServerAPI& api;
-		explicit operator Publication*() { return _failed ? NULL : _pPublication; }
+		explicit operator Source*() { return _failed ? NULL : _pSource; }
+		explicit operator Publication*() { return _failed || !Runner::name ? NULL : (Publication*)_pSource; }
+
 	private:
 		bool run(Exception& ex);
 
-		Publication* _pPublication;
+		Source* _pSource;
 		volatile bool _failed;
 	};
 
@@ -85,11 +107,15 @@ private:
 	protected:
 		ServerAPI& api() { return _pPublishing->api; }
 	private:
-		virtual void run(Publication& publication) = 0;
+		virtual void run(Publication& publication) { run((Source&)publication); }
+		virtual void run(Source& source) { ERROR(name," empty run for ", source.name()); }
 		bool run(Exception& ex) { 
-			Publication* pPublication(*_pPublishing);
-			if(pPublication)
-				run(*pPublication);
+			if (!_pPublishing->isPublication()) {
+				Source* pSource(*_pPublishing);
+				if (pSource)
+					run(*pSource);
+			} else
+				run(*(Publication*)*_pPublishing);
 			return true;
 		}
 		shared<Publishing> _pPublishing;
@@ -100,13 +126,13 @@ private:
 		template<typename ...Args>
 		Write(const shared<Publishing>& pPublishing, Args&&... args) : Action(typeof<Write<MediaType>>().c_str(), pPublishing), MediaType(args ...) {}
 	private:
-		void run(Publication& publication) { publication.writeMedia(self); }
+		void run(Source& source) { source.writeMedia(self); }
 	};
 
 	struct Lost : Action, private Media::Base, virtual Object {
 		Lost(const shared<Publishing>& pPublishing, Media::Type type, UInt32 lost, UInt8 track = 0) : Action("Publish::Lost", pPublishing), Media::Base(type, Packet::Null(), track), _lost(lost)  {}
 	private:
-		void run(Publication& publication) { publication.reportLost(type, _lost, track); }
+		void run(Source& source) { source.reportLost(type, _lost, track); }
 		UInt32			_lost;
 	};
 

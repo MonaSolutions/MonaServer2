@@ -50,8 +50,8 @@ struct Thread : virtual Object {
 	static const UInt32			MainId;
 
 	struct ChangeName : virtual Object {
-		template <typename ...Args>
-		ChangeName(Args&&... args) { SetDebugName(String::Assign(_oldName, std::forward<Args>(args)...)); _oldName.swap(_Name); }
+		template<typename ...Args>
+		ChangeName(Args&&... args) : _oldName(std::move(_Name)) { SetDebugName(String::Append(_Name, std::forward<Args>(args)...)); }
 		~ChangeName() { SetDebugName(_Name = std::move(_oldName)); }
 		operator const std::string&() const { return _Name; }
 	private:
@@ -61,8 +61,7 @@ protected:
 	Thread(const char* name);
 
 	Signal wakeUp;
-	template <typename ...Args>
-	const std::string& setName(Args&&... args) { SetDebugName(String::Assign(_Name, std::forward<Args>(args)...)); return _Name; }
+
 private:
 	virtual bool run(Exception& ex, const volatile bool& requestStop) = 0;
 	void		 process();

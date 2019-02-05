@@ -35,6 +35,7 @@ struct Buffer : Binary, virtual Object {
 
 	Buffer&			clip(UInt32 offset);
 	Buffer&			append(const void* data, UInt32 size);
+	Buffer&			append(UInt32 count, UInt8 value);
 	Buffer&			resize(UInt32 size, bool preserveContent = true);
 	Buffer&			clear() { resize(0, false); return *this; }
 

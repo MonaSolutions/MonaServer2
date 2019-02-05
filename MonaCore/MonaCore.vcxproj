@@ -206,6 +206,7 @@
     <ClInclude Include="include\Mona\AVC.h" />
     <ClInclude Include="include\Mona\CCaption.h" />
     <ClInclude Include="include\Mona\Client.h" />
+    <ClInclude Include="include\Mona\DATWriter.h" />
     <ClInclude Include="include\Mona\Entity.h" />
     <ClInclude Include="include\Mona\FlashMainStream.h" />
     <ClInclude Include="include\Mona\FLVReader.h" />

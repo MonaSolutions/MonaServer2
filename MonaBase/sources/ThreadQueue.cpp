@@ -15,7 +15,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/ThreadQueue.h"
-#include "Mona/Logs.h"
 
 
 using namespace std;
@@ -42,10 +41,8 @@ bool ThreadQueue::run(Exception&, const volatile bool& requestStop) {
 				}
 				runners = move(_runners);
 			}
-			Exception ex;
 			for (shared<Runner>& pRunner : runners) {
-				Thread::ChangeName newName(pRunner->name);
-				AUTO_ERROR(pRunner->run(ex = nullptr), newName);
+				pRunner->run(pRunner->name);
 				pRunner.reset(); // release resources
 			}
 		}

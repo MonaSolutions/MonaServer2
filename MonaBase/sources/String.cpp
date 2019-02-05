@@ -243,6 +243,23 @@ void String::ToUTF8(const char* value, size_t size, const String::OnEncoded& onE
 		onEncoded(begin, value - begin);
 }
 
+const char* String::ShortPath(const string& path) {
+	const char* cur(path.c_str() + path.size());
+	const char* name = NULL;
+	while (cur-- > path.c_str()) {
+		if (*cur == '/' || *cur == '\\') {
+			if (name) { // end!
+				++cur;
+				if (String::ICompare(cur, "sources", name-cur) == 0 || String::ICompare(cur, "mona", name - cur) == 0)
+					return name+1;
+				return cur;
+			}
+			name = cur;
+		}
+	}
+	return cur;
+}
+
 bool String::ToUTF8(char value, char (&buffer)[2]) {
 	if (value >=0)
 		return true;

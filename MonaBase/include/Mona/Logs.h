@@ -59,12 +59,15 @@ struct Logs : virtual Static {
 
 	static void			SetDumpLimit(Int32 limit) { std::lock_guard<std::mutex> lock(_Mutex); _DumpLimit = limit; }
 	static void			SetDump(const char* name); // if null, no dump, otherwise dump name, and if name is empty everything is dumped
-	static bool			IsDumping() { return _Dumping; }
+	static bool			IsDumping() { return _IsDumping; }
+
+	static bool			Logging() { return _Logging; }
 
 	template <typename ...Args>
     static void	Log(LOG_LEVEL level, const char* file, long line, Args&&... args) {
-		if (_Level < level)
+		if (_Logging || _Level < level)
 			return;
+		_Logging = true;
 		std::lock_guard<std::mutex> lock(_Mutex);
 		static Path File;
 		static String Message;
@@ -79,15 +82,18 @@ struct Logs : virtual Static {
 			Message.shrink_to_fit();
 		}
 		_Loggers.flush();
+		_Logging = false;
 	}
 
 	template <typename ...Args>
 	static void Dump(const char* name, const UInt8* data, UInt32 size, Args&&... args) {
-		if (!_Dumping)
+		if (!_IsDumping)
 			return;
+		_Logging = true;
 		std::lock_guard<std::mutex> lock(_Mutex);
 		if (_Dump.empty() || String::ICompare(_Dump, name) == 0)
 			Dump(String(std::forward<Args>(args)...), data, size);
+		_Logging = false;
 	}
 
 	template <typename ...Args>
@@ -105,16 +111,25 @@ struct Logs : virtual Static {
 #if defined(_DEBUG)
 	// To dump easly during debugging => no name filter = always displaid even if no dump argument
 	static void Dump(const UInt8* data, UInt32 size) {
+		_Logging = true;
 		std::lock_guard<std::mutex> lock(_Mutex);
 		Dump(String::Empty(), data, size);
+		_Logging = false;
 	}
 #endif
 
+	struct Disable : virtual Object {
+		Disable(bool disable=true) : _logging(disable ? _Logging : true) { if(!_logging) _Logging = true; }
+		~Disable() { if(!_logging) _Logging = false; }
+	private:
+		bool _logging;
+	};
 
 private:
 	static void		Dump(const std::string& header, const UInt8* data, UInt32 size);
 
 	static std::mutex				_Mutex;
+	static thread_local bool		_Logging;
 
 	static std::atomic<LOG_LEVEL>	_Level;
 	static struct Loggers : std::map<std::string, unique<Logger>, String::IComparator>, virtual Object {
@@ -125,7 +140,7 @@ private:
 		std::vector<Logger*> _failed;
 	}								_Loggers;
 
-	static volatile bool	_Dumping;
+	static volatile bool	_IsDumping;
 	static std::string		_Dump; // empty() means all dump, otherwise is a dump filter
 
 	static volatile bool	_DumpRequest;

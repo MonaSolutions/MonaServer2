@@ -31,7 +31,7 @@ struct MonaWriter : MediaWriter, virtual Object {
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
 	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, tag, packet, onWrite); }
 	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
-		if (track) // ignore data command!
+		if (track) // ignore data command (just subtitle)
 			write(track, type, packet, onWrite);
 	}
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {

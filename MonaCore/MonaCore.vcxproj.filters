@@ -340,6 +340,9 @@
     <ClInclude Include="include\Mona\STUN\STUNProtocol.h">
       <Filter>Protocols\STUN</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\DATWriter.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">

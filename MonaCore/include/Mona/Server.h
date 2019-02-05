@@ -46,7 +46,7 @@ struct Server : protected ServerAPI, private Thread {
 
 	/*!
 	Publish a publication, stays valid until !*Publish */
-	Publish*			  publish(const char* name);
+	Publish* publish(const char* name);
 	/*!
 	Create a media stream, stays valid until pStream.unique() */
 	shared<Media::Stream> stream(const std::string& description);

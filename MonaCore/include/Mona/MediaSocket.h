@@ -75,7 +75,7 @@ struct MediaSocket : virtual Static {
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
 		bool					_subscribed;
-		bool					_streaming;
+		Int8					_streaming;
 	};
 
 
