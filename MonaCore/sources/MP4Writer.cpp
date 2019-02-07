@@ -447,11 +447,13 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 	writer.write32(dataOffset - sizeMoof);
 	writer.write(EXPAND("mdat"));
 
-	vector<deque<Frame>> mediaFrames;
+	
+	vector<deque<Frame>> mediaFrames(track);
+	track = 0;
 	for (Frames& videos : _videos)
-		mediaFrames.emplace_back(videos.flush());
+		mediaFrames[track++] = videos.flush();
 	for (Frames& audios : _audios)
-		mediaFrames.emplace_back(audios.flush());
+		mediaFrames[track++] = audios.flush();
 	_timeFront = _timeBack;
 	if (_reset) {
 		_reset = false;

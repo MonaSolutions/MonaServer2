@@ -73,7 +73,7 @@ struct Publish : Media::Source, virtual Object {
 			if (!_publish)
 				return true;
 			shared<Buffer> pBuffer(new Buffer());
-			String::Append(*pBuffer, forward<Args>(args)...);
+			String::Append(*pBuffer, std::forward<Args>(args)...);
 			_publish.writeData(Media::Data::TYPE_TEXT, Packet(pBuffer));
 			return true;
 		}
