@@ -26,20 +26,15 @@ using namespace std;
 
 namespace Mona {
 
-void MP4Writer::Frames::flush(const OnWrite& onWrite) {
+deque<MP4Writer::Frame> MP4Writer::Frames::flush() {
 	hasKey = hasCompositionOffset = false;
-	if (empty())
-		return;
-	if (writeConfig) {
-		if(onWrite)
-			onWrite(config);
+	deque<MP4Writer::Frame> frames(move(self));
+	if (writeConfig && !frames.empty()) {
+		if(config)
+			frames.emplace_front(config);
 		writeConfig = false;
 	}
-	if (onWrite) {
-		for (const Frame& video : self)
-			onWrite(*video);
-	}
-	clear();
+	return frames;
 }
 
 void MP4Writer::beginMedia(const OnWrite& onWrite) {
@@ -452,18 +447,32 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 	writer.write32(dataOffset - sizeMoof);
 	writer.write(EXPAND("mdat"));
 
-	if (onWrite)
-		onWrite(Packet(pBuffer));
+	vector<deque<Frame>> mediaFrames;
 	for (Frames& videos : _videos)
-		videos.flush(onWrite);
+		mediaFrames.emplace_back(videos.flush());
 	for (Frames& audios : _audios)
-		audios.flush(onWrite);
+		mediaFrames.emplace_back(audios.flush());
 	_timeFront = _timeBack;
-
 	if (_reset) {
 		_reset = false;
 		_sequence = 0;
 		DEBUG("MP4 dynamic configuration change");
+	}
+
+	// onWrite in last to avoid possible recursivity (for example if onWrite call flush again and _videos or _audios are not empty!)
+	if (!onWrite)
+		return;
+	// header
+	onWrite(Packet(pBuffer)); 
+	if (!_sequence)
+		return; // has flush!
+	// payload
+	for (const deque<Frame>& frames : mediaFrames) {
+		for (const Frame& frame : frames) {
+			onWrite(*frame);
+			if (!_sequence)
+				return; // has flush!
+		}
 	}
 }
 

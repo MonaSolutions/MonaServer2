@@ -49,7 +49,7 @@ struct Media : virtual Static {
 
 	struct Base : Packet, virtual Object {
 		Base() : type(TYPE_NONE), track(0) {}
-		Base(Media::Type type, const Packet& packet, UInt8 track) : type(type), track(track), Packet(std::move(packet)) {}
+		Base(Media::Type type, const Packet& packet, UInt8 track=0) : type(type), track(track), Packet(std::move(packet)) {}
 
 		bool   hasTime() const { return type>TYPE_DATA; }
 		UInt32 time() const;

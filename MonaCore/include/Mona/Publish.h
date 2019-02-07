@@ -65,7 +65,7 @@ struct Publish : Media::Source, virtual Object {
 
 	struct Logger : virtual Object, Mona::Logger {
 		Logger(Publish& publish) : _publish(publish) {}
-		bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message) { return writeData(String::Log(Logs::LevelToString(level), file, line, message)); }
+		bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message) { return writeData(String::Log(Logs::LevelToString(level), file, line, message, Thread::CurrentId())); }
 		bool dump(const  std::string& header, const UInt8* data, UInt32 size) { return writeData(String::Date("%d/%m %H:%M:%S.%c  "), header, '\n'); }
 	private:
 		template<typename ...Args>

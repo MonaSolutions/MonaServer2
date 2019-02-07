@@ -507,19 +507,24 @@ struct String : std::string, virtual Object {
 		return Append<OutType>(out, std::forward<Args>(args)...);
 	}
 	struct Log : virtual Mona::Object {
-		Log(const char* level, const std::string& file, long line, const std::string& message) : level(level), file(file), line(line), message(message) {}
+		Log(const char* level, const std::string& file, long line, const std::string& message, UInt32 threadId = 0) : threadId(threadId), level(level), file(file), line(line), message(message) {}
 		const char*			level;
 		const std::string&	file;
 		const long			line;
 		const std::string&	message;
+		const UInt32		threadId;
 	};
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, const Log& log, Args&&... args) {
 		UInt32 size = Mona::Date().format("%d/%m %H:%M:%S.%c  ", out).size();
 		out.append(7 - (Append<OutType>(out,log.level).size() - size), ' ');
-		size = Append<OutType>(out, Thread::CurrentId(), ' ', ShortPath(log.file), '[', log.line, "] ").size() - size;
-		if (size < 42)
-			out.append(42 - size, ' ');
+		if (log.threadId) {
+			Append<OutType>(out, log.threadId);
+			size += 5; // tab to 60 (data including), otherwise 55!
+		}
+		size = Append<OutType>(out, ' ', ShortPath(log.file), '[', log.line, "] ").size() - size;
+		if (size < 37)
+			out.append(37 - size, ' ');
 		return Append<OutType>(out.append(log.message.data(), log.message.size()).append(EXPAND("\n")), std::forward<Args>(args)...);
 	}
 

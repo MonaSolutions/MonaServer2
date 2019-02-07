@@ -50,8 +50,13 @@ private:
 	void flush(const OnWrite& onWrite);
 
 	struct Frame : virtual Object {
+		NULLABLE
+		
+		operator bool() const { return _pMedia ? true : false; }
+
 		Frame(const Media::Video::Tag& tag, const Packet& packet) : _pMedia(new Media::Video(tag, packet)), isSync(tag.frame == Media::Video::FRAME_KEY) {}
 		Frame(const Media::Audio::Tag& tag, const Packet& packet) : _pMedia(new Media::Audio(tag, packet)), isSync(true) {}
+		Frame(const Packet& packet) : isSync(false), _pMedia(new Media::Base(Media::TYPE_NONE, packet)) {}
 
 		const bool			isSync;
 		const Media::Base*	operator->() const { return _pMedia.get(); }
@@ -91,7 +96,7 @@ private:
 				lastTime = front()->time();
 			}
 		}
-		void flush(const OnWrite& onWrite);
+		std::deque<Frame> flush();
 	};
 
 	void	writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset);
