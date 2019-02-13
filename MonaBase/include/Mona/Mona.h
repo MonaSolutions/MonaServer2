@@ -41,6 +41,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STRINGIZE(x) STRINGIZE2(x)
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
+#define FOURCC(a,b,c,d) uint32_t( ((a)<<24) | ((b)<<16) | ((c)<<8) | (d) )
 
 #if defined(_WIN32)
 #define _WINSOCKAPI_    // stops windows.h including winsock.h

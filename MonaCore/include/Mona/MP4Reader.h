@@ -41,53 +41,19 @@ private:
 	void	flushMedias(Media::Source& source);
 
 	struct Box : virtual Object {
-		enum Type {
-			UNDEFINED = 0,
-
-			MOOV,
-			MOOF,
-			MVEX,
-			TRAK,
-			TRAF,
-			TREX,
-			MDIA,
-			MINF,
-			STBL,
-			DINF,
-			EDTS,
-
-			ELST,
-			MDHD,
-			MFHD,
-			TKHD,
-			TFHD,
-			STSC,
-			ELNG,
-			STSD,
-			STSZ,
-			STCO,
-			CO64,
-			STTS,
-			CTTS,
-			TRUN,
-
-			MDAT
-		};
 		Box() { operator=(nullptr); }
-		const char* name() {
-			static const char* Names[] = {"UNDEFINED", "MOOV", "MOOF", "MVEX", "TRAK", "TRAF", "TREX", "MDIA", "MINF", "STBL", "DINF", "EDTS", "ELST", "MDHD", "MFHD", "TKHD", "TFHD", "STSC", "ELNG", "STSD", "STSZ", "STCO", "CO64", "STTS", "CTTS", "TRUN", "MDAT" };
-			return Names[UInt8(_type)];
-		}
+		const char* name() const { return _size ? _name : "undefined"; }
 
-		Type type() const { return _type; }
+		UInt32 code() const { return _size ? FOURCC(_name[0], _name[1], _name[2], _name[3]) : 0; }
 		operator UInt32() const { return _rest; }
+		UInt32 contentSize() const { return _size-8; }
 		UInt32 size() const { return _size; }
-		Box& operator=(BinaryReader& reader); // assign _type, _rest and _size
-		Box& operator=(std::nullptr_t) { _type = UNDEFINED; _rest = 0; return *this; }
+		Box& operator=(BinaryReader& reader); // assign _name, _rest and _size
+		Box& operator=(std::nullptr_t) { _size = _rest = 0; return self; }
 		Box& operator-=(UInt32 readen);
-		Box& operator-=(BinaryReader& reader);
+		//Box& operator-=(BinaryReader& reader);
 	private:
-		Type	_type;
+		char	_name[4];
 		UInt32	_size;
 		UInt32  _rest;
 	};

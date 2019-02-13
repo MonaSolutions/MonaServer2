@@ -146,93 +146,24 @@ static const char* _MacLangs[149]{
 	"gre", // 148
 };
 
-
-
-
-
 MP4Reader::Box& MP4Reader::Box::operator=(BinaryReader& reader) {
-	_type = UNDEFINED;
 	if (reader.available() < 8)
-		return *this;
+		return operator=(nullptr); // rest = 0!
 	_size = reader.read32();
 	if (_size < 8) {
-		ERROR("Bad box format without 4 bytes name");
-		return operator=(reader);
+		_size = 0;
+		ERROR("Bad box format without 4 char name");
+		return operator=(reader); // try to continue to read
 	}
+	reader.read(4, _name);
 	_rest = _size-8;
-	if (memcmp(reader.current(), EXPAND("moof")) == 0) {
-		_type = MOOF;
-	} else if (memcmp(reader.current(), EXPAND("traf")) == 0) {
-		_type = TRAF;
-	} else if (memcmp(reader.current(), EXPAND("tfhd")) == 0) {
-		_type = TFHD;
-	} else if (memcmp(reader.current(), EXPAND("trun")) == 0) {
-		_type = TRUN;
-	} else if (memcmp(reader.current(), EXPAND("moov")) == 0) {
-		_type = MOOV;
-	} else if (memcmp(reader.current(), EXPAND("mvex")) == 0) {
-		_type = MVEX;
-	} else if (memcmp(reader.current(), EXPAND("mdia")) == 0) {
-		_type = MDIA;
-	} else if (memcmp(reader.current(), EXPAND("minf")) == 0) {
-		_type = MINF;
-	} else if (memcmp(reader.current(), EXPAND("stbl")) == 0) {
-		_type = STBL;
-	} else if (memcmp(reader.current(), EXPAND("trak")) == 0) {
-		_type = TRAK;
-	} else if (memcmp(reader.current(), EXPAND("trex")) == 0) {
-		_type = TREX;
-	} else if (memcmp(reader.current(), EXPAND("stsc")) == 0) {
-		_type = STSC;
-	} else if (memcmp(reader.current(), EXPAND("edts")) == 0) {
-		_type = EDTS;
-	} else if (memcmp(reader.current(), EXPAND("elst")) == 0) {
-		_type = ELST;
-	} else if (memcmp(reader.current(), EXPAND("mdhd")) == 0) {
-		_type = MDHD;
-	} else if (memcmp(reader.current(), EXPAND("mfhd")) == 0) {
-		_type = MFHD;
-	} else if (memcmp(reader.current(), EXPAND("tkhd")) == 0) {
-		_type = TKHD;
-	} else if (memcmp(reader.current(), EXPAND("elng")) == 0) {
-		_type = ELNG;
-	} else if (memcmp(reader.current(), EXPAND("stsd")) == 0) {
-		_type = STSD;
-	} else if (memcmp(reader.current(), EXPAND("dinf")) == 0) {
-		_type = DINF;
-	} else if (memcmp(reader.current(), EXPAND("stco")) == 0) {
-		_type = STCO;
-	} else if (memcmp(reader.current(), EXPAND("co64")) == 0) {
-		_type = CO64;
-	} else if (memcmp(reader.current(), EXPAND("stsz")) == 0) {
-		_type = STSZ;
-	} else if (memcmp(reader.current(), EXPAND("stts")) == 0) {
-		_type = STTS;
-	} else if (memcmp(reader.current(), EXPAND("ctts")) == 0) {
-		_type = CTTS;
-	} else if (memcmp(reader.current(), EXPAND("mdat")) == 0) {
-		_type = MDAT;
-	} else
-		TRACE("Undefined box ", string(STR reader.current(), 4), " (size=", _size, ")");
-	reader.next(4);
-	return _rest ? *this : operator=(reader); // if empty, continue to read!
+	return _rest ? self : operator=(reader); // if empty, continue to read!
 }
 
 struct Lost : Media::Base, virtual Object {
 	Lost(UInt32 lost) : lost(lost) {}
 	const UInt32 lost;
 };
-
-MP4Reader::Box& MP4Reader::Box::operator-=(BinaryReader& reader) {
-	if (reader.available() < _rest) {
-		_rest -= reader.available();
-		reader.next(reader.available());
-	} else {
-		reader.next(_rest);
-		_rest = 0;
-	}
-	return *this;
-}
 
 MP4Reader::Box& MP4Reader::Box::operator-=(UInt32 readen) {
 	if (readen >= _rest)
@@ -255,27 +186,28 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 
 	do {
 
-		if (!_boxes.back()) {
-			if (!(_boxes.back() = reader))
+		Box& box = _boxes.back();
+		if (!box) {
+			if (!(box = reader))
 				return reader.available();
-			//DEBUG(string(_boxes.size() - 1, '\t'), _boxes.back().name(), " (size=", _boxes.back().size(), ")");
+			//DEBUG(string(_boxes.size() - 1, '\t'), box.name(), " (size=", box.size(), ")");
 		}
 
-		Box::Type type = _boxes.back().type();
-		switch (type) {
-			case Box::TRAK:
+		UInt32 code = box.code();
+		switch (code) {
+			case FOURCC('t', 'r', 'a', 'k'): // TRACK
 				_tracks.emplace_back();
-			case Box::TRAF:
+			case FOURCC('t', 'r', 'a', 'f'): // TRAF
 				_pTrack = NULL;
-			case Box::MVEX:
-			case Box::MDIA:
-			case Box::MINF:
-			case Box::STBL:
-			case Box::DINF:
-			case Box::EDTS:
+			case FOURCC('m', 'v', 'e', 'x'): // MVEX
+			case FOURCC('m', 'd', 'i', 'a'): // MDIA
+			case FOURCC('m', 'i', 'n', 'f'): // MINF
+			case FOURCC('s', 't', 'b', 'l'): // STBL
+			case FOURCC('d', 'i', 'n', 'f'): // DINF
+			case FOURCC('e', 'd', 't', 's'): // EDTS
 				_boxes.emplace_back();
 				continue;
-			case Box::MOOV:
+			case FOURCC('m', 'o', 'o', 'v'): // MOOV
 				// Reset resources =>
 				_times.clear(); // force to flush all Medias!
 				if (!_firstMoov) {
@@ -293,12 +225,12 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				
 				_boxes.emplace_back();
 				continue;
-			case Box::MOOF:
+			case FOURCC('m', 'o', 'o', 'f'): // MOOF
 				_offset = _position + reader.position() - 8;
 				_chunks.clear();
 				_boxes.emplace_back();
 				continue;
-			case Box::MDHD: {
+			case FOURCC('m', 'd', 'h', 'd'): { // MDHD
 				// Media Header
 				if (_tracks.empty()) {
 					ERROR("Media header box not through a Track box");
@@ -328,7 +260,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					track.lang[0] = 0;
 				break;
 			}
-			case Box::MFHD: {
+			case FOURCC('m', 'f', 'h', 'd'): { // MFHD
 				// Movie fragment header
 				if (reader.available()<8)
 					return reader.available();
@@ -344,7 +276,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				);
 				break;
 			}
-			case Box::ELNG: {
+			case FOURCC('e', 'l', 'n', 'g'): { // ELNG
 				// Extended language
 				if (_tracks.empty()) {
 					ERROR("Extended language box not through a Track box");
@@ -359,33 +291,34 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				track.lang[2] = 0;
 				break;
 			}
-			case Box::CO64:
-			case Box::STCO: {
+			case FOURCC('c', 'o', '6', '4'): // CO64
+				code = 0;
+			case FOURCC('s', 't', 'c', 'o'): { // STCO
 				// Chunk Offset
 				if (_tracks.empty()) {
 					ERROR("Chunk offset box not through a Track box");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
 				Track& track = _tracks.back();
-				BinaryReader stco(reader.current(), _boxes.back());
+				BinaryReader stco(reader.current(), box);
 				stco.next(4); // skip version + flags
 				UInt32 count = stco.read32();
 				while (count-- && stco.available())
-					_chunks[type==Box::STCO ? stco.read32() : stco.read64()] = &track;
+					_chunks[code ? stco.read32() : stco.read64()] = &track;
 				break;
 			}
-			case Box::STSD: {
+			case FOURCC('s', 't', 's', 'd'): { // STSD
 				// Sample description
 				if (_tracks.empty()) {
 					ERROR("Sample description box not through a Track box");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
 				Track& track = _tracks.back();
-				BinaryReader stsd(reader.current(), _boxes.back());
+				BinaryReader stsd(reader.current(), box);
 				stsd.next(4); // version + flags
 				UInt32 count = stsd.read32();
 				while (count-- && stsd.available()) {
@@ -526,16 +459,16 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				}
 				break;
 			}
-			case Box::STSC: {
+			case FOURCC('s', 't', 's', 'c'): { // STSC
 				// Sample to Chunks
 				if (_tracks.empty()) {
 					ERROR("Sample to chunks box not through a Track box");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
 				Track& track = _tracks.back();
-				BinaryReader stsc(reader.current(), _boxes.back());
+				BinaryReader stsc(reader.current(), box);
 				stsc.next(4); // version + flags
 				UInt32 count = stsc.read32();
 				while (count-- && stsc.available()>=8) { // 8 => required at less "first chunk" and "sample count" field
@@ -545,16 +478,16 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				}
 				break;
 			}
-			case Box::STSZ: {
+			case FOURCC('s', 't', 's', 'z'): { // STSZ
 				// Sample size
 				if (_tracks.empty()) {
 					ERROR("Sample size box not through a Track box");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
 				Track& track = _tracks.back();
-				BinaryReader stsz(reader.current(), _boxes.back());
+				BinaryReader stsz(reader.current(), box);
 				stsz.next(4); // version + flags
 				if ((track.size = track.defaultSize = stsz.read32()))
 					break;
@@ -563,16 +496,16 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					track.sizes.emplace_back(stsz.read32());
 				break;
 			}
-			case Box::ELST: {
+			case FOURCC('e', 'l', 's', 't'): { // ELST
 				// Edit list box
 				if (_tracks.empty()) {
 					ERROR("Edit list box not through a Track box");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
 				Track& track = _tracks.back();
-				BinaryReader elst(reader.current(), _boxes.back());
+				BinaryReader elst(reader.current(), box);
 				UInt8 version = elst.read8();
 				elst.next(3); // flags
 				UInt32 count = elst.read32();
@@ -597,16 +530,16 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				}
 				break;
 			}
-			case Box::STTS: {
+			case FOURCC('s', 't', 't', 's'): { // STTS
 				// Time to sample
 				if (_tracks.empty()) {
 					ERROR("Time to sample box not through a Track box");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
 				Track& track = _tracks.back();
-				BinaryReader stts(reader.current(), _boxes.back());
+				BinaryReader stts(reader.current(), box);
 				stts.next(4); // version + flags
 				UInt32 count = stts.read32();
 				UInt32 time = UInt32(round(track.durations.time));
@@ -622,16 +555,16 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				}
 				break;
 			}
-			case Box::CTTS: {
+			case FOURCC('c', 't', 't', 's'): { // CTTS
 				// Composition offset
 				if (_tracks.empty()) {
 					ERROR("Composition offset box not through a Track box");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
 				Track& track = _tracks.back();
-				BinaryReader ctts(reader.current(), _boxes.back());
+				BinaryReader ctts(reader.current(), box);
 				ctts.next(4); // version + flags
 				UInt32 count = ctts.read32();
 				while (count-- && ctts.available() >= 8) {
@@ -640,7 +573,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				}
 				break;
 			}
-			case Box::TKHD: {
+			case FOURCC('t', 'k', 'h', 'd'): { // TKHD
 				// Track Header
 				if (_tracks.empty()) {
 					ERROR("Track header box not through a Track box");
@@ -655,11 +588,11 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					ERROR("Bad track header id, identification ", it.first->first, " already used");
 				break;
 			}
-			case Box::TREX: {
+			case FOURCC('t', 'r', 'e', 'x'): { // TREX
 				// Track extends box
-				if (reader.available()< _boxes.back())
+				if (reader.available()< box)
 					return reader.available();
-				BinaryReader trex(reader.current(), _boxes.back());
+				BinaryReader trex(reader.current(), box);
 				trex.next(4); // version + flags
 				UInt32 id = trex.read32();
 				const auto& it = _ids.find(id);
@@ -673,11 +606,11 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				track.defaultSize = trex.read32();
 				break;
 			}
-			case Box::TFHD: {
+			case FOURCC('t', 'f', 'h', 'd'): { // TFHD
 				// Track fragment Header
-				if (reader.available()< _boxes.back())
+				if (reader.available()< box)
 					return reader.available();
-				BinaryReader tfhd(reader.current(), _boxes.back());
+				BinaryReader tfhd(reader.current(), box);
 				tfhd.next(); // version
 				UInt32 flags = tfhd.read24(); // flags
 				UInt32 id = tfhd.read32();
@@ -704,15 +637,15 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				_fragment.defaultSize = (flags & 0x10) ? tfhd.read32() : _pTrack->defaultSize;
 				break;
 			}
-			case Box::TRUN: {
+			case FOURCC('t', 'r', 'u', 'n'): { // TRUN
 				// Track fragment run box
 				if (!_pTrack) {
 					ERROR("Track fragment run box without valid track fragment box before");
 					break;
 				}
-				if (reader.available()<_boxes.back())
+				if (reader.available()<box)
 					return reader.available();
-				BinaryReader trun(reader.current(), _boxes.back());
+				BinaryReader trun(reader.current(), box);
 				trun.next(); // version
 				UInt32 flags = trun.read24(); // flags
 				UInt32 count = trun.read32();
@@ -782,7 +715,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 
 				break;
 			}
-			case Box::MDAT: {
+			case FOURCC('m', 'd', 'a', 't'): { // MDAT
 				// DATA
 				while(!_failed && reader.available()) {
 					if (_tracks.empty()) {
@@ -796,7 +729,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					// consume
 					UInt32 value = reader.position() + _position;				
 					if (value < _chunks.begin()->first)
-						_boxes.back() -= reader.next(UInt32(_chunks.begin()->first - value));
+						box -= reader.next(UInt32(_chunks.begin()->first - value));
 
 					Track& track = *_chunks.begin()->second;
 					if (!track.timeStep) {
@@ -921,7 +854,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 						
 						// consume!
 						++track.sample;
-						_boxes.back() -= reader.next(size);
+						box -= reader.next(size);
 					}
 
 					_chunks.erase(_chunks.begin());
@@ -933,17 +866,19 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				flushMedias(source); // flush when all read buffer is readen
 				break;
 			}
-			default:; // unknown or ignored	
+			default: // unknown or ignored
+				if(box == box.contentSize())
+					TRACE("Undefined box ", box.name(), " (size=", box.size(), ")");
 		}
 
-		if ((_boxes.back() -= reader)) // consume
+		if ((box -= reader.next(box))) // consume
 			continue;
 		// pop last box
 		UInt32 size;
 		do {
 			size = _boxes.back().size();
 			_boxes.pop_back();
-		} while (!_boxes.empty() && !(_boxes.back() -= size));
+		} while (!_boxes.empty() && !(_boxes.back() -= size)); // remove parent box if empty one time box children removed!
 
 		_boxes.emplace_back(); // always at less one box!
 		

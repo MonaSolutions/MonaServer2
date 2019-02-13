@@ -43,11 +43,11 @@ void MP4Writer::beginMedia(const OnWrite& onWrite) {
 	_sequence = 0;
 	_errors = 0;
 	_firstTime = true;
-	_timeBack = 0;
+	_timeFront = _timeBack = 0;
 }
 
 void MP4Writer::endMedia(const OnWrite& onWrite) {
-	if(!_firstTime) {
+	if(_timeBack != _timeFront) {
 		_timeBack = _timeFront + 1000; // to force flush!
 		flush(onWrite);
 	}
@@ -92,9 +92,9 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 				_reset = true; // force flush if "config" change OR after first sequence!
 			audios.config = move(packet);
 		}
-	} else if (tag.time != _timeBack) {
+	} else {
 		_timeBack = tag.time;
-		flush(onWrite); // flush before emplace_back and just if time progression (something to flush!)
+		flush(onWrite); // flush before emplace_back
 	}
 
 	audios.codec = tag.codec;
@@ -134,9 +134,9 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 				_reset = true; // force flush if "config" change OR after first sequence!
 			videos.config = move(packet);
 		}
-	} else if (_timeBack != tag.time) {
+	} else {
 		_timeBack = tag.time;
-		flush(onWrite); // flush before emplace_back and just if time progression (something to flush!)
+		flush(onWrite); // flush before emplace_back
 	}
 
 	videos.codec = tag.codec;
