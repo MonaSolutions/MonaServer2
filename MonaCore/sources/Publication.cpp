@@ -120,23 +120,24 @@ void Publication::reset() {
 	_datas.clear();
 
 	// Erase track metadata just!
-	auto it = begin();
-	while(it!=end()) {
-		size_t point = it->first.find('.');
-		if (point != string::npos && String::ToNumber(it->first.data(), point, point))
-			erase((it++)->first);
-		else
-			++it;
+	auto itProp = begin();
+	while(itProp !=end()) {
+		const string& key = (itProp++)->first;
+		size_t point = key.find('.');
+		if (point != string::npos && String::ToNumber(key.data(), point, point))
+			erase(key);
 	}
 	_timeProperties = Media::Properties::timeProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 
-	for (Subscription* pSubscription : subscriptions) {
+	auto it = subscriptions.begin();
+	while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
+		Subscription* pSubscription(*it++);
 		if (pSubscription->pPublication != this && pSubscription->pPublication)
 			continue; // subscriber not yet subscribed
 		pSubscription->pPublication = this;
 		pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 	}
-	
+
 	onEnd();
 }
 

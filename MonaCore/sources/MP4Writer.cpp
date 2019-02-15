@@ -26,10 +26,16 @@ using namespace std;
 
 namespace Mona {
 
+MP4Writer::Frames& MP4Writer::Frames::operator=(std::nullptr_t) {
+	DEBUG("MP4 track removed");
+	_started = false;
+	return self;
+}
+
 deque<MP4Writer::Frame> MP4Writer::Frames::flush() {
 	hasKey = hasCompositionOffset = false;
 	deque<MP4Writer::Frame> frames(move(self));
-	if (writeConfig && !frames.empty()) {
+	if (writeConfig) {
 		if(config)
 			frames.emplace_front(config);
 		writeConfig = false;
@@ -38,19 +44,16 @@ deque<MP4Writer::Frame> MP4Writer::Frames::flush() {
 }
 
 void MP4Writer::beginMedia(const OnWrite& onWrite) {
-	_reset = false;
 	_buffering = true;
 	_sequence = 0;
 	_errors = 0;
-	_firstTime = true;
+	_started = false;
 	_timeFront = _timeBack = 0;
 }
 
 void MP4Writer::endMedia(const OnWrite& onWrite) {
-	if(_timeBack != _timeFront) {
-		_timeBack = _timeFront + 1000; // to force flush!
-		flush(onWrite);
-	}
+	if(_started)
+		flush(onWrite, -1);
 	// release resources
 	_videos.clear();
 	_audios.clear();
@@ -73,35 +76,31 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 
 	//INFO(tag.isConfig ? "Audio config " : "Audio ", tag.time);
 
-	if (track > _audios.size()) {
-		if (_sequence)
-			_reset = true;
-		_audios.emplace_back(tag.codec);
-	}
+	if (track > _audios.size())
+		_audios.emplace_back();
 
 	Frames& audios = _audios[track - 1];
 	if (Util::Distance(audios.empty() ? audios.lastTime : audios.back()->time(), tag.time)<0) {
 		WARN("Non-monotonic audio timestamp, packet ignored");
 		return;
 	}
-	if (audios.codec && audios.codec != tag.codec)
-		_reset = true;
 	if (tag.isConfig) {
 		if (audios.config != packet) {
-			if (audios.config || _sequence)
-				_reset = true; // force flush if "config" change OR after first sequence!
-			audios.config = move(packet);
+			if (audios)
+				flush(onWrite, true); // reset if "config" change
+			audios.config = move(packet); // after flush reset!
 		}
-	} else {
-		_timeBack = tag.time;
-		flush(onWrite); // flush before emplace_back
+		if (!audios.rate) // sometimes present just config packet
+			audios.rate = tag.rate; // after flush reset!
+		return;
 	}
 
-	audios.codec = tag.codec;
-	if (!audios.rate && tag.rate)
+	_timeBack = tag.time;
+	// flush before emplace_back, with reset if codec change (if audios, codec is set) or started
+	flush(onWrite, audios ? audios.codec != tag.codec : !_buffering);
+	if (!audios.rate)
 		audios.rate = tag.rate;
-	if (!tag.isConfig)
-		audios.push(tag, packet);
+	audios.push(tag, packet);
 }
 
 void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
@@ -115,11 +114,8 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	if (!track)
 		++track; // 1 based!
 	
-	if (track > _videos.size()) {
-		if (_sequence)
-			_reset = true;
-		_videos.emplace_back(tag.codec);
-	}
+	if (track > _videos.size())
+		_videos.emplace_back();
 
 	Frames& videos = _videos[track - 1];
 	// NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.frame, ' ', tag.time, " (", tag.time - (videos.empty() ? videos.lastTime : videos.back()->time()), ")");
@@ -127,21 +123,17 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 		WARN("Non-monotonic video timestamp, packet ignored");
 		return;
 	}
-
 	if (tag.frame == Media::Video::FRAME_CONFIG) {
 		if (videos.config != packet) {
-			if (videos.config || _sequence)
-				_reset = true; // force flush if "config" change OR after first sequence!
-			videos.config = move(packet);
+			if (videos)
+				flush(onWrite, true); // reset if "config" change
+			videos.config = move(packet); // after flush reset!
 		}
-	} else {
-		_timeBack = tag.time;
-		flush(onWrite); // flush before emplace_back
-	}
-
-	videos.codec = tag.codec;
-	if (tag.frame == Media::Video::FRAME_CONFIG)
 		return;
+	}
+	_timeBack = tag.time;
+	// flush before emplace_back, with reset if codec change (if videos, codec is set) or started
+	flush(onWrite, videos ? videos.codec != tag.codec : !_buffering);
 	if (tag.frame == Media::Video::FRAME_KEY)
 		videos.hasKey = true;
 	if (tag.compositionOffset)
@@ -149,24 +141,55 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	videos.push(tag, packet);
 }
 
-void MP4Writer::flush(const OnWrite& onWrite) {
-	if (_firstTime) {
+void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
+	if (!_started) {
+		_started = true;
 		_timeFront = _timeBack;
-		_firstTime = false;
-		return;
 	}
 	Int32 delta = Util::Distance(_timeFront, _timeBack);
-	if (!delta)
-		return; // no medias!
-	if (!_reset &&  delta < ((_buffering && !_sequence)  ? bufferTime : 100)) // wait one second to get at less one video frame the first time (1fps is the min possibe for video)
+	if (!reset && delta < (_buffering ? bufferTime : 100)) // wait one second to get at less one video frame the first time (1fps is the min possibe for video)
 		return;
+
+	// Search if there is empty track => MSE requires to get at less one media by track on each segment
+	// In same time compute sizeMoof!
+	UInt32 sizeMoof = 0;
+	for (Frames& videos : _videos) {
+		if (!videos)
+			continue;
+		if(_sequence<14) // => trick to delay firefox play and bufferise more than 2 seconds before to start playing (when hasKey flags absent firefox starts to play! doesn't impact other browsers)
+			videos.hasKey = true;
+		if (videos.empty()) {
+			if (delta < bufferTime)
+				return; // wait bufferTime to get at less one media on this track!
+			videos = nullptr;
+			_buffering = true;
+		} else
+			sizeMoof += videos.sizeTraf();
+	}
+	for (Frames& audios : _audios) {
+		if (!audios)
+			continue;
+		if (audios.empty()) {
+			if (delta < bufferTime)
+				return; // wait bufferTime to get at less one media on this track!
+			audios = nullptr;
+			_buffering = true;
+		} else
+			sizeMoof += audios.sizeTraf();
+	}
+	if (!sizeMoof) {
+		// nothing to write!
+		_buffering = true;
+		return;
+	}
 
 	shared<Buffer> pBuffer(new Buffer());
 	BinaryWriter writer(*pBuffer);
 
 	UInt16 track(0);
 
-	if (!_sequence) {
+	if (_buffering) {
+		_buffering = false;
 		// fftyp box => iso5....iso6mp41
 		writer.write(EXPAND("\x00\x00\x00\x18""ftyp\x69\x73\x6F\x35\x00\x00\x02\x00""iso6mp41"));
 
@@ -181,6 +204,8 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 
 		// VIDEOS
 		for (Frames& videos : _videos) {
+			if (!videos)
+				continue;
 			videos.writeConfig = true;
 			// trak
 			UInt32 sizePos = writer.size();
@@ -286,6 +311,8 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 
 		// AUDIOS
 		for (Frames& audios : _audios) {
+			if (!audios)
+				continue;
 			// trak
 			UInt32 sizePos = writer.size();
 			writer.next(4); // skip size!
@@ -411,25 +438,8 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 		BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 	}
 
-	// _sequence>10 => trick to do working firefox correctly in live video mode (fix the bufferization, TODO fix firefox?), _sequence>10 to get 2 seconds of bufferization (no impact on others browsers)
-	if (_buffering && _sequence >= 10)
-		_buffering = false;
-
 	//////////// MOOF /////////////
-	UInt32 sizeMoof = 24;
-
-	for (Frames& videos : _videos) {
-		if (_buffering)
-			videos.hasKey = true;
-		if (!videos.empty())
-			sizeMoof += videos.sizeTraf = 60 + (videos.size() * (videos.hasCompositionOffset ? (videos.hasKey ? 16 : 12) : (videos.hasKey ? 12 : 8)));
-	}
-	for (Frames& audios : _audios) {
-		if (!audios.empty())
-			sizeMoof += audios.sizeTraf = 60 + (audios.size() * 8);
-	}
-
-	writer.write32(sizeMoof);
+	writer.write32(sizeMoof+=24);
 	writer.write(EXPAND("moof"));
 	{	// mfhd
 		writer.write(EXPAND("\x00\x00\x00\x10""mfhd\x00\x00\x00\x00"));
@@ -437,51 +447,52 @@ void MP4Writer::flush(const OnWrite& onWrite) {
 	}
 
 	UInt32 dataOffset(sizeMoof + 8); // 8 for [size]mdat
-	for (Frames& videos : _videos)
-		writeTrack(writer, ++track, videos, dataOffset);
-	for (Frames& audios : _audios)
-		writeTrack(writer, ++track, audios, dataOffset);
-
+	for (Frames& videos : _videos) {
+		if(videos)
+			writeTrack(writer, ++track, videos, dataOffset);
+	}
+	for (Frames& audios : _audios) {
+		if(audios)
+			writeTrack(writer, ++track, audios, dataOffset);
+	}
 
 	// MDAT
 	writer.write32(dataOffset - sizeMoof);
 	writer.write(EXPAND("mdat"));
 
-	
 	vector<deque<Frame>> mediaFrames(track);
 	track = 0;
-	for (Frames& videos : _videos)
-		mediaFrames[track++] = videos.flush();
-	for (Frames& audios : _audios)
-		mediaFrames[track++] = audios.flush();
-	_timeFront = _timeBack;
-	if (_reset) {
-		_reset = false;
-		_sequence = 0;
-		DEBUG("MP4 dynamic configuration change");
+	for (Frames& videos : _videos) {
+		if (videos)
+			mediaFrames[track++] = videos.flush();
+	}
+	for (Frames& audios : _audios) {
+		if (audios)
+			mediaFrames[track++] = audios.flush();
+	}
+	_timeFront = _timeBack; // set timestamp progression
+	if (reset) {
+		_buffering = true;
+		if (reset > 0)
+			DEBUG("MP4 dynamic configuration change");
 	}
 
-	// onWrite in last to avoid possible recursivity (for example if onWrite call flush again and _videos or _audios are not empty!)
+	// onWrite in last to avoid possible recursivity (for example if onWrite call flush again: _videos or _audios not flushed!)
 	if (!onWrite)
 		return;
 	// header
 	onWrite(Packet(pBuffer)); 
-	if (!_sequence)
-		return; // has flush!
 	// payload
 	for (const deque<Frame>& frames : mediaFrames) {
-		for (const Frame& frame : frames) {
+		for (const Frame& frame : frames)
 			onWrite(*frame);
-			if (!_sequence)
-				return; // has flush!
-		}
 	}
 }
 
 void MP4Writer::writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset) {
-	if (frames.empty())
-		return;
-	writer.write32(frames.sizeTraf); // skip size!
+	UInt32 position = writer.size();
+	UInt32 sizeTraf = frames.sizeTraf();
+	writer.write32(sizeTraf); // skip size!
 	writer.write(EXPAND("traf"));
 	{ // tfhd
 		writer.write(EXPAND("\x00\x00\x00\x10""tfhd\x00\x02\x00\x00")); // 020000 => default_base_is_moof
@@ -489,16 +500,16 @@ void MP4Writer::writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, U
 	}
 	// frames.front()->time() is necessary a more upper time than frames.lastTime because non-monotonic packet are removed in writeAudio/writeVideo
 	Int32 delta = (frames.front()->time() - frames.lastTime) - frames.lastDuration;
-	if (abs(delta) > 2)
-		WARN("Timestamp delta ",delta, " superior to 2 (", (frames.front()->time() - frames.lastTime) , " - ", frames.lastDuration,")");
+	if (abs(delta) > 4)
+		WARN("Timestamp delta ",delta, " superior to 4 (", frames.front()->time(),"-", frames.lastTime , "-", frames.lastDuration,")");
 	{ // tfdt => required by https://w3c.github.io/media-source/isobmff-byte-stream-format.html
 	  // http://www.etsi.org/deliver/etsi_ts/126200_126299/126244/10.00.00_60/ts_126244v100000p.pdf
-	  // 13.5
+	  // when any 'tfdt' is used, the 'elst' box if present, shall be ignored => tfdt time manage the offset!
 		writer.write(EXPAND("\x00\x00\x00\x10""tfdt\x00\x00\x00\x00"));
 		writer.write32(frames.front()->time() - delta);
 	}
 	{ // trun
-		writer.write32(frames.sizeTraf-40);
+		writer.write32(sizeTraf - (writer.size()- position));
 		writer.write(EXPAND("trun"));
 		UInt32 flags = 0x00000301; // flags = sample duration + sample size + data-offset
 		if (frames.hasCompositionOffset)
@@ -545,9 +556,8 @@ Int32 MP4Writer::writeFrame(BinaryWriter& writer, Frames& frames, UInt32 size, b
 	writer.write32(size); // size
 	// 0x01010000 => no-key => sample_depends_on YES | sample_is_difference_sample
 	// 0X02000000 => key or audio => sample_depends_on NO
-	// _sequence>10 => trick to do working firefox correctly in live video mode (fix the bufferization, TODO fix firefox?), _sequence>10 to get 2 seconds of bufferization (no impact on others browsers)
 	if (frames.hasKey)
-		writer.write32(isSync ? 0x02000000 : (_buffering ? 0x10000 : 0));
+		writer.write32(isSync ? 0x02000000 : 0x1010000);
 	if (frames.hasCompositionOffset)
 		writer.write32(compositionOffset);
 	return delta;

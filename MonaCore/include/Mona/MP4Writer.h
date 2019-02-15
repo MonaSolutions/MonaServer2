@@ -47,7 +47,7 @@ struct MP4Writer : MediaWriter, virtual Object {
 	void endMedia(const OnWrite& onWrite);
 
 private:
-	void flush(const OnWrite& onWrite);
+	void flush(const OnWrite& onWrite, Int8 reset=0);
 
 	struct Frame : virtual Object {
 		NULLABLE
@@ -67,11 +67,11 @@ private:
 	};
 
 	struct Frames : virtual Object, std::deque<Frame> {
-		Frames(Media::Audio::Codec codec) :
-			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec), writeConfig(false) {}
-		Frames(Media::Video::Codec codec) :
-			firstTime(true), hasCompositionOffset(false), hasKey(false), rate(0), lastTime(0), lastDuration(0), codec(codec), writeConfig(true) {}
-		
+		NULLABLE
+
+		Frames() : _sizeTraf(0), _started(false), rate(0), lastTime(0), lastDuration(0), codec(0),
+			hasCompositionOffset(false), hasKey(false), writeConfig(false) {}
+
 		UInt8	codec;
 
 		Packet	config;
@@ -79,38 +79,42 @@ private:
 		bool	writeConfig;
 		bool	hasCompositionOffset;
 		bool	hasKey;
-		UInt32  sizeTraf;
+
+		UInt32  sizeTraf() const { return 60 + (size() * (hasCompositionOffset ? (hasKey ? 16 : 12) : (hasKey ? 12 : 8))); }
+		
 		UInt32  rate;
 
 		// fix time|duration + tfdt
-		bool	firstTime;
 		UInt32	lastTime;
 		UInt32  lastDuration;
+
+		operator bool() const { return _started; }
+		Frames& operator=(std::nullptr_t);
 
 		template<typename TagType>
 		void push(const TagType& tag, const Packet& packet) {
 			emplace_back(tag, packet);
-			if (firstTime) {
-				// get delta = lastDuration - (front().time() - lastTime) = 0
-				firstTime = false;
-				lastTime = front()->time();
-			}
+			if (!codec) // necessary first usage, tag.codec>0 by control in entry from writeAudio/writeVideo
+				lastTime = front()->time(); // delta = lastDuration - (front().time() - lastTime) = 0
+			codec = tag.codec;
+			_started = true;
 		}
 		std::deque<Frame> flush();
+	private:
+		bool	_started;
+		UInt32  _sizeTraf;
 	};
 
 	void	writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset);
 	Int32	writeFrame(BinaryWriter& writer, Frames& frames, UInt32 size, bool isSync, UInt32 duration, UInt32 compositionOffset, Int32 delta);
 
-	std::deque<Frames>			_audios; // Frames[0] = AAC, Frames[1] == MP3
+	std::deque<Frames>			_audios;
 	std::deque<Frames>			_videos;
 	UInt32						_sequence;
 	UInt32						_timeFront;
 	UInt32						_timeBack;
-	bool						_firstTime;
+	bool						_started;
 	bool						_buffering;
-
-	bool						_reset;
 	UInt8						_errors;
 };
 
