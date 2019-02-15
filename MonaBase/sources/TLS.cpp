@@ -206,7 +206,6 @@ struct SSLInitializer {
 		OpenSSL_add_all_algorithms();
 	}
 	~SSLInitializer() { EVP_cleanup(); }
-};
-SSLInitializer _Initializer;
+} _Initializer;
 
 }  // namespace Mona

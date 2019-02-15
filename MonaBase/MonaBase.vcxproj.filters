@@ -187,6 +187,9 @@
     <ClCompile Include="sources\Logs.cpp">
       <Filter>Logs</Filter>
     </ClCompile>
+    <ClCompile Include="sources\SRT.cpp">
+      <Filter>Crypto</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\BinaryReader.h">
@@ -387,6 +390,9 @@
     </ClInclude>
     <ClInclude Include="include\Mona\Logs.h">
       <Filter>Logs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\SRT.h">
+      <Filter>Crypto</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

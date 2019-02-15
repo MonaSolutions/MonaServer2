@@ -235,6 +235,7 @@
     <ClCompile Include="sources\Signal.cpp" />
     <ClCompile Include="sources\Socket.cpp" />
     <ClCompile Include="sources\SocketAddress.cpp" />
+    <ClCompile Include="sources\SRT.cpp" />
     <ClCompile Include="sources\ThreadPool.cpp" />
     <ClCompile Include="sources\ThreadQueue.cpp" />
     <ClCompile Include="sources\TLS.cpp" />
@@ -301,6 +302,7 @@
     <ClInclude Include="include\Mona\Signal.h" />
     <ClInclude Include="include\Mona\Socket.h" />
     <ClInclude Include="include\Mona\SocketAddress.h" />
+    <ClInclude Include="include\Mona\SRT.h" />
     <ClInclude Include="include\Mona\StreamData.h" />
     <ClInclude Include="include\Mona\ThreadQueue.h" />
     <ClInclude Include="include\Mona\TLS.h" />

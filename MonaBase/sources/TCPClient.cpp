@@ -51,7 +51,7 @@ TCPClient::~TCPClient() {
 bool TCPClient::connect(Exception& ex,const SocketAddress& address) {
 	// engine subscription BEFORE connect to be able to detect connection success/failure
 	if (!_pSocket) {
-		_pSocket.reset(_pTLS ? new TLS::Socket(Socket::TYPE_STREAM, _pTLS) : new Socket(Socket::TYPE_STREAM));
+		_pSocket.reset(newSocket());
 		if (!io.subscribe(ex, _pSocket, newDecoder(), _onReceived, _onFlush, onError, _onDisconnection)) {
 			_pSocket.reset();
 			return false;
