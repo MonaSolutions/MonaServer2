@@ -1,0 +1,3 @@
+/*
+Add SRT include files in this folder to link automatically MonaBase with SRT protocol
+*/

@@ -17,11 +17,11 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #pragma once
 
-#define _SRT
-#if defined(_SRT)
+#include "srt/srt.h"
+
+#if defined(SRT_API)
 #include "Mona/Mona.h"
 #include "Mona/TCPClient.h"
-
 
 namespace Mona {
 
@@ -55,7 +55,17 @@ struct SRT : virtual Static {
 
 };
 
+//
+// Automatically link Base library with SRT
+//
+#if defined(_MSC_VER)
+#if defined(_DEBUG)
+	#pragma comment(lib, "srt_staticd.lib")
+#else
+	#pragma comment(lib, "srt_static.lib")
+#endif
 #endif
 
-
 } // namespace Mona
+
+#endif

@@ -16,7 +16,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 
 #include "Mona/SRT.h"
-#if defined(_SRT)
+#if defined(SRT_API)
 
 using namespace std;
 
@@ -78,5 +78,7 @@ bool SRT::Socket::close(Socket::ShutdownType type) {
 	return Mona::Socket::close(type);
 }
 
-#endif
 }  // namespace Mona
+
+#endif
+
