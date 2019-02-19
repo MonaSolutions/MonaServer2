@@ -197,6 +197,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="sources\Allocator.cpp" />
     <ClCompile Include="sources\Application.cpp" />
     <ClCompile Include="sources\BitReader.cpp" />
     <ClCompile Include="sources\Buffer.cpp" />

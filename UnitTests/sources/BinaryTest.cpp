@@ -130,7 +130,7 @@ void Read(Args&&... args) {
 	uint64v = reader.read7Bit<UInt64>();
 	CHECK(uint64v == 1000000);
 
-	CHECK(String::ICompare((const char*)reader.current(),"RAW")==0);
+	CHECK(String::ICompare(STR reader.current(), EXPAND("RAW"))==0);
 }
 
 

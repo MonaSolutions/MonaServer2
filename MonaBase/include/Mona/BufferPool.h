@@ -18,29 +18,37 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Allocator.h"
-#include "Mona/Timer.h"
-#include <mutex>
+#include "Mona/Thread.h"
+#include <atomic>
 
 namespace Mona {
 
-struct BufferPool : Allocator, virtual Object {
+struct BufferPool : Allocator, private Thread, virtual Object {
 
-	BufferPool(const Timer&	timer);
-	~BufferPool();
+	BufferPool() : Thread("BufferPool") { start(Thread::PRIORITY_LOWEST); }
+	~BufferPool() { stop(); }
 
-	UInt32 available() const { return _buffers.size(); }
-	void   clear();
-
-	UInt8* allocate(UInt32& size) const;
-	void   deallocate(UInt8* buffer, UInt32 size) const;
+	UInt8* allocate(UInt32& size);
+	void   deallocate(UInt8* buffer, UInt32 size);
 
 private:
-	mutable std::multimap<UInt32,UInt8*>	_buffers;
-	mutable std::mutex						_mutex;
-	const Timer&							_timer;
-	Timer::OnTimer							_onTimer;
-	mutable UInt32							_minCount;
-	mutable UInt32							_maxSize;
+	bool run(Exception& ex, const volatile bool& requestStop);
+	UInt8 computeIndexAndSize(UInt32& size);
+	bool tryLock() { return !_mutex.test_and_set(std::memory_order_acquire); }
+	void unlock() { _mutex.clear(std::memory_order_release); }
+
+	struct Buffers : private std::vector<UInt8*>, virtual Object {
+		Buffers() : _minSize(0), _maxSize(0) {}
+		~Buffers() { for (UInt8* buffer : self) delete[] buffer; }
+		UInt8* pop();
+		void   push(UInt8* buffer);
+		void manage(std::vector<UInt8*>& gc);
+	private:
+		UInt32 _minSize;
+		UInt32 _maxSize;
+	};
+	Buffers			 _buffers[28];
+	std::atomic_flag _mutex = ATOMIC_FLAG_INIT;
 };
 
 

@@ -21,10 +21,13 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct Allocator : virtual Object {
-	virtual UInt8* allocate(UInt32& size) const { return new UInt8[size](); }
-	virtual void   deallocate(UInt8* buffer, UInt32 size) const { delete [] buffer; }
+	virtual UInt8* allocate(UInt32& size);
+	virtual void   deallocate(UInt8* buffer, UInt32 size) { delete [] buffer; }
 
 	static Allocator& Default() { static Allocator Default; return Default; }
+	
+	static UInt32 ComputeCapacity(UInt32 size);
+
 };
 
 

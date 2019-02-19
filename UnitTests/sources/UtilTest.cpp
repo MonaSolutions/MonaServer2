@@ -25,23 +25,22 @@ using namespace std;
 namespace UtilTest {
 
 bool TestDistance(Int32 distance, UInt32 p1, UInt32 p2, UInt32 max, UInt32 min = 0) {
-	Int32 result = Util::Distance(p1, p2, max, min);
-	if (distance == result)
-		return distance == Util::Distance(p2, p1, max, min);
-	return distance == -result && distance == Util::Distance(p2, p1, max, min);
+	if(Util::Distance(p1, p2, max, min)!=distance)
+		return false;
+	return -distance == Util::Distance(p2, p1, max, min);
 }
 
 ADD_TEST(distance) {
-	CHECK(TestDistance(3, 0, 5, 7));
-	CHECK(TestDistance(3, 2, 7, 9, 2));
+	CHECK(TestDistance(-3, 0, 5, 7));
+	CHECK(TestDistance(-3, 2, 7, 9, 2));
 
 	CHECK(TestDistance(4, 0, 4, 7));
 	CHECK(TestDistance(4, 0, 4, 9, 2));
 	CHECK(TestDistance(4, 0, 4, 8));
 	CHECK(TestDistance(4, 2, 6, 10, 2));
 
-	CHECK(TestDistance(1, 0, 7, 7));
-	CHECK(TestDistance(1, 2, 9, 9, 2));
+	CHECK(TestDistance(-1, 0, 7, 7));
+	CHECK(TestDistance(-1, 2, 9, 9, 2));
 }
 
 

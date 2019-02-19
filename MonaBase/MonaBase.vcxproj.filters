@@ -190,6 +190,9 @@
     <ClCompile Include="sources\SRT.cpp">
       <Filter>Crypto</Filter>
     </ClCompile>
+    <ClCompile Include="sources\Allocator.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\BinaryReader.h">

@@ -47,37 +47,29 @@ ADD_TEST(Buffer) {
 }
 
 ADD_TEST(BufferPool) {
-	Timer timer;
-	BufferPool	bufferPool(timer);
-	UInt32 size(10000);
+	BufferPool	bufferPool;
+	UInt32 size(8);
 	UInt8* buffer(bufferPool.allocate(size));
-	CHECK(buffer && size == 10000 && !bufferPool.available());
+	CHECK(buffer && size == 16);
 	bufferPool.deallocate(buffer, size);
-	CHECK(bufferPool.available()==1);
-	size = 9999;
-	buffer = bufferPool.allocate(size);
-	CHECK(buffer && size == 10000 && !bufferPool.available());
+	size = 15;
+	UInt8* newBuffer = bufferPool.allocate(size);
+	CHECK(newBuffer==buffer && size == 16);
 	bufferPool.deallocate(buffer, size);
-	CHECK(bufferPool.available()==1);
-	bufferPool.clear();
-	CHECK(!bufferPool.available());
 	
 	Buffer::SetAllocator(bufferPool);
 	{
-		Buffer buffer;
-		CHECK(!bufferPool.available());
+		Buffer buffer1(8);
+		CHECK(buffer1.data() == buffer);
+		Buffer buffer2(1000);
+		CHECK(buffer2.data() != buffer1.data());
 	}
-	CHECK(!bufferPool.available());
-	{
-		Buffer buffer(1);
-		CHECK(!bufferPool.available());
-	}
-	CHECK(bufferPool.available()==1);
-
 	Buffer::SetAllocator();
 	{
-		Buffer buffer;
-		CHECK(bufferPool.available()==1);
+		Buffer buffer1(8);
+		CHECK(buffer1.data() != buffer);
+		Buffer buffer2(1000);
+		CHECK(buffer2.data() != buffer1.data());
 	}
 }
 

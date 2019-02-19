@@ -48,15 +48,12 @@ struct Buffer : Binary, virtual Object {
 	UInt32			capacity() const { return _capacity; }
 
 	template<typename AllocatorType=Allocator>
-	static void SetAllocator(AllocatorType& allocator=Allocator::Default()) {
-		_Allocator = &allocator;
-	}
+	static void SetAllocator(AllocatorType& allocator=Allocator::Default()) { _Allocator = &allocator; }
 
 	static Buffer&   Null() { static Buffer Null(nullptr, 0); return Null; } // usefull for Writer Serializer for example (and can't be encapsulate in a shared<Buffer>)
 
 private:
 	Buffer(void* buffer, UInt32 size);
-	void computeCapacity(UInt32 size);
 
 	UInt32				_offset;
 	UInt8*				_data;

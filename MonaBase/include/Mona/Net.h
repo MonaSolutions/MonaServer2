@@ -19,7 +19,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Exceptions.h"
 #include "Mona/Time.h"
-#include <mutex>
+#include <atomic>
 
 #if defined(_WIN32)
 #include <ws2tcpip.h>

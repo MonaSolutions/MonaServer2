@@ -64,9 +64,11 @@ Publish* Server::publish(const char* name) {
 }
 
 bool Server::run(Exception&, const volatile bool& requestStop) {
-	BufferPool bufferPool(timer);
-	if(getBoolean<true>("poolBuffers"))
-		Buffer::SetAllocator(bufferPool);
+	unique<BufferPool> pBufferPool;
+	if (getBoolean<true>("poolBuffers")) {
+		pBufferPool.reset(new BufferPool);
+		Buffer::SetAllocator(*pBufferPool);
+	}
 
 	Timer::OnTimer onManage;
 	multimap<string, Media::Stream*>	streams;
@@ -173,9 +175,8 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 		unpublish(*pPublication);
 
 	// release memory
-	INFO("Server memory release");
-	Buffer::SetAllocator();
-	bufferPool.clear();
+	INFO("Server memory release...");
+	pBufferPool.reset();
 
 	NOTE("Server stopped");
 	_www.reset();
