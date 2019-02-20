@@ -17,7 +17,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #pragma once
 
+#if defined(_MSC_VER) || defined(ENABLE_SRT)
 #include "srt/srt.h"
+#endif
 
 #if defined(SRT_API)
 #include "Mona/Mona.h"
