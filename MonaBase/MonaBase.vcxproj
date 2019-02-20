@@ -109,6 +109,10 @@
     <Lib>
       <OutputFile>$(OutDir)$(ProjectName)d.lib</OutputFile>
     </Lib>
+    <PreBuildEvent>
+      <Command>if not exist "$(ProjectDir)..\External\include\srt\" (mkdir "$(ProjectDir)..\External\include\srt\")
+if not exist "$(ProjectDir)..\External\include\srt\srt.h" (copy /Y NUL "$(ProjectDir)..\External\include\srt\srt.h")</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
@@ -131,6 +135,10 @@
     <Lib>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
     </Lib>
+    <PreBuildEvent>
+      <Command>if not exist "$(ProjectDir)..\External\include\srt\" (mkdir "$(ProjectDir)..\External\include\srt\")
+if not exist "$(ProjectDir)..\External\include\srt\srt.h" (copy /Y NUL "$(ProjectDir)..\External\include\srt\srt.h")</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
     <ClCompile>
@@ -155,6 +163,10 @@
       <OutputFile>$(OutDir)$(ProjectName).lib</OutputFile>
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </Lib>
+    <PreBuildEvent>
+      <Command>if not exist "$(ProjectDir)..\External\include\srt\" (mkdir "$(ProjectDir)..\External\include\srt\")
+if not exist "$(ProjectDir)..\External\include\srt\srt.h" (copy /Y NUL "$(ProjectDir)..\External\include\srt\srt.h")</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <ClCompile>
@@ -181,6 +193,10 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </Lib>
+    <PreBuildEvent>
+      <Command>if not exist "$(ProjectDir)..\External\include\srt\" (mkdir "$(ProjectDir)..\External\include\srt\")
+if not exist "$(ProjectDir)..\External\include\srt\srt.h" (copy /Y NUL "$(ProjectDir)..\External\include\srt\srt.h")</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <Reference Include="System">
