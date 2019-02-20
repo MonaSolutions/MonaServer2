@@ -176,6 +176,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 
 	// release memory
 	INFO("Server memory release...");
+	Buffer::SetAllocator(); // reset default allocator
 	pBufferPool.reset();
 
 	NOTE("Server stopped");
