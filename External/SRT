@@ -1,0 +1,3 @@
+// To compile MonaBase with SRT:
+// On linux => use ENABLE_SRT flag
+// On Windows => add SRT header in External/include folder and SRT libraries in External/lib/lib64 folders
