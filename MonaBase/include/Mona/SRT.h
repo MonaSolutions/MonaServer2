@@ -17,44 +17,84 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #pragma once
 
+#include "Mona/Mona.h"
+#include "Mona/Logs.h" // Included before srt.h to avoid declaration conflicts
 #if defined(_MSC_VER) || defined(ENABLE_SRT)
 #include "srt/srt.h"
 #endif
 
 #if defined(SRT_API)
-#include "Mona/Mona.h"
 #include "Mona/TCPClient.h"
+#include "Mona/TCPServer.h"
+
 
 namespace Mona {
 
 struct SRT : virtual Static {
 
 	struct Client : TCPClient {
+		Client(IOSocket& io) : TCPClient(io) { }
+
 	private:
 		Mona::Socket* newSocket() { return new SRT::Socket(); }
+	};
+
+	struct Server : TCPServer {
+		Server(IOSocket& io) : TCPServer(io) {}
 	};
 	
 	struct Socket : virtual Object, Mona::Socket {
 		Socket();
-		~Socket();
+		Socket(const sockaddr& addr, SRTSOCKET id);
+		virtual ~Socket();
 
 		bool  isSecure() const { return true; }
 
 		UInt32  available() const;
 		UInt64	queueing() const;
 
-		bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout = 0);
+		virtual bool accept(Exception& ex, shared<Mona::Socket>& pSocket);
 
-		int	 sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags = 0);
+		virtual bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout = 0);
 
-		bool flush(Exception& ex) { return Mona::Socket::flush(ex); }
+		virtual int	 sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags = 0);
+
+		virtual bool bind(Exception& ex, const SocketAddress& address);
+
+		virtual bool listen(Exception& ex, int backlog = SOMAXCONN);
 	private:
-		int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
-		bool flush(Exception& ex, bool deleting);
-		bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);
 
+		void disconnect();
+
+		//virtual Mona::Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr);
+		virtual int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
+		virtual bool flush(Exception& ex, bool deleting);
+		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);
+
+
+		::SRTSOCKET	_srt; // SRT context ID
+		//::SRTSOCKET _currentID; // Current context ID, created after SRT accept
+		//bool		_connected;
 	};
 
+	static void LogCallback(void* opaque, int level, const char* file, int line, const char* area, const char* message);
+
+	struct Singleton : virtual Object {
+		Singleton() {
+			if (::srt_startup()) {
+				FATAL_ERROR("SRT startup: Error starting SRT library");
+				return;
+			}
+			::srt_setloghandler(nullptr, LogCallback);
+			::srt_setloglevel(0xff);
+		}
+		
+		virtual ~Singleton() {
+			::srt_setloghandler(nullptr, nullptr);
+			::srt_cleanup();
+		}
+	};
+	static unique<Singleton> SRT_Singleton;
 };
 
 //
@@ -62,12 +102,17 @@ struct SRT : virtual Static {
 //
 #if defined(_MSC_VER)
 #if defined(_DEBUG)
-	#pragma comment(lib, "srt_staticd.lib")
+#pragma comment(lib, "pthread_libd.lib")
+#pragma comment(lib, "srt_staticd.lib")
 #else
-	#pragma comment(lib, "srt_static.lib")
+#pragma comment(lib, "pthread_lib.lib")
+#pragma comment(lib, "srt_static.lib")
 #endif
 #endif
 
 } // namespace Mona
 
 #endif
+
+
+

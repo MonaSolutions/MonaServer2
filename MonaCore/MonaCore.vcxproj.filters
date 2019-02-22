@@ -46,6 +46,9 @@
     <Filter Include="Protocols\STUN">
       <UniqueIdentifier>{ed773fe2-d4cd-4974-9d75-405a7a16e4b3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Protocols\SRT">
+      <UniqueIdentifier>{1dc12d7a-1c9e-4619-b4c4-a4a8f58319fc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\Protocol.h">
@@ -342,6 +345,9 @@
     </ClInclude>
     <ClInclude Include="include\Mona\DATWriter.h">
       <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\SRT\SRTProtocol.h">
+      <Filter>Protocols\SRT</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

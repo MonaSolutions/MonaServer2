@@ -255,6 +255,9 @@
     <ClInclude Include="include\Mona\SplitReader.h" />
     <ClInclude Include="include\Mona\SplitWriter.h" />
     <ClInclude Include="include\Mona\SRTWriter.h" />
+    <ClInclude Include="include\Mona\SRT\SRTProtocol.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="include\Mona\StringReader.h" />
     <ClInclude Include="include\Mona\StringWriter.h" />
     <ClInclude Include="include\Mona\STUN\STUNProtocol.h" />

@@ -44,6 +44,15 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr) : _peerAddress(addr), _addre
 	init();
 }
 
+Socket::Socket(const sockaddr& addr) : _peerAddress(addr), _address(IPAddress::Loopback(), 0), // computable!
+#if !defined(_WIN32)
+	_pWeakThis(NULL), _firstWritable(true),
+#endif
+	externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_DATAGRAM), _recvTime(Time::Now()), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
+
+	init();
+}
+
 
 Socket::~Socket() {
 	if (externDecoder) {

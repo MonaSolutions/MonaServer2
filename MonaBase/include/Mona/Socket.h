@@ -119,18 +119,18 @@ struct Socket : virtual Object, Net::Stats {
 	bool joinGroup(Exception& ex, const IPAddress& ip, UInt32 interfaceIndex=0);
 	void leaveGroup(const IPAddress& ip, UInt32 interfaceIndex = 0);
 
-	bool		 accept(Exception& ex, shared<Socket>& pSocket);
+	virtual bool accept(Exception& ex, shared<Socket>& pSocket);
 
 	/*!
 	Connect or disconnect (if address is Wildcard) to a peer address */
 	virtual bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout=0);
 	/*!
 	Bind socket, if socket is datagram and the address passed is a multicast ip it join the multicast group related (call joinGroup) */
-	bool		 bind(Exception& ex, const SocketAddress& address);
+	virtual bool bind(Exception& ex, const SocketAddress& address);
 	/*!
 	Bind on any available port */
 	bool		 bind(Exception& ex, const IPAddress& ip=IPAddress::Wildcard()) { return bind(ex, SocketAddress(ip, 0)); }
-	bool		 listen(Exception& ex, int backlog = SOMAXCONN);
+	virtual bool listen(Exception& ex, int backlog = SOMAXCONN);
 	bool		 shutdown(ShutdownType type = SHUTDOWN_BOTH);
 	
 	int			 receive(Exception& ex, void* buffer, UInt32 size, int flags = 0) { return receive(ex, buffer, size, flags, NULL); }
@@ -154,9 +154,11 @@ struct Socket : virtual Object, Net::Stats {
 	}
 
 protected:
+	bool			_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
 
 	// Create a socket from Socket::accept
 	Socket(NET_SOCKET id, const sockaddr& addr);
+	Socket(const sockaddr& addr); // UDP
 	virtual Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr) { return new Socket(sockfd, (sockaddr&)addr); }
 	virtual int		receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 
@@ -234,7 +236,6 @@ private:
 	std::atomic<UInt32>			_receiving;
 	std::atomic<UInt8>			_reading;
 	const Handler*				_pHandler; // to diminue size of Action+Handle
-	bool						_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
 
 #if !defined(_WIN32)
 	weak<Socket>*				_pWeakThis;
