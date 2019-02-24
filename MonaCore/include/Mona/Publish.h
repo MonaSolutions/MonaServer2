@@ -72,7 +72,7 @@ struct Publish : Media::Source, virtual Object {
 		bool writeData(Args&&... args) {
 			if (!_publish)
 				return true;
-			shared<Buffer> pBuffer(new Buffer());
+			shared<Buffer> pBuffer(SET);
 			String::Append(*pBuffer, std::forward<Args>(args)...);
 			_publish.writeData(Media::Data::TYPE_TEXT, Packet(pBuffer));
 			return true;
@@ -143,7 +143,7 @@ private:
 			ERROR("Publication ", _pPublishing->name, " has failed, impossible to ", typeof<Type>());
 			return;
 		}
-		_pPublishing->api.queue(new Type(_pPublishing, args ...));
+		_pPublishing->api.queue<Type>(_pPublishing, std::forward<Args>(args)...);
 	}
 
 	shared<Publishing> _pPublishing;

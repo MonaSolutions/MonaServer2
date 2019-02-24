@@ -215,7 +215,7 @@ private:
 	struct IPv4Impl;
 	struct IPv6Impl;
 
-	IPAddress(IPImpl* pAddress);
+	IPAddress(shared<IPImpl>&& pIPAddress);
 
 	template <typename ...Args>
 	bool setInternWithDNS(Exception& ex, const char* address, Args&&... args) {

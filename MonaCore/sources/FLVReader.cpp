@@ -126,7 +126,7 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 				Packet content(buffer, reader.current(), _size);
 				content += ReadMediaHeader(content.data(), content.size(), _video);
 				if (_video.frame == Media::Video::FRAME_CONFIG && ((_video.codec == Media::Video::CODEC_H264) || (_video.codec == Media::Video::CODEC_HEVC))) {
-					shared<Buffer> pBuffer(new Buffer());
+					shared<Buffer> pBuffer(SET);
 					if (_video.codec == Media::Video::CODEC_HEVC)
 						content += HEVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
 					else

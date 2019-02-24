@@ -48,19 +48,22 @@ struct Server : protected ServerAPI, private Thread {
 	Publish a publication, stays valid until !*Publish */
 	Publish* publish(const char* name);
 	/*!
-	Create a media stream, stays valid until pStream.unique() */
-	shared<Media::Stream> stream(const std::string& description);
+	Create a media stream target, stays valid until pStream.unique() */
+	shared<Media::Stream> stream(const std::string& description) { return stream(Media::Source::Null(), description); }
+	/*!
+	Create a media stream source, stays valid until pStream.unique() */
+	shared<Media::Stream> stream(Media::Source& source, const std::string& description);
 
 protected:
 	template<typename  ...Args>
 	Publication* publish(Exception& ex, Args&&... args) { return ServerAPI::publish(ex, args ...); }
 
+	ServerAPI& api() { return self; }
 private:
 	
 	virtual void	manage() {}
 
-	void  loadStreams(std::multimap<std::string, Media::Stream*>& streams);
-	void  startStreams(std::multimap<std::string, Media::Stream*>& streams, std::set<Publication*>& publications, std::set<Subscription*>& subscriptions);
+	void  loadStreams(std::set<shared<Media::Stream>>& streams, std::set<Publication*>& publications, std::set<shared<Subscription>>& subscriptions);
 
 	bool			run(Exception& ex, const volatile bool& requestStop);
 

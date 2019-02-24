@@ -26,7 +26,7 @@ namespace Mona {
 struct MediaWriter : virtual Object {
 	/// Media container writer must be able to support a dynamic change of audio/video codec!
 
-	static MediaWriter* New(const char* subMime);
+	static unique<MediaWriter> New(const char* subMime);
 
 	const char*			format() const;
 	MIME::Type			mime() const;

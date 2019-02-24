@@ -90,8 +90,8 @@ struct Media : virtual Static {
 		static Type ToType(const std::string& subMime) { return ToType(subMime.c_str()); }
 		static Type ToType(const char* subMime);
 
-		static DataReader* NewReader(Type type, const Packet& packet, Type alternateType= Media::Data::Type::TYPE_UNKNOWN);
-		static DataWriter* NewWriter(Type type, Buffer& buffer, Type alternateType = Media::Data::Type::TYPE_UNKNOWN);
+		static unique<DataReader> NewReader(Type type, const Packet& packet, Type alternateType= Media::Data::Type::TYPE_UNKNOWN);
+		static unique<DataWriter> NewWriter(Type type, Buffer& buffer, Type alternateType = Media::Data::Type::TYPE_UNKNOWN);
 
 		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0, bool isProperties=false) : Base(TYPE_DATA, packet, track), isProperties(isProperties), tag(type) {}
 
@@ -350,45 +350,73 @@ struct Media : virtual Static {
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return writeData(type, packet, reliable); }
 	};
 
+	struct Targets : virtual Object {
+		typedef Event<bool(Media::Target&)>	ON(TargetAdd);
+		typedef Event<void(Media::Target&)>	ON(TargetRemove);
+
+		typedef std::set<Media::Target*>::const_iterator const_iterator;
+
+		const_iterator	begin() const { return _targets.begin(); }
+		const_iterator	end() const { return _targets.end(); }
+		UInt32			count() const { return _targets.size(); }
+
+		bool addTarget(Media::Target& target) { return (!onTargetAdd || onTargetAdd(target)) && _targets.emplace(&target).second; }
+		bool removeTarget(Media::Target& target) {
+			if (!_targets.erase(&target))
+				return false;
+			onTargetRemove(target);
+			return true;
+		}
+	private:
+		std::set<Media::Target*> _targets;
+	};
+
 	/*!
 	A Media stream (sources or targets) allows mainly to bound a publication with input and ouput stream.
 	Its behavior must support an automatic mode to (re)start the stream as long time as desired
 	Implementation have to call protected stop(...) to log and callback an error if the user prefer delete stream on error
 	/!\ start() can be used to pulse the stream (connect attempt) */
 	struct Stream : virtual Object {
-		typedef Event<void(const Exception&)> ON(Error);
+		typedef Event<void()>					ON(Start);
+		typedef Event<void(const Exception&)>	ON(Stop);
 
 		enum Type {
 			TYPE_FILE=0,
-			TYPE_UDP,
-			TYPE_TCP,
-			TYPE_HTTP
+			TYPE_TCP = 1, // to match MediaServer::Type
+			TYPE_SRT = 2, // to match MediaServer::Type
+			TYPE_UDP = 3,
+			TYPE_HTTP = 4,
+			TYPE_LOGS = 5
 		};
 
-		static const char* TypeToString(Type type) { static const char* Strings[] = { "file", "udp", "tcp", "http" }; return Strings[UInt8(type)]; }
+		static const char* TypeToString(Type type) { static const char* Strings[] = { "file", "tcp", "srt", "udp", "http", "logs" }; return Strings[UInt8(type)]; }
+
 
 		const Type			type;
 		const Path			path;
 		const std::string	query;
+		bool				isSource() const { return &source == &Source::Null(); }
 		const std::string&	description() const { return _description.empty() ? ((Stream*)this)->buildDescription(_description) : _description; }
-		
-		/*!
-		Reader =>  [address] [type/TLS][/MediaFormat] [parameter]
-		Writer => @[address:]port...
-		Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126] 
-		File => @file[.format] [MediaFormat] [parameter] */
-		static Stream* New(Exception& ex, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS);
 
 		/*!
-		/!\ Implementation have to support a pulse start! */
-		virtual void start(const Parameters& parameters = Parameters::Null()) = 0;
-		virtual void start(Media::Source& source, const Parameters& parameters = Parameters::Null());
+		New Stream target => [host:port][?path] [type/TLS][/MediaFormat] [parameter]
+		Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
+		File => file[.format][?path] [MediaFormat] [parameter] */
+		static unique<Stream> New(Exception& ex, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr) { return New(ex, Source::Null(), description, timer, ioFile, ioSocket, pTLS); }
+		/*!
+		New Stream source =>  [host:port][?path] [type/TLS][/MediaFormat] [parameter]
+		Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
+		File => file[.format][?path] [MediaFormat] [parameter] */
+		static unique<Stream> New(Exception& ex, Source& source, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr);
+
+		void start(const Parameters& parameters = Parameters::Null());
+		void stop(const Exception& ex = nullptr);
 		virtual bool running() const = 0;
-		virtual void stop() = 0;
 	protected:
-		Stream(Type type, const Path& path) : type(type), path(path) {}
+		Stream(Type type, const Path& path, Source& source = Source::Null()) : type(type), path(path), source(source) {}
 
-		void stop(const Exception& ex);
+		Source& source;
+
 		void stop(LOG_LEVEL level, const Exception& ex) {
 			LOG(level, description(), ", ", ex);
 			stop(ex);
@@ -396,10 +424,15 @@ struct Media : virtual Static {
 		template<typename ExType, typename ...Args>
 		void stop(LOG_LEVEL level, Args&&... args) {
 			Exception ex;
-			LOG(level, description(), ", ", ex.set<ExType>(args ...));
+			LOG(level, description(), ", ", ex.set<ExType>(std::forward<Args>(args)...));
 			stop(ex);
 		}
 	private:
+		/*!
+		/!\ Implementation have to support a pulse start! */
+		virtual void starting(const Parameters& parameters) = 0;
+		virtual void stopping() = 0;
+
 		virtual std::string& buildDescription(std::string& description) = 0;
 
 		mutable std::string	_description;

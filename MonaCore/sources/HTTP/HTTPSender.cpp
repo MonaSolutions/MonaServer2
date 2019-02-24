@@ -26,7 +26,7 @@ namespace Mona {
 
 Buffer& HTTPSender::buffer() {
 	if (!_pBuffer)
-		_pBuffer.reset(new Buffer(4, "\r\n\r\n"));
+		_pBuffer.set(4, "\r\n\r\n");
 	return *_pBuffer;
 }
 
@@ -44,7 +44,7 @@ bool HTTPSender::send(const Packet& content) {
 	if (pRequest->type == HTTP::TYPE_HEAD)
 		return true;
 	if (_chunked) {
-		shared<Buffer> pBuffer(new Buffer());
+		shared<Buffer> pBuffer(SET);
 		if (_chunked == 2)
 			pBuffer->append(EXPAND("\r\n")); // prefix
 		else
@@ -79,7 +79,7 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UI
 		extraSize += _pBuffer->size() - (headerEnd - _pBuffer->data());
 	}
 
-	shared_ptr<Buffer> pBuffer(new Buffer());
+	shared<Buffer> pBuffer(SET);
 	BinaryWriter writer(*pBuffer);
 
 	/// First line (HTTP/1.1 200 OK)

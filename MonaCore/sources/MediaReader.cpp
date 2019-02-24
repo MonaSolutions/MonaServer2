@@ -66,24 +66,24 @@ const char* MediaReader::subMime() const {
 	return _Formats.at(typeid(*this).hash_code()).subMime; // keep exception isf no exists => developper warn! Add it!
 }
 
-MediaReader* MediaReader::New(const char* subMime) {
+unique<MediaReader> MediaReader::New(const char* subMime) {
 	if (String::ICompare(subMime, EXPAND("x-flv")) == 0 || String::ICompare(subMime, EXPAND("flv")) == 0)
-		return new FLVReader();
+		return make_unique<FLVReader>();
 	if (String::ICompare(subMime, EXPAND("mp2t")) == 0 || String::ICompare(subMime, EXPAND("ts")) == 0)
-		return new TSReader();
+		return make_unique<TSReader>();
 	if (String::ICompare(subMime, EXPAND("mp4")) == 0 || String::ICompare(subMime, EXPAND("f4v")) == 0 || String::ICompare(subMime, EXPAND("mov")) == 0)
-		return new MP4Reader();
+		return make_unique<MP4Reader>();
 	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
-		return new NALNetReader<AVC>();
+		return make_unique<NALNetReader<AVC>>();
 	if (String::ICompare(subMime, EXPAND("hevc")) == 0 || String::ICompare(subMime, EXPAND("265")) == 0)
-		return new NALNetReader<HEVC>();
+		return make_unique<NALNetReader<HEVC>>();
 	if (String::ICompare(subMime, EXPAND("aac")) == 0)
-		return new ADTSReader();
+		return make_unique<ADTSReader>();
 	if (String::ICompare(subMime, EXPAND("mp3")) == 0)
-		return new MP3Reader();
+		return make_unique<MP3Reader>();
 	if (String::ICompare(subMime, EXPAND("mona")) == 0)
-		return new MonaReader();
-	return NULL;
+		return make_unique<MonaReader>();
+	return nullptr;
 }
 
 void MediaReader::flush(Media::Source& source) {

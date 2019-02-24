@@ -90,7 +90,7 @@ public:
 	/*!
 	Emplace key-value
 	you can use it with String constructor to concat multiple chunk in key and value => emplace(String(pre, key), String(pre,value))
-	or use it with piecewise_construct to prefer "multiple argument" to build string (to cut a string with size argument for example) => emplace(piecewise_construct, forward_as_tuple(key), std::forward_as_tuple(forward<Args>(args)...)) */
+	or use it with SET(piecewise_construct) to prefer "multiple argument" to build string (to cut a string with size argument for example) => emplace(SET, forward_as_tuple(key), std::forward_as_tuple(forward<Args>(args)...)) */
 	template<typename ...Args>
 	const std::string& emplace(Args&& ...args) {
 		std::pair<std::string, std::string> item(std::forward<Args>(args)...);
@@ -108,14 +108,14 @@ protected:
 private:
 	virtual const char* onParamUnfound(const std::string& key) const { return NULL; }
 
-	Parameters(std::nullptr_t) : _pMap(new std::map<std::string, std::string, String::IComparator>()) {} // Null()
+	Parameters(std::nullptr_t) : _pMap(SET) {} // Null()
 
 	const char* getParameter(const std::string& key) const;
 
 	template<typename ...Args>
 	const std::string& setParameter(const std::string& key, Args&& ...args) {
 		if (!_pMap)
-			_pMap.reset(new std::map<std::string, std::string, String::IComparator>());
+			_pMap.set();
 		std::string value(std::forward<Args>(args)...);
 		const auto& it = _pMap->emplace(key, std::string());
 		if (it.second || it.first->second.compare(value) != 0) {

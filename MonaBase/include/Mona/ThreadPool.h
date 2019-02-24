@@ -31,18 +31,16 @@ struct ThreadPool : virtual Object {
 	UInt16	join();
 
 	template<typename RunnerType>
-	void queue(RunnerType&& pRunner) const { return _threads[_current++%_size]->queue(std::forward<RunnerType>(pRunner)); }
-
-	template<typename RunnerType>
-	void queue(RunnerType&& pRunner, UInt16& track) const {
-		if (track) {
-			FATAL_CHECK(track <= _size);
-			return _threads[track - 1]->queue(std::forward<RunnerType>(pRunner));
-		}
-		_threads[track = (_current++%_size)]->queue(std::forward<RunnerType>(pRunner));
-		++track;
+	void queue(UInt16& thread, RunnerType&& pRunner) const {
+		if (thread)
+			return _threads[thread - 1]->queue(std::forward<RunnerType>(pRunner));
+		_threads[thread = (_current++%_size)]->queue(std::forward<RunnerType>(pRunner));
+		++thread;
 	}
-
+	template <typename RunnerType, typename ...Args>
+	void queue(UInt16& thread, Args&&... args) const { queue(thread, std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
+	template <typename RunnerType, typename ...Args>
+	void queue(nullptr_t, Args&&... args) const { UInt16 thread(0); queue<RunnerType>(thread, std::forward<Args>(args)...); }
 private:
 	void init(UInt16 threads, Thread::Priority priority = Thread::PRIORITY_NORMAL);
 

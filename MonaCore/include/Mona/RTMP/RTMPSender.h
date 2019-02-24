@@ -27,6 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 class RTMPSender : public Runner, public virtual Object {
+	shared<Buffer> _pBuffer; // build it in first to initialize AMFWriter!
 public:
 	RTMPSender(AMF::Type type, UInt32 time, UInt32 streamId,
 			   const shared<RTMP::Channel>& pChannel,
@@ -45,7 +46,6 @@ private:
 	UInt32					_streamId;
 	Media::Data::Type		_packetType;
 	Packet					_packet;
-	shared<Buffer>			_pBuffer;
 
 	shared<RC4_KEY>			_pEncryptKey;
 	shared<Socket>			_pSocket;

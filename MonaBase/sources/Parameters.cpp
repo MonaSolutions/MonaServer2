@@ -33,7 +33,7 @@ Parameters& Parameters::setParams(const Parameters& other) {
 	// copy data
 	if (other._pMap && !other._pMap->empty()) {
 		if (!_pMap)
-			_pMap.reset(new map<string, string, String::IComparator>());
+			_pMap.set();
 		*_pMap = *other._pMap;
 	}
 	// onChange!

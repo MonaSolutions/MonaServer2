@@ -58,27 +58,46 @@ private:
 	/*!
 	Load protocol */
 	template<typename ProtocolType, bool enabled = true, typename ...Args >
-	ProtocolType* loadProtocol(const char* name, ServerAPI& api, Sessions& sessions, Args&&... args) {
-		return loadProtocolIntern<ProtocolType>(name, enabled, api, sessions, std::forward<Args>(args)...);
+	ProtocolType* load(const char* protocol, ServerAPI& api, Sessions& sessions, Args&&... args) {
+		return loadIntern<ProtocolType>(protocol, enabled, api, sessions, std::forward<Args>(args)...);
 	}
 
 	/*!
 	Load sub protocol */
 	template<typename ProtocolType, bool enabled = true, typename ...Args >
-	ProtocolType* loadProtocol(const char* name, Protocol* pTunnel, Args&&... args) {
-		if(pTunnel)
-			return loadProtocolIntern<ProtocolType>(name, enabled, *pTunnel, std::forward<Args>(args)...);
-		_params.setBoolean(name, false);
+	ProtocolType* load(const char* protocol, Protocol* pGateway, Args&&... args) {
+		if(pGateway)
+			return loadIntern<ProtocolType>(protocol, enabled, *pGateway, std::forward<Args>(args)...);
+		_params.setBoolean(protocol, false);
 		return NULL;
 	}
 
 	template<typename ProtocolType, typename ...Args >
-	ProtocolType* loadProtocolIntern(const char* name, bool enabled, Args&&... args) {
-		if (!_params.getBoolean(name, enabled))
-			_params.setBoolean(name, enabled);
-		if (!enabled)
-			return NULL;
+	ProtocolType* loadIntern(const char* protocol, bool enabled, Args&&... args) {
+		if (!_params.getBoolean(protocol, enabled))
+			_params.setBoolean(protocol, enabled);
+		ProtocolType* pProtocol(NULL);
+		if (enabled) {
+			pProtocol = loadProtocol<ProtocolType>(protocol, std::forward<Args>(args)...);
+			NOTE(protocol, " server started on ", pProtocol->address);
+		}
+		// search other protocol declaration, ex: [HTTP2=HTTP]
+		for (auto& it : _params) {
+			// [name=protocol]
+			if (it.first.find('.') != string::npos || String::ICompare(it.second, protocol) != 0)
+				continue;
+			ProtocolType* pProtocol2 = loadProtocol<ProtocolType>(it.first.c_str(), std::forward<Args>(args)...);
+			if (pProtocol2) {
+				NOTE(it.first, '(', protocol, ") server started on ", pProtocol2->address);
+				if (!pProtocol)
+					pProtocol = pProtocol2;
+			}
+		}
+		return pProtocol;
+	}
 
+	template<typename ProtocolType, typename ...Args >
+	ProtocolType* loadProtocol(const char* name, Args&&... args) {
 		// check name protocol is unique!
 		const auto& it(_protocols.lower_bound(name));
 		if (it != _protocols.end() && it->first == name) {
@@ -121,6 +140,7 @@ private:
 			_params.setBoolean(name, false); // to warn on protocol absence
 			return NULL;
 		}
+		_protocols.emplace_hint(it, name, pProtocol);
 
 		// Fix address after binding
 		if (pProtocol->socket())
@@ -129,8 +149,6 @@ private:
 		pProtocol->setNumber("port", address.port());
 		pProtocol->setString("address", address);
 
-		NOTE(name, " server started on ", address, pProtocol->socket() ? (pProtocol->socket()->type == Socket::TYPE_DATAGRAM ? " (UDP)" : " (TCP)") : "");
-		_protocols.emplace_hint(it, name, pProtocol);
 
 		// Build public address (protocol.address)
 		buffer.clear();

@@ -221,7 +221,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="sources\Allocator.cpp" />
     <ClCompile Include="sources\Application.cpp" />
     <ClCompile Include="sources\BitReader.cpp" />
     <ClCompile Include="sources\Buffer.cpp" />
@@ -278,7 +277,6 @@
     <ClCompile Include="sources\XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\Mona\Allocator.h" />
     <ClInclude Include="include\Mona\Binary.h" />
     <ClInclude Include="include\Mona\BitReader.h" />
     <ClInclude Include="include\Mona\Buffer.h" />

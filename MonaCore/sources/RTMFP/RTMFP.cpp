@@ -91,7 +91,7 @@ void RTMFP::Group::unjoin(RTMFP::Member& member) {
 }
 
 Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, UInt8 marker) {
-	pBuffer.reset(new Buffer(6));
+	pBuffer.set(6);
 	return BinaryWriter(*pBuffer).write8(marker).write16(RTMFP::TimeNow()).buffer();
 }
 
@@ -102,7 +102,7 @@ Buffer& RTMFP::InitBuffer(shared<Buffer>& pBuffer, std::atomic<Int64>& initiator
 	time = Mona::Time::Now() - time;
 	if(time>262140) // because is not convertible in RTMFP timestamp on 2 bytes, 0xFFFF*RTMFP::TIMESTAMP_SCALE = 262140
 		return InitBuffer(pBuffer, marker);
-	pBuffer.reset(new Buffer(6));
+	pBuffer.set(6);
 	return BinaryWriter(*pBuffer).write8(marker + 4).write16(RTMFP::TimeNow()).write16(RTMFP::Time(time)).buffer();
 }
 

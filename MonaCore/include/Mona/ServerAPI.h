@@ -40,6 +40,8 @@ struct ServerAPI : virtual Object, Parameters {
 		ERROR("Start ", typeof(self), " before to queue ", pRunner->name);
 		return false;
 	}
+	template <typename RunnerType, typename ...Args>
+	void queue(Args&&... args) { queue(shared<RunnerType>(SET, std::forward<Args>(args)...)); }
 
 	// invocations
 	const Handler&			handler;

@@ -30,7 +30,7 @@ bool TLS::Create(Exception& ex, shared<TLS>& pTLS, const SSL_METHOD* method) {
 		except when a renegotiation take place, in which case a SSL_ERROR_WANT_READ may occur.
 		This behaviour can be controlled with the SSL_MODE_AUTO_RETRY flag of the SSL_CTX_set_mode call. */
 		SSL_CTX_set_mode(pCTX, SSL_MODE_AUTO_RETRY);
-		pTLS.reset(new TLS(pCTX));
+		pTLS = new TLS(pCTX);
 		return true;
 	}
 	ex.set<Ex::Extern::Crypto>(Crypto::LastErrorMessage());
@@ -47,7 +47,7 @@ bool TLS::Create(Exception& ex, const char* cert, const char* key, shared<TLS>& 
 			except when a renegotiation take place, in which case a SSL_ERROR_WANT_READ may occur.
 			This behaviour can be controlled with the SSL_MODE_AUTO_RETRY flag of the SSL_CTX_set_mode call. */
 			SSL_CTX_set_mode(pCTX, SSL_MODE_AUTO_RETRY);
-			pTLS.reset(new TLS(pCTX));
+			pTLS = new TLS(pCTX);
 			return true;
 		}
 		SSL_CTX_free(pCTX);

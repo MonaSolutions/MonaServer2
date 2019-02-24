@@ -73,30 +73,30 @@ const char* MediaWriter::subMime() const {
 	return _Formats.at(typeid(*this).hash_code()).subMime; // keep exception if no exists => developper warn! Add it!
 }
 
-MediaWriter* MediaWriter::New(const char* subMime) {
+unique<MediaWriter> MediaWriter::New(const char* subMime) {
 	if (String::ICompare(subMime, EXPAND("x-flv")) == 0 || String::ICompare(subMime, EXPAND("flv")) == 0)
-		return new FLVWriter();
+		return make_unique<FLVWriter>();
 	if (String::ICompare(subMime, EXPAND("mp2t")) == 0 || String::ICompare(subMime, EXPAND("ts")) == 0)
-		return new TSWriter();
+		return make_unique<TSWriter>();
 	if (String::ICompare(subMime, EXPAND("mp4")) == 0 || String::ICompare(subMime, EXPAND("f4v")) == 0 || String::ICompare(subMime, EXPAND("mov")) == 0)
-		return new MP4Writer();
+		return make_unique<MP4Writer>();
 	if (String::ICompare(subMime, EXPAND("h264")) == 0 || String::ICompare(subMime, EXPAND("264")) == 0)
-		return new NALNetWriter<AVC>();
+		return make_unique<NALNetWriter<AVC>>();
 	if (String::ICompare(subMime, EXPAND("hevc")) == 0 || String::ICompare(subMime, EXPAND("265")) == 0)
-		return new NALNetWriter<HEVC>();
+		return make_unique<NALNetWriter<HEVC>>();
 	if (String::ICompare(subMime, EXPAND("aac")) == 0)
-		return new ADTSWriter();
+		return make_unique<ADTSWriter>();
 //	if (String::ICompare(subMime, EXPAND("mp3")) == 0)
-//		return new MP3Writer();
+//		return make_unique<MP3Writer>();
 	if (String::ICompare(subMime, EXPAND("x-subrip")) == 0)
-		return new SRTWriter();
+		return make_unique<SRTWriter>();
 	if (String::ICompare(subMime, EXPAND("vtt")) == 0)
-		return new VTTWriter();
+		return make_unique<VTTWriter>();
 	if (String::ICompare(subMime, EXPAND("plain")) == 0)
-		return new DATWriter();
+		return make_unique<DATWriter>();
 	if (String::ICompare(subMime, EXPAND("mona")) == 0)
-		return new MonaWriter();
-	return NULL;
+		return make_unique<MonaWriter>();
+	return nullptr;
 }
 
 void MediaWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {

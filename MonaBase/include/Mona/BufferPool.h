@@ -17,25 +17,25 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Allocator.h"
+#include "Mona/Buffer.h"
 #include "Mona/Thread.h"
-#include <atomic>
 
 namespace Mona {
 
-struct BufferPool : Allocator, private Thread, virtual Object {
+struct BufferPool : Buffer::Allocator, private Thread, virtual Object {
 
 	BufferPool() : Thread("BufferPool") { start(Thread::PRIORITY_LOWEST); }
 	~BufferPool() { stop(); }
 
-	UInt8* allocate(UInt32& size);
-	void   deallocate(UInt8* buffer, UInt32 size);
-
 private:
+	UInt8* alloc(UInt32& capacity) {
+		UInt8* buffer = _buffers[computeIndex(capacity)].pop();
+		return buffer ? buffer : new UInt8[capacity];
+	}
+	void   free(UInt8* buffer, UInt32 capacity) { _buffers[computeIndex(capacity)].push(buffer); }
+
 	bool run(Exception& ex, const volatile bool& requestStop);
-	UInt8 computeIndexAndSize(UInt32& size);
-	bool tryLock() { return !_mutex.test_and_set(std::memory_order_acquire); }
-	void unlock() { _mutex.clear(std::memory_order_release); }
+	UInt8 computeIndex(UInt32 capacity);
 
 	struct Buffers : private std::vector<UInt8*>, virtual Object {
 		Buffers() : _minSize(0), _maxSize(0) {}
@@ -48,7 +48,6 @@ private:
 		UInt32 _maxSize;
 	};
 	Buffers			 _buffers[28];
-	std::atomic_flag _mutex = ATOMIC_FLAG_INIT;
 };
 
 

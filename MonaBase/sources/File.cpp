@@ -32,7 +32,7 @@ using namespace std;
 
 namespace Mona {
 
-File::File(const Path& path, Mode mode) : _flushing(0), _loaded(false),
+File::File(const Path& path, Mode mode) : _flushing(0), _loaded(false), pDecoder(NULL),
 	_written(0), _readen(0), _path(path), mode(mode), _decodingTrack(0),
 	_queueing(0), _ioTrack(0), _handle(-1), externDecoder(false) {
 #if !defined(_WIN32)

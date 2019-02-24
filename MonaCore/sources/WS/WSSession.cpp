@@ -150,7 +150,11 @@ void WSSession::unpublish() {
 
 void WSSession::processMessage(Exception& ex, const Packet& message, bool isBinary) {
 
-	unique_ptr<DataReader> pReader(isBinary ? new StringReader(message.data(), message.size()) : Media::Data::NewReader(Media::Data::TYPE_JSON, message)); // Use NewReader to check JSON validity
+	unique<DataReader> pReader;
+	if (isBinary)
+		pReader.set<StringReader>(message.data(), message.size());
+	else  // Use NewReader to check JSON validity
+		pReader = Media::Data::NewReader(Media::Data::TYPE_JSON, message);
 	string name;
 	bool isJSON(!isBinary && pReader);
 	if (isJSON && pReader->readString(name) && name[0]=='@') {
@@ -212,7 +216,7 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 	}
 
 	if (!pReader)
-		pReader.reset(new StringReader(message.data(), message.size()));
+		pReader.set<StringReader>(message.data(), message.size());
 	if (!peer.onInvocation(ex, name, *pReader, isBinary ? WS::TYPE_BINARY : (!isJSON  ? WS::TYPE_TEXT : 0)) && !ex)
 		ERROR(ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path));
 }

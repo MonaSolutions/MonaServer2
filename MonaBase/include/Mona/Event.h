@@ -47,12 +47,12 @@ struct Event<Result(Args ...)> : virtual Object {
 	NULLABLE
 
 	Event(std::nullptr_t) {} // Null Event, usefull just for (const Event& event=nullptr) default parameter
-	Event() : _pFunction(new std::function<Result(Args...)>()) {}
-	Event(const Event& event) : _pFunction(new std::function<Result(Args...)>()) { operator=(event); }
+	Event() : _pFunction(SET) {}
+	Event(const Event& event) : _pFunction(SET) { operator=(event); }
 	Event(const Event&& event) : _pFunction(event._pFunction) {}
 	/*!
 	Build an event subscriber from lambda function */
-	explicit Event(std::function<Result(Args...)>&& function) : _pFunction(new std::function<Result(Args...)>(std::move(function))) {}
+	explicit Event(std::function<Result(Args...)>&& function) : _pFunction(SET, std::move(function)) {}
 
 	/*!
 	Raise the event */

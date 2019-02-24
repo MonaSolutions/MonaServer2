@@ -18,9 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Server.h"
 #include "Mona/BufferPool.h"
-#include "Mona/TSReader.h"
-#include "Mona/MediaSocket.h"
-
+#include "Mona/MediaLogs.h"
 
 using namespace std;
 
@@ -64,16 +62,13 @@ Publish* Server::publish(const char* name) {
 }
 
 bool Server::run(Exception&, const volatile bool& requestStop) {
-	unique<BufferPool> pBufferPool;
-	if (getBoolean<true>("poolBuffers")) {
-		pBufferPool.reset(new BufferPool);
-		Buffer::SetAllocator(*pBufferPool);
-	}
+	if (getBoolean<true>("poolBuffers"))
+		Buffer::Allocator::Set<BufferPool>();
 
 	Timer::OnTimer onManage;
-	multimap<string, Media::Stream*>	streams;
-	set<Publication*>					publications;
-	set<Subscription*>					subscriptions;
+	set<shared<Media::Stream>>	streams;
+	set<Publication*>			publications;
+	set<shared<Subscription>>	subscriptions;
 
 #if !defined(_DEBUG)
 	try
@@ -98,26 +93,23 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 		_protocols.start(*this, sessions);
 		// TODO? ((RelayServer&)relayer).start(exWarn)
 
-		// Load streams before onStart because can change API properties!
-		loadStreams(streams);
-
 		onStart();
 
-		// Start streams
-		startStreams(streams, publications, subscriptions);
+		// Start streams after onStart to get onPublish/onSubscribe permissions!
+		loadStreams(streams, publications, subscriptions);
 
 		onManage = ([&](UInt32) {
 			sessions.manage(); // in first to detect session useless died
 			_protocols.manage(); // manage custom protocol manage (resource protocols)
 
 			// reset subscription ejected
-			for (Subscription* pSubscription : subscriptions) {
+			for (const shared<Subscription>& pSubscription : subscriptions) {
 				if (pSubscription->ejected())
 					pSubscription->reset(); // reset ejected!
 			}
 			// Pulse streams!
-			for (auto& it : streams)
-				it.second->start(self);
+			for (const shared<Media::Stream>& pStream : streams)
+				pStream->start(self);
 			manage(); // client manage (script, etc..)
 			if (clients.size() != countClient)
 				INFO((countClient = clients.size()), " clients");
@@ -161,14 +153,12 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	_handler.flush();
 
 	// delete streams after handler flush
-	for (Subscription* pSubscription : subscriptions) {
+	for (const shared<Subscription>& pSubscription : subscriptions)
 		unsubscribe(*pSubscription);
-		delete pSubscription;
-	}
-	for (auto& it : streams)
-		delete it.second;
-	for (auto& it : _streams)
-		it->stop();
+	for (const shared<Media::Stream>& pStream : streams)
+		pStream->stop();
+	for (const shared<Media::Stream>& pStream : _streams)
+		pStream->stop();
 	_streams.clear();
 	// delete intern publications after handler flush
 	for (Publication* pPublication : publications)
@@ -176,115 +166,99 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 
 	// release memory
 	INFO("Server memory release...");
-	Buffer::SetAllocator(); // reset default allocator
-	pBufferPool.reset();
+	Buffer::Allocator::Set();
 
 	NOTE("Server stopped");
 	_www.reset();
 	return true;
 }
 
-void Server::loadStreams(multimap<string, Media::Stream*>& streams) {
+void Server::loadStreams(set<shared<Media::Stream>>& streams, set<Publication*>& publications, set<shared<Subscription>>& subscriptions) {
 	// Load Streams configs
+	multimap<string, string> lines;
 	string temp;
 	vector<const char*> keyToRemove;
-	for (auto& it : *this) {
-		// [MyPublication=Publication...] => Start by "publication"
-		if (it.first.find('.') != string::npos || String::ICompare(it.second, EXPAND("publication")) != 0)
+	for (auto& it : self) {
+		// [MyPublication=Publication]
+		if (it.first.find('.') != string::npos || String::ICompare(it.second,"publication") != 0)
 			continue;
 
-		if (String::ICompare(it.first, "logs") == 0) {
-			// publication with in entry the logs!
-			struct Stream : Media::Stream, virtual Object {
-				Stream(ServerAPI& api) : _api(api), Media::Stream(Media::Stream::TYPE_FILE,"logs") {}
-				~Stream() { stop(); }
-				void start(const Parameters& parameters = Parameters::Null()) {
-					if (_pPublish)
-						Logs::RemoveLogger("logs");
-					_pPublish.reset(new Publish(_api, *_pSource));
-					if (!Logs::AddLogger<Publish::Logger>("logs", *_pPublish)) {
-						ERROR("Duplicated logs logger");
-						_pPublish.reset();
-					}
-				}
-				void start(Media::Source& source, const Parameters& parameters = Parameters::Null()) {
-					_pSource = &source;
-					start(parameters);
-				}
-				bool running() const { return _pPublish ? true : false; }
-				void stop() {
-					if (_pPublish)
-						Logs::RemoveLogger("logs");
-					_pPublish.reset();
-				}
-			private:
-				string& buildDescription(string& description) { return description.assign("Logger source"); }
-				ServerAPI& _api;
-				unique<Publish> _pPublish;
-				Media::Source* _pSource;
-			};
-			streams.emplace("logs", new Stream(self));
-		}
-			
+		if (String::ICompare(it.first, "logs") == 0)
+			lines.emplace(it.first, string());
+	
 		for (auto& it2 : range(temp.assign(it.first) += '.')) {
 			const char* name(it2.first.c_str() + temp.size());
-			if (!it2.second.empty())
-				continue;
-			Media::Stream* pStream;
-			Exception ex;
-			AUTO_ERROR(pStream = Media::Stream::New(ex, name, timer, ioFile, ioSocket, pTLSClient), name);
-			if (!pStream)
-				continue;
-			streams.emplace(it.first, pStream);
+			if (!*name || !it2.second.empty())
+				continue; // Stream line have no value!
+			lines.emplace(it.first, name);
 			keyToRemove.emplace_back(it2.first.c_str());
 		}
 	}
-	// Erase key which was streams, security => to remove it of metadata publication!
+	// Erase key which was streams to remove it of metadata publication (could be a security issue with host/port etc..)
 	for (const char* key : keyToRemove)
 		erase(key);
-}
 
-void Server::startStreams(multimap<string, Media::Stream*>& streams, set<Publication*>& publications, set<Subscription*>& subscriptions) {
+	// start streams
 	Exception ex;
 	Publication* pLastPublication(NULL);
-	auto it = streams.begin();
-	while (it!=streams.end()) {
-		Media::Stream* pStream(it->second);
-		if (Media::Target* pTarget = dynamic_cast<Media::Target*>(pStream)) {
-			INFO(pStream->description(), " loaded on publication ", it->first);
-			Subscription* pSubscription(new Subscription(*pTarget));
-			pStream->start(self); // Start stream before subscription to call Stream::start before Target::beginMedia
-			if (!subscribe(ex, it->first, *pSubscription, pStream->query.c_str())) {  // logs already displaid by subscribe
-				delete pSubscription;
-				streams.erase(it++);
-				delete pStream;
+	for (auto& it : lines) {
+		shared<Media::Stream> pStream;
+		bool isTarget = it.second[0] == '@';
+		if (isTarget) {
+			AUTO_ERROR(pStream = Media::Stream::New(ex=nullptr, it.second.c_str()+1, timer, ioFile, ioSocket, pTLSClient), it.second);
+			if (!pStream)
 				continue;
+			INFO(pStream->description(), " loaded on publication ", it.first);
+			pStream->start(self); // Start stream before subscription to call Stream::start before Target::beginMedia
+			if (Media::Target* pTarget = dynamic_cast<Media::Target*>(pStream.get())) {
+				unique<Subscription> pSubscription(new Subscription(*pTarget));
+				if (!subscribe(ex = nullptr, it.first, *pSubscription, pStream->query.c_str()))  // logs already displaid by subscribe
+					continue;
+				subscriptions.emplace(move(pSubscription));
+			} else if (Media::Targets* pTargets = dynamic_cast<Media::Targets*>(pStream.get())) {
+				pTargets->onTargetAdd = [this, &subscriptions, pStream, pTargets, publication = it.first](Media::Target& target) {
+					shared<Subscription> pSubscription(SET, target);
+					Exception ex;
+					if (!subscribe(ex, publication, *pSubscription, pStream->query.c_str()))  // logs already displaid by subscribe
+						return false;
+					pTargets->onTargetRemove = [this, &subscriptions, pSubscription](Media::Target& target) {
+						unsubscribe(*pSubscription);
+						subscriptions.erase(pSubscription);
+					};
+					subscriptions.emplace(move(pSubscription));
+					return true;
+				};
 			}
-			subscriptions.emplace(pSubscription);
 		} else {
 			// publish
-			Publication* pPublication = publish(ex=nullptr, it->first); // logs already displaid by publish
+			Publication* pPublication = publish(ex = nullptr, it.first); // logs already displaid by publish
 			if (!pPublication) {
-				if (!pLastPublication || pLastPublication->name() != it->first) {
-					streams.erase(it++);
-					delete pStream;
+				if (!pLastPublication || pLastPublication->name() != it.first)
 					continue;
-				}
 				pPublication = pLastPublication; // was same publication!
+			} else
+				pLastPublication = pPublication;
+			if (it.second.empty()) { // LOGS PUBLICATION!
+				pStream.set<MediaLogs>("logs",*pPublication, api()); // on error remove this stream, if no error server is shutdown!
+				pStream->onStop = [&streams, pStream](const Exception& ex) { if (ex) streams.erase(pStream); };
+			} else {
+				AUTO_ERROR(pStream = Media::Stream::New(ex = nullptr, *pPublication, it.second, timer, ioFile, ioSocket, pTLSClient), it.second);
+				if (!pStream)
+					continue;
 			}
-			INFO(pStream->description()," loaded on publication ", it->first);
-			publications.emplace(pLastPublication = pPublication);
-			pStream->start(*pPublication, self);
+			INFO(pStream->description(), " loaded on publication ", it.first);
+			pStream->start(self);
+			publications.emplace(pPublication);
 		}
-		++it;
+		streams.emplace(move(pStream));
 	}
 }
 
-shared<Media::Stream> Server::stream(const string& description) {
+shared<Media::Stream> Server::stream(Media::Source& source, const string& description) {
 	Exception ex;
-	Media::Stream* pStream;
-	AUTO_ERROR(pStream = Media::Stream::New(ex, description, timer, ioFile, ioSocket, pTLSClient), description);
-	return pStream ? *_streams.emplace(pStream).first : nullptr;
+	unique<Media::Stream> pStream;
+	AUTO_ERROR(pStream = Media::Stream::New(ex, source, description, timer, ioFile, ioSocket, pTLSClient), description);
+	return pStream ? *_streams.emplace(move(pStream)).first : nullptr;
 }
 
 

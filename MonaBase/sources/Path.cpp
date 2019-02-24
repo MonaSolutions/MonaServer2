@@ -60,7 +60,7 @@ bool Path::setName(const char* value) {
 	String path(parent(), value);
 	if (isFolder())
 		FileSystem::MakeFolder(path);
-	_pImpl.reset(new Impl(move(path)));
+	_pImpl.set(move(path));
 	return true;
 }
 
@@ -78,7 +78,7 @@ bool Path::setBaseName(const char* value) {
 	String path(parent(), value, '.', extension);
 	if (isFolder())
 		FileSystem::MakeFolder(path);
-	_pImpl.reset(new Impl(move(path)));
+	_pImpl.set(move(path));
 	return true;
 }
 
@@ -96,7 +96,7 @@ bool Path::setExtension(const char* value) {
 	String path(parent(), baseName, '.', value);
 	if (isFolder())
 		FileSystem::MakeFolder(path);
-	_pImpl.reset(new Impl(move(path)));
+	_pImpl.set(move(path));
 	return true;
 }
 

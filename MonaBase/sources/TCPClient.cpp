@@ -48,10 +48,16 @@ TCPClient::~TCPClient() {
 	// No disconnection required here, objet is deleting so can't have any event subscribers (TCPClient is not thread-safe!)
 }
 
+shared<Socket> TCPClient::newSocket() {
+	if (_pTLS)
+		return make_shared<TLS::Socket>(Socket::TYPE_STREAM, _pTLS);
+	return make_shared<Socket>(Socket::TYPE_STREAM);
+}
+
 bool TCPClient::connect(Exception& ex,const SocketAddress& address) {
 	// engine subscription BEFORE connect to be able to detect connection success/failure
 	if (!_pSocket) {
-		_pSocket.reset(newSocket());
+		_pSocket = newSocket();
 		if (!io.subscribe(ex, _pSocket, newDecoder(), _onReceived, _onFlush, onError, _onDisconnection)) {
 			_pSocket.reset();
 			return false;

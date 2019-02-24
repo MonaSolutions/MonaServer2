@@ -22,7 +22,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct Session : virtual Object {
+class Session : public virtual Object {
+	shared<Peer> _pPeer; // build it in first to initialize peer&!
+public:
 	enum {
 		// Int32 0 =>  Normal close (Client close properly)
 		// Int32 Positive => Can send a last message
@@ -81,8 +83,7 @@ protected:
 	void close(Int32 error = 0, const char* reason = NULL) { peer.onClose(error, reason); } // to fix morphing issue with kill intern call!
 private:
 	void init(Session& session);
-	
-	shared<Peer>				_pPeer;
+
 	UInt32						_id;
 	mutable std::string			_name;
 	SESSION_OPTIONS				_sessionsOptions;

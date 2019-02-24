@@ -89,7 +89,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 				// reset header var to parse
 				_path.reset();
 				_code = 0;
-				_pHeader.reset(new HTTP::Header(*pSocket, _pRendezVous.operator bool()));
+				_pHeader.set(*pSocket, _pRendezVous.operator bool());
 			}
 	
 			// if == '\r\n' (or '\0\n' since that it can have been modified for key/value parsing)
@@ -107,7 +107,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 							_pHeader->path += '/';
 							_pHeader->path.append(_path.name());
 						}
-						_pHeader->pWSDecoder.reset(new WSDecoder(_handler));
+						_pHeader->pWSDecoder.set(_handler);
 						_pUpgradeDecoder = _pHeader->pWSDecoder;
 					}
 
@@ -136,7 +136,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						case HTTP::TYPE_POST:
 							if (_pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO) {
 								// Publish = POST + VIDEO/AUDIO
-								_pReader.reset(MediaReader::New(_pHeader->subMime));
+								_pReader = MediaReader::New(_pHeader->subMime);
 								if (!_pReader)
 									_ex.set<Ex::Unsupported>("HTTP ", _pHeader->subMime, " media unsupported");
 								break;

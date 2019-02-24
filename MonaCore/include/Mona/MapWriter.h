@@ -72,13 +72,13 @@ private:
 	void set(Args&&... args) {
 		if (!_isProperty) {
 			if (_layers.size() < 2) {
-				_map.emplace(std::piecewise_construct, std::forward_as_tuple(std::forward<Args>(args)...), std::forward_as_tuple(String::Empty()));
+				_map.emplace(SET, std::forward_as_tuple(std::forward<Args>(args)...), std::forward_as_tuple(String::Empty()));
 				return;
 			}
 			String::Assign(_property, _layers.back().second++);
 		} else
 			_isProperty = false;
-		_map.emplace(std::piecewise_construct, std::forward_as_tuple(String(_key, _property)), std::forward_as_tuple(std::forward<Args>(args)...));
+		_map.emplace(SET, std::forward_as_tuple(String(_key, _property)), std::forward_as_tuple(std::forward<Args>(args)...));
 	}
 
 	MapType&							   _map;

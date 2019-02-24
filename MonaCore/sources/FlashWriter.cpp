@@ -173,7 +173,7 @@ bool FlashWriter::writeData(Media::Data::Type type, const Packet& packet, bool r
 	else if (type == Media::Data::TYPE_MEDIA)
 		writer.writeString(EXPAND("onMedia"));
 	else {
-		unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet, Media::Data::TYPE_TEXT));
+		unique<DataReader> pReader(Media::Data::NewReader(type, packet, Media::Data::TYPE_TEXT));
 		if (!pReader->read(DataReader::STRING, writer))
 			writer.writeString(EXPAND("onData")); // onData(data as ByteArray)
 	}

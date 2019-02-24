@@ -117,7 +117,7 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 			if (!pValue || (!String::ToNumber(*pValue, track) && !String::IsFalse(*pValue)))
 				_datas.pSelection.reset();
 			else
-				_datas.pSelection.reset(new UInt8(track));
+				_datas.pSelection.set(track);
 		} else if (String::ICompare(key, EXPAND("audio")) == 0)
 			setMediaSelection(pPublication ? &pPublication->audios : NULL, pValue, _audios);
 		else if (String::ICompare(key, EXPAND("video")) == 0)
@@ -489,7 +489,7 @@ void Subscription::setFormat(const char* format) {
 	if (!format && !_pMediaWriter)
 		return;
 	reset(); // end in first to finish the previous format streaming => new format = new stream
-	_pMediaWriter.reset(format ? MediaWriter::New(format) : NULL);
+	_pMediaWriter = format ? MediaWriter::New(format) : nullptr;
 	if (format && !_pMediaWriter)
 		WARN("Subscription format ", format, " unknown or unsupported");
 }
@@ -530,7 +530,7 @@ void Subscription::Medias::setNext(Publication* pNextPublication) {
 	if (!_pNextSubscription) {
 		if (!pNextPublication)
 			return; // nothing to do, keep _medias unchanged
-		_pNextSubscription.reset(new Subscription(self));
+		_pNextSubscription = new Subscription(self);
 		_pNextSubscription->setString("time", "absolute");
 	} else if(_pNextSubscription->pPublication) {
 		if (pNextPublication == _pNextSubscription->pPublication)
@@ -564,15 +564,15 @@ void Subscription::Medias::setNext(Publication* pNextPublication) {
 		_pNextSubscription->setString("time", "absolute");
 	_pNextSubscription->setNumber("from", _subscription._lastTime+1); // +1 = strictly positive (otherwise two frames can be overrided)
 	if (_subscription.audios.pSelection)
-		_pNextSubscription->_audios.pSelection.reset(new UInt8(*_subscription.audios.pSelection));
+		_pNextSubscription->_audios.pSelection.set(*_subscription.audios.pSelection);
 	else
 		_pNextSubscription->_audios.pSelection.reset();
 	if (_subscription.videos.pSelection)
-		_pNextSubscription->_videos.pSelection.reset(new UInt8(*_subscription.videos.pSelection));
+		_pNextSubscription->_videos.pSelection.set(*_subscription.videos.pSelection);
 	else
 		_pNextSubscription->_videos.pSelection.reset();
 	if (_subscription.datas.pSelection)
-		_pNextSubscription->_datas.pSelection.reset(new UInt8(*_subscription.datas.pSelection));
+		_pNextSubscription->_datas.pSelection.set(*_subscription.datas.pSelection);
 	else
 		_pNextSubscription->_datas.pSelection.reset();
 	((set<Subscription*>&)pNextPublication->subscriptions).emplace(_pNextSubscription.get());
@@ -596,7 +596,7 @@ bool Subscription::Medias::add(UInt32 time, const typename MediaType::Tag& tag, 
 		if (Util::Distance(time, lastTime) > 0)
 			return false; // no join, can play now!
 	}
-	emplace(begin() + size() - _nextSize, new MediaType(tag, packet, track));
+	emplace(begin() + size() - _nextSize)->set<MediaType>(tag, packet, track);
 	return true;
 }
 
@@ -607,9 +607,9 @@ bool Subscription::Medias::flush(Media::Source& source) {
 	if (!_nextSize && _pNextSubscription && _pNextSubscription->pPublication) {
 		// take the minimum lastTime limit (audio or video!)
 		if(Util::Distance(_pNextSubscription->pPublication->audios.lastTime, _pNextSubscription->pPublication->videos.lastTime)>=0)
-			pLimit.reset(new UInt32(_pNextSubscription->pPublication->audios.lastTime));
+			pLimit.set(_pNextSubscription->pPublication->audios.lastTime);
 		else
-			pLimit.reset(new UInt32(_pNextSubscription->pPublication->videos.lastTime));
+			pLimit.set(_pNextSubscription->pPublication->videos.lastTime);
 	}
 	while (size() > _nextSize) {
 		if (pLimit && front()->hasTime() && Util::Distance(front()->time(), *pLimit) <= 0)

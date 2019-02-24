@@ -137,7 +137,7 @@ struct RTMFP : virtual Static {
 		typedef Event<void(RTMFP::Flush&)>		ON(Flush);
 
 		Session(UInt32 id, UInt32 farId, const UInt8* farPubKey, UInt8 farPubKeySize, const UInt8* decryptKey, const UInt8* encryptKey, const shared<RendezVous>& pRendezVous) : 
-				id(id), farId(farId), peerId(), memberId(), pDecoder(new Engine(decryptKey)), pEncoder(new Engine(encryptKey)), pRendezVous(pRendezVous), initiatorTime(0) {
+				id(id), farId(farId), peerId(), memberId(), pDecoder(SET, decryptKey), pEncoder(SET, encryptKey), pRendezVous(pRendezVous), initiatorTime(0) {
 			Crypto::Hash::SHA256(farPubKey, farPubKeySize, BIN peerId);
 
 			// memberId/GroupAddress == sha256(210f + peerId)

@@ -59,7 +59,7 @@ private:
 			return;
 		std::lock_guard<std::mutex> lock(_mutex);
 		start(Thread::PRIORITY_LOWEST);
-		_entries.emplace_back(new Entry(path, args ...));
+		_entries.emplace_back(SET, path, args ...);
 		wakeUp.set();
 	}
 

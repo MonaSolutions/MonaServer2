@@ -20,7 +20,6 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/HTTP/HTTPDecoder.h"
-#include "Mona/Logs.h"
 
 namespace Mona {
 
@@ -28,23 +27,23 @@ namespace Mona {
 struct MediaSocket : virtual Static {
 
 	struct Reader : Media::Stream, virtual Object {
-		Reader(Media::Stream::Type type, const Path& path, MediaReader* pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Reader(Media::Stream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		virtual ~Reader() { stop(); }
 
-		static MediaSocket::Reader* New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static MediaSocket::Reader* New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+		static unique<MediaSocket::Reader> New(Media::Stream::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static unique<MediaSocket::Reader> New(Media::Stream::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
 
-		void start(const Parameters& parameters = Parameters::Null());
-		void start(Media::Source& source, const Parameters& parameters = Parameters::Null()) { _pSource = &source; return start(parameters); }
 		bool running() const { return _subscribed; }
-		void stop();
-
+	
 		const SocketAddress			address;
 		IOSocket&					io;
 		const shared<Socket>&		socket();
 		Socket*						operator->() { return socket().get(); }
 
 	private:
+		void starting(const Parameters& parameters);
+		void stopping();
+
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', (_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
 
@@ -71,7 +70,6 @@ struct MediaSocket : virtual Static {
 		Socket::OnError			_onSocketError;
 
 		shared<MediaReader>		_pReader;
-		Media::Source*			_pSource;
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
 		bool					_subscribed;
@@ -80,16 +78,15 @@ struct MediaSocket : virtual Static {
 
 
 	struct Writer : Media::Target, Media::Stream, virtual Object {
-		Writer(Media::Stream::Type type, const Path& path, MediaWriter* pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Writer(Media::Stream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Writer(Media::Stream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io);
 		virtual ~Writer() { stop(); }
 
-		static MediaSocket::Writer* New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static MediaSocket::Writer* New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+		static unique<MediaSocket::Writer> New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static unique<MediaSocket::Writer> New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
 
-		void start(const Parameters& parameters = Parameters::Null());
 		bool running() const { return _subscribed; }
-		void stop();
-
+	
 		const SocketAddress		address;
 		IOSocket&				io;
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
@@ -105,13 +102,16 @@ struct MediaSocket : virtual Static {
 		void endMedia();
 		
 	private:
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', _pWriter->format()); }
+		void starting(const Parameters& parameters);
+		void stopping();
 
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', _pWriter->format()); }
+		
 		template<typename SendType, typename ...Args>
 		bool send(Args&&... args) {
 			if (!_subscribed)
 				return false; // Stream not started!
-			io.threadPool.queue(new SendType(type, _pName, _pSocket, _pWriter, _pStreaming, args ...), _sendTrack);
+			io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter, _pStreaming, std::forward<Args>(args)...);
 			return true;
 		}
 

@@ -34,12 +34,12 @@ struct Path : virtual Object {
 	/*!
 	Build a path */
 	template <typename ...Args>
-	Path(Args&&... args) : _pImpl(new Impl(std::forward<Args>(args)...)) {}
+	Path(Args&&... args) { _pImpl.set(std::forward<Args>(args)...); }
 	Path(const Path& path) : _pImpl(path._pImpl) {}
 	Path(Path&& path) : _pImpl(std::move(path._pImpl)) {}
 
-	Path& operator=(const Path& path) { _pImpl = path._pImpl; return *this; }
-	Path& operator=(Path&& path) { _pImpl = std::move(path._pImpl); return *this; }
+	Path& operator=(const Path& path) { _pImpl = path._pImpl; return self; }
+	Path& operator=(Path&& path) { _pImpl = std::move(path._pImpl); return self; }
 	Path& operator=(std::nullptr_t) { return reset(); }
 
 	explicit operator bool() const { return _pImpl ? true : false; }
@@ -61,7 +61,7 @@ struct Path : virtual Object {
 
 	// setters
 	template <typename ...Args>
-	Path& set(Args&&... args) { _pImpl.reset(new Impl(std::forward<Args>(args)...)); return *this; }
+	Path& set(Args&&... args) { _pImpl.set(std::forward<Args>(args)...); return self; }
 	bool setName(const std::string& value) { return setName(value.c_str()); }
 	bool setName(const char* value);
 	bool setBaseName(const std::string& value) { return setBaseName(value.c_str()); }
@@ -69,7 +69,7 @@ struct Path : virtual Object {
 	bool setExtension(const std::string& value) { return setExtension(value.c_str()); }
 	bool setExtension(const char* value);
 
-	Path& reset() { _pImpl.reset(); return *this; }
+	Path& reset() { _pImpl.reset(); return self; }
 
 	static const Path& Home() { static Path Path(FileSystem::GetHome()); return Path; }
 	static const Path& CurrentApp() { static Path Path(FileSystem::GetCurrentApp()); return Path; }

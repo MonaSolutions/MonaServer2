@@ -45,7 +45,7 @@ struct FileWriter : virtual Object {
 	/!\ don't open really the file, because performance are better if opened on first write operation */
 	FileWriter& open(const Path& path, bool append = false) {
 		close();
-		_pFile.reset(new File(path, append ? File::MODE_APPEND : File::MODE_WRITE));
+		_pFile.set(path, append ? File::MODE_APPEND : File::MODE_WRITE);
 		io.subscribe(_pFile, onError, onFlush);
 		return *this;
 	}

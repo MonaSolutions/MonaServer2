@@ -51,7 +51,7 @@ void TCPSession::onParameters(const Parameters& parameters) {
 
 void TCPSession::send(const Packet& packet) {
 	if (!died)
-		return api.threadPool.queue(new TCPClient::Sender(self, packet), _sendingTrack);
+		return api.threadPool.queue<TCPClient::Sender>(_sendingTrack, self, packet);
 	ERROR(name()," tries to send a message after dying");
 }
 

@@ -122,7 +122,7 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 			_tag.time = time;
 			_tag.compositionOffset = compositionOffset;
 			_position = 0;
-			_pNal.reset(new Buffer(4));
+			_pNal.set(4);
 		}
 	} else {
 		if (!_pNal)
@@ -131,7 +131,8 @@ void NALNetReader<VideoType>::writeNal(const UInt8* data, UInt32 size, Media::So
 			// Max slice size (0x900000 + 4 + some SEI)
 			WARN("NALNetReader buffer exceeds maximum slice size");
 			_tag.frame = Media::Video::FRAME_UNSPECIFIED;
-			return _pNal.reset(); // release huge buffer! (and allow to wait next 0000001)
+			_pNal.reset(); // release huge buffer! (and allow to wait next 0000001)
+			return;
 		}
 	}
 	_pNal->append(data, size);

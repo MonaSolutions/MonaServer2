@@ -190,9 +190,6 @@
     <ClCompile Include="sources\SRT.cpp">
       <Filter>Crypto</Filter>
     </ClCompile>
-    <ClCompile Include="sources\Allocator.cpp">
-      <Filter>Memory</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\BinaryReader.h">
@@ -303,9 +300,6 @@
     </ClInclude>
     <ClInclude Include="include\Mona\PersistentData.h">
       <Filter>Disk</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\Allocator.h">
-      <Filter>Memory</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\Byte.h">
       <Filter>Memory</Filter>

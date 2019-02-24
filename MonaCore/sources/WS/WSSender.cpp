@@ -29,8 +29,11 @@ WSSender::WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& p
 
 DataWriter& WSSender::writer() {
 	if (!_pWriter) { 
-		_pBuffer.reset(new Buffer(10)); // 10 => expect place for header!
-		_pWriter.reset(!_type ? (DataWriter*)new JSONWriter(*_pBuffer) : (DataWriter*)new StringWriter<>(*_pBuffer));
+		_pBuffer.set(10); // 10 => expect place for header!
+		if (_type)
+			_pWriter.set<StringWriter<>>(*_pBuffer);
+		else
+			_pWriter.set<JSONWriter>(*_pBuffer);
 	}
 	return *_pWriter;
 }
@@ -53,7 +56,7 @@ bool WSSender::run(Exception&) {
 	}
 
 	if(!_pBuffer)
-		_pBuffer.reset(new Buffer(10));
+		_pBuffer.set(10);
 
 	UInt32 size(_pBuffer->size() - 10 + _packet.size());
 	UInt8 headerSize(size < 126 ? 2 : (size < 65536 ? 4 : 10));
@@ -91,7 +94,7 @@ bool WSSender::send(const Packet& packet) {
 
 bool WSDataSender::run(Exception& ex) {
 	if (_packetType != Media::Data::TYPE_JSON) {
-		unique_ptr<DataReader> pReader(Media::Data::NewReader(_packetType, _packet));
+		unique<DataReader> pReader(Media::Data::NewReader(_packetType, _packet));
 		if (pReader)
 			pReader->read(writer()); // Convert to JSON
 		else

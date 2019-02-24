@@ -71,14 +71,14 @@ void Publication::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
 }
 
 
-void Publication::startRecording(MediaFile::Writer& recorder, bool append) {
+void Publication::startRecording(unique<MediaFile::Writer>&& pRecorder, bool append) {
 	stopRecording();
-	_pRecording.reset(new Subscription(recorder));
-	NOTE("Start ", _name, "=>", recorder.path.name(), " recording");
+	_pRecording.set(*pRecorder.release());
+	NOTE("Start ", _name, "=>", pRecorder->path.name(), " recording");
 	_pRecording->pPublication = this;
 	_pRecording->setBoolean("append",append);
 	((set<Subscription*>&)subscriptions).emplace(_pRecording.get());
-	recorder.start(); // start MediaFile::Writer before subscription!
+	pRecorder->start(); // start MediaFile::Writer before subscription!
 }
 
 void Publication::stopRecording() {
@@ -99,14 +99,14 @@ MediaFile::Writer* Publication::recorder() {
 	return &_pRecording->target<MediaFile::Writer>();
 }
 
-void Publication::start(MediaFile::Writer* pRecorder, bool append) {
+void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 	if (!_publishing) {
 		_publishing = true;
 		INFO("Publication ", _name, " started");
 		_timeProperties = Media::Properties::timeProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	}
 	if(pRecorder)
-		startRecording(*pRecorder, append);
+		startRecording(move(pRecorder), append);
 	// no flush here, wait first flush or first media to allow to subscribe to onProperties event for a publisher!
 }
 
@@ -313,7 +313,7 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 	}
 
 	if (type != Media::Data::TYPE_TEXT) { // else has no handler!
-		unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet));
+		unique<DataReader> pReader(Media::Data::NewReader(type, packet));
 		if (pReader) {
 			string handler;
 			// for performance reason read just if type is explicity a STRING (not a convertible string as binary etc...)

@@ -74,7 +74,7 @@ private:
 
 	bool								_connected;
 	Mona::Exception						_ex;
-	std::unique_ptr<Mona::TCPClient>	_pClient;
+	unique<Mona::TCPClient>	_pClient;
 
 };
 

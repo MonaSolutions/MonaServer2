@@ -33,14 +33,14 @@ namespace Mona {
 
 
 void Protocols::load(ServerAPI& api, Sessions& sessions) {
-	loadProtocol<RTMFProtocol>("RTMFP", api, sessions);
-	loadProtocol<RTMProtocol>("RTMP", api, sessions);
+	load<RTMFProtocol>("RTMFP", api, sessions);
+	load<RTMProtocol>("RTMP", api, sessions);
 	if(api.pTLSServer)
-		loadProtocol<RTMProtocol, false>("RTMPS", api, sessions, api.pTLSServer); // disable by default
-	loadProtocol<WSProtocol>("WS", loadProtocol<HTTProtocol>("HTTP", api, sessions));
+		load<RTMProtocol, false>("RTMPS", api, sessions, api.pTLSServer); // disable by default
+	load<WSProtocol>("WS", load<HTTProtocol>("HTTP", api, sessions));
 	if(api.pTLSServer)
-		loadProtocol<WSProtocol>("WSS", loadProtocol<HTTProtocol>("HTTPS", api, sessions, api.pTLSServer));
-	loadProtocol<STUNProtocol, false>("STUN", api, sessions);
+		load<WSProtocol>("WSS", load<HTTProtocol>("HTTPS", api, sessions, api.pTLSServer));
+	load<STUNProtocol, false>("STUN", api, sessions);
 	//loadProtocol<RTSProtocol>("RTSP", api, sessions);
 }
 

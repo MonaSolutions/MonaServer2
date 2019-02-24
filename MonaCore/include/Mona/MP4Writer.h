@@ -54,9 +54,9 @@ private:
 		
 		operator bool() const { return _pMedia ? true : false; }
 
-		Frame(const Media::Video::Tag& tag, const Packet& packet) : _pMedia(new Media::Video(tag, packet)), isSync(tag.frame == Media::Video::FRAME_KEY) {}
-		Frame(const Media::Audio::Tag& tag, const Packet& packet) : _pMedia(new Media::Audio(tag, packet)), isSync(true) {}
-		Frame(const Packet& packet) : isSync(false), _pMedia(new Media::Base(Media::TYPE_NONE, packet)) {}
+		Frame(const Media::Video::Tag& tag, const Packet& packet) : isSync(tag.frame == Media::Video::FRAME_KEY) { _pMedia.set<Media::Video>(tag, packet); }
+		Frame(const Media::Audio::Tag& tag, const Packet& packet) : isSync(true) { _pMedia.set<Media::Audio>(tag, packet); }
+		Frame(const Packet& packet) : isSync(false) { _pMedia.set(Media::TYPE_NONE, packet); }
 
 		const bool			isSync;
 		const Media::Base*	operator->() const { return _pMedia.get(); }

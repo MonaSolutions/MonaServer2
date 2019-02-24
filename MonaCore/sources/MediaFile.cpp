@@ -17,15 +17,15 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MediaFile.h"
-#include "Mona/Session.h"
+#include "Mona/Logs.h"
 
 using namespace std;
 
 namespace Mona {
 
-MediaFile::Reader* MediaFile::Reader::New(const Path& path, const char* subMime, const Timer& timer, IOFile& io) {
-	MediaReader* pReader = MediaReader::New(subMime);
-	return pReader ? new MediaFile::Reader(path, pReader, timer, io) : NULL;
+unique<MediaFile::Reader> MediaFile::Reader::New(const Path& path, Media::Source& source, const char* subMime, const Timer& timer, IOFile& io) {
+	unique<MediaReader> pReader(MediaReader::New(subMime));
+	return pReader ? make_unique<MediaFile::Reader>(path, source, move(pReader), timer, io) : nullptr;
 }
 
 UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
@@ -43,16 +43,16 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	return 0;
 }
 
-MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io) :
-	Media::Stream(TYPE_FILE, path), io(io), _pReader(pReader), timer(timer), _pMedias(new deque<unique<Media::Base>>()),
-		_onTimer([this](UInt32 delay) {
+MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io) :
+	Media::Stream(TYPE_FILE, path, source), io(io), _pReader(move(pReader)), timer(timer), _pMedias(SET),
+		_onTimer([this, &source](UInt32 delay) {
 			unique<Media::Base> pMedia;
 			while (!_pMedias->empty()) {
 				pMedia = move(_pMedias->front());
 				_pMedias->pop_front();
 				if (pMedia) {
 					if (*pMedia || typeid(*pMedia) != typeid(Lost)) {
-						_pSource->writeMedia(*pMedia);
+						source.writeMedia(*pMedia);
 						UInt32 time;
 						switch (pMedia->type) {
 							default: continue;
@@ -84,13 +84,13 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 						}
 						if (delta<20) // 20 ms for timer performance reason (to limit timer raising), not more otherwise not progressive (and player load data by wave)
 							continue;
-						_pSource->flush();
+						source.flush();
 						this->timer.set(_onTimer, delta);
 						return 0; // pause!
 					}
-					_pSource->reportLost(pMedia->type, (Lost&)(*pMedia), pMedia->track);
+					source.reportLost(pMedia->type, (Lost&)(*pMedia), pMedia->track);
 				} else 
-					_pSource->reset();
+					source.reset();
 			}
 			if (_pReader.unique()) {
 				// end of file!
@@ -98,54 +98,50 @@ MediaFile::Reader::Reader(const Path& path, MediaReader* pReader, const Timer& t
 				return 0;
 			}
 			if(pMedia)
-				_pSource->flush(); // flush before because reading can take time (and to avoid too large amout of data transfer)
+				source.flush(); // flush before because reading can take time (and to avoid too large amout of data transfer)
 			this->io.read(_pFile); // continue to read immediatly
 			return 0;
 		}) {
 	_onFileError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 }
 
-void MediaFile::Reader::start(const Parameters& parameters) {
-	if (!_pSource) {
-		Stream::stop<Ex::Intern>(LOG_ERROR, "call start(Media::Source& source) in first");
-		return;
-	}
+void MediaFile::Reader::starting(const Parameters& parameters) {
 	if (_pFile)
 		return;
 	_realTime =	0; // reset realTime
-	Decoder* pDecoder = new Decoder(io.handler, _pReader, path, _pSource->name(), _pMedias);
+	Decoder* pDecoder = new Decoder(io.handler, _pReader, path, source.name(), _pMedias);
 	pDecoder->onFlush = _onFlush = [this]() { _onTimer(); };
-	_pFile.reset(new File(path, File::MODE_READ));
+	_pFile.set(path, File::MODE_READ);
 	io.subscribe(_pFile, pDecoder, nullptr, _onFileError);
 	io.read(_pFile);
 	INFO(description(), " starts");
 }
 
-void MediaFile::Reader::stop() {
+void MediaFile::Reader::stopping() {
 	if (!_pFile)
 		return;
 	timer.set(_onTimer, 0);
 	io.unsubscribe(_pFile);
 	_onFlush = nullptr;
-	_pMedias.reset(new std::deque<unique<Media::Base>>());
+	_pMedias.set();
 	INFO(description(), " stops"); // to display "stops" before possible "publication reset"
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if (_pReader.unique())
-		_pReader->flush(*_pSource);
+		_pReader->flush(source);
 	else
-		_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
-	_pReader.reset(MediaReader::New(_pReader->subMime()));
+		source.reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
+	_pReader = MediaReader::New(_pReader->subMime());
 }
 
 
 
 
 
-MediaFile::Writer* MediaFile::Writer::New(const Path& path, const char* subMime, IOFile& io) {
+unique<MediaFile::Writer> MediaFile::Writer::New(const Path& path, const char* subMime, IOFile& io) {
 	//if (String::ICompare(subMime, EXPAND("m3u8")) == 0 || String::ICompare(subMime, EXPAND("x-mpegURL")) == 0)
 	//	return new MediaHLS::Writer(path, io);
-	MediaWriter* pWriter = MediaWriter::New(subMime);
-	return pWriter ? new MediaFile::Writer(path, pWriter, io) : NULL;
+	unique<MediaWriter> pWriter(MediaWriter::New(subMime));
+	return pWriter ? make_unique<MediaFile::Writer>(path, move(pWriter), io) : nullptr;
 }
 
 MediaFile::Writer::Write::Write(const shared<string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter) : Runner("MediaFileWrite"), _io(io), _pFile(pFile), pWriter(pWriter), _pName(pName),
@@ -157,12 +153,12 @@ MediaFile::Writer::Write::Write(const shared<string>& pName, IOFile& io, const s
 	}) {
 }
 
-MediaFile::Writer::Writer(const Path& path, MediaWriter* pWriter, IOFile& io) :
-	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _running(false), _pWriter(pWriter) {
+MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io) :
+	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _running(false), _pWriter(move(pWriter)) {
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 }
  
-void MediaFile::Writer::start(const Parameters& parameters) {
+void MediaFile::Writer::starting(const Parameters& parameters) {
 	_running = true;
 }
 
@@ -175,10 +171,10 @@ bool MediaFile::Writer::beginMedia(const string& name) {
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
 	if (_pFile)
 		return true; // already running (MBR switch)
-	_pFile.reset(new File(path, _append ? File::MODE_APPEND : File::MODE_WRITE));
+	_pFile.set(path, _append ? File::MODE_APPEND : File::MODE_WRITE);
 	io.subscribe(_pFile, _onError);
 	INFO(description(), " starts");
-	_pName.reset(new string(name));
+	_pName.set(name);
 	return write<Write>();
 }
 
@@ -187,14 +183,13 @@ void MediaFile::Writer::endMedia() {
 	stop();
 }
 
-void MediaFile::Writer::stop() {
+void MediaFile::Writer::stopping() {
 	_pName.reset();
+	_running = false;
 	if(_pFile) {
 		io.unsubscribe(_pFile);
 		INFO(description(), " stops");
 	}
-	_running = false;
-	
 }
 
 

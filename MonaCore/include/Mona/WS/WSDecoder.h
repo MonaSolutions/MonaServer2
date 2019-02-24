@@ -42,11 +42,11 @@ private:
 	UInt32			_limit;
 
 	struct Message : StreamData<UInt8,bool, const Socket&> {
-		Message(const Handler& handler, const OnRequest& onRequest) : _handler(handler), _onRequest(onRequest) {}
+		Message(const Handler& handler, OnRequest& onRequest) : _handler(handler), _onRequest(onRequest) {}
 	private:
 		UInt32 onStreamData(Packet& buffer, UInt8 type, bool flush, const Socket& socket);
 		const Handler&		_handler;
-		const OnRequest&	_onRequest;
+		OnRequest&			_onRequest;
 		UInt8				_type;
 	} _message;
 };

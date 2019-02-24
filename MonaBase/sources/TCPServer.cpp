@@ -37,7 +37,7 @@ bool TCPServer::start(Exception& ex,const SocketAddress& address) {
 		stop();
 	}
 
-	_pSocket.reset(new TLS::Socket(Socket::TYPE_STREAM, _pTLS));
+	_pSocket.set<TLS::Socket>(Socket::TYPE_STREAM, _pTLS);
 	// can subscribe after bind + listen for server, no risk to miss an event
 	if (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, onConnection, onError))
 		return true;

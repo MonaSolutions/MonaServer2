@@ -222,7 +222,7 @@ void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packe
 		}
 		
 		// add the new track
-		it = _audios.emplace_hint(it, piecewise_construct, forward_as_tuple(track), forward_as_tuple(tag.codec == Media::Audio::CODEC_AAC ? new ADTSWriter() : NULL));
+		it = _audios.emplace_hint(it, SET, forward_as_tuple(track), forward_as_tuple(tag.codec == Media::Audio::CODEC_AAC ? new ADTSWriter() : NULL));
 		_changed = true;
 	} else if (tag.codec == Media::Audio::CODEC_AAC) {
 		if (!it->second) {
@@ -236,7 +236,7 @@ void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packe
 
 	const auto& itPID(_pids.emplace(FIRST_AUDIO_PID + it->first, 0).first);
 
-	shared<Buffer> pBuffer(new Buffer());
+	shared<Buffer> pBuffer(SET);
 	BinaryWriter writer(*pBuffer);
 	if (it->second) {
 		// AAC
@@ -273,13 +273,13 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 		}
 		
 		// add the new track
-		it = _videos.emplace_hint(it, piecewise_construct, forward_as_tuple(track),forward_as_tuple(((tag.codec == Media::Video::CODEC_H264)? (MediaTrackWriter*)new NALNetWriter<AVC>() : (MediaTrackWriter*)new NALNetWriter<HEVC>())));
+		it = _videos.emplace_hint(it, SET, forward_as_tuple(track),forward_as_tuple(((tag.codec == Media::Video::CODEC_H264)? (MediaTrackWriter*)new NALNetWriter<AVC>() : (MediaTrackWriter*)new NALNetWriter<HEVC>())));
 		_changed = true;
 	}
 
 	const auto& itPID(_pids.emplace(FIRST_VIDEO_PID + it->first, 0).first);
 
-	shared<Buffer> pBuffer(new Buffer());
+	shared<Buffer> pBuffer(SET);
 	BinaryWriter writer(*pBuffer);
 	UInt32 finalSize;
 	MediaTrackWriter::OnWrite onVideoWrite([this, &itPID, &tag, &writer, &finalSize](const Packet& packet){

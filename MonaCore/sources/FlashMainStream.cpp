@@ -119,7 +119,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 				break;
 			++idStream;
 		}
-		it = _streams.emplace_hint(it, piecewise_construct, forward_as_tuple(idStream), forward_as_tuple(idStream, api, peer, amf0));
+		it = _streams.emplace_hint(it, SET, forward_as_tuple(idStream), forward_as_tuple(idStream, api, peer, amf0));
 
 		it->second.onStart = onStart;
 		it->second.onStop = onStop;

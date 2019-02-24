@@ -87,7 +87,7 @@ private:
 
 	lua_State*					_pState;
 	Mona::TerminateSignal&		_terminateSignal;
-	std::unique_ptr<Service>	_pService;
+	unique<Service>	_pService;
 
 	std::set<Service*>			_servicesRunning;
 	Mona::PersistentData		_data;

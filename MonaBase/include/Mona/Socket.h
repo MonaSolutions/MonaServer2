@@ -154,9 +154,9 @@ struct Socket : virtual Object, Net::Stats {
 	}
 
 protected:
-
 	// Create a socket from Socket::accept
 	Socket(NET_SOCKET id, const sockaddr& addr);
+
 	virtual Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr) { return new Socket(sockfd, (sockaddr&)addr); }
 	virtual int		receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 

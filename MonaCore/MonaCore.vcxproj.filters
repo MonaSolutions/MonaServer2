@@ -46,6 +46,9 @@
     <Filter Include="Protocols\STUN">
       <UniqueIdentifier>{ed773fe2-d4cd-4974-9d75-405a7a16e4b3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Multimedia\Streams">
+      <UniqueIdentifier>{81e79939-d161-43be-b958-318d9bf5319e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\Protocol.h">
@@ -264,17 +267,11 @@
     <ClInclude Include="include\Mona\MediaWriter.h">
       <Filter>Multimedia\Serializers\Patterns</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\MediaSocket.h">
-      <Filter>Multimedia</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\MIME.h">
       <Filter>Multimedia</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\MapWriter.h">
       <Filter>Serializers</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\MediaFile.h">
-      <Filter>Multimedia</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\HTTP\HTTPDataSender.h">
       <Filter>Protocols\HTTP\Senders</Filter>
@@ -342,6 +339,18 @@
     </ClInclude>
     <ClInclude Include="include\Mona\DATWriter.h">
       <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\MediaFile.h">
+      <Filter>Multimedia\Streams</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\MediaLogs.h">
+      <Filter>Multimedia\Streams</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\MediaServer.h">
+      <Filter>Multimedia\Streams</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\MediaSocket.h">
+      <Filter>Multimedia\Streams</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -517,17 +526,11 @@
     <ClCompile Include="sources\MediaWriter.cpp">
       <Filter>Multimedia\Serializers\Patterns</Filter>
     </ClCompile>
-    <ClCompile Include="sources\MediaSocket.cpp">
-      <Filter>Multimedia</Filter>
-    </ClCompile>
     <ClCompile Include="sources\MIME.cpp">
       <Filter>Multimedia</Filter>
     </ClCompile>
     <ClCompile Include="sources\Protocol.cpp">
       <Filter>Protocols</Filter>
-    </ClCompile>
-    <ClCompile Include="sources\MediaFile.cpp">
-      <Filter>Multimedia</Filter>
     </ClCompile>
     <ClCompile Include="sources\HTTP\HTTPFileSender.cpp">
       <Filter>Protocols\HTTP\Senders</Filter>
@@ -577,6 +580,18 @@
     </ClCompile>
     <ClCompile Include="sources\STUN\STUNProtocol.cpp">
       <Filter>Protocols\STUN</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\MediaFile.cpp">
+      <Filter>Multimedia\Streams</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\MediaLogs.cpp">
+      <Filter>Multimedia\Streams</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\MediaServer.cpp">
+      <Filter>Multimedia\Streams</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\MediaSocket.cpp">
+      <Filter>Multimedia\Streams</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -57,11 +57,9 @@ bool BufferPool::run(Exception& ex, const volatile bool& requestStop) {
 		Time time;
 		for (Buffers& buffers : _buffers) {
 			vector<UInt8*> gc;
-			while (!tryLock())
-				this_thread::yield();
-			// garbage collector!
-			buffers.manage(gc);
-			unlock();
+			Lock();
+			buffers.manage(gc); // garbage collector!
+			Unlock();
 			for (UInt8* buffer : gc)
 				delete[] buffer;
 		}
@@ -70,11 +68,8 @@ bool BufferPool::run(Exception& ex, const volatile bool& requestStop) {
 	return true;
 }
 
-UInt8 BufferPool::computeIndexAndSize(UInt32& size) {
-	UInt32 capacity = ComputeCapacity(size);
-	if (!capacity) // if = 0 exceeds UInt32, unchange size wanted!
-		return 0;
-	size = capacity--;
+UInt8 BufferPool::computeIndex(UInt32 capacity) {
+	--capacity;
 	// compute index
 	capacity = (capacity << 3) - capacity;    // Multiply by 7.
 	capacity = (capacity << 8) - capacity;    // Multiply by 255.
@@ -87,27 +82,6 @@ UInt8 BufferPool::computeIndexAndSize(UInt32& size) {
 	return table[capacity >> 26];
 }
 
-UInt8* BufferPool::allocate(UInt32& size) {
-	Buffers& buffers(_buffers[computeIndexAndSize(size)]);
-	if (!size || !tryLock()) // if superior to max (size=0) or impossible to fast lock => explicit new
-		return new UInt8[size];
-	UInt8* buffer = buffers.pop();
-	if (!buffer)
-		buffer = new UInt8[size];
-	unlock();
-	return buffer;
-}
-void BufferPool::deallocate(UInt8* buffer, UInt32 size) {
-	UInt32 capacity = size;
-	UInt8 index = computeIndexAndSize(capacity);
-	if (!capacity || (capacity != size && !index--))
-		return delete[] buffer; // don't keep it => superior to 0x80000000 or inferior to 16
-	Buffers& buffers(_buffers[index]);
-	if (!tryLock()) // impossible to fast lock, instant deletion
-		return delete[] buffer;
-	buffers.push(buffer);
-	unlock();
-}
 
 
 } // namespace Mona

@@ -32,6 +32,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/MediaSocket.h"
 #include "Mona/MediaFile.h"
+#include "Mona/MediaServer.h"
 
 using namespace std;
 
@@ -216,7 +217,7 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 }
 
 Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)), _timeProperties(0) {
-	unique_ptr<DataReader> pReader(Data::NewReader(data.tag, data, Media::Data::TYPE_TEXT));
+	unique<DataReader> pReader(Data::NewReader(data.tag, data, Media::Data::TYPE_TEXT));
 	MapWriter<Parameters> writer(self);
 	pReader->read(writer);
 }
@@ -241,9 +242,9 @@ const Packet& Media::Properties::operator[](Media::Data::Type type) const {
 	if (packet)
 		return packet;
 	// Serialize in the format requested!
-	shared<Buffer> pBuffer(new Buffer());
-	unique_ptr<DataWriter> pWriter(Media::Data::NewWriter(type, *pBuffer));
-	MapReader<Parameters> reader(*this);
+	shared<Buffer> pBuffer(SET);
+	unique<DataWriter> pWriter(Media::Data::NewWriter(type, *pBuffer));
+	MapReader<Parameters> reader(self);
 	reader.read(*pWriter);
 	return packet.set(pBuffer);
 }
@@ -265,7 +266,7 @@ void Media::Properties::setProperties(Media::Data::Type type, const Packet& pack
 	if (!track)
 		track = 1; // by default use track=1 to never override all properties (let's it to final user in using Media::Properties directly)
 
-	unique_ptr<DataReader> pReader(Media::Data::NewReader(type, packet, Media::Data::TYPE_TEXT));
+	unique<DataReader> pReader(Media::Data::NewReader(type, packet, Media::Data::TYPE_TEXT));
 
 	// clear in first this track properties!
 	String prefix(track, '.');
@@ -311,55 +312,53 @@ Media::Data::Type Media::Data::ToType(const char* subMime) {
 	return TYPE_UNKNOWN;
 }
 
-DataReader* Media::Data::NewReader(Type type, const Packet& packet, Type alternateType) {
+unique<DataReader> Media::Data::NewReader(Type type, const Packet& packet, Type alternateType) {
 	switch (type) {
 		case TYPE_JSON: {
-			JSONReader* pReader = new JSONReader(packet.data(), packet.size());
+			unique<JSONReader> pReader(SET, packet.data(), packet.size());
 			if (pReader->isValid())
-				return pReader;
-			delete pReader;
+				return move(pReader);
 			break;
 		}
 		case TYPE_XMLRPC: {
-			XMLRPCReader* pReader = new XMLRPCReader(packet.data(), packet.size());
+			unique<XMLRPCReader> pReader(SET, packet.data(), packet.size());
 			if (pReader->isValid())
-				return pReader;
-			delete pReader;
+				return move(pReader);
 			break;
 		}
 		case TYPE_AMF:
 		case TYPE_AMF0:
-			return new AMFReader(packet.data(), packet.size());
+			return make_unique<AMFReader>(packet.data(), packet.size());
 		case TYPE_QUERY:
-			return new QueryReader(packet.data(), packet.size());
+			return make_unique<QueryReader>(packet.data(), packet.size());
 		case TYPE_TEXT:
-			return new StringReader(packet.data(), packet.size());
+			return make_unique<StringReader>(packet.data(), packet.size());
 		case TYPE_MEDIA:
 		case TYPE_UNKNOWN:;
 		// do default to be warned if we have added a Media::Date::Type and we have forgotten to add the related switch/case
 	}
-	return alternateType ? NewReader(alternateType, packet) : NULL;
+	return alternateType ? NewReader(alternateType, packet) : nullptr;
 }
 
-DataWriter* Media::Data::NewWriter(Type type, Buffer& buffer, Type alternateType) {
+unique<DataWriter> Media::Data::NewWriter(Type type, Buffer& buffer, Type alternateType) {
 	switch (type) {
 		case TYPE_JSON:
-			return new JSONWriter(buffer);
+			return make_unique<JSONWriter>(buffer);
 		case TYPE_XMLRPC:
-			return new XMLRPCWriter(buffer);
+			return make_unique<XMLRPCWriter>(buffer);
 		case TYPE_AMF:
-			return new AMFWriter(buffer);
+			return make_unique<AMFWriter>(buffer);
 		case TYPE_AMF0:
-			return new AMFWriter(buffer, true);
+			return make_unique<AMFWriter>(buffer, true);
 		case TYPE_QUERY:
-			return new QueryWriter(buffer);
+			return make_unique<QueryWriter>(buffer);
 		case TYPE_TEXT:
-			return new StringWriter<>(buffer);
+			return make_unique<StringWriter<>>(buffer);
 		case TYPE_MEDIA:
 		case TYPE_UNKNOWN:;
 		// do default to be warned if we have added a Media::Date::Type and we have forgotten to add the related switch/case
 	}
-	return alternateType ? NewWriter(alternateType, buffer) : NULL;
+	return alternateType ? NewWriter(alternateType, buffer) : nullptr;
 }
 
 
@@ -370,7 +369,7 @@ void Media::Source::setProperties(const Media::Properties& properties, UInt8 tra
 	setProperties(type, packet, track);
 }
 void Media::Source::setProperties(DataReader& reader, UInt8 track) {
-	shared<Buffer> pBuffer(new Buffer());
+	shared<Buffer> pBuffer(SET);
 	JSONWriter writer(*pBuffer);
 	reader.read(writer);
 	setProperties(Media::Data::TYPE_JSON, Packet(pBuffer), track);
@@ -408,52 +407,53 @@ Media::Source& Media::Source::Null() {
 }
 
 bool Media::Target::beginMedia(const string& name) {
-	ERROR(typeof(*this), " doesn't support media streaming");
+	ERROR(typeof(self), " doesn't support media streaming");
 	return false;
 }
 bool Media::Target::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(*this), " doesn't support audio streaming");
+	WARN(typeof(self), " doesn't support audio streaming");
 	return true;
 }
 bool Media::Target::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(*this), " doesn't support video streaming");
+	WARN(typeof(self), " doesn't support video streaming");
 	return true;
 }
 bool Media::Target::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) {
-	WARN(typeof(*this), " doesn't support data streaming");
+	WARN(typeof(self), " doesn't support data streaming");
 	return true;
 }
 bool Media::TrackTarget::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(*this), " doesn't support audio streaming");
+	WARN(typeof(self), " doesn't support audio streaming");
 	return true;
 }
 bool Media::TrackTarget::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(*this), " doesn't support video streaming");
+	WARN(typeof(self), " doesn't support video streaming");
 	return true;
 }
 bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet, bool reliable) {
-	WARN(typeof(*this), " doesn't support data streaming");
+	WARN(typeof(self), " doesn't support data streaming");
 	return true;
 }
 
-
-void Media::Stream::start(Source& source, const Parameters& parameters) {
-	WARN(typeof(*this), " is a target stream, call start(Exception& ex) rather");
-	return start(parameters);
+void Media::Stream::start(const Parameters& parameters) {
+	starting(parameters);
+	if (running())
+		onStart();
 }
 void Media::Stream::stop(const Exception& ex) {
-	stop(); 
-	onError(ex);
+	stopping();
+	onStop(ex);
 }
 
-Media::Stream* Media::Stream::New(Exception& ex, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
-	// Net => [@][address] [type/TLS][/MediaFormat] [parameter]
-	// File = > @file[.format][MediaFormat][parameter]
+unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
+	// Net => [address] [type/TLS][/MediaFormat] [parameter]
+	// File = > file[.format][MediaFormat][parameter]
 	
 	const char* line = String::TrimLeft(description.c_str());
 
-	bool isTarget(false);
-	if ((isTarget = (*line == '@')))
+	bool isTarget(&source==&Source::Null());
+	bool isTargets = isTarget && *line == '@';
+	if (isTargets)
 		++line;
 
 	// remove "" or ''
@@ -507,6 +507,11 @@ Media::Stream* Media::Stream::New(Exception& ex, const string& description, cons
 				type = TYPE_TCP;
 			return true;
 		}
+		if (String::ICompare(value, "SRT") == 0) {
+			isFile = false;
+			type = TYPE_SRT;
+			return true;
+		}
 		if (String::ICompare(value, "HTTP") == 0) {
 			isFile = false;
 			type = TYPE_HTTP;
@@ -528,6 +533,19 @@ Media::Stream* Media::Stream::New(Exception& ex, const string& description, cons
 
 	const char* params = strpbrk(line = String::TrimLeft(line), " \t\r\n\v\f");
 	String::Split(line, params ? (line - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
+
+	// Fix isTargets => just TCP or SRT allow
+	if (isTargets && type && type != TYPE_TCP && type != TYPE_SRT) {
+		ex.set<Ex::Unavailable>(TypeToString(type), " server stream impossible (switch to ", TypeToString(type)," target stream)");
+		isTargets = false;
+	}
+
+#if !defined(SRT_API)
+	if (type == TYPE_SRT) {
+		ex.set<Ex::Unsupported>(TypeToString(type), " stream not supported, build MonaBase with SRT support before");
+		return nullptr;
+	}
+#endif
 	
 	Path   path;
 	SocketAddress address;
@@ -541,7 +559,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const string& description, cons
 		if (String::ToNumber(first.data(), size, port)) {
 			address.setPort(port);
 			path.set(first.c_str() + size);
-			if (type != TYPE_UDP || isTarget) // if no host and TCP or target
+			if (!isTargets && (type != TYPE_UDP || isTarget)) // if no host and TCP/HTTP or target
 				address.host().set(IPAddress::Loopback());
 		} else {
 			bool isAddress = false;
@@ -553,30 +571,30 @@ Media::Stream* Media::Stream::New(Exception& ex, const string& description, cons
 				if (!isAddress && type) {
 					// explicitly indicate as network, and however address invalid!
 					ex = exc;
-					return NULL;
+					return nullptr;
 				}
 			}
 			if (isAddress) {
 				path.set(first.c_str() + size);
-				if (!address.host() && (type != TYPE_UDP || isTarget)) {
+				if (!isTargets && !address.host() && (type != TYPE_UDP || isTarget)) {
 					ex.set<Ex::Net::Address::Ip>("A TCP or target Stream can't have a wildcard ip");
-					return NULL;
+					return nullptr;
 				}
 			} else {
 				if (!path.set(move(first))) {
 					ex.set<Ex::Format>("No file name in stream file description");
-					return NULL;
+					return nullptr;
 				}
 				if (path.isFolder()) {
 					ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
-					return NULL;
+					return nullptr;
 				}
 				isFile = true;
 				type = TYPE_FILE;
 			}
 		}
 	}
-	
+
 	// fix params!
 	if (params) {
 		while (isspace(*params)) {
@@ -596,7 +614,7 @@ Media::Stream* Media::Stream::New(Exception& ex, const string& description, cons
 			case TYPE_HTTP:
 				if (path.isFolder()) {
 					ex.set<Ex::Format>("A HTTP source or target stream can't be a folder");
-					return NULL;
+					return nullptr;
 				}
 			default: {
 				const char* subMime;
@@ -609,47 +627,34 @@ Media::Stream* Media::Stream::New(Exception& ex, const string& description, cons
 				if(path.extension().empty())
 					ex.set<Ex::Format>(TypeToString(type), " stream description have to indicate a media format");
 				else
-					ex.set<Ex::Format>(TypeToString(type), " stream file has a format ", path.extension(), " unknown or not supported");
-				return NULL;
+					ex.set<Ex::Format>(TypeToString(type), " stream path has a format ", path.extension(), " unknown or not supported");
+				return nullptr;
 			}
 		}
 	}
 	
-	Stream* pStream;
+	unique<Stream> pStream;
 	if (isFile) {
-		if (isTarget) {
+		if (isTarget)
 			pStream = MediaFile::Writer::New(path, format.c_str(), ioFile);
-			if (!pStream) {
-				ex.set<Ex::Unsupported>("Target stream file format ", format, " not supported");
-				return NULL;
-			}
-		} else {
-			pStream = MediaFile::Reader::New(path, format.c_str(), timer, ioFile);
-			if (!pStream) {
-				ex.set<Ex::Unsupported>("Source stream file format ", format, " not supported");
-				return NULL;
-			}
-		}
+		else
+			pStream = MediaFile::Reader::New(path, source, format.c_str(), timer, ioFile);
 	} else {
-		if (!type)
+		if (!type) // TCP by default excepting if format is RTP where rather UDP by default
 			type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
-
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-		if (isTarget) {
+		if (isTargets)
+			pStream = MediaServer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+		else if (isTarget)
 			pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
-			if(!pStream) {
-				ex.set<Ex::Unsupported>("Target stream ", TypeToString(type), " format ", format, " not supported");
-				return NULL;
-			}
-		} else {
-			pStream = MediaSocket::Reader::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
-			if (!pStream) {
-				ex.set<Ex::Unsupported>("Source stream ", TypeToString(type), " format ", format, " not supported");
-				return NULL;
-			}
-		}
+		else
+			pStream = MediaSocket::Reader::New(type, path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 	}
-	
+
+	if (!pStream) {
+		ex.set<Ex::Unsupported>(isTarget ? "Target stream " : "Source stream ", TypeToString(type), " format ", format, " not supported");
+		return nullptr;
+	}
 	(string&)pStream->query = move(query);
 	return pStream;
 }

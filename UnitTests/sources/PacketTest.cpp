@@ -63,7 +63,7 @@ ADD_TEST(Unbuffered) {
 
 ADD_TEST(Buffered) {
 
-	shared<Buffer> pBuffer(new Buffer(4,"data"));
+	shared<Buffer> pBuffer(SET, 4,"data");
 
 	Packet packet;
 	CHECK(!packet && !packet.buffer() && !packet.data() && !packet.size() && pBuffer && pBuffer->data() && pBuffer->size());
@@ -87,7 +87,7 @@ ADD_TEST(Buffered) {
 }
 
 ADD_TEST(Bufferize) {
-	std::deque<Packet> packets;
+	deque<Packet> packets;
 	Packet packet(EXPAND("data"));
 	
 	// test unbuffered data
@@ -97,7 +97,7 @@ ADD_TEST(Bufferize) {
 	CHECK(packet.buffer() && &packet.buffer() != &packets.back().buffer() && data != packet.data());
 
 	// test buffered data
-	shared<Buffer> pBuffer(new Buffer(packet.size(), packet.data()));
+	shared<Buffer> pBuffer(SET, packet.size(), packet.data());
 	CHECK(packet.set(pBuffer).buffer());
 	data = packet.data();
 	packets.emplace_back(move(packet));

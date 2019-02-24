@@ -192,7 +192,7 @@ void RTMFPReceiver::receive(Socket& socket, shared<Buffer>& pBuffer, const Socke
 
 				if (flags & RTMFP::MESSAGE_OPTIONS) {
 					// flow creation
-					pFlow = &_flows.emplace(piecewise_construct, forward_as_tuple(flowId), forward_as_tuple(flowId, _output)).first->second;
+					pFlow = &_flows.emplace(SET, forward_as_tuple(flowId), forward_as_tuple(flowId, _output)).first->second;
 				} else {
 					const auto& it = _flows.find(flowId);
 					if (it == _flows.end()) {
@@ -334,7 +334,7 @@ void RTMFPReceiver::Flow::input(UInt64 stage, UInt8 flags, const Packet& packet)
 		// not following stage, bufferizes the stage
 		if(_fragments.empty())
 			DEBUG("Wait stage ", nextStage, " lost on flow ", id);
-		if (_fragments.emplace(piecewise_construct, forward_as_tuple(stage), forward_as_tuple(flags, packet)).second) {
+		if (_fragments.emplace(SET, forward_as_tuple(stage), forward_as_tuple(flags, packet)).second) {
 			fragmentation += packet.size();
 			if (_fragments.size()>100)
 				DEBUG("_fragments.size()=", _fragments.size());
@@ -381,7 +381,7 @@ void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& pa
 	if (flags & RTMFP::MESSAGE_OPTIONS)
 		*(UInt8*)packet.data() |= RTMFP::MESSAGE_OPTIONS;
 	if (flags&RTMFP::MESSAGE_WITH_AFTERPART) {
-		_pBuffer.reset(new Buffer(packet.size(), packet.data()));
+		_pBuffer.set(packet.size(), packet.data());
 		return;
 	}
 	if(packet)

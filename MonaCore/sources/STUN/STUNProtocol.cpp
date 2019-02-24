@@ -45,7 +45,7 @@ Socket::Decoder* STUNProtocol::newDecoder() {
 				reader.read(16, transactionId); // cookie & transaction ID
 				DEBUG("STUN ", address, " address resolution ", transactionId);
 
-				shared<Buffer> pBufferOut(new Buffer());
+				shared<Buffer> pBufferOut(SET);
 				BinaryWriter writer(*pBufferOut);
 				writer.write16(0x0101); // Binding Success response
 				writer.write16(address.host().size() + 8); // size of the message

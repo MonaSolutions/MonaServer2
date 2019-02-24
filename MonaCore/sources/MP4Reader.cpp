@@ -443,14 +443,14 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							// http://hsevi.ir/RI_Standard/File/8978
 							// section 5.2.4.1.1
 							extension.next(4);
-							shared<Buffer> pBuffer(new Buffer());
+							shared<Buffer> pBuffer(SET);
 							AVC::ReadVideoConfig(extension.current(), extension.available(), *pBuffer);
 							track.types.back().config.set(pBuffer);
 						}
 						else if (memcmp(extension.current(), EXPAND("hvcC")) == 0) {
 							// https://stackoverflow.com/questions/32697608/where-can-i-find-hevc-h-265-specs
 							extension.next(4);
-							shared<Buffer> pBuffer(new Buffer());						
+							shared<Buffer> pBuffer(SET);						
 							HEVC::ReadVideoConfig(extension.current(), extension.available(), *pBuffer);
 							track.types.back().config.set(pBuffer);
 						}

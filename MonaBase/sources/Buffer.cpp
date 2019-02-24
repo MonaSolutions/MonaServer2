@@ -21,8 +21,35 @@ using namespace std;
 
 namespace Mona {
 
-atomic<Allocator*>	Buffer::_Allocator(&Allocator::Default());
+atomic_flag Buffer::Allocator::_Mutex = ATOMIC_FLAG_INIT;
+unique<Buffer::Allocator>	Buffer::Allocator::_PAllocator(SET);
 
+UInt32 Buffer::Allocator::ComputeCapacity(UInt32 size) {
+	if (size <= 16) // at minimum allocate 16 bytes!
+		return 16;
+	// fast compute the closer upper power of two for new capacity
+	UInt32 capacity = size - 1; // at minimum allocate 16 bytes!
+	capacity |= capacity >> 1;
+	capacity |= capacity >> 2;
+	capacity |= capacity >> 4;
+	capacity |= capacity >> 8;
+	capacity |= capacity >> 16;
+	return ++capacity ? capacity : size;  // if =0 exceeds UInt32
+}
+UInt8* Buffer::Allocator::Alloc(UInt32& size) {
+	size = ComputeCapacity(size);
+	if (size>0x80000000 || !TryLock())
+		return new UInt8[size];
+	UInt8* buffer = _PAllocator->alloc(size);
+	Unlock();
+	return buffer;
+}
+void Buffer::Allocator::Free(UInt8* buffer, UInt32 size) {
+	if ((!size || (size & (size - 1))) || !TryLock())  // check than we have a size create with Alloc (capacity log2) + TryLock working!
+		return delete[] buffer;
+	_PAllocator->free(buffer, size);
+	Unlock();
+}
 
 Buffer::Buffer(UInt32 size, const void* data) : _offset(0), _size(size), _capacity(size) {
 	if (!size) {
@@ -30,7 +57,7 @@ Buffer::Buffer(UInt32 size, const void* data) : _offset(0), _size(size), _capaci
 		_data = _buffer = &BufferEmpty;
 		return;
 	}
-	_data = _buffer = _Allocator.load()->allocate(_capacity);
+	_data = _buffer = Allocator::Alloc(_capacity);
 	if (data)
 		memcpy(_data,data,size);
 }
@@ -39,7 +66,7 @@ Buffer::Buffer(void* buffer, UInt32 size) : _offset(0), _data(BIN buffer), _size
 
 Buffer::~Buffer() {
 	if (_buffer && (_capacity+=_offset))
-		_Allocator.load()->deallocate(_buffer, _capacity);
+		Allocator::Free(_buffer, _capacity);
 }
 
 Buffer& Buffer::append(const void* data, UInt32 size) {
@@ -105,7 +132,7 @@ Buffer& Buffer::resize(UInt32 size, bool preserveData) {
 
 	// allocate
 	UInt32 oldCapacity(_capacity);
-	_data = _Allocator.load()->allocate(_capacity=size);
+	_data = Allocator::Alloc(_capacity=size);
 
 	 // copy data
 	if (preserveData)
@@ -114,7 +141,7 @@ Buffer& Buffer::resize(UInt32 size, bool preserveData) {
 
 	// deallocate if was allocated
 	if (oldCapacity)
-		_Allocator.load()->deallocate(_buffer, oldCapacity);
+		Allocator::Free(_buffer, oldCapacity);
 
 	_size = size;
 	_buffer=_data;

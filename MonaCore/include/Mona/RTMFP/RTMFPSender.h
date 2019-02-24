@@ -45,7 +45,7 @@ struct RTMFPSender : Runner, virtual Object {
 	};
 	struct Session : virtual Object {
 		Session(const shared<RTMFP::Session>& pSession, const shared<Socket>& pSocket) :
-			sendable(RTMFP::SENDABLE_MAX), socket(*pSocket), pEncoder(new RTMFP::Engine(*pSession->pEncoder)),
+			sendable(RTMFP::SENDABLE_MAX), socket(*pSocket), pEncoder(SET, *pSession->pEncoder),
 			queueing(0), _pSocket(pSocket), _pSession(pSession), sendLostRate(sendByteRate), sendTime(0) {}
 		UInt32					id() const { return _pSession->id; }
 		UInt32					farId() const { return _pSession->farId; }
@@ -127,7 +127,7 @@ struct RTMFPMessenger : RTMFPSender, virtual Object {
 private:
 	struct Message : private shared<Buffer>, virtual Object {
 		NULLABLE
-		Message(bool reliable, Media::Data::Type type, const Mona::Packet& packet) : type(type), reliable(reliable), packet(std::move(packet)), writer(*new Buffer()) { reset(&writer->buffer()); }
+		Message(bool reliable, Media::Data::Type type, const Mona::Packet& packet) : shared<Buffer>(SET), type(type), reliable(reliable), packet(std::move(packet)), writer(*self) {}
 		bool				reliable;
 		AMFWriter			writer; // data
 		Media::Data::Type	type;

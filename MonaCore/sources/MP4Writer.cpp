@@ -183,7 +183,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 		return;
 	}
 
-	shared<Buffer> pBuffer(new Buffer());
+	shared<Buffer> pBuffer(SET);
 	BinaryWriter writer(*pBuffer);
 
 	UInt16 track(0);

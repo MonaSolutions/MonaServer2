@@ -26,7 +26,7 @@ namespace Mona {
 
 struct MediaReader : virtual Object, private StreamData<Media::Source&> {
 	
-	static MediaReader* New(const char* subMime);
+	static unique<MediaReader> New(const char* subMime);
 
 	void		 read(const Packet& packet, Media::Source& source) { if(packet) addStreamData(packet, 0xFFFFFFFF, source); } // keep the check on packet (no sense for empty packet here!)
 	virtual void flush(Media::Source& source);

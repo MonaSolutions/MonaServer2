@@ -228,7 +228,7 @@ void RTMFPMessenger::flush() {
 	if (!_pBuffer)
 		return;
 	// encode and add to pQueue
-	pQueue->emplace_back(new Packet(pSession->pEncoder->encode(_pBuffer, pSession->farId(), address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false));
+	pQueue->emplace_back(SET, pSession->pEncoder->encode(_pBuffer, pSession->farId(), address), _fragments, _flags&RTMFP::MESSAGE_RELIABLE ? true : false);
 	pSession->queueing += pQueue->back()->size();
 }
 

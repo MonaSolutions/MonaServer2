@@ -35,13 +35,13 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 	DataWriter& writer() {
 		if (!_pWriter) {
 			if (_mime && _subMime) {
-				_pWriter.reset(Media::Data::NewWriter(Media::Data::ToType(_subMime), buffer()));
+				_pWriter = Media::Data::NewWriter(Media::Data::ToType(_subMime), buffer());
 				if (_pWriter) {
 					_mime = MIME::TYPE_APPLICATION; // Fix mime => Media::Data::ToType success just for APPLICATION submime!
 					return *_pWriter;
 				}
 			}
-			_pWriter.reset(new StringWriter<>(buffer()));
+			_pWriter.set<StringWriter<>>(buffer());
 		}
 		return *_pWriter;
 	}

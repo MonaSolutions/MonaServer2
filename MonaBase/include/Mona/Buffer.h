@@ -18,12 +18,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Binary.h"
-#include "Mona/Allocator.h"
+#include <thread>
 #include <atomic>
 
 namespace Mona {
 
-#define BUFFER_RESET(BUFFER,SIZE) (BUFFER ? BUFFER->resize(SIZE, false) : (BUFFER.reset(new Buffer(SIZE)), *BUFFER))
+#define BUFFER_RESET(BUFFER,SIZE) (BUFFER ? BUFFER->resize(SIZE, false) : BUFFER.set(SIZE))
 
 struct Buffer : Binary, virtual Object {
 	/*!
@@ -47,11 +47,27 @@ struct Buffer : Binary, virtual Object {
 
 	UInt32			capacity() const { return _capacity; }
 
-	template<typename AllocatorType=Allocator>
-	static void SetAllocator(AllocatorType& allocator=Allocator::Default()) { _Allocator = &allocator; }
-
 	static Buffer&   Null() { static Buffer Null(nullptr, 0); return Null; } // usefull for Writer Serializer for example (and can't be encapsulate in a shared<Buffer>)
 
+
+	struct Allocator : virtual Object {
+		template<typename AllocatorType=Allocator, typename ...Args>
+		static void   Set(Args&&... args) { Lock(); _PAllocator.set<AllocatorType>(std::forward<Args>(args)...); Unlock(); }
+		static UInt8* Alloc(UInt32& size);
+		static void	  Free(UInt8* buffer, UInt32 size);
+		static UInt32 ComputeCapacity(UInt32 size);
+	protected:
+		virtual UInt8* alloc(UInt32& capacity) { return new UInt8[capacity]; }
+		virtual void   free(UInt8* buffer, UInt32 capacity) { delete[] buffer; }
+
+		static void Lock() { while (!TryLock()) std::this_thread::yield(); }
+		static void Unlock() { _Mutex.clear(std::memory_order_release); }
+	private:
+		static bool TryLock() { return !_Mutex.test_and_set(std::memory_order_acquire); }
+
+		static std::atomic_flag  _Mutex;
+		static unique<Allocator> _PAllocator;
+	};
 private:
 	Buffer(void* buffer, UInt32 size);
 
@@ -61,7 +77,6 @@ private:
 	UInt32				_capacity;
 	UInt8*				_buffer;
 
-	static std::atomic<Allocator*>	_Allocator;
 
 	friend struct BinaryWriter;
 };

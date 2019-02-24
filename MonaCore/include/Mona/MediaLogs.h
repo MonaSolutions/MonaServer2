@@ -19,35 +19,28 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Sessions.h"
-#include "Mona/Parameters.h"
+#include "Mona/ServerAPI.h"
+#include "Mona/Publish.h"
 
 namespace Mona {
 
-struct ServerAPI;
-struct Protocol : virtual Object, Parameters {
-	const char*			name;
 
-	const SocketAddress	address; // protocol address
+struct MediaLogs : Media::Stream, virtual Object {
 
-	ServerAPI&		api;
-	Sessions&		sessions;
+	MediaLogs(std::string&& name, Media::Source& source, ServerAPI& api) : _api(api), Media::Stream(Media::Stream::TYPE_LOGS, name, source) {}
+	virtual ~MediaLogs() { stop(); }
 
-	bool load(Exception& ex);
-
-	virtual void  manage() {}
-	virtual const shared<Socket>& socket() { return _pSocket; }
-
-
-protected:
-	Protocol(const char* name, ServerAPI& api, Sessions& sessions);
-	Protocol(const char* name, Protocol& gateway);
+	bool running() const { return _pPublish ? true : false; }
 
 private:
-	const char* onParamUnfound(const std::string& key) const;
+	void starting(const Parameters& parameters);
+	void stopping();
 
-	shared<Socket>	_pSocket;
+	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream logger ", path); }
+		
+	ServerAPI&		_api;
+	unique<Publish> _pPublish;
+
 };
-
 
 } // namespace Mona

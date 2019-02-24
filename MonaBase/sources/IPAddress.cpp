@@ -244,7 +244,7 @@ struct IPAddress::IPv4Impl : IPAddress::IPImpl, virtual Object {
 		if (!inet_aton(address, &ia))
 			return false;
 #endif
-		pAddress.reset(new IPv4Impl(ia));
+		pAddress.set<IPv4Impl>(ia);
 		return true;
 	}
 
@@ -351,7 +351,7 @@ struct IPAddress::IPv6Impl : IPAddress::IPImpl, virtual Object {
 		hints.ai_flags = AI_NUMERICHOST;
 		if (getaddrinfo(address, NULL, &hints, &pAI))
 			return false;
-		pAddress.reset(new IPv6Impl(reinterpret_cast<struct sockaddr_in6*>(pAI->ai_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(pAI->ai_addr)->sin6_scope_id));
+		pAddress.set<IPv6Impl>(reinterpret_cast<struct sockaddr_in6*>(pAI->ai_addr)->sin6_addr, reinterpret_cast<struct sockaddr_in6*>(pAI->ai_addr)->sin6_scope_id);
 		freeaddrinfo(pAI);
 #else
 		in6_addr ia;
@@ -516,31 +516,7 @@ bool IPAddress::GetLocals(Exception& ex, std::vector<IPAddress>& locals) {
 #endif
 }
 
-
-struct IPBroadcaster : IPAddress {
-	IPBroadcaster() : IPAddress(IPv4) {
-		struct in_addr ia;
-		ia.s_addr = INADDR_BROADCAST;
-		set(ia);
-	}
-};
-
-struct IPLoopback : IPAddress {
-	IPLoopback(Family family) : IPAddress(family) {
-		if (family == IPv6) {
-			struct in6_addr	addr;
-			memset(&addr, 0, sizeof(addr));
-			reinterpret_cast<UInt16*>(&addr)[7] = Byte::To16Network(1);
-			set(addr);
-		} else {
-			struct in_addr	addr;
-			addr.s_addr = Byte::To32Network(INADDR_LOOPBACK);
-			set(addr);
-		}
-	}
-};
-
-IPAddress::IPAddress(IPImpl* pAddress) : _pIPAddress(pAddress) {}
+IPAddress::IPAddress(shared<IPImpl>&& pIPAddress) : _pIPAddress(move(pIPAddress)) {}
 
 IPAddress::IPAddress(Family family) : _pIPAddress(Wildcard(family)._pIPAddress) {}
 
@@ -549,18 +525,23 @@ IPAddress::IPAddress(const IPAddress& other, UInt16 port) : _pIPAddress(other._p
 
 IPAddress::IPAddress(BinaryReader& reader, Family family) { set(reader, family);}
 
-IPAddress::IPAddress(const in_addr& addr) : _pIPAddress(new IPv4Impl(addr)) {}
-IPAddress::IPAddress(const in6_addr& addr, UInt32 scope) : _pIPAddress(new IPv6Impl(addr, scope)) {}
+IPAddress::IPAddress(const in_addr& addr) { _pIPAddress.set<IPv4Impl>(addr); }
+IPAddress::IPAddress(const in6_addr& addr, UInt32 scope)  { _pIPAddress.set<IPv6Impl>(addr, scope); }
 
-IPAddress::IPAddress(const sockaddr& addr) : _pIPAddress(IsIPv4Sock(addr) ? (IPImpl*)new IPv4Impl(addr) : (IPImpl*)new IPv6Impl(addr)) {}
+IPAddress::IPAddress(const sockaddr& addr) {
+	if(IsIPv4Sock(addr))
+		_pIPAddress.set<IPv4Impl>(addr);
+	else
+		_pIPAddress.set<IPv6Impl>(addr);
+}
 
 void IPAddress::setPort(UInt16 port) {
 	if (_pIPAddress->setPort(port))
 		return;
 	if (family() == IPv6)
-		_pIPAddress.reset(new IPv6Impl(_pIPAddress->ipv6(), _pIPAddress->scope(), port));
+		_pIPAddress.set<IPv6Impl>(_pIPAddress->ipv6(), _pIPAddress->scope(), port);
 	else
-		_pIPAddress.reset(new IPv4Impl(_pIPAddress->ipv4(), port));
+		_pIPAddress.set<IPv4Impl>(_pIPAddress->ipv4(), port);
 }
 
 IPAddress& IPAddress::reset() {
@@ -569,7 +550,10 @@ IPAddress& IPAddress::reset() {
 }
 
 IPAddress& IPAddress::set(const sockaddr& addr) {
-	_pIPAddress.reset(IsIPv4Sock(addr) ? (IPImpl*)new IPv4Impl(addr) : (IPImpl*)new IPv6Impl(addr));
+	if(IsIPv4Sock(addr))
+		_pIPAddress.set<IPv4Impl>(addr);
+	else
+		_pIPAddress.set<IPv6Impl>(addr);
 	return *this;
 }
 IPAddress& IPAddress::set(const IPAddress& other, UInt16 port) {
@@ -578,11 +562,11 @@ IPAddress& IPAddress::set(const IPAddress& other, UInt16 port) {
 	return *this;
 }
 IPAddress& IPAddress::set(const in_addr& addr, UInt16 port) {
-	_pIPAddress.reset(new IPv4Impl(addr, port));
+	_pIPAddress.set<IPv4Impl>(addr, port);
 	return *this;
 }
 IPAddress& IPAddress::set(const in6_addr& addr, UInt32 scope, UInt16 port) {
-	_pIPAddress.reset(new IPv6Impl(addr, scope, port));
+	_pIPAddress.set<IPv6Impl>(addr, scope, port);
 	return *this;
 }
 IPAddress& IPAddress::set(BinaryReader& reader, Family family) {
@@ -591,12 +575,12 @@ IPAddress& IPAddress::set(BinaryReader& reader, Family family) {
 		in6_addr addr;
 		memcpy(&addr, reader.current(), size = min(reader.available(), sizeof(addr)));
 		memset(&addr + size, 0, size - reader.next(sizeof(addr)));
-		_pIPAddress.reset(new IPv6Impl(addr, 0, _pIPAddress ? _pIPAddress->port() : 0)); // check _pIPAddress because can be called by constructor
+		_pIPAddress.set<IPv6Impl>(addr, 0, _pIPAddress ? _pIPAddress->port() : 0); // check _pIPAddress because can be called by constructor
 	} else {
 		in_addr addr;
 		memcpy(&addr, reader.current(), size = min(reader.available(), sizeof(addr)));
 		memset(&addr + size, 0, size - reader.next(sizeof(addr)));
-		_pIPAddress.reset(new IPv4Impl(addr, _pIPAddress ? _pIPAddress->port() : 0)); // check _pIPAddress because can be called by constructor
+		_pIPAddress.set<IPv4Impl>(addr, _pIPAddress ? _pIPAddress->port() : 0); // check _pIPAddress because can be called by constructor
 	}
 	return self;
 }
@@ -647,7 +631,7 @@ bool IPAddress::mask(Exception& ex, const IPAddress& mask, const IPAddress& set)
 		ex.set<Ex::Net::Address::Ip>("IPAddress mask operation is available just between IPv4 addresses (address=", *this, ", mask=", mask, ", set=", set, ")");
 		return false;
 	}
-	_pIPAddress.reset(new IPv4Impl(_pIPAddress->ipv4(), mask._pIPAddress->ipv4(), set._pIPAddress->ipv4(), _pIPAddress->port()));
+	_pIPAddress.set<IPv4Impl>(_pIPAddress->ipv4(), mask._pIPAddress->ipv4(), set._pIPAddress->ipv4(), _pIPAddress->port());
 	return true;
 }
 
@@ -743,20 +727,40 @@ UInt8 IPAddress::size() const {
 }
 
 const IPAddress& IPAddress::Broadcast() {
-	static IPBroadcaster IPBroadcast;
+	static struct IPBroadcast : IPAddress {
+		IPBroadcast() : IPAddress(IPv4) {
+			struct in_addr ia;
+			ia.s_addr = INADDR_BROADCAST;
+			set(ia);
+		}
+	} IPBroadcast;
 	return IPBroadcast;
 }
 
 const IPAddress& IPAddress::Wildcard(Family family) {
 	if (family == IPv6) {
-		static IPAddress IPv6Wildcard(new IPv6Impl());
+		static IPAddress IPv6Wildcard(make_shared<IPv6Impl>());
 		return IPv6Wildcard;
 	}
-	static IPAddress IPv4Wildcard(new IPv4Impl());
+	static IPAddress IPv4Wildcard(make_shared<IPv4Impl>());
 	return IPv4Wildcard;
 }
 
 const IPAddress& IPAddress::Loopback(Family family) {
+	struct IPLoopback : IPAddress {
+		IPLoopback(Family family) : IPAddress(family) {
+			if (family == IPv6) {
+				struct in6_addr	addr;
+				memset(&addr, 0, sizeof(addr));
+				reinterpret_cast<UInt16*>(&addr)[7] = Byte::To16Network(1);
+				set(addr);
+			} else {
+				struct in_addr	addr;
+				addr.s_addr = Byte::To32Network(INADDR_LOOPBACK);
+				set(addr);
+			}
+		}
+	};
 	if (family == IPv6) {
 		static IPLoopback IPv6Loopback(IPAddress::IPv6);
 		return IPv6Loopback;

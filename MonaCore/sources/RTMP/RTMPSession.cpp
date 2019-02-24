@@ -30,7 +30,7 @@ namespace Mona {
 
 RTMPSession::RTMPSession(Protocol& protocol) : _first(true), _controller(2, *this, _pEncryptKey), _mainStream(api,peer), TCPSession(protocol),
 	_onRequest([this](RTMP::Request& request) {
-		RTMPWriter& writer(request.channelId == 2 ? _controller : _writers.emplace(piecewise_construct, forward_as_tuple(request.channelId), forward_as_tuple(request.channelId, *this, _pEncryptKey)).first->second);
+		RTMPWriter& writer(request.channelId == 2 ? _controller : _writers.emplace(SET, forward_as_tuple(request.channelId), forward_as_tuple(request.channelId, *this, _pEncryptKey)).first->second);
 		writer.streamId = request.streamId;
 
 		if (_first) {

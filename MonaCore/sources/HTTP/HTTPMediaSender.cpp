@@ -28,7 +28,7 @@ HTTPMediaSender::HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
 	shared<MediaWriter>& pWriter,
 	Media::Base* pMedia) : HTTPSender("HTTPMediaSender", pRequest, pSocket), _pMedia(pMedia) {
 	if ((_first = (pWriter ? false : true)))
-		pWriter.reset(MediaWriter::New(pRequest->subMime));
+		pWriter = MediaWriter::New(pRequest->subMime);
 	_pWriter = pWriter;
 }
 

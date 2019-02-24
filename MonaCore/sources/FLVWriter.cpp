@@ -110,7 +110,7 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 
 	
 	/// 11 bytes of header
-	shared<Buffer> pBuffer(new Buffer());
+	shared<Buffer> pBuffer(SET);
 	BinaryWriter writer(*pBuffer);
 
 	writer.write8(type);
@@ -133,7 +133,7 @@ void FLVWriter::write(UInt8 track, AMF::Type type, UInt8 codecs, bool isConfig, 
 
 	if (!sps) {
 		onWrite(Packet(pBuffer)); // header
-		pBuffer.reset(new Buffer());
+		pBuffer.set();
 		if (packet)
 			onWrite(packet);
 	} else if (vps)

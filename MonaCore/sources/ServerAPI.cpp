@@ -54,7 +54,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 		return NULL;
 	}
 	
-	const auto& it = _publications.emplace(piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
+	const auto& it = _publications.emplace(SET, forward_as_tuple(stream), forward_as_tuple(stream));
 	Publication& publication(it.first->second);
 
 	if (publication.publishing()) {
@@ -88,10 +88,10 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 			Parameters parameters;
 			MapWriter<Parameters> properties(parameters);
 			if (onFileAccess(ex, append ? File::MODE_APPEND : File::MODE_WRITE, path, arguments, properties, pClient)) {
-				MediaFile::Writer* pFileWriter = MediaFile::Writer::New(path, ioFile);
+				unique<MediaFile::Writer> pFileWriter = MediaFile::Writer::New(path, ioFile);
 				if (pFileWriter) {
 					parameters.getBoolean("append", append);
-					publication.start(pFileWriter, append);
+					publication.start(move(pFileWriter), append);
 					return &publication;
 				}
 				WARN(ex.set<Ex::Unsupported>(stream, " recording format ", path.extension(), " not supported"));
@@ -176,7 +176,7 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, 
 			WARN(ex.set<Ex::Unfound>("Publication ", stream, " unfound"));
 			return false;
 		}
-		it = _publications.emplace_hint(it, piecewise_construct, forward_as_tuple(stream), forward_as_tuple(stream));
+		it = _publications.emplace_hint(it, SET, forward_as_tuple(stream), forward_as_tuple(stream));
 
 		// Write static metadata configured
 		if (String::ICompare(getString(stream), EXPAND("publication")) == 0) {

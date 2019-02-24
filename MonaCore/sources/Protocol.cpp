@@ -27,12 +27,12 @@ Protocol::Protocol(const char* name, ServerAPI& api, Sessions& sessions) :
 	name(name), api(api), sessions(sessions) {
 }
 
-Protocol::Protocol(const char* name, Protocol& tunnel) :
-	name(name), api(tunnel.api), sessions(tunnel.sessions), _pSocket(tunnel.socket()) {
-	// copy parameters from tunnel (publicHost, publicPort,  etc...)
-	for (auto& it : tunnel)
+Protocol::Protocol(const char* name, Protocol& gateway) :
+	name(name), api(gateway.api), sessions(gateway.sessions), _pSocket(gateway.socket()) {
+	// copy parameters from gateway (publicHost, publicPort,  etc...)
+	for (auto& it : gateway)
 		setString(it.first, it.second);
-	// if tunnel is disabled, disabled this protocol too
+	// if gateway is disabled, disabled this protocol too
 }
 
 

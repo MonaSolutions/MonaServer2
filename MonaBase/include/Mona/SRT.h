@@ -17,13 +17,14 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #pragma once
 
+#include "Mona/Mona.h"
+#include "Mona/TCPClient.h"
+
 #if defined(_MSC_VER) || defined(ENABLE_SRT)
-#include "srt/srt.h"
+#include "srt/srt.h" // will define SRT_API
 #endif
 
 #if defined(SRT_API)
-#include "Mona/Mona.h"
-#include "Mona/TCPClient.h"
 
 namespace Mona {
 
@@ -31,7 +32,7 @@ struct SRT : virtual Static {
 
 	struct Client : TCPClient {
 	private:
-		Mona::Socket* newSocket() { return new SRT::Socket(); }
+		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};
 	
 	struct Socket : virtual Object, Mona::Socket {

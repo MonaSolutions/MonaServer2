@@ -182,7 +182,7 @@ void HTTPWriter::flushing() {
 
 void HTTPWriter::writeSetCookie(const char* key, const string& value, DataReader& params) {
 	if (!_pSetCookie)
-		_pSetCookie.reset(new Buffer());
+		_pSetCookie.set();
 	QueryWriter writer(*_pSetCookie);
 	writer.separator = "; ";
 	writer.dateFormat = Date::FORMAT_RFC1123;

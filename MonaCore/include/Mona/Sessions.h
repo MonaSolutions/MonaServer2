@@ -33,7 +33,7 @@ enum {
 
 /*!
 Allow to manage sessions + override obsolete session on address duplication */
-struct Session;
+class Session;
 struct Sessions : virtual Object {
 
 	Sessions() {}

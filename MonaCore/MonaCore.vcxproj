@@ -222,7 +222,9 @@
     <ClInclude Include="include\Mona\MapWriter.h" />
     <ClInclude Include="include\Mona\Media.h" />
     <ClInclude Include="include\Mona\MediaFile.h" />
+    <ClInclude Include="include\Mona\MediaLogs.h" />
     <ClInclude Include="include\Mona\MediaReader.h" />
+    <ClInclude Include="include\Mona\MediaServer.h" />
     <ClInclude Include="include\Mona\MediaWriter.h" />
     <ClInclude Include="include\Mona\MIME.h" />
     <ClInclude Include="include\Mona\MonaReader.h" />
@@ -321,7 +323,9 @@
     <ClCompile Include="sources\ICE.cpp" />
     <ClCompile Include="sources\Media.cpp" />
     <ClCompile Include="sources\MediaFile.cpp" />
+    <ClCompile Include="sources\MediaLogs.cpp" />
     <ClCompile Include="sources\MediaReader.cpp" />
+    <ClCompile Include="sources\MediaServer.cpp" />
     <ClCompile Include="sources\MediaWriter.cpp" />
     <ClCompile Include="sources\MIME.cpp" />
     <ClCompile Include="sources\MonaReader.cpp" />

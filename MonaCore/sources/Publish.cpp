@@ -24,10 +24,10 @@ using namespace std;
 namespace Mona {
 
 
-Publish::Publish(ServerAPI& api, const char* name) : _pPublishing(new Publishing(api, name)) {
+Publish::Publish(ServerAPI& api, const char* name) : _pPublishing(SET, api, name) {
 	api.queue(_pPublishing);
 }
-Publish::Publish(ServerAPI& api, Media::Source& source) : _pPublishing(new Publishing(api, source)) {
+Publish::Publish(ServerAPI& api, Media::Source& source) : _pPublishing(SET, api, source) {
 }
  
 Publish::~Publish() {

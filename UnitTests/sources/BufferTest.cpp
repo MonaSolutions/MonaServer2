@@ -47,30 +47,32 @@ ADD_TEST(Buffer) {
 }
 
 ADD_TEST(BufferPool) {
-	BufferPool	bufferPool;
-	UInt32 size(8);
-	UInt8* buffer(bufferPool.allocate(size));
-	CHECK(buffer && size == 16);
-	bufferPool.deallocate(buffer, size);
-	size = 15;
-	UInt8* newBuffer = bufferPool.allocate(size);
-	CHECK(newBuffer==buffer && size == 16);
-	bufferPool.deallocate(buffer, size);
-	
-	Buffer::SetAllocator(bufferPool);
+	Buffer::Allocator::Set<BufferPool>();
+
+	UInt8* buffer;
 	{
 		Buffer buffer1(8);
+		buffer = buffer1.data();
+		CHECK(buffer1.capacity() == 16);
+	}
+	{
+		Buffer buffer1(16);
+		CHECK(buffer1.capacity() == 16);
 		CHECK(buffer1.data() == buffer);
-		Buffer buffer2(1000);
-		CHECK(buffer2.data() != buffer1.data());
+		Buffer buffer2(16);
+		CHECK(buffer1.capacity() == 16);
+		CHECK(buffer2.data() != buffer);
 	}
-	Buffer::SetAllocator();
 	{
-		Buffer buffer1(8);
+		Buffer buffer1(1000);
+		CHECK(buffer1.capacity() == 1024);
 		CHECK(buffer1.data() != buffer);
-		Buffer buffer2(1000);
-		CHECK(buffer2.data() != buffer1.data());
+		buffer = buffer1.data();
 	}
+	Buffer::Allocator::Set(); // reset default Allocator
+	Buffer buffer2(1000);
+	CHECK(buffer2.capacity() == 1024);
+	CHECK(buffer2.data() != buffer);
 }
 
 }

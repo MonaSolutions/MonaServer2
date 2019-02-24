@@ -36,7 +36,7 @@ struct TCPSession : Session, private TCPClient, virtual Object {
 	template<typename RunnerType>
 	void send(const shared<RunnerType>& pRunner)  {
 		if (!died)
-			return api.threadPool.queue(pRunner, _sendingTrack);
+			return api.threadPool.queue(_sendingTrack, pRunner);
 		ERROR(name(), " tries to send a message after dying");
 	}
 

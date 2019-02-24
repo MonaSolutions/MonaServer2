@@ -155,8 +155,8 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 	Exception ex;
 
 	
-	unique_ptr<Socket> pClient(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
-	unique_ptr<Server> pServer(new Server(pServerTLS));
+	unique<TLS::Socket> pClient(SET, Socket::TYPE_STREAM, pClientTLS);
+	unique<Server> pServer(SET, pServerTLS);
 
 	// Test a connection refused
 	SocketAddress unknown(IPAddress::Loopback(), 62434);
@@ -172,14 +172,14 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
 	CHECK(!pClient->connect(ex, address, 1) && ex && !pClient->address() && !pClient->peerAddress());
 	ex = NULL;
-	pClient.reset(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
+	pClient.set(Socket::TYPE_STREAM, pClientTLS);
 
 	// Test IPv4 client accepted by IPv4 server
 	address.set(IPAddress::Loopback(), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
-	pClient.reset(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
-	pServer.reset(new Server(pServerTLS));
+	pClient.set(Socket::TYPE_STREAM, pClientTLS);
+	pServer.set(pServerTLS);
 	
 	// Test a IPv6 server
 	address.set(IPAddress::Wildcard(IPAddress::IPv6), port);
@@ -190,7 +190,7 @@ void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>&
 	address.set(IPAddress::Loopback(), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
-	pClient.reset(new TLS::Socket(Socket::TYPE_STREAM, pClientTLS));
+	pClient.set(Socket::TYPE_STREAM, pClientTLS);
 
 	// Test IPv6 client accepted by IPv6 server
 	pServer->accept();

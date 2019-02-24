@@ -23,7 +23,7 @@ using namespace std;
 namespace Mona {
 
 FileLogger::FileLogger(const string dir, UInt32 sizeByFile, UInt16 rotation) : _sizeByFile(sizeByFile), _rotation(rotation),
-	_pFile(new File(Path(MAKE_FOLDER(dir), "0.log"), File::MODE_APPEND)) {
+	_pFile(SET, Path(MAKE_FOLDER(dir), "0.log"), File::MODE_APPEND) {
 	_written = range<UInt32>(_pFile->size());
 }
 
@@ -55,7 +55,7 @@ void FileLogger::manage(UInt32 written) {
 		return; // _logSizeByFile==0 => inifinite log file! (user choice..)
 
 	_written = 0;
-	_pFile.reset(new File(Path(_pFile->parent(), "0.log"), File::MODE_WRITE)); // override 0.log file!
+	_pFile.set(Path(_pFile->parent(), "0.log"), File::MODE_WRITE); // override 0.log file!
 
 	// delete more older file + search the older file name (usefull when _rotation==0 => no rotation!) 
 	string name;

@@ -20,7 +20,6 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Exceptions.h"
 #include "Mona/Stopwatch.h"
-#include <memory>
 
 /// \brief The fixture for testing class Foo.
 struct Test : virtual Mona::Object {
@@ -46,7 +45,7 @@ struct PoolTest : virtual Mona::Object {
 	template<typename TestType>
     bool makeAndRegister() {
 		const std::string& type = Mona::typeof<TestType>();
-		_mapTests.emplace(std::piecewise_construct, std::forward_as_tuple(std::string(type.data(), type.find("::"))), std::forward_as_tuple(new TestType(type)));
+		_mapTests.emplace(SET, std::forward_as_tuple(std::string(type.data(), type.find("::"))), std::forward_as_tuple(make_unique<TestType>(type)));
 		return true;
 	}
 		/// \brief create the test and add it to the PoolTest
@@ -64,7 +63,7 @@ struct PoolTest : virtual Mona::Object {
 		/// \brief PoolTest Instance accessor
 
 private:
-    std::multimap<const std::string, std::unique_ptr<Test>, Mona::String::IComparator> _mapTests;
+    std::multimap<const std::string, Mona::unique<Test>, Mona::String::IComparator> _mapTests;
 		/// multimap of Test name to Tests functions
 			
 	PoolTest(){}

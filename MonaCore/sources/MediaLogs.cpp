@@ -16,38 +16,29 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#pragma once
+#include "Mona/MediaLogs.h"
 
-#include "Mona/Mona.h"
-#include "Mona/Sessions.h"
-#include "Mona/Parameters.h"
+using namespace std;
 
 namespace Mona {
 
-struct ServerAPI;
-struct Protocol : virtual Object, Parameters {
-	const char*			name;
+void MediaLogs::starting(const Parameters& parameters) {
+	if (_pPublish)
+		return;
+	_pPublish.set(_api, source);
+	INFO(description(), " starts");
+	if (!Logs::AddLogger<Publish::Logger>(path.c_str(), *_pPublish))
+		stop<Ex::Intern>(LOG_ERROR, "duplicated logger");
+}
 
-	const SocketAddress	address; // protocol address
+void MediaLogs::stopping() {
+	if(!_pPublish)
+		return;
+	Logs::RemoveLogger(path.c_str());
+	_pPublish.reset();
+	INFO(description(), " stops");
+}
 
-	ServerAPI&		api;
-	Sessions&		sessions;
-
-	bool load(Exception& ex);
-
-	virtual void  manage() {}
-	virtual const shared<Socket>& socket() { return _pSocket; }
-
-
-protected:
-	Protocol(const char* name, ServerAPI& api, Sessions& sessions);
-	Protocol(const char* name, Protocol& gateway);
-
-private:
-	const char* onParamUnfound(const std::string& key) const;
-
-	shared<Socket>	_pSocket;
-};
 
 
 } // namespace Mona

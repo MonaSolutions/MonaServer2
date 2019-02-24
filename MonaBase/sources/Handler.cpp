@@ -24,12 +24,12 @@ namespace Mona {
 
 void Handler::queue(const Event<void()>& onResult) const {
 	struct Result : Runner, virtual Object {
-		Result(const Event<void()>& onResult) : _onResult(onResult), Runner(typeof(onResult).c_str()) {}
+		Result(const Event<void()>& onResult) : _onResult(move(onResult)), Runner(typeof(onResult).c_str()) {}
 		bool run(Exception& ex) { _onResult(); return true; }
 	private:
 		Event<void()>	_onResult;
 	};
-	queue(new Result(onResult));
+	queue<Result>(onResult);
 }
 
 UInt32 Handler::flush() {

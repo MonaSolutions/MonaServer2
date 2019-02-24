@@ -59,7 +59,7 @@ private:
 			shared<std::atomic<UInt32>>	_pReceiving;
 			UInt32						_receiving;
 		};
-		_threadPool.queue(new Receive(pReceiver, pBuffer, address, pSocket, _pReceiving), pReceiver->track);
+		_threadPool.queue<Receive>(pReceiver->track, pReceiver, pBuffer, address, pSocket, _pReceiving);
 	}
 
 

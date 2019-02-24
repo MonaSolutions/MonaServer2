@@ -22,7 +22,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-	struct Ex : std::string, virtual Object {
+	struct Ex : String, virtual Object {
 		NULLABLE
 		struct Application; struct Extern; struct Format; struct Intern; struct Net; struct Permission; struct Protocol; struct System; struct Unavailable; struct Unfound; struct Unsupported;
 		operator bool() const { return !empty(); }
@@ -85,7 +85,7 @@ struct Exception : virtual Object {
 	NULLABLE
 	CONST_STRING(toString());
 
-	Exception() {}
+	Exception(std::nullptr_t = nullptr) {}
 	Exception(const Exception& other) : _pEx(other._pEx) {}
 	Exception(Exception&& other) : _pEx(std::move(other._pEx)) {}
 
@@ -103,11 +103,10 @@ struct Exception : virtual Object {
 
 	template<typename ExType, typename ...Args>
 	ExType& set(Args&&... args) {
-		ExType* pEx(new ExType());
-		_pEx.reset(pEx);
-		if (String::Assign<std::string>(*pEx, std::forward<Args>(args)...).empty())
-			String::Assign(*pEx, typeof<ExType>()," exception");
-		return *pEx;
+		ExType& ex = _pEx.set<ExType>();
+		if (String::Assign<std::string>(ex, std::forward<Args>(args)...).empty())
+			String::Assign(ex, typeof<ExType>()," exception");
+		return ex;
 	}
 	Exception& reset() { _pEx.reset();  return *this; }
 

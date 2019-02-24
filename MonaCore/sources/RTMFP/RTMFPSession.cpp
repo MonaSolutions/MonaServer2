@@ -58,7 +58,7 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<
 void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 	memcpy(BIN peer.id, pSession->peerId, Entity::SIZE);
 	_pSession = pSession;
-	_pSenderSession.reset(new RTMFPSender::Session(pSession, protocol().socket()));
+	_pSenderSession.set(pSession, protocol().socket());
 
 	_pSession->onAddress = [this](SocketAddress& address) {
 		// onAddress is defined on _pSession so 
@@ -83,7 +83,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 		// find or create flow requested
 		const auto& it = _flows.lower_bound(message.flowId);
 		if (it == _flows.end() || it->first != message.flowId)
-			_pFlow = &_flows.emplace_hint(it, piecewise_construct, forward_as_tuple(message.flowId), forward_as_tuple(peer, _pSession->memberId))->second;
+			_pFlow = &_flows.emplace_hint(it, SET, forward_as_tuple(message.flowId), forward_as_tuple(peer, _pSession->memberId))->second;
 		else
 			_pFlow = &it->second;
 
@@ -295,7 +295,7 @@ bool RTMFPSession::keepalive() {
 		return false;
 	}
 	++_timesKeepalive;
-	send(make_shared<RTMFPCmdSender>(0x01));
+	send(shared<RTMFPCmdSender>(SET, 0x01));
 	return true;
 }
 
@@ -307,7 +307,7 @@ bool RTMFPSession::manage() {
 	if (_killing) {
 		// killing signal!
 		// no other message, just fail message, so I erase all data in first
-		send(make_shared<RTMFPCmdSender>(0x0C));
+		send(shared<RTMFPCmdSender>(SET, 0x0C));
 		if (--_killing)
 			return true;
 		kill();
@@ -363,7 +363,7 @@ void RTMFPSession::send(shared<RTMFPSender>&& pSender) {
 	// continue even on _killing to repeat writers messages to flush it (reliable)
 	pSender->address = peer.address;
 	pSender->pSession = _pSenderSession;
-	api.threadPool.queue(move(pSender), _senderTrack);
+	api.threadPool.queue(_senderTrack, move(pSender));
 }
 
 shared<RTMFPWriter> RTMFPSession::newWriter(UInt64 flowId, const Packet& signature) {
@@ -374,7 +374,7 @@ shared<RTMFPWriter> RTMFPSession::newWriter(UInt64 flowId, const Packet& signatu
 		it = _writers.lower_bound(_nextWriterId);
 	} while (it != _writers.end() && it->first == _nextWriterId);
 	DEBUG("New writer ", _nextWriterId, " on session ", name());
-	return _writers.emplace_hint(it, piecewise_construct, forward_as_tuple(_nextWriterId), forward_as_tuple(new RTMFPWriter(_nextWriterId, flowId, signature, *this)))->second;
+	return _writers.emplace_hint(it, SET, forward_as_tuple(_nextWriterId), forward_as_tuple(SET, _nextWriterId, flowId, signature, self))->second;
 }
 
 UInt64 RTMFPSession::resetWriter(UInt64 id) {

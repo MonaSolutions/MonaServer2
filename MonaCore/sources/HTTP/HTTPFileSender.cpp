@@ -104,7 +104,7 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 	}
 	// END
 	send(Packet::Null()); // to end possible chunked transfer
-	pBuffer.reset(new Buffer()); // to get onReaden callback!
+	pBuffer.set(); // to get onReaden callback!
 	return 0;
 }
 

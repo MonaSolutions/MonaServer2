@@ -27,7 +27,7 @@ using namespace std;
 namespace Mona {
 
 
-RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions), _pRendezVous(new RendezVous(api.timer)), _manageTimes(0) {
+RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions) : UDProtocol(name, api, sessions), _pRendezVous(SET, api.timer), _manageTimes(0) {
 	memcpy(_certificat, "\x01\x0A\x41\x0E", 4);
 	Util::Random(&_certificat[4], 64);
 	memcpy(&_certificat[68], "\x02\x15\x02\x02\x15\x05\x02\x15\x0E", 9);
@@ -40,7 +40,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		BinaryReader reader(handshake.data(), handshake.size());
 
 		// Fill peer infos
-		shared<Peer> pPeer(new Peer(this->api, "RTMFP"));
+		shared<Peer> pPeer(SET, this->api, "RTMFP");
 		string serverAddress;
 		{
 			const char* url = STR reader.current();
@@ -157,7 +157,7 @@ Socket::Decoder* RTMFProtocol::newDecoder() {
 }
 
 Buffer& RTMFProtocol::initBuffer(shared<Buffer>& pBuffer) {
-	pBuffer.reset(new Buffer(6));
+	pBuffer.set(6);
 	return BinaryWriter(*pBuffer).write8(0x0B).write16(RTMFP::TimeNow()).next(3).buffer();
 }
 
@@ -182,7 +182,7 @@ void RTMFProtocol::send(UInt8 type, shared<Buffer>& pBuffer, set<SocketAddress>&
 	};
 	Exception ex;
 	BinaryWriter(pBuffer->data() + 9, 3).write8(type).write16(pBuffer->size() - 12);
-	api.threadPool.queue(new Sender(socket(), pBuffer, addresses, pResponse));
+	api.threadPool.queue<Sender>(0, socket(), pBuffer, addresses, pResponse);
 }
 
 

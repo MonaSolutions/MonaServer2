@@ -86,7 +86,7 @@ private:
 
 		Track  tracks[2];
 
-		void   write(const Media::Video::Tag& tag, UInt8 hi, UInt8 lo) { _ccs.emplace(std::piecewise_construct, std::forward_as_tuple(tag.time + tag.compositionOffset), std::forward_as_tuple(hi, lo)); }
+		void   write(const Media::Video::Tag& tag, UInt8 hi, UInt8 lo) { _ccs.emplace(SET, std::forward_as_tuple(tag.time + tag.compositionOffset), std::forward_as_tuple(hi, lo)); }
 		void   flush(const CCaption::OnText& onText, const Media::Video::Tag* pTag);
 
 	private:

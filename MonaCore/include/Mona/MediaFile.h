@@ -21,9 +21,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/MediaReader.h"
 #include "Mona/MediaWriter.h"
-#include "Mona/FileReader.h"
-#include "Mona/FileWriter.h"
-#include "Mona/Logs.h"
 
 namespace Mona {
 
@@ -31,21 +28,21 @@ namespace Mona {
 struct MediaFile : virtual Static  {
 
 	struct Reader : Media::Stream, virtual Object {
-		Reader(const Path& path, MediaReader* pReader, const Timer& timer, IOFile& io);
+		Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io);
 		virtual ~Reader() { stop(); }
 
-		static MediaFile::Reader* New(const Path& path, const char* subMime, const Timer& timer, IOFile& io);
-		static MediaFile::Reader* New(const Path& path, const Timer& timer, IOFile& io) { return New(path, path.extension().c_str(), timer, io); }
+		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const char* subMime, const Timer& timer, IOFile& io);
+		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const Timer& timer, IOFile& io) { return New(path, source, path.extension().c_str(), timer, io); }
 
-		void start(const Parameters& parameters = Parameters::Null());
-		void start(Media::Source& source, const Parameters& parameters = Parameters::Null()) { _pSource = &source; return start(parameters); }
 		bool running() const { return _pFile.operator bool(); }
-		void stop();
 
 		IOFile&			io;
 		const Timer&	timer;
 
 	private:
+		void starting(const Parameters& parameters);
+		void stopping();
+
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pReader->format()); }
 
 		struct Lost : Media::Base, virtual Object {
@@ -63,14 +60,19 @@ struct MediaFile : virtual Static  {
 		private:
 			UInt32 decode(shared<Buffer>& pBuffer, bool end);
 
-			void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { if(!_mediaTimeGotten) _mediaTimeGotten = !tag.isConfig; _pMedias->emplace_back(new Media::Audio(tag, packet, track)); }
-			void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { if (!_mediaTimeGotten) _mediaTimeGotten = tag.frame != Media::Video::FRAME_CONFIG; _pMedias->emplace_back(new Media::Video(tag, packet, track)); }
-			void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { _pMedias->emplace_back(new Media::Data(type, packet, track)); }
-			void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) { _pMedias->emplace_back(new Media::Data(type, packet, track, true)); }
-			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { _pMedias->emplace_back(new Lost(type, lost, track)); }
+			void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { if(!_mediaTimeGotten) _mediaTimeGotten = !tag.isConfig; writeMedia<Media::Audio>(tag, packet, track); }
+			void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { if (!_mediaTimeGotten) _mediaTimeGotten = tag.frame != Media::Video::FRAME_CONFIG; writeMedia<Media::Video>(tag, packet, track); }
+			void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { writeMedia<Media::Data>(type, packet, track); }
+			void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) { writeMedia<Media::Data>(type, packet, track, true); }
+			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { writeMedia<Lost>(type, lost, track); }
 			void flush() { } // do nothing on source flush, to do the flush in end of file reading!
 			void reset() { _pMedias->emplace_back(); }
 
+			template <typename MediaType, typename ...Args>
+			void writeMedia(Args&&... args) {
+				_pMedias->emplace_back();
+				_pMedias->back().set<MediaType>(std::forward<Args>(args)...);
+			}
 			
 			shared<MediaReader>		_pReader;
 			std::string				_name;
@@ -86,7 +88,6 @@ struct MediaFile : virtual Static  {
 		File::OnError			_onFileError;
 
 		shared<MediaReader>		_pReader;
-		Media::Source*			_pSource;
 		shared<File>			_pFile;
 		shared<Decoder>			_pDecoder;
 
@@ -98,16 +99,14 @@ struct MediaFile : virtual Static  {
 
 
 	struct Writer : Media::Target, Media::Stream, virtual Object {
-		Writer(const Path& path, MediaWriter* pWriter, IOFile& io);
+		Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io);
 		virtual ~Writer() { stop(); }
 
-		static MediaFile::Writer* New(const Path& path, const char* subMime, IOFile& io);
-		static MediaFile::Writer* New(const Path& path, IOFile& io) { return New(path, path.extension().c_str(), io); }
+		static unique<MediaFile::Writer> New(const Path& path, const char* subMime, IOFile& io);
+		static unique<MediaFile::Writer> New(const Path& path, IOFile& io) { return New(path, path.extension().c_str(), io); }
 
-		void start(const Parameters& parameters = Parameters::Null());
 		bool running() const { return _running; }
-		void stop();
-
+	
 		IOFile&		io;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 	
@@ -120,13 +119,16 @@ struct MediaFile : virtual Static  {
 		void endMedia();
 
 	private:
+		void starting(const Parameters& parameters);
+		void stopping();
+
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pWriter->format()); }
 
 		template<typename WriteType, typename ...Args>
 		bool write(Args&&... args) {
 			if (!_pFile)
 				return false; // Stream not begin or has failed!
-			io.threadPool.queue(new WriteType(_pName, io, _pFile, _pWriter, args ...), _writeTrack);
+			io.threadPool.queue<WriteType>(_writeTrack, _pName, io, _pFile, _pWriter, std::forward<Args>(args)...);
 			return true;
 		}
 

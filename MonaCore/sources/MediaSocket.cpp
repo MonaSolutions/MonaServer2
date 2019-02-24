@@ -17,16 +17,17 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MediaSocket.h"
+#include "Mona/Logs.h"
 
 using namespace std;
 
 namespace Mona {
 
-MediaSocket::Reader* MediaSocket::Reader::New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
+unique<MediaSocket::Reader> MediaSocket::Reader::New(Media::Stream::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
 	if (!*subMime && type == Media::Stream::TYPE_HTTP ) // Format can be empty with HTTP source
-		return new MediaSocket::Reader(type, path, NULL, address, io, pTLS);
-	MediaReader* pReader = MediaReader::New(subMime);
-	return pReader ? new MediaSocket::Reader(type, path, pReader, address, io, pTLS) : NULL;
+		return make_unique<MediaSocket::Reader>(type, path, source, unique<MediaReader>(), address, io, pTLS);
+	unique<MediaReader> pReader(MediaReader::New(subMime));
+	return pReader ? make_unique<MediaSocket::Reader>(type, path, source, move(pReader), address, io, pTLS) : nullptr;
 }
 
 void MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
@@ -49,8 +50,8 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<S
 	return 0;
 }
 
-MediaSocket::Reader::Reader(Type type, const Path& path, MediaReader* pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(type, path), _streaming(0), io(io), _pTLS(pTLS), address(address), _pReader(pReader), _subscribed(false) {
+MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
+	Media::Stream(type, path, source), _streaming(0), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)), _subscribed(false) {
 	_onSocketDisconnection = [this]() { Stream::stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketError = [this](const Exception& ex) {
 		if (_streaming >= 0) { // on first time OR when streaming!
@@ -75,20 +76,16 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 		INFO(description(), " starts");
 	}
 	if (message.lost)
-		_pSource->reportLost(message.pMedia->type, message.lost, message.pMedia->track);
+		source.reportLost(message.pMedia->type, message.lost, message.pMedia->track);
 	else if (message.pMedia->type)
-		_pSource->writeMedia(*message.pMedia);
+		source.writeMedia(*message.pMedia);
 	else if (!message.flush && !message) // !response => if header it's the first "publish" command
-		return _pSource->reset();
+		return source.reset();
 	if (message.flush)
-		_pSource->flush();
+		source.flush();
 }
 
-void MediaSocket::Reader::start(const Parameters& parameters) {
-	if (!_pSource) {
-		Stream::stop<Ex::Intern>(LOG_ERROR, "call start(Media::Source& source) in first");
-		return;
-	}
+void MediaSocket::Reader::starting(const Parameters& parameters) {
 	Exception ex;
 	bool success;
 	// Bind if UDP and not already bound
@@ -102,7 +99,7 @@ void MediaSocket::Reader::start(const Parameters& parameters) {
 
 	// Bound decoder + engine
 	if(!_subscribed) {
-		Decoder* pDecoder(new Decoder(io.handler, _pReader, _pSource->name(), type));
+		Decoder* pDecoder(new Decoder(io.handler, _pReader, source.name(), type));
 		pDecoder->onResponse = _onResponse = [this](HTTP::Response& response)->void { writeMedia(response); };
 		pDecoder->onRequest = _onRequest = [this](HTTP::Request& request) {
 			if(type==Media::Stream::TYPE_HTTP)
@@ -133,12 +130,12 @@ void MediaSocket::Reader::start(const Parameters& parameters) {
 		WARN(description(), ", ", ex);
 	if (!connected && type == TYPE_HTTP) {
 		// send HTTP Header request!
-		shared<Buffer> pBuffer(new Buffer());
+		shared<Buffer> pBuffer(SET);
 		BinaryWriter writer(*pBuffer);
 		writer.write(EXPAND("GET ")).write(path);
 		writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
 		writer.write(address).write(EXPAND("\r\n\r\n"));
-		DUMP_REQUEST(_pSource->name().c_str(), pBuffer->data(), pBuffer->size(), address);
+		DUMP_REQUEST(source.name().c_str(), pBuffer->data(), pBuffer->size(), address);
 		int sent;
 		AUTO_ERROR((sent = _pSocket->write(ex, Packet(pBuffer)))>=0, description());
 		if (sent < 0)
@@ -146,33 +143,32 @@ void MediaSocket::Reader::start(const Parameters& parameters) {
 	}
 }
 
-void MediaSocket::Reader::stop() {
+void MediaSocket::Reader::stopping() {
 	if (!_subscribed)
 		return;
 	io.unsubscribe(_pSocket);
-	_pSocket.reset();
 	_onRequest = nullptr;
 	_onResponse = nullptr;
 	_subscribed = false;
 	if (_streaming>0) {
 		if (_pReader.unique()) // works also when _pReader is null (unique()==false)
-			_pReader->flush(*_pSource);
+			_pReader->flush(source);
 		else
-			_pSource->reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
+			source.reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
 		INFO(description(), " stops");
 		_streaming = 0;
 	}
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if(_pReader)
-		_pReader.reset(MediaReader::New(_pReader->subMime()));
+		_pReader = MediaReader::New(_pReader->subMime());
 }
 
 const shared<Socket>& MediaSocket::Reader::socket() {
 	if (!_pSocket) {
 		if (_pTLS)
-			_pSocket.reset(new TLS::Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS));
+			_pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS);
 		else
-			_pSocket.reset(new Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM));
+			_pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	}
 	return _pSocket;
 }
@@ -181,9 +177,9 @@ const shared<Socket>& MediaSocket::Reader::socket() {
 
 
 
-MediaSocket::Writer* MediaSocket::Writer::New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
-	MediaWriter* pWriter = MediaWriter::New(subMime);
-	return pWriter ? new MediaSocket::Writer(type, path, pWriter, address, io, pTLS) : NULL;
+unique<MediaSocket::Writer> MediaSocket::Writer::New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
+	unique<MediaWriter> pWriter(MediaWriter::New(subMime));
+	return pWriter ? make_unique<MediaSocket::Writer>(type, path, move(pWriter), address, io, pTLS) : nullptr;
 }
 
 MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming) : Runner("MediaSocketSend"), _pSocket(pSocket), pWriter(pWriter),
@@ -210,20 +206,25 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 const shared<Socket>& MediaSocket::Writer::socket() {
 	if (!_pSocket) {
 		if (_pTLS)
-			_pSocket.reset(new TLS::Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS));
+			_pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS);
 		else
-			_pSocket.reset(new Socket(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM));
+			_pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	}
 	return _pSocket;
 }
 
-MediaSocket::Writer::Writer(Type type, const Path& path, MediaWriter* pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(type, path), io(io), _pTLS(pTLS), address(address), _sendTrack(0), _subscribed(false), _pWriter(pWriter), _pStreaming(new bool(false)) {
-	_onDisconnection = [this]() { Stream::stop<Ex::Net::Socket>(LOG_WARN, this->address, "disconnection"); };
+MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
+	Media::Stream(type, path), io(io), _pTLS(pTLS), address(address), _sendTrack(0), _subscribed(false), _pWriter(move(pWriter)), _pStreaming(SET, false) {
+	_onDisconnection = [this]() { Stream::stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
+	_onError = [this](const Exception& ex) { Stream::stop(*_pStreaming ? LOG_WARN : LOG_DEBUG, ex); };
+}
+MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io) : _pSocket(pSocket),
+	Media::Stream(type, path), io(io), address(pSocket->peerAddress()), _sendTrack(0), _subscribed(false), _pWriter(move(pWriter)), _pStreaming(SET, false) {
+	_onDisconnection = [this]() { Stream::stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
 	_onError = [this](const Exception& ex) { Stream::stop(*_pStreaming ? LOG_WARN : LOG_DEBUG, ex); };
 }
 
-void MediaSocket::Writer::start(const Parameters& parameters) {
+void MediaSocket::Writer::starting(const Parameters& parameters) {
 	Exception ex;
 	if (!_subscribed) {
 		// engine subscription BEFORE connect to be able to detect connection success/failure
@@ -250,7 +251,7 @@ void MediaSocket::Writer::start(const Parameters& parameters) {
 		WARN(description(), ", ", ex);
 	if (!connected && type == TYPE_HTTP) {
 		// send HTTP Header request!
-		shared<Buffer> pBuffer(new Buffer());
+		shared<Buffer> pBuffer(SET);
 		BinaryWriter writer(*pBuffer);
 		writer.write(EXPAND("POST ")).write(path);
 		writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
@@ -264,9 +265,10 @@ void MediaSocket::Writer::start(const Parameters& parameters) {
 	}
 }
 
+
 bool MediaSocket::Writer::beginMedia(const string& name) {
 	bool streaming = _pName.operator bool(); // can be already streaming (MBR switch)
-	_pName.reset(new string(name));
+	_pName.set(name);
 	start(); // begin media, we can try to start here (just on beginMedia!)
 	return streaming ? true : send<Send>();
 }
@@ -282,19 +284,18 @@ void MediaSocket::Writer::endMedia() {
 	stop();
 }
 
-void MediaSocket::Writer::stop() {
+void MediaSocket::Writer::stopping() {
 	// Close socket to signal the end of media
 	if (!_subscribed)
 		return;
 	io.unsubscribe(_pSocket);
-	_pSocket.reset();
 	// reset _pWriter because could be used by different thread by new Socket and its sending thread
-	_pWriter.reset(MediaWriter::New(_pWriter->subMime()));
+	_pWriter = MediaWriter::New(_pWriter->subMime());
 	_pName.reset();
 	_subscribed = false;
 	if (*_pStreaming) {
 		INFO(description(), " stops");
-		_pStreaming.reset(new bool(false));
+		_pStreaming.set(false);
 	}
 }
 

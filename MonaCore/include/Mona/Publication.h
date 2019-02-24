@@ -89,7 +89,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 	const std::set<Subscription*>	subscriptions;
 
-	void							start(MediaFile::Writer* pRecorder=NULL, bool append = false);
+	void							start(unique<MediaFile::Writer>&& pRecorder = nullptr, bool append = false);
 	void							reset();
 	bool							publishing() const { return _publishing; }
 	void							stop();
@@ -122,7 +122,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 private:
 	void flushProperties();
 
-	void startRecording(MediaFile::Writer& recorder, bool append);
+	void startRecording(unique<MediaFile::Writer>&& pRecorder, bool append);
 	void stopRecording();
 
 	// Media::Properties overrides
@@ -145,7 +145,7 @@ private:
 	bool							_newLost;
 	Time							_timeProperties;
 
-	std::unique_ptr<Subscription>   _pRecording;
+	unique<Subscription>			_pRecording;
 };
 
 

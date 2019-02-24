@@ -30,8 +30,7 @@ RTMPSender::RTMPSender(AMF::Type type, UInt32 time, UInt32	streamId,
 					   Media::Data::Type packetType,
 					   const Packet& packet) : Runner("RTMPSender"),  _type(type), _time(time), _streamId(streamId), _packetType(packetType), _packet(move(packet)),
 							_pChannel(pChannel), _pSocket(pSocket), _pEncryptKey(pEncryptKey),
-							writer(*new Buffer(18)) {  // 18 => maximum header size!
-	_pBuffer.reset(&writer->buffer());
+							writer(_pBuffer.set(18)) {  // 18 => maximum header size!
 }
 
 bool RTMPSender::run(Exception&) {
@@ -119,7 +118,7 @@ bool RTMPSender::run(Exception&) {
 	if (_packet) {
 		if (_pEncryptKey) {
 			DUMP_RESPONSE("RTMPE", _packet.data(), _packet.size(), _pSocket->peerAddress());
-			_pBuffer.reset(new Buffer(_packet.size()));
+			_pBuffer.set(_packet.size());
 			RC4(_pEncryptKey.get(), _packet.size(), _packet.data(), _pBuffer->data());
 			_packet.set(_pBuffer);
 		} else

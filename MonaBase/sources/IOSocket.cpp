@@ -67,7 +67,7 @@ protected:
 	template<typename HandleType, typename ...Args>
 	void handle(const shared<Socket>& pSocket, Args&&... args) {
 		if(!pSocket.unique())
-			pSocket->_pHandler->queue(new HandleType(name, pSocket, _ex, std::forward<Args>(args)...));
+			pSocket->_pHandler->queue<HandleType>(name, pSocket, _ex, std::forward<Args>(args)...);
 		_ex = NULL;
 	}
 
@@ -277,7 +277,7 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	if (pSocket->_firstWritable)
 		pSocket->_firstWritable = false;
 #endif
-	threadPool.queue(new Send(error, pSocket));
+	threadPool.queue<Send>(0, error, pSocket);
 }
 
 void IOSocket::read(const shared<Socket>& pSocket, int error) {
@@ -307,7 +307,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 					if (!_pThread)
 						return;
 					if (receiving < Socket::BACKLOG_MAX)
-						_pThread->queue(new Accept(0, pSocket)); // REARM
+						_pThread->queue<Accept>(0, pSocket); // REARM
 					else
 						--pSocket->_reading;
 				}
@@ -332,7 +332,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 			}
 		};
 
-		return threadPool.queue(new Accept(error, pSocket), pSocket->_threadReceive);
+		return threadPool.queue<Accept>(pSocket->_threadReceive, error, pSocket);
 	}
 
 
@@ -357,7 +357,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				if (!_pThread)
 					return;
 				if(receiving < pSocket->recvBufferSize())
-					_pThread->queue(new Receive(0, pSocket)); // REARM
+					_pThread->queue<Receive>(0, pSocket); // REARM
 				else
 					--pSocket->_reading;
 			}
@@ -374,7 +374,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 			while (!stop) {
 				if (!available) // always get something (maybe a new reception has been gotten since the last pSocket->available() call)
 					available = 2048; // in UDP allows to avoid a NET_EMSGSIZE error (where packet is lost!), and 2048 to be greater than max possible MTU (~1500 bytes)
-				shared<Buffer>	pBuffer(new Buffer(available));
+				shared<Buffer>	pBuffer(SET, available);
 				SocketAddress	address;
 				bool queueing(pSocket->queueing() ? true : false);
 				int received = pSocket->receive(ex, pBuffer->data(), available, 0, &address);
@@ -419,7 +419,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 		}
 	};
 
-	threadPool.queue(new Receive(error, pSocket), pSocket->_threadReceive);
+	threadPool.queue<Receive>(pSocket->_threadReceive, error, pSocket);
 }
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
@@ -443,7 +443,7 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 			return true;
 		}
 	};
-	threadPool.queue(new Close(error, pSocket), pSocket->_threadReceive);
+	threadPool.queue<Close>(pSocket->_threadReceive, error, pSocket);
 }
 
 
@@ -623,7 +623,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 			else if (event.filter==EVFILT_WRITE)
 				write(pSocket, error);
 			else if (error) // on few unix system we can get an error without anything else
-				threadPool.queue(new Action("SocketError", error, pSocket), pSocket->_threadReceive);
+				threadPool.queue<Action>(pSocket->_threadReceive, "SocketError", error, pSocket);
 
 #else
 			epoll_event& event(events[i]);
@@ -670,7 +670,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 				}
 			}
 			if (error) // on few unix system we can get an error without anything else
-				threadPool.queue(new Action("SocketError", error, pSocket), pSocket->_threadReceive);
+				threadPool.queue<Action>(pSocket->_threadReceive, "SocketError", error, pSocket);
 #endif
 		}
 

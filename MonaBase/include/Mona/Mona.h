@@ -36,6 +36,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define BIN		(Mona::UInt8*)
 #define STR		(char*)
 
+#define SET		std::piecewise_construct
+#define SET_T	std::piecewise_construct_t
 #define EXPAND(VALUE)	VALUE"",(sizeof(VALUE)-1) // "" concatenation is here to check that it's a valid const string is not a pointer of char*
 
 #define STRINGIZE(x) STRINGIZE2(x)
@@ -82,15 +84,39 @@ void DetectMemoryLeak();
 void DetectMemoryLeak();
 #endif
 
-
-
 ///// TYPES /////
 template<typename Type>
-using shared = std::shared_ptr<Type>;
+struct shared : std::shared_ptr<Type> {
+	shared() : std::shared_ptr<Type>() {}
+	using std::shared_ptr<Type>::shared_ptr;
+	template<typename ...Args>
+	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
+	template<typename NewType = Type, typename ...Args>
+	NewType& set(Args&&... args) { std::shared_ptr<Type>::operator=(std::make_shared<NewType>(std::forward<Args>(args)...)); return *(NewType*)get(); }
+	shared& reset() { std::shared_ptr<Type>::reset(); return self; }
+	using std::shared_ptr<Type>::operator=;
+	shared& operator=(Type* pType) { std::shared_ptr<Type>::reset(pType); return self; };
+private:
+	template<typename NewType>
+	shared(NewType* pType) {}
+};
+template<typename Type>
+struct unique : std::unique_ptr<Type> {
+	unique() : std::unique_ptr<Type>() {}
+	using std::unique_ptr<Type>::unique_ptr;
+	template<typename ...Args>
+	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
+	template<typename NewType = Type, typename ...Args>
+	NewType& set(Args&&... args) { std::unique_ptr<Type>::operator=(std::make_unique<NewType>(std::forward<Args>(args)...)); return *(NewType*)get(); }
+	unique& reset() { std::unique_ptr<Type>::reset(); return self; }
+	using std::unique_ptr<Type>::operator=;
+	unique& operator=(Type* pType) { std::unique_ptr<Type>::reset(pType); return self; };
+private:
+	template<typename NewType>
+	unique(NewType* pType) {}
+};
 template<typename Type>
 using weak = std::weak_ptr<Type>;
-template<typename Type>
-using unique = std::unique_ptr<Type>;
 
 
 typedef int8_t			Int8;

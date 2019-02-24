@@ -104,7 +104,7 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 
 	void clear();
 
-	template<typename TargetType>
+	template<typename TargetType=Media::Target>
 	TargetType& target() const { return (TargetType&)_target; }
 private:
 	void setTime(const char* time = NULL);
@@ -179,7 +179,7 @@ private:
 		} else {
 			if (tracks.pSelection && *tracks.pSelection == track)
 				return; // no change!
-			tracks.pSelection.reset(new UInt8(track));
+			tracks.pSelection.set(track);
 			if (!track)
 				return; // track disabled, following is useless
 		}
@@ -219,7 +219,7 @@ private:
 				return true; // already joined OR must be buffered as previous (no time progress, same behavior than prev media)
 			if (size() <= _nextSize)
 				return false; // can be played now
-			emplace(begin() + size() - _nextSize, new MediaType(tag, packet, track));
+			emplace(begin() + size() - _nextSize)->set<MediaType>(tag, packet, track);
 			return true;
 		}
 		template<typename MediaType>
@@ -249,7 +249,8 @@ private:
 					_nextTimeout.update(); // update timeout on first next frame to wait now just 1 second!
 			}
 			++_nextSize;
-			emplace_back(new MediaType(args ...));
+			emplace_back();
+			back().set<MediaType>(std::forward<Args>(args)...);
 			return true;
 		}
 

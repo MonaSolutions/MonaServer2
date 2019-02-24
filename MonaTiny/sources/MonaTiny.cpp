@@ -35,7 +35,7 @@ private:
 			Exception ex;
 			SocketAddress address(IPAddress::Loopback(), 8080);
 			_http.connect(ex, address);
-			shared<Buffer> pBuffer(new Buffer());
+			shared<Buffer> pBuffer(SET);
 			BinaryWriter writer(*pBuffer);
 			writer.write(EXPAND("GET ")).write("/test");
 			writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));

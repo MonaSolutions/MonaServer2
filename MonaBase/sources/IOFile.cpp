@@ -42,7 +42,7 @@ protected:
 	template<typename HandleType, typename ...Args>
 	void handle(const shared<File>& pFile, Args&&... args) {
 		if(!pFile.unique())
-			pFile->_pHandler->queue(new HandleType(name, pFile, forward<Args>(args)...));
+			pFile->_pHandler->queue<HandleType>(name, pFile, forward<Args>(args)...);
 	}
 
 	bool run(Exception& ex, const shared<File>& pFile) {
@@ -103,7 +103,7 @@ void IOFile::load(const shared<File>& pFile) {
 	if (*pFile)
 		return;
 	// SAction to allow file creation full asynchronous (without any other hand on the file)
-	_threadPool.queue(new SAction("LoadFile", handler, pFile), pFile->_ioTrack);
+	_threadPool.queue<SAction>(pFile->_ioTrack, "LoadFile", handler, pFile);
 }
 
 void IOFile::read(const shared<File>& pFile, UInt32 size) {
@@ -124,7 +124,8 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 			// take the required size just if not exceeds file size to avoid to allocate a too big buffer (expensive)
 			// + use pFile->size() without refreshing to use as same size as caller has gotten it (for example to write a content-length in header)
 			UInt64 available = pFile->size() - pFile->readen();
-			shared<Buffer>	pBuffer(new Buffer(UInt32(min(available, _size))));
+			shared<Buffer>	pBuffer(SET, UInt32(min(available, _size)));
+			pBuffer.set(UInt32(min(available, _size)));
 			int readen = pFile->read(ex, pBuffer->data(), pBuffer->size());
 			if (readen < 0)
 				return false;
@@ -142,7 +143,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 							handle<ReadFile::Handle>(pFile, _pBuffer, _end);
 						// decoded=wantToRead!
 						if(decoded && !_end)
-							_pThread->queue(new ReadFile(*pFile->_pHandler, pFile, _threadPool, decoded));
+							_pThread->queue<ReadFile>(*pFile->_pHandler, pFile, _threadPool, decoded);
 						return true;
 					}
 					shared<Buffer>		_pBuffer;
@@ -150,7 +151,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 					const ThreadPool&	_threadPool;
 					ThreadQueue*		_pThread;
 				};
-				_threadPool.queue(new Decoding(pFile, _threadPool, pBuffer, _size == available), pFile->_decodingTrack);
+				_threadPool.queue<Decoding>(pFile->_decodingTrack, pFile, _threadPool, pBuffer, _size == available);
 			} else
 				handle<Handle>(pFile, pBuffer, _size == available);
 			return true;
@@ -159,7 +160,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 		const ThreadPool&	_threadPool;
 	};
 	// always do the job even if size==0 to get a onReaden event!
-	_threadPool.queue(new ReadFile(handler, pFile, threadPool, size), pFile->_ioTrack);
+	_threadPool.queue<ReadFile>(pFile->_ioTrack, handler, pFile, threadPool, size);
 }
 
 void IOFile::write(const shared<File>& pFile, const Packet& packet) {
@@ -193,7 +194,7 @@ void IOFile::write(const shared<File>& pFile, const Packet& packet) {
 	// do the WriteFile even if packet is empty when not loaded to allow to open the file and clear its content or create the file
 	// or to allow to create the folder => if File is a Folder opened in WRITE/APPEND mode loaded is always false and write an empty packet create the folder => allow a folder creation asynchrone!
 	if(packet || !pFile->loaded())
-		_threadPool.queue(new WriteFile(handler, pFile, packet), pFile->_ioTrack);
+		_threadPool.queue<WriteFile>(pFile->_ioTrack, handler, pFile, packet);
 }
 
 void IOFile::erase(const shared<File>& pFile) {
@@ -218,7 +219,7 @@ void IOFile::erase(const shared<File>& pFile) {
 			return true;
 		}
 	};
-	_threadPool.queue(new EraseFile(handler, pFile), pFile->_ioTrack);
+	_threadPool.queue<EraseFile>(pFile->_ioTrack, handler, pFile);
 }
 
 

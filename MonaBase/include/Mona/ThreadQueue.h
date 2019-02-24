@@ -37,6 +37,8 @@ struct ThreadQueue : Thread, virtual Object {
 		_runners.emplace_back(std::forward<RunnerType>(pRunner));
 		wakeUp.set();
 	}
+	template <typename RunnerType, typename ...Args>
+	void queue(Args&&... args) { queue(std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
 
 private:
 	bool run(Exception& ex, const volatile bool& requestStop);

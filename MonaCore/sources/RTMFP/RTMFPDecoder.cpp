@@ -29,7 +29,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 	OnHandshake		onHandshake;
 	OnEdgeMember	onEdgeMember;
 
-	Handshake(const Handler& handler, const shared<RendezVous>& pRendezVous) : _recvTime(Time::Now()), track(0), _pResponse(new Packet()), _pRendezVous(pRendezVous), _handler(handler) {}
+	Handshake(const Handler& handler, const shared<RendezVous>& pRendezVous) : _recvTime(Time::Now()), track(0), _pResponse(SET), _pRendezVous(pRendezVous), _handler(handler) {}
 
 	Packet					tag;
 	UInt16					track;
@@ -162,7 +162,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 							// from 0x38 to 0x30 again, address changed? => erase pReceiver, and restart handshake again
 							WARN("38 handshake back to 30 handshake again, obsolete session handshake abandonned by client");
 							pReceiver.reset();
-							_pResponse.reset(new Packet());
+							_pResponse.set();
 						} else if (this->tag ==tag) {
 							// repeat response
 							DEBUG("Repeat 30 handshake response");
@@ -240,7 +240,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 				// encode and save response
 				_pResponse->set(RTMFP::Engine::Encode(pOut, farId, address));
 				// Create receiver just before send
-				pReceiver.reset(new RTMFPReceiver(_handler, id, farId, farPubKey, farPubKeySize, decryptKey, encryptKey, address, _pRendezVous));
+				pReceiver.set(_handler, id, farId, farPubKey, farPubKeySize, decryptKey, encryptKey, address, _pRendezVous);
 				// send
 				RTMFP::Send(socket, *_pResponse, address);
 				return;
@@ -257,7 +257,7 @@ struct RTMFPDecoder::Handshake : virtual Object {
 };
 
 RTMFPDecoder::RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool) :
-	_pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(new atomic<UInt32>(0)) {
+	_pRendezVous(pRendezVous), _handler(handler), _threadPool(threadPool), _pReceiving(SET) {
 }
 
 bool RTMFPDecoder::finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver) {
@@ -332,7 +332,7 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 			it = _handshakes.erase(it);
 		if (it == _handshakes.end() || it->first != address) {
 			// Create handshake
-			it = _handshakes.emplace_hint(it, piecewise_construct, forward_as_tuple(address), forward_as_tuple(new Handshake(_handler, _pRendezVous)));
+			it = _handshakes.emplace_hint(it, SET, forward_as_tuple(address), forward_as_tuple(SET, _handler, _pRendezVous));
 			it->second->onHandshake = onHandshake;
 			it->second->onEdgeMember = onEdgeMember;
 		}

@@ -46,6 +46,6 @@ public:
 private:
 	static int	Write(lua_State* pState);
 	
-	std::unique_ptr<MediaContainer>		_pMedia;
+	unique<MediaContainer>		_pMedia;
 	bool								_first;
 };

@@ -34,7 +34,7 @@ UDPSocket::~UDPSocket() {
 
 bool UDPSocket::connect(Exception& ex, const SocketAddress& address) {
 	if (!_pSocket) {
-		_pSocket.reset(new Socket(Socket::TYPE_DATAGRAM));
+		_pSocket.set(Socket::TYPE_DATAGRAM);
 		io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError);
 	}
 	if (_pSocket->connect(ex, address))
@@ -60,7 +60,7 @@ bool UDPSocket::bind(Exception& ex, const SocketAddress& address) {
 			return true;
 		close();
 	}
-	_pSocket.reset(new Socket(Socket::TYPE_DATAGRAM));
+	_pSocket.set(Socket::TYPE_DATAGRAM);
 	if (io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError) && _pSocket->bind(ex, address))
 		return _bound = true;
 	close(); // release resources

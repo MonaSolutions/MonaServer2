@@ -42,7 +42,7 @@ void Timer::set(const OnTimer& onTimer,  UInt32 timeout) const {
 	if (!it.second)
 		it.first->second->emplace(&onTimer);
 	 else if (!it.first->second)
-		it.first->second.reset(new std::set<const OnTimer*>({ &onTimer }));
+		 it.first->second.set().emplace(&onTimer);
 }
 
 void Timer::add(const OnTimer& onTimer,  UInt32 timeout) const {
@@ -51,7 +51,7 @@ void Timer::add(const OnTimer& onTimer,  UInt32 timeout) const {
 	++_count;
 	auto& it(_timers[(onTimer._nextRaising=Time::Now() + timeout)]);
 	if (!it)
-		it.reset(new std::set<const OnTimer*>());
+		it.set();
 	it->emplace(&onTimer);
 }
 

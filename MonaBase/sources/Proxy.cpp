@@ -47,7 +47,10 @@ const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket,
 	if (_pSocket && _pSocket->peerAddress() != addressTo)
 		close(); // destinator has changed!
 	if (!_pSocket) {
-		_pSocket.reset(pSocket->isSecure() ? new TLS::Socket(pSocket->type, ((TLS::Socket*)pSocket.get())->pTLS) : new Socket(pSocket->type));
+		if (pSocket->isSecure())
+			_pSocket.set<TLS::Socket>(pSocket->type, ((TLS::Socket*)pSocket.get())->pTLS);
+		else
+			_pSocket.set(pSocket->type);
 		Decoder* pDecoder = new Decoder(io.handler, pSocket, addressFrom);
 		pDecoder->onError = onError;
 		if (!io.subscribe(ex, _pSocket, pDecoder, nullptr, _onFlush, onError, onDisconnection)) {

@@ -27,8 +27,7 @@ namespace Mona {
 
 
 RTMFPWriter::RTMFPWriter(UInt64 id, UInt64 flowId, const Binary& signature, RTMFP::Output& output) :
-		_repeatDelay(0), _output(output), _stageAck(0), _lostCount(0) {
-	_pQueue.reset(new RTMFPSender::Queue(id, flowId, signature));
+		_repeatDelay(0), _output(output), _stageAck(0), _lostCount(0), _pQueue(SET, id, flowId, signature) {
 }
 
 void RTMFPWriter::fail() {
@@ -38,7 +37,7 @@ void RTMFPWriter::fail() {
 	// clear resources excepting QoS to detect this lost flow of data
 	_stageAck = 0;
 	_repeatDelay = _lostCount = 0;
-	_pQueue.reset(new RTMFPSender::Queue(_output.resetWriter(_pQueue->id), _pQueue->flowId, _pQueue->signature));
+	_pQueue.set(_output.resetWriter(_pQueue->id), _pQueue->flowId, _pQueue->signature);
 }
 
 void RTMFPWriter::closing(Int32 code, const char* reason) {
@@ -58,7 +57,7 @@ void RTMFPWriter::acquit(UInt64 stageAck, UInt32 lostCount) {
 		_repeatDelay = _output.rto();
 		_repeatTime.update();
 		// continue sending
-		_output.send(make_shared<RTMFPAcquiter>(_pQueue, _stageAck));
+		_output.send(shared<RTMFPAcquiter>(SET, _pQueue, _stageAck));
 		return;
 	}
 	if (!lostCount) {
@@ -77,7 +76,7 @@ void RTMFPWriter::acquit(UInt64 stageAck, UInt32 lostCount) {
 void RTMFPWriter::repeatMessages(UInt32 lostCount) {
 	if (lostCount) {
 		// means that there is something lost! We can start a repeation without wait end of current sending
-		_output.send(make_shared<RTMFPRepeater>(_pQueue, lostCount>0xFF ? 0xFF : lostCount));
+		_output.send(shared<RTMFPRepeater>(SET, _pQueue, lostCount>0xFF ? 0xFF : lostCount));
 		return;
 	}
 	if (!_pQueue.unique())
@@ -95,7 +94,7 @@ void RTMFPWriter::repeatMessages(UInt32 lostCount) {
 		_repeatDelay = (UInt32)(_repeatDelay*1.4142);
 	else
 		_repeatDelay = 10000;
-	_output.send(make_shared<RTMFPRepeater>(_pQueue));
+	_output.send(shared<RTMFPRepeater>(SET, _pQueue));
 }
 
 void RTMFPWriter::flushing() {
@@ -123,7 +122,7 @@ AMFWriter& RTMFPWriter::newMessage(bool reliable, Media::Data::Type type, const 
 	if (closed())
 		return AMFWriter::Null();
 	if (!_pSender)
-		_pSender.reset(new RTMFPMessenger(_pQueue));
+		_pSender.set<RTMFPMessenger>(_pQueue);
 	return ((RTMFPMessenger&)*_pSender).newMessage(reliable, type, packet);
 }
 

@@ -35,11 +35,11 @@ struct RTMPDecoder : Socket::Decoder, private StreamData<Socket&>, virtual Objec
 private:
 	struct Channel : RTMP::Channel, virtual Object {
 		Channel(UInt32 id) : RTMP::Channel(id) {}
-		void reset() {
+		void clear() {
 			RTMP::Channel::reset();
 			_pBuffer.reset();
 		}
-		void reset(Buffer* pBuffer) { _pBuffer.reset(pBuffer); }
+		void reset() { _pBuffer.set(); }
 
 		Buffer*	operator->() { return _pBuffer.get(); }
 		Buffer&	operator*() { return *_pBuffer; }

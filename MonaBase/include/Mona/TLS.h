@@ -47,10 +47,10 @@ struct TLS : virtual Object {
 		UInt64	queueing() const;
 
 		bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout = 0);
-
+		int	 receive(Exception& ex, void* buffer, UInt32 size, int flags = 0) { return Mona::Socket::receive(ex, buffer, size, flags); }
 		int	 sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags = 0);
-
 		bool flush(Exception& ex) { return Mona::Socket::flush(ex); }
+
 	private:
 		int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 		bool flush(Exception& ex, bool deleting);

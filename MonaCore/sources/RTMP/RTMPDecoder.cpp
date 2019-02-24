@@ -71,7 +71,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 
 			bool encrypted(type==6);
 
-			shared<Buffer> pBuffer(new Buffer());
+			shared<Buffer> pBuffer(SET);
 			BinaryWriter writer(*pBuffer);
 
 			if (!key) {
@@ -105,8 +105,8 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				writer.writeRandom(3064);
 
 				if (encrypted) {
-					unique<RC4_KEY>	pEncryptKey(new RC4_KEY);
-					_pDecryptKey.reset(new RC4_KEY);
+					unique<RC4_KEY>	pEncryptKey(SET);
+					_pDecryptKey.set();
 
 					UInt32 farPubKeySize;
 					const UInt8* farPubKey = buffer.data() + RTMP::GetDHPos(buffer.data(), buffer.size(), middle, farPubKeySize);
@@ -192,7 +192,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 		if (channelId < 2)
 			channelId = (channelId == 0 ? reader.read8() : reader.read16()) + 64;
 
-		Channel& channel(_channels.emplace(piecewise_construct, forward_as_tuple(channelId), forward_as_tuple(channelId)).first->second);
+		Channel& channel(_channels.emplace(SET, forward_as_tuple(channelId), forward_as_tuple(channelId)).first->second);
 
 		bool isRelative(true);
 		if (headerSize >= 4) {
@@ -227,7 +227,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 		UInt32 chunkSize(channel.bodySize);
 		if (!channel()) {
 			// New packet
-			channel.reset(new Buffer());
+			channel.reset();
 			if (isRelative)
 				channel.absoluteTime += channel.time; // relative
 			else
@@ -261,7 +261,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				case AMF::TYPE_ABORT: {
 					const auto& it(_channels.find(BinaryReader(packet.data(), packet.size()).read32()));
 					if (it != _channels.end())
-						it->second.reset();
+						it->second.clear();
 					break;
 				}
 				case AMF::TYPE_CHUNKSIZE:

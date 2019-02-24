@@ -47,11 +47,8 @@ void FlashStream::flush() {
 void FlashStream::disengage(FlashWriter* pWriter) {
 	// Stop the current  job
 	if(_pPublication) {
-		if (pWriter) {
-			if(_pPublication->recording())
-				pWriter->writeAMFStatus("NetStream.Record.Stop", _pPublication->name() + " recording stopped");
+		if (pWriter)
 			pWriter->writeAMFStatus("NetStream.Unpublish.Success", _pPublication->name() + " is now unpublished");
-		}
 		 // do after writeAMFStatus because can delete the publication, so corrupt name reference
 		api.unpublish(*_pPublication, peer);
 		_pPublication = NULL;
@@ -200,12 +197,15 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 			_audioConfig.reset();
 			_dataTrack = 0;
 			if (_pPublication->recording()) {
-				_pPublication->recorder()->onError = [this, &writer](const Exception& ex) {
-					writer.writeAMFStatus("NetStream.Record.Failed", "error", ex);
+				_pPublication->recorder()->onStart = [this, &writer]() {
+					writer.writeAMFStatus("NetStream.Record.Start", _name + " recording started");
+				};
+				_pPublication->recorder()->onStop = [this, &writer](const Exception& ex) {
+					if(ex)
+						writer.writeAMFStatus("NetStream.Record.Failed", "error", ex);
 					writer.writeAMFStatus("NetStream.Record.Stop", _pPublication->name() + " recording stopped");
 					writer.flush();
 				};
-				writer.writeAMFStatus("NetStream.Record.Start", _name + " recording started");
 			} else if (ex) {
 				// recording pb!
 				if (ex.cast<Ex::Unsupported>())
@@ -393,7 +393,7 @@ void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
 	_video.time = timestamp;
 	UInt32 readen(FLVReader::ReadMediaHeader(packet.data(), packet.size(), _video));
 	if (_video.frame == Media::Video::FRAME_CONFIG && (_video.codec == Media::Video::CODEC_H264 || _video.codec == Media::Video::CODEC_HEVC)) {
-		shared<Buffer> pBuffer(new Buffer());
+		shared<Buffer> pBuffer(SET);
 		if (_video.codec == Media::Video::CODEC_HEVC)
 			readen += HEVC::ReadVideoConfig(packet.data() + readen, packet.size() - readen, *pBuffer);
 		else

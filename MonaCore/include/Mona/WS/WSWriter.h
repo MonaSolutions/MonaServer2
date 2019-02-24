@@ -61,8 +61,8 @@ private:
 	WSSender*		newSender(Args&&... args) {
 		if (closed())
 			return NULL;
-		_senders.emplace_back(new SenderType(_session, std::forward<Args>(args)...));
-		return _senders.back().get();
+		_senders.emplace_back();
+		return &_senders.back().set<SenderType>(_session, std::forward<Args>(args)...);
 	}
 
 	TCPSession&						_session;

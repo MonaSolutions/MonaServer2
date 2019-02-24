@@ -38,11 +38,14 @@ struct Logs : virtual Static {
 		if (fatalPos != std::string::npos)
 			name[fatalPos] = 0;
 		std::lock_guard<std::mutex> lock(_Mutex);
-		auto it = _Loggers.emplace(std::move(name), unique<Logger>(new LoggerType(std::forward<Args>(args) ...)));
-		it.first->second->name = it.first->first.c_str();
+		// , unique<Logger>(new LoggerType(std::forward<Args>(args) ...))
+		auto& it = _Loggers.emplace(std::move(name), nullptr);
+		if (!it.second)
+			return false;
+		it.first->second.set<LoggerType>(std::forward<Args>(args) ...).name = it.first->first.c_str();
 		if (fatalPos != std::string::npos)
 			it.first->second->fatal = it.first->first.c_str() + fatalPos + 1;
-		return it.second;
+		return true;
 	}
 	/*!
 	Remove a logger */
@@ -134,7 +137,7 @@ private:
 
 	static std::atomic<LOG_LEVEL>	_Level;
 	static struct Loggers : std::map<std::string, unique<Logger>, String::IComparator>, virtual Object {
-		Loggers() { emplace("console", new ConsoleLogger()); }
+		Loggers() { self["console"].set<ConsoleLogger>(); }
 		void fail(Logger& logger) { _failed.emplace_back(&logger); }
 		void flush();
 	private:

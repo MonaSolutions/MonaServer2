@@ -40,9 +40,9 @@ struct FileReader : virtual Object {
 	/!\ don't open really the file, because performance are better if opened on first read operation */
 	FileReader& open(const Path& path) {
 		close();
-		_pFile.reset(new File(path, File::MODE_READ));
+		_pFile.set(path, File::MODE_READ);
 		io.subscribe(_pFile, newDecoder(), onReaden, onError);
-		return *this;
+		return self;
 	}
 	/*!
 	Read data */
