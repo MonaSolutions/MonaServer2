@@ -25,6 +25,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/HTTP/HTTProtocol.h"
 #include "Mona/WS/WSProtocol.h"
 #include "Mona/STUN/STUNProtocol.h"
+#include "Mona/SRT/SRTProtocol.h"
 //#include "Mona/RTSP/RTSProtocol.h"
 
 using namespace std;
@@ -41,6 +42,9 @@ void Protocols::load(ServerAPI& api, Sessions& sessions) {
 	if(api.pTLSServer)
 		load<WSProtocol>("WSS", load<HTTProtocol>("HTTPS", api, sessions, api.pTLSServer));
 	load<STUNProtocol, false>("STUN", api, sessions);
+#if defined(SRT_API)
+	load<SRTProtocol>("SRT", api, sessions);
+#endif
 	//loadProtocol<RTSProtocol>("RTSP", api, sessions);
 }
 
