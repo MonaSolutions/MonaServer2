@@ -44,7 +44,11 @@ struct Socket : virtual Object, Net::Stats {
 
 	enum Type {
 		TYPE_STREAM = SOCK_STREAM,
-		TYPE_DATAGRAM = SOCK_DGRAM
+		TYPE_DATAGRAM = SOCK_DGRAM,
+		TYPE_OTHER = 0x10
+#if defined(SRT_API)
+		,TYPE_SRT = 0x10
+#endif
 	};
 
 	enum ShutdownType {
