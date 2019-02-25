@@ -20,6 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/MediaWriter.h"
+#include "Mona/SRT.h"
 
 namespace Mona {
 
