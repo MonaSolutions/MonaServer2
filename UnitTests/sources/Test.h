@@ -45,7 +45,7 @@ struct PoolTest : virtual Mona::Object {
 	template<typename TestType>
     bool makeAndRegister() {
 		const std::string& type = Mona::typeof<TestType>();
-		_mapTests.emplace(SET, std::forward_as_tuple(std::string(type.data(), type.find("::"))), std::forward_as_tuple(make_unique<TestType>(type)));
+		_mapTests.emplace(SET, std::forward_as_tuple(std::string(type.data(), type.find("::"))), std::forward_as_tuple(std::make_unique<TestType>(type)));
 		return true;
 	}
 		/// \brief create the test and add it to the PoolTest

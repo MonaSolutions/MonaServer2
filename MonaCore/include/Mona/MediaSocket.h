@@ -149,7 +149,7 @@ struct MediaSocket : virtual Static {
 		UInt16							_sendTrack;
 		bool							_subscribed;
 		shared<std::string>				_pName;
-		shared<volatile bool>			_pStreaming;
+		shared<bool>					_pStreaming;
 	};
 };
 

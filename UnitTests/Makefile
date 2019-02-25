@@ -11,7 +11,7 @@ CXX?=g++
 EXEC?=UnitTests
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I../MonaBase/include/ -I../
 LIBDIRS+=-L../MonaBase/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/"

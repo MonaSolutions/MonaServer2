@@ -373,7 +373,7 @@ struct IPAddress::IPv6Impl : IPAddress::IPImpl, virtual Object {
 			} else if (inet_pton(AF_INET6, address, &ia) != 1)
 				return false;
 		}
-		pAddress.reset(new IPv6Impl(ia, scope));
+		pAddress.set<IPv6Impl>(ia, scope);
 #endif
 		return true;
 	}

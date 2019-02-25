@@ -84,7 +84,7 @@ private:
 		// search other protocol declaration, ex: [HTTP2=HTTP]
 		for (auto& it : _params) {
 			// [name=protocol]
-			if (it.first.find('.') != string::npos || String::ICompare(it.second, protocol) != 0)
+			if (it.first.find('.') != std::string::npos || String::ICompare(it.second, protocol) != 0)
 				continue;
 			ProtocolType* pProtocol2 = loadProtocol<ProtocolType>(it.first.c_str(), std::forward<Args>(args)...);
 			if (pProtocol2) {

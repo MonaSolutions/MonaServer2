@@ -10,7 +10,7 @@ endif
 CXX?=g++
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-overloaded-virtual -Wno-potentially-evaluated-expression -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-overloaded-virtual -Wno-potentially-evaluated-expression -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I./../MonaBase/include/ -I./include/
 LIBDIRS+=-L./../MonaBase/lib/
 LIBS+=-lMonaBase -lcrypto -lssl

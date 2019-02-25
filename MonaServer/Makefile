@@ -11,7 +11,7 @@ CXX?=g++
 EXEC?=MonaServer
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++11 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
+CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I../
 LIBDIRS+=-L../MonaBase/lib/ -L../MonaCore/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,../MonaCore/lib/,-rpath,/usr/local/lib/"

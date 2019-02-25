@@ -40,7 +40,7 @@ struct ThreadPool : virtual Object {
 	template <typename RunnerType, typename ...Args>
 	void queue(UInt16& thread, Args&&... args) const { queue(thread, std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
 	template <typename RunnerType, typename ...Args>
-	void queue(nullptr_t, Args&&... args) const { UInt16 thread(0); queue<RunnerType>(thread, std::forward<Args>(args)...); }
+	void queue(std::nullptr_t, Args&&... args) const { UInt16 thread(0); queue<RunnerType>(thread, std::forward<Args>(args)...); }
 private:
 	void init(UInt16 threads, Thread::Priority priority = Thread::PRIORITY_NORMAL);
 

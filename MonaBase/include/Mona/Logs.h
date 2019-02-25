@@ -38,13 +38,12 @@ struct Logs : virtual Static {
 		if (fatalPos != std::string::npos)
 			name[fatalPos] = 0;
 		std::lock_guard<std::mutex> lock(_Mutex);
-		// , unique<Logger>(new LoggerType(std::forward<Args>(args) ...))
-		auto& it = _Loggers.emplace(std::move(name), nullptr);
-		if (!it.second)
+		const auto& it = _Loggers.emplace(std::move(name), nullptr).first;
+		if (it->second)
 			return false;
-		it.first->second.set<LoggerType>(std::forward<Args>(args) ...).name = it.first->first.c_str();
+		it->second.set<LoggerType>(std::forward<Args>(args) ...).name = it->first.c_str();
 		if (fatalPos != std::string::npos)
-			it.first->second->fatal = it.first->first.c_str() + fatalPos + 1;
+			it->second->fatal = it->first.c_str() + fatalPos + 1;
 		return true;
 	}
 	/*!

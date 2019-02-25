@@ -95,7 +95,7 @@ private:
 		while (!flush) {
 	
 			if(!_pBuffer)
-				_pBuffer.reset(new Buffer());
+				_pBuffer.set(SET);
 			BinaryWriter writer(*_pBuffer);
 
 			if (!writer) {
