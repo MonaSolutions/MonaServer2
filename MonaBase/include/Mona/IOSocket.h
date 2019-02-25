@@ -24,6 +24,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
+struct IOSRTSocket;
 struct IOSocket : private Thread, virtual Object {
 	IOSocket(const Handler& handler, const ThreadPool& threadPool, const char* name = "IOSocket");
 	~IOSocket();
@@ -96,6 +97,9 @@ private:
 	std::atomic<UInt32>							_subscribers;
 	std::mutex									_mutex;
 	Signal										_initSignal;
+#if defined(SRT_API)
+	IOSRTSocket									_ioSRTSocket;
+#endif
 
 	struct Action;
 	struct Send;

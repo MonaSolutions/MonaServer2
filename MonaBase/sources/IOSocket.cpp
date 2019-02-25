@@ -30,6 +30,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define EPOLLRDHUP 0x2000 // looks be just a SDL include forget for Android, but the event is implemented in epoll of Android
 #endif  // !defined(EPOLLRDHUP) 
 #endif
+#if defined(SRT_API)
+#include "Mona/IOSRTSocket.h"
+#endif
 
 
 using namespace std;
@@ -129,6 +132,14 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 	pSocket->onReceived = onReceived;
 	pSocket->onFlush = onFlush;
 	pSocket->_pHandler = &handler;
+
+#if defined(SRT_API)
+	if(pSocket->type==Soket::TYPE_SRT) {
+		if (_ioSRTSocket.subscribe(ex, pSocket))
+			return true;
+		goto FAIL:
+	}
+#endif
 
 
 	{
