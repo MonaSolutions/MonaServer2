@@ -108,7 +108,6 @@ template<typename Type>
 struct unique : std::unique_ptr<Type> {
 	using std::unique_ptr<Type>::unique_ptr;
 	unique() : std::unique_ptr<Type>() {}
-	unique(const unique& other) : std::unique_ptr<Type>(other) {}
 	unique(unique&& other) : std::unique_ptr<Type>(std::move(other)) {}
 	template<typename ...Args>
 	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
@@ -116,7 +115,6 @@ struct unique : std::unique_ptr<Type> {
 	NewType& set(Args&&... args) { return *(NewType*)std::unique_ptr<Type>::operator=(std::make_unique<NewType>(std::forward<Args>(args)...)).get(); }
 	unique& reset() { std::unique_ptr<Type>::reset(); return self; }
 	using std::unique_ptr<Type>::operator=;
-	unique& operator=(const unique& other) { std::unique_ptr<Type>::operator=(other); return self; };
 	unique& operator=(unique&& other) { std::unique_ptr<Type>::operator=(std::move(other)); return self; };
 	unique& operator=(Type* pType) { std::unique_ptr<Type>::reset(pType); return self; };
 private:
