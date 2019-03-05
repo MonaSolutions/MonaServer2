@@ -86,13 +86,31 @@ void DetectMemoryLeak();
 
 ///// TYPES /////
 template<typename Type>
+struct unique : std::unique_ptr<Type> {
+	using std::unique_ptr<Type>::unique_ptr;
+	unique() : std::unique_ptr<Type>() {}
+	template<typename ArgType>
+	unique(ArgType&& arg) : std::unique_ptr<Type>(std::move(arg)) {}
+	template<typename ...Args>
+	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
+	template<typename NewType = Type, typename ...Args>
+	NewType& set(Args&&... args) { return *(NewType*)std::unique_ptr<Type>::operator=(std::make_unique<NewType>(std::forward<Args>(args)...)).get(); }
+	unique& reset() { std::unique_ptr<Type>::reset(); return self; }
+	using std::unique_ptr<Type>::operator=;
+	unique& operator=(unique&& other) { std::unique_ptr<Type>::operator=(std::move(other)); return self; };
+	unique& operator=(Type* pType) { std::unique_ptr<Type>::reset(pType); return self; };
+private:
+	template<typename NewType>
+	unique(NewType* pType) {}
+};
+template<typename Type>
 struct shared : std::shared_ptr<Type> {
 	using std::shared_ptr<Type>::shared_ptr;
 	shared() : std::shared_ptr<Type>() {}
 	explicit shared(const shared& other) : std::shared_ptr<Type>(other) {}
 	explicit shared(const std::shared_ptr<Type>& other) : std::shared_ptr<Type>(other) {}
-	shared(shared&& other) : std::shared_ptr<Type>(std::move(other)) {}
-	shared(std::shared_ptr<Type>&& other) : std::shared_ptr<Type>(std::move(other)) {}
+	template<typename ArgType>
+	shared(ArgType&& arg) : std::shared_ptr<Type>(std::move(arg)) {}
 	template<typename ...Args>
 	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
 	template<typename NewType = Type, typename ...Args>
@@ -105,24 +123,6 @@ struct shared : std::shared_ptr<Type> {
 private:
 	template<typename NewType>
 	shared(NewType* pType) {}
-};
-template<typename Type>
-struct unique : std::unique_ptr<Type> {
-	using std::unique_ptr<Type>::unique_ptr;
-	unique() : std::unique_ptr<Type>() {}
-	unique(unique&& other) : std::unique_ptr<Type>(std::move(other)) {}
-	unique(std::unique_ptr<Type>&& other) : std::unique_ptr<Type>(std::move(other)) {}
-	template<typename ...Args>
-	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
-	template<typename NewType = Type, typename ...Args>
-	NewType& set(Args&&... args) { return *(NewType*)std::unique_ptr<Type>::operator=(std::make_unique<NewType>(std::forward<Args>(args)...)).get(); }
-	unique& reset() { std::unique_ptr<Type>::reset(); return self; }
-	using std::unique_ptr<Type>::operator=;
-	unique& operator=(unique&& other) { std::unique_ptr<Type>::operator=(std::move(other)); return self; };
-	unique& operator=(Type* pType) { std::unique_ptr<Type>::reset(pType); return self; };
-private:
-	template<typename NewType>
-	unique(NewType* pType) {}
 };
 template<typename Type>
 using weak = std::weak_ptr<Type>;
