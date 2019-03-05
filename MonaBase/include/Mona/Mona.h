@@ -89,10 +89,10 @@ template<typename Type>
 struct shared : std::shared_ptr<Type> {
 	using std::shared_ptr<Type>::shared_ptr;
 	shared() : std::shared_ptr<Type>() {}
-	shared(const shared& other) : std::shared_ptr<Type>(other) {}
-	shared(const std::shared_ptr<Type>& other) : std::shared_ptr<Type>(other) {}
-	shared(shared&& other) : std::shared_ptr<Type>(std::move(other)) {}
-	shared(std::shared_ptr<Type>&& other) : std::shared_ptr<Type>(std::move(other)) {}
+	explicit shared(const shared& other) : std::shared_ptr<Type>(other) {}
+	//shared(const std::shared_ptr<Type>& other) : std::shared_ptr<Type>(other) {}
+	explicit shared(shared&& other) : std::shared_ptr<Type>(std::move(other)) {}
+	//shared(std::shared_ptr<Type>&& other) : std::shared_ptr<Type>(std::move(other)) {}
 	template<typename ...Args>
 	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
 	template<typename NewType = Type, typename ...Args>
@@ -110,8 +110,8 @@ template<typename Type>
 struct unique : std::unique_ptr<Type> {
 	using std::unique_ptr<Type>::unique_ptr;
 	unique() : std::unique_ptr<Type>() {}
-	unique(unique&& other) : std::unique_ptr<Type>(std::move(other)) {}
-	unique(std::unique_ptr<Type>&& other) : std::unique_ptr<Type>(std::move(other)) {}
+	explicit unique(unique&& other) : std::unique_ptr<Type>(std::move(other)) {}
+	//unique(std::unique_ptr<Type>&& other) : std::unique_ptr<Type>(std::move(other)) {}
 	template<typename ...Args>
 	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
 	template<typename NewType = Type, typename ...Args>
