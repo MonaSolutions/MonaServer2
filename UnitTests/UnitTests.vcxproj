@@ -222,7 +222,7 @@
     <ClCompile Include="sources\PersistentDataTest.cpp" />
     <ClCompile Include="sources\ProxyTest.cpp" />
     <ClCompile Include="sources\SocketAddressTest.cpp" />
-    <ClCompile Include="sources\SRTSocketTest .cpp" />
+    <ClCompile Include="sources\SRTSocketTest.cpp" />
     <ClCompile Include="sources\StopwatchTest.cpp" />
     <ClCompile Include="sources\StringTest.cpp" />
     <ClCompile Include="sources\Test.cpp" />

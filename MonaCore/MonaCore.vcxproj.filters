@@ -49,9 +49,6 @@
     <Filter Include="Multimedia\Streams">
       <UniqueIdentifier>{81e79939-d161-43be-b958-318d9bf5319e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Protocols\SRT">
-      <UniqueIdentifier>{00195601-2a04-42fa-a39e-58ada9cf5cfd}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\Protocol.h">
@@ -354,9 +351,6 @@
     </ClInclude>
     <ClInclude Include="include\Mona\MediaSocket.h">
       <Filter>Multimedia\Streams</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\SRT\SRTProtocol.h">
-      <Filter>Protocols\SRT</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

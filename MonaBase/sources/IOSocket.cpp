@@ -30,8 +30,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define EPOLLRDHUP 0x2000 // looks be just a SDL include forget for Android, but the event is implemented in epoll of Android
 #endif  // !defined(EPOLLRDHUP) 
 #endif
+#include "Mona/SRT.h"
 #if defined(SRT_API)
-#include "Mona/IOSRTSocket.h"
+	#include "Mona/IOSRTSocket.h"
 #endif
 
 
@@ -111,7 +112,6 @@ IOSocket::~IOSocket() {
 	Thread::stop();
 }
 
-
 bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 											const Socket::OnReceived& onReceived,
 											const Socket::OnFlush& onFlush,
@@ -133,63 +133,19 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 	pSocket->onFlush = onFlush;
 	pSocket->_pHandler = &handler;
 
-#if defined(SRT_API)
-	if(pSocket->type==Soket::TYPE_SRT) {
-		if (_ioSRTSocket.subscribe(ex, pSocket))
+	if (pSocket->type < Socket::TYPE_OTHER) {
+		if (subscribe(ex, pSocket))
 			return true;
-		goto FAIL:
+	}
+#if defined(SRT_API)
+	else {
+		if (!_pIOSRTSocket)
+			_pIOSRTSocket.set(handler, threadPool);
+		if (_pIOSRTSocket->subscribe(ex, pSocket))
+			return true;
 	}
 #endif
 
-
-	{
-		lock_guard<mutex> lock(_mutex); // must protect "start" + _system (to avoid a write operation on restarting) + _subscribers increment
-		if (!running()) {
-			_initSignal.reset();
-			start(); // only way to start IOSocket::run
-			_initSignal.wait(); // wait _system assignment
-		}
-
-		if (!_system) {
-			ex.set<Ex::Net::System>(name(), " hasn't been able to start, impossible to manage sockets");
-			goto FAIL;
-		}
-
-#if defined(_WIN32)
-		lock_guard<mutex> lockSockets(_mutexSockets); // must protected _sockets
-		if (WSAAsyncSelect(*pSocket, _system, 104, FD_CONNECT | FD_ACCEPT | FD_CLOSE | FD_READ | FD_WRITE) != 0) { // FD_CONNECT useless (FD_WRITE is sent on connection!)
-			ex.set<Ex::Net::System>(Net::LastErrorMessage(), ", ", name(), " can't manage socket ", *pSocket);
-			goto FAIL;
-		}
-		_sockets.emplace(*pSocket, pSocket);
-#else
-		pSocket->_pWeakThis = new weak<Socket>(pSocket);
-		int res;
-#if defined(_BSD)
-		struct kevent events[2];
-		EV_SET(&events[0], *pSocket, EVFILT_READ, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
-		EV_SET(&events[1], *pSocket, EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
-		res = kevent(_system, events, 2, NULL, 0, NULL);
-#else
-		epoll_event event;
-		memset(&event, 0, sizeof(event));
-		event.events = EPOLLIN  | EPOLLRDHUP | EPOLLOUT | EPOLLET;
-		event.data.fd = *pSocket;
-		event.data.ptr = pSocket->_pWeakThis;
-		res = epoll_ctl(_system, EPOLL_CTL_ADD,*pSocket, &event);
-#endif
-		if(res<0) {
-			delete pSocket->_pWeakThis;
-			pSocket->_pWeakThis = NULL;
-			ex.set<Ex::Net::System>(Net::LastErrorMessage(),", ",name()," can't manage sockets");
-			goto FAIL;
-		}
-#endif
-		++_subscribers;
-	}
-	return true;
-
-FAIL:
 	if (block)
 		pSocket->setNonBlockingMode(ex, false);
 	pSocket->onFlush = nullptr;
@@ -200,34 +156,89 @@ FAIL:
 	return false;
 }
 
+bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket) {
+	lock_guard<mutex> lock(_mutex); // must protect "start" + _system (to avoid a write operation on restarting) + _subscribers increment
+	if (!running()) {
+		_initSignal.reset();
+		start(); // only way to start IOSocket::run
+		_initSignal.wait(); // wait _system assignment
+	}
+
+	if (!_system) {
+		ex.set<Ex::Net::System>(name(), " hasn't been able to start, impossible to manage sockets");
+		return false;
+	}
+
+#if defined(_WIN32)
+	lock_guard<mutex> lockSockets(_mutexSockets); // must protected _sockets
+	if (WSAAsyncSelect(*pSocket, _system, 104, FD_CONNECT | FD_ACCEPT | FD_CLOSE | FD_READ | FD_WRITE) != 0) { // FD_CONNECT useless (FD_WRITE is sent on connection!)
+		ex.set<Ex::Net::System>(Net::LastErrorMessage(), ", ", name(), " can't manage socket ", *pSocket);
+		return false;
+	}
+	_sockets.emplace(*pSocket, pSocket);
+#else
+	pSocket->_pWeakThis = new weak<Socket>(pSocket);
+	int res;
+#if defined(_BSD)
+	struct kevent events[2];
+	EV_SET(&events[0], *pSocket, EVFILT_READ, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
+	EV_SET(&events[1], *pSocket, EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
+	res = kevent(_system, events, 2, NULL, 0, NULL);
+#else
+	epoll_event event;
+	memset(&event, 0, sizeof(event));
+	event.events = EPOLLIN | EPOLLRDHUP | EPOLLOUT | EPOLLET;
+	event.data.fd = *pSocket;
+	event.data.ptr = pSocket->_pWeakThis;
+	res = epoll_ctl(_system, EPOLL_CTL_ADD, *pSocket, &event);
+#endif
+	if (res<0) {
+		delete pSocket->_pWeakThis;
+		pSocket->_pWeakThis = NULL;
+		ex.set<Ex::Net::System>(Net::LastErrorMessage(), ", ", name(), " can't manage sockets");
+		return false;
+	}
+#endif
+	++_subscribers;
+	
+	return true;
+}
+
 void IOSocket::unsubscribe(shared<Socket>& pSocket) {
-	// don't touch to pDecoder because can be accessing by receiving thread (thread safety)
+	// don't touch to pDecoder because can be accessed by receiving thread (thread safety)
 	pSocket->onFlush = nullptr;
 	pSocket->onReceived = nullptr;
 	pSocket->onDisconnection = nullptr;
 	pSocket->onAccept = nullptr;
 	pSocket->onError = nullptr;
 
+	if (pSocket->type < Socket::TYPE_OTHER) {
+		unsubscribe(pSocket.get());
+	}
+#if defined(SRT_API)
+	else
+		_pIOSRTSocket->unsubscribe(pSocket.get());
+#endif
+	pSocket.reset();
+}
+
+void IOSocket::unsubscribe(Socket* pSocket) {
 #if defined(_WIN32)
 	{
 		// decrements _count before the PostMessage
 		lock_guard<mutex> lock(_mutexSockets);
-		if (!_sockets.erase(*pSocket)) {
-			pSocket.reset();
+		if (!_sockets.erase(*pSocket))
 			return;
-		}
 	}
 #else
-	if (!pSocket->_pWeakThis) {
-		pSocket.reset();
+	if (!pSocket->_pWeakThis)
 		return;
-	}
 #endif
 
 	lock_guard<mutex> lock(_mutex); // to avoid a restart during _system reading + protected _count decrement
 	--_subscribers;
-	
-	 // if running _initSignal is set, so _system is assigned
+
+	// if running _initSignal is set, so _system is assigned
 #if defined(_WIN32)
 	if (running() && _system) {
 		WSAAsyncSelect(*pSocket, _system, 0, 0); // ignore error
@@ -254,7 +265,6 @@ void IOSocket::unsubscribe(shared<Socket>& pSocket) {
 		pSocket->_pWeakThis = NULL;
 	}
 #endif
-	pSocket.reset();
 }
 
 
@@ -435,7 +445,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
 	// ::printf("CLOSE(%d) socket %d\n", error, pSocket->id());
-	if (pSocket->type != Socket::TYPE_STREAM)
+	if (pSocket->type == Socket::TYPE_DATAGRAM)
 		return; // no Disconnection requirement!
 	struct Close : Action {
 		Close(int error, const shared<Socket>& pSocket) : Action("SocketClose", error, pSocket) {}
@@ -459,6 +469,11 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 
 
 bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
+#if defined(SRT_API)
+	if (!_pIOSRTSocket)
+		_pIOSRTSocket.set(handler, threadPool);
+	_pIOSRTSocket->start();
+#endif
 #if defined(_WIN32)
 	WNDCLASSEX wc;
 	::memset(&wc, 0, sizeof(wc));
@@ -721,6 +736,12 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 	return false;
 }
 	
-
+void IOSocket::stop() {
+#if defined(SRT_API)
+	if (_pIOSRTSocket)
+		_pIOSRTSocket->stop();
+#endif
+	Thread::stop();
+}
 
 } // namespace Mona

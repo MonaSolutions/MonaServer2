@@ -43,7 +43,8 @@ struct TCPServer : virtual Object {
 	bool		start(Exception& ex, const IPAddress& ip=IPAddress::Wildcard()) { return start(ex, SocketAddress(ip, 0)); }
 	bool		running() const { return _pSocket.operator bool();  }
 	void		stop();
-
+protected:
+	virtual shared<Socket> newSocket();
 
 private:
 	shared<Socket>		_pSocket;

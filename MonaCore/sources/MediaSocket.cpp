@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/MediaSocket.h"
 #include "Mona/Logs.h"
+#include "Mona/SRT.h"
 
 using namespace std;
 
@@ -167,6 +168,10 @@ const shared<Socket>& MediaSocket::Reader::socket() {
 	if (!_pSocket) {
 		if (_pTLS)
 			_pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS);
+#if defined(SRT_API)
+		else if (type == TYPE_SRT)
+			_pSocket.set<SRT::Socket>();
+#endif
 		else
 			_pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	}
@@ -188,7 +193,11 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 		UInt32 size = 0;
 		Packet chunk(packet);
 		while (chunk += size) {
-			size = type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
+			size = (type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE) ? Net::MTU_RELIABLE_SIZE : 
+#if defined(SRT_API)
+				(type == TYPE_SRT && chunk.size() > ::SRT_LIVE_DEF_PLSIZE) ? ::SRT_LIVE_DEF_PLSIZE : 
+#endif
+				chunk.size();
 			DUMP_RESPONSE(_pName->c_str(), chunk.data(), size, _pSocket->peerAddress());
 			Exception ex;
 			UInt64 byteRate = _pSocket->sendByteRate(); // Get byteRate before write to start computing cycle on 0!
@@ -207,6 +216,10 @@ const shared<Socket>& MediaSocket::Writer::socket() {
 	if (!_pSocket) {
 		if (_pTLS)
 			_pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS);
+#if defined(SRT_API)
+		else if (type == TYPE_SRT)
+			_pSocket.set<SRT::Socket>();
+#endif
 		else
 			_pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	}

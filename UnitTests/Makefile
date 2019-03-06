@@ -11,11 +11,11 @@ CXX?=g++
 EXEC?=UnitTests
 
 # Variables extendable
-CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
+override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I../MonaBase/include/ -I../
 LIBDIRS+=-L../MonaBase/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/"
-LIBS+=-pthread -lMonaBase -lcrypto -lssl
+override LIBS+=-pthread -lMonaBase -lcrypto -lssl
 ifeq ($(OS),Darwin)
 	LBITS := $(shell getconf LONG_BIT)
 	ifeq ($(LBITS),64)

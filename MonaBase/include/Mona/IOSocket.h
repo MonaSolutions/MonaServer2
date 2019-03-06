@@ -25,7 +25,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct IOSRTSocket;
-struct IOSocket : private Thread, virtual Object {
+struct IOSocket : protected Thread, virtual Object {
 	IOSocket(const Handler& handler, const ThreadPool& threadPool, const char* name = "IOSocket");
 	~IOSocket();
 
@@ -49,9 +49,24 @@ struct IOSocket : private Thread, virtual Object {
 								const Socket::OnAccept& onAccept,
 								const Socket::OnError& onError) { return subscribe(ex, pSocket, nullptr, nullptr, nullptr, onAccept, onError); }
 	
+	virtual bool			subscribe(Exception& ex, const shared<Socket>& pSocket);
+
 	/*!
 	Unsubscribe pSocket and reset shared<Socket> to avoid to resubscribe the same socket which could crash decoder assignation */
 	void					unsubscribe(shared<Socket>& pSocket);
+
+	virtual void			stop();
+
+protected:
+	std::mutex				_mutex;
+	Signal					_initSignal;
+	std::atomic<UInt32>		_subscribers;
+
+	void			read(const shared<Socket>& pSocket, int error);
+	void			write(const shared<Socket>& pSocket, int error);
+	void			close(const shared<Socket>& pSocket, int error);
+
+	virtual void	unsubscribe(Socket* pSocket);
 
 private:
 
@@ -79,27 +94,18 @@ private:
 			const Socket::OnDisconnection& onDisconnection,
 			const Socket::OnAccept& onAccept,
 			const Socket::OnError& onError);
-
-	void			read(const shared<Socket>& pSocket, int error);
-	void			write(const shared<Socket>& pSocket, int error);
-	void			close(const shared<Socket>& pSocket, int error);
 	
-	bool run(Exception& ex, const volatile bool& requestStop);
+	virtual bool run(Exception& ex, const volatile bool& requestStop);
 
 #if defined(_WIN32)
-	std::map<NET_SOCKET, weak<Socket>>	_sockets;
+	std::map<NET_SOCKET, weak<Socket>>			_sockets;
 	std::mutex									_mutexSockets;
 #else
 	int											_eventFD;
 #endif
 
 	NET_SYSTEM									_system;
-	std::atomic<UInt32>							_subscribers;
-	std::mutex									_mutex;
-	Signal										_initSignal;
-#if defined(SRT_API)
-	IOSRTSocket									_ioSRTSocket;
-#endif
+	shared<IOSRTSocket>							_pIOSRTSocket;
 
 	struct Action;
 	struct Send;

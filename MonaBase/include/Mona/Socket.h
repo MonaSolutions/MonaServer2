@@ -85,16 +85,16 @@ struct Socket : virtual Object, Net::Stats {
 	virtual UInt32		available() const;
 	virtual UInt64		queueing() const { return _queueing; }
 	
-	const SocketAddress& address() const;
+	virtual const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }
 
 	bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net");
 
-	bool setSendBufferSize(Exception& ex, int size);
-	bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex,SOL_SOCKET, SO_SNDBUF, size); }
+	virtual bool setSendBufferSize(Exception& ex, int size);
+	virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex,SOL_SOCKET, SO_SNDBUF, size); }
 	
-	bool setRecvBufferSize(Exception& ex, int size);
-	bool getRecvBufferSize(Exception& ex, int& size) const { return getOption(ex, SOL_SOCKET, SO_RCVBUF, size); }
+	virtual bool setRecvBufferSize(Exception& ex, int size);
+	virtual bool getRecvBufferSize(Exception& ex, int& size) const { return getOption(ex, SOL_SOCKET, SO_RCVBUF, size); }
 
 	bool setNoDelay(Exception& ex, bool value) { return setOption(ex,IPPROTO_TCP, TCP_NODELAY, value ? 1 : 0); }
 	bool getNoDelay(Exception& ex, bool& value) const { return getOption(ex, IPPROTO_TCP, TCP_NODELAY, value); }
@@ -117,7 +117,7 @@ struct Socket : virtual Object, Net::Stats {
 	void setReusePort(bool value);
 	bool getReusePort() const;
 
-	bool setNonBlockingMode(Exception& ex, bool value);
+	virtual bool setNonBlockingMode(Exception& ex, bool value);
 	bool getNonBlockingMode() const { return _nonBlockingMode; }
 
 	bool joinGroup(Exception& ex, const IPAddress& ip, UInt32 interfaceIndex=0);
@@ -158,11 +158,18 @@ struct Socket : virtual Object, Net::Stats {
 	}
 
 protected:
-	bool			_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
+	bool					_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
+	volatile bool			_nonBlockingMode;
+	mutable SocketAddress	_address;
+	SocketAddress			_peerAddress;
+	NET_SOCKET				_id;
+	Exception				_ex;
+
+	mutable std::atomic<int>	_recvBufferSize;
+	mutable std::atomic<int>	_sendBufferSize;
 
 	// Create a socket from Socket::accept
-	Socket(NET_SOCKET id, const sockaddr& addr);
-	Socket(const sockaddr& addr); // UDP
+	Socket(NET_SOCKET id, const sockaddr& addr, Type type=TYPE_STREAM);
 	virtual Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr) { return new Socket(sockfd, (sockaddr&)addr); }
 	virtual int		receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 
@@ -207,25 +214,14 @@ private:
 		const int			flags;
 	};
 
-	Exception					_ex;
-	NET_SOCKET					_id;
-
-	volatile bool				_nonBlockingMode;
-
 	mutable std::mutex			_mutexSending;
 	std::deque<Sending>			_sendings;
 	std::atomic<UInt64>			_queueing;
-
-	SocketAddress				_peerAddress;
-	mutable SocketAddress		_address;
 
 	std::atomic<Int64>			_recvTime;
 	ByteRate					_recvByteRate;
 	std::atomic<Int64>			_sendTime;
 	ByteRate					_sendByteRate;
-
-	mutable std::atomic<int>	_recvBufferSize;
-	mutable std::atomic<int>	_sendBufferSize;
 
 //// Used by IOSocket /////////////////////
 	Decoder*					pDecoder;
