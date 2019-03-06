@@ -50,7 +50,7 @@ private:
 	void starting(const Parameters& parameters);
 	void stopping();
 
-	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server ", TypeToString(type), "://", address, path, '|', _subMime); }
+	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
 		
 	Socket::OnAccept			_onConnnection;
 	Socket::OnError				_onError;
@@ -58,6 +58,7 @@ private:
 	shared<Socket>				_pSocket;
 	shared<TLS>					_pTLS;
 	const char*					_subMime;
+	const char*					_format;
 	bool						_running;
 	std::set<shared<Media::Stream>> _streams;
 

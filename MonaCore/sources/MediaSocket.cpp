@@ -89,8 +89,8 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 void MediaSocket::Reader::starting(const Parameters& parameters) {
 	Exception ex;
 	bool success;
-	// Bind if UDP and not already bound
-	if (!socket()->address() && type==TYPE_UDP) {
+	// Bind if UDP/SRT and not already bound
+	if (!socket()->address() && (type==TYPE_UDP || type==TYPE_SRT)) {
 		AUTO_ERROR(success = _pSocket->bind(ex, address), description());
 		if (!success) {
 			_pSocket.reset();
@@ -120,7 +120,7 @@ void MediaSocket::Reader::starting(const Parameters& parameters) {
 	AUTO_ERROR(_pSocket->processParams(ex, parameters, "stream"), description());
 
 	bool connected(_pSocket->peerAddress() ? true : false);
-	if (type == TYPE_UDP || (connected && !_onSocketFlush))
+	if (type == TYPE_UDP || type == TYPE_SRT || (connected && !_onSocketFlush))
 		return;
 	// Pulse connect
 	if (!_pSocket->connect(ex=nullptr, address)) {
@@ -166,12 +166,15 @@ void MediaSocket::Reader::stopping() {
 
 const shared<Socket>& MediaSocket::Reader::socket() {
 	if (!_pSocket) {
+		if (type == TYPE_SRT) {
+#if defined(SRT_API)
+			_pSocket.set<SRT::Socket>();
+			return _pSocket;
+#endif
+			WARN(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
+		}
 		if (_pTLS)
 			_pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS);
-#if defined(SRT_API)
-		else if (type == TYPE_SRT)
-			_pSocket.set<SRT::Socket>();
-#endif
 		else
 			_pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	}
@@ -193,11 +196,10 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 		UInt32 size = 0;
 		Packet chunk(packet);
 		while (chunk += size) {
-			size = (type == TYPE_UDP && chunk.size() > Net::MTU_RELIABLE_SIZE) ? Net::MTU_RELIABLE_SIZE : 
-#if defined(SRT_API)
-				(type == TYPE_SRT && chunk.size() > ::SRT_LIVE_DEF_PLSIZE) ? ::SRT_LIVE_DEF_PLSIZE : 
-#endif
-				chunk.size();
+			if (type == TYPE_UDP)
+				size = chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
+			else if(type==TYPE_SRT)
+				size = chunk.size() > SRT::RELIABLE_SIZE ? SRT::RELIABLE_SIZE : chunk.size();
 			DUMP_RESPONSE(_pName->c_str(), chunk.data(), size, _pSocket->peerAddress());
 			Exception ex;
 			UInt64 byteRate = _pSocket->sendByteRate(); // Get byteRate before write to start computing cycle on 0!
@@ -214,12 +216,15 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 
 const shared<Socket>& MediaSocket::Writer::socket() {
 	if (!_pSocket) {
+		if (type == TYPE_SRT) {
+#if defined(SRT_API)
+			_pSocket.set<SRT::Socket>();
+			return _pSocket;
+#endif
+			WARN(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
+		}
 		if (_pTLS)
 			_pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, _pTLS);
-#if defined(SRT_API)
-		else if (type == TYPE_SRT)
-			_pSocket.set<SRT::Socket>();
-#endif
 		else
 			_pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	}

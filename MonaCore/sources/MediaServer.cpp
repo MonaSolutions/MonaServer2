@@ -46,7 +46,7 @@ const shared<Socket>& MediaServer::socket() {
 }
 
 MediaServer::MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(Media::Stream::Type(type), path), io(io), _pTLS(pTLS), address(address), _subMime(pWriter->subMime()), _running(false) {
+	Media::Stream(Media::Stream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()), _running(false) {
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		shared<MediaSocket::Writer> pStream(SET, this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);

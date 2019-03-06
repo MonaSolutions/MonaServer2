@@ -25,7 +25,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #undef LOG_DEBUG
 #endif
 
-#if defined(SRT_API)
+
 #include "Mona/TCPClient.h"
 #include "Mona/TCPServer.h"
 
@@ -33,7 +33,14 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct SRT : virtual Static {
-
+#if !defined(SRT_API)
+	enum {
+		RELIABLE_SIZE = Net::MTU_RELIABLE_SIZE
+	};
+#else
+	enum {
+		RELIABLE_SIZE = ::SRT_LIVE_DEF_PLSIZE
+	};
 	struct Client : TCPClient {
 		Client(IOSocket& io) : Mona::TCPClient(io) { }
 
@@ -91,7 +98,6 @@ struct SRT : virtual Static {
 
 		std::atomic<bool> _shutdownRecv;
 	};
-};
 
 //
 // Automatically link Base library with SRT
@@ -105,10 +111,14 @@ struct SRT : virtual Static {
 #pragma comment(lib, "srt_static.lib")
 #endif
 #endif
+#endif
+};
+
+
 
 } // namespace Mona
 
-#endif
+
 
 
 

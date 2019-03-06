@@ -562,7 +562,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 		if (String::ToNumber(first.data(), size, port)) {
 			address.setPort(port);
 			path.set(first.c_str() + size);
-			if (!isTargets && (type != TYPE_UDP || isTarget)) // if no host and TCP/HTTP or target
+			if (!isTargets && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) // if no host and TCP/HTTP or target
 				address.host().set(IPAddress::Loopback());
 		} else {
 			bool isAddress = false;
@@ -610,9 +610,8 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 
 	if (format.empty()) {
 		switch (type) {
-			case TYPE_SRT:
-			case TYPE_UDP:
-				// UDP and No Format => TS by default to catch with VLC => UDP = TS
+			case TYPE_SRT: // SRT and No Format => TS by default to catch Haivision usage
+			case TYPE_UDP: // UDP and No Format => TS by default to catch with VLC => UDP = TS
 				format = "mp2t";
 				break;
 			case TYPE_HTTP:
