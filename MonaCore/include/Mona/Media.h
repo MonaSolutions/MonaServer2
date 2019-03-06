@@ -150,8 +150,8 @@ struct Media : virtual Static {
 		struct Config : Tag, Packet, virtual Object {
 			NULLABLE
 			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
-			explicit Config() { time = 0; }
-			explicit Config(const Tag& tag, const Packet& packet) { time = 0; set(tag, packet); }
+			explicit Config() {}
+			explicit Config(const Tag& tag, const Packet& packet) { set(tag, packet); }
 			operator bool() const { return frame == FRAME_CONFIG; ; }
 			void reset() {
 				frame = FRAME_UNSPECIFIED;
@@ -160,7 +160,6 @@ struct Media : virtual Static {
 			Config& set(const Tag& tag, const Packet& packet) {
 				frame = FRAME_CONFIG;
 				codec = tag.codec;
-				compositionOffset = tag.compositionOffset;
 				Packet::set(std::move(packet));
 				return *this;
 			}
@@ -319,7 +318,7 @@ struct Media : virtual Static {
 		If Target is sending queueable (bufferize), returns queueing size to allow to detect congestion */
 		virtual UInt64 queueing() const { return 0; }
 		/*!
-		Is called one time before beginMedia, and on params change */
+		Can be called at any time, but by subscription way is called one time before beginMedia, and on params change */
 		virtual void setMediaParams(const Parameters& parameters) {}
 		/*!
 		/!\ can be called multiple times (without one call to endMedia) when media change (MBR switch for example) */

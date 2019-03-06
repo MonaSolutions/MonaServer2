@@ -243,8 +243,7 @@ bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const stri
 	FileSystem::ForEach forEach([&paths](const string& path, UInt16 level){
 		paths.emplace_back(new Path(path));
 	});
-	FileSystem::ListFiles(ex, fullPath, forEach);
-	if (ex)
+	if(FileSystem::ListFiles(ex, fullPath, forEach)<0)
 		return false;
 
 	char ord[] = "D";

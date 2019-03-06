@@ -17,6 +17,8 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MediaFile.h"
+#include "Mona/TSWriter.h"
+#include "Mona/M3U8.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -118,8 +120,6 @@ void MediaFile::Reader::starting(const Parameters& parameters) {
 }
 
 void MediaFile::Reader::stopping() {
-	if (!_pFile)
-		return;
 	timer.set(_onTimer, 0);
 	io.unsubscribe(_pFile);
 	_onFlush = nullptr;
@@ -138,32 +138,63 @@ void MediaFile::Reader::stopping() {
 
 
 unique<MediaFile::Writer> MediaFile::Writer::New(const Path& path, const char* subMime, IOFile& io) {
-	//if (String::ICompare(subMime, EXPAND("m3u8")) == 0 || String::ICompare(subMime, EXPAND("x-mpegURL")) == 0)
-	//	return new MediaHLS::Writer(path, io);
+	if (String::ICompare(subMime, EXPAND("x-mpegURL")) == 0) // just valid for MediaFile::Writer => M3U8 + TSWriter!
+		return make_unique<MediaFile::Writer>(Path(path.parent(), path.baseName(), ".m3u8"), make_unique<TSWriter>(), io);
 	unique<MediaWriter> pWriter(MediaWriter::New(subMime));
 	return pWriter ? make_unique<MediaFile::Writer>(path, move(pWriter), io) : nullptr;
 }
 
-MediaFile::Writer::Write::Write(const shared<string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter) : Runner("MediaFileWrite"), _io(io), _pFile(pFile), pWriter(pWriter), _pName(pName),
-	onWrite([this](const Packet& packet) {
-		DUMP_REQUEST(_pName->c_str(), packet.data(), packet.size(), _pFile->path());
-		_io.write(_pFile, packet);
+MediaFile::Writer::File::File(const string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylist, UInt8 sequences, IOFile& io) : Path(path), name(name), sequence(0), FileWriter(io), pPlaylist(pPlaylist),
+	onWrite([this, address = String(path.parent(), path.name())](const Packet& packet) {
+		DUMP_REQUEST(this->name.c_str(), packet.data(), packet.size(), address);
+		write(packet);
 		//Exception ex;
 		//_pFile->write(ex, packet.data(), packet.size());
 	}) {
+	if (pPlaylist) {
+		setExtension(pWriter->format());// change path to match pWriter
+		_pWriter.set<Segments::Writer>(move(pWriter), sequences).onSegment = [this](UInt32 duration) { // new segment
+			this->pPlaylist->write(sequence, duration); /// write M3U8
+			open(Segments::Segment(self, ++sequence)); /// open new file segment
+		};
+	} else
+		_pWriter = move(pWriter);
 }
 
-MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io) :
-	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _running(false), _pWriter(move(pWriter)) {
-	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
+void MediaFile::Writer::Begin::process(Exception& ex, File& file) {
+	if (file.pPlaylist) {
+		file.pPlaylist->open(file, append); // open or overload playlist
+		if (append)
+			file.sequence = Segments::NextSequence(ex, file, file.io); // search next sequence (display a WARN if error)
+		else
+			Segments::Clear(ex, file, file.io); // remove all previous segments (display a WARN if error)
+		file.open(Segments::Segment(file, file.sequence), append);
+	} else
+		file.open(file, append);
+	file->beginMedia(file.onWrite);
 }
- 
+
+MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io) : _sequences(1), _append(false),
+	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _running(false), _pWriter(move(pWriter)) {
+	if (String::ICompare(path.extension(), "m3u8") == 0)
+		_pPlaylist.set<M3U8::Writer>(io);
+	if(_pPlaylist)
+		_pPlaylist->onError = [this](const Exception& ex) { WARN(description(), ", ", ex); };
+}
+
 void MediaFile::Writer::starting(const Parameters& parameters) {
+	// pulse starting, already started!
 	_running = true;
 }
 
 void MediaFile::Writer::setMediaParams(const Parameters& parameters) {
-	_append = parameters.getBoolean<false>("append");
+	parameters.getBoolean("append", _append);
+	if (!parameters.getNumber<UInt8>("sequences", _sequences))
+		return;
+	if (!_pPlaylist)
+		WARN(description(), ", sequences usefull just for segments")
+	else if(_pFile)
+		write<ChangeSequences>(_sequences);
 }
 
 bool MediaFile::Writer::beginMedia(const string& name) {
@@ -171,25 +202,27 @@ bool MediaFile::Writer::beginMedia(const string& name) {
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
 	if (_pFile)
 		return true; // already running (MBR switch)
-	_pFile.set(path, _append ? File::MODE_APPEND : File::MODE_WRITE);
-	io.subscribe(_pFile, _onError);
 	INFO(description(), " starts");
-	_pName.set(name);
-	return write<Write>();
+	_pFile.set(name, path, _pWriter, _pPlaylist, _sequences, io).onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
+	write<Begin>(_append);
+	return true;
+}
+
+bool MediaFile::Writer::writeProperties(const Media::Properties& properties) {
+	Media::Data::Type type;
+	const Packet& packet(properties(type));
+	return write<MediaWrite<Media::Data>>(type, packet, 0, true);
 }
 
 void MediaFile::Writer::endMedia() {
-	write<EndWrite>();
 	stop();
 }
 
 void MediaFile::Writer::stopping() {
-	_pName.reset();
+	write<EndWrite>(); // _pWriter->endMedia()!
 	_running = false;
-	if(_pFile) {
-		io.unsubscribe(_pFile);
-		INFO(description(), " stops");
-	}
+	_pFile.reset();
+	INFO(description(), " stops");
 }
 
 

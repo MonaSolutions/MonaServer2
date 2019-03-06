@@ -51,18 +51,16 @@ void Buffer::Allocator::Free(UInt8* buffer, UInt32 size) {
 	Unlock();
 }
 
-Buffer::Buffer(UInt32 size, const void* data) : _offset(0), _size(size), _capacity(size) {
-	if (!size) {
-		static UInt8 BufferEmpty;
-		_data = _buffer = &BufferEmpty;
-		return;
-	}
-	_data = _buffer = Allocator::Alloc(_capacity);
-	if (data)
-		memcpy(_data,data,size);
+static UInt8 _Empty;
+
+Buffer::Buffer(UInt32 size) : _offset(0), _size(size), _capacity(size) {
+	_data = _buffer = size ? Allocator::Alloc(_capacity) : &_Empty;
+}
+Buffer::Buffer(const void* data, UInt32 size) : _offset(0), _size(size), _capacity(size) {
+	memcpy(_data = _buffer = size ? Allocator::Alloc(_capacity) : &_Empty, data, size);
 }
 
-Buffer::Buffer(void* buffer, UInt32 size) : _offset(0), _data(BIN buffer), _size(size),_capacity(size),_buffer(NULL) {}
+Buffer::Buffer(UInt32 size, void* buffer) : _offset(0), _data(BIN buffer), _size(size),_capacity(size), _buffer(NULL) {}
 
 Buffer::~Buffer() {
 	if (_buffer && (_capacity+=_offset))

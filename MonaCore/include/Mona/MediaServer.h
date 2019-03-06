@@ -26,19 +26,18 @@ namespace Mona {
 
 
 struct MediaServer : Media::Stream, Media::Targets, virtual Object {
-
 	enum Type {
 		TYPE_TCP = 1 // to match Media::Stream::Type
 #if defined(SRT_API)
-		,TYPE_SRT = 2 // to match Media::Stream::Type
+		, TYPE_SRT = 2 // to match Media::Stream::Type
 #endif
 	};
-	
-	MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-	virtual ~MediaServer() { stop(); }
 
 	static unique<MediaServer> New(Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 	static unique<MediaServer> New(Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+	
+	MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+	virtual ~MediaServer() { stop(); }
 
 	bool running() const { return _running; }
 	

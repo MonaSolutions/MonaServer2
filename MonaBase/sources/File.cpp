@@ -94,7 +94,7 @@ bool File::load(Exception& ex) {
 	} else
 		flags = OPEN_EXISTING;
 	
-	_handle = (long)CreateFileW(wFile, mode ? GENERIC_WRITE : GENERIC_READ, FILE_SHARE_READ, NULL, flags, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+	_handle = (long)CreateFileW(wFile, mode ? GENERIC_WRITE : GENERIC_READ, mode ? FILE_SHARE_READ : (FILE_SHARE_READ | FILE_SHARE_WRITE), NULL, flags, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 	if (_handle != -1) {
 		if(mode==File::MODE_APPEND)
 			SetFilePointer((HANDLE)_handle, 0, NULL, FILE_END);

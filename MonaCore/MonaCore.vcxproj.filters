@@ -358,6 +358,15 @@
     <ClInclude Include="include\Mona\SRT\SRTProtocol.h">
       <Filter>Protocols\SRT</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\Segments.h">
+      <Filter>Multimedia</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\M3U8.h">
+      <Filter>Multimedia</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Playlist.h">
+      <Filter>Multimedia</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -598,6 +607,12 @@
     </ClCompile>
     <ClCompile Include="sources\MediaSocket.cpp">
       <Filter>Multimedia\Streams</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\Segments.cpp">
+      <Filter>Multimedia</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\M3U8.cpp">
+      <Filter>Multimedia</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

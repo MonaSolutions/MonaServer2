@@ -65,7 +65,7 @@ void Session::init(Session& session) {
 	peer.onParameters = [this, &session](Parameters& parameters) {
 		struct Params : Parameters {
 			Params(Protocol& protocol, Parameters& parameters) : protocol(protocol), Parameters(move(parameters)) {}
-			const char* onParamUnfound(const std::string& key) const { return protocol.getString(key); }
+			const string* onParamUnfound(const string& key) const { return protocol.getParameter(key); }
 			Protocol& protocol;
 		};
 		session.onParameters(Params(_protocol, parameters));

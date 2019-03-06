@@ -32,6 +32,8 @@ struct FileReader : virtual Object {
 	IOFile&	io;
 
 	File* operator->() const { return _pFile.get(); }
+	File& operator*() { return *_pFile; }
+
 	explicit operator bool() const { return _pFile.operator bool(); }
 	bool opened() const { return operator bool(); }
 

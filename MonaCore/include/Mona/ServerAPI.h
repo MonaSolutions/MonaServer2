@@ -79,9 +79,9 @@ struct ServerAPI : virtual Object, Parameters {
 	If the subscription is already done, change just the subscriptions parameters, usefull to allow automatically the support by protocol of subscription dynamic parameters 
 	If one other subscription exists already, switch publication in a smooth way (MBR)  */
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription) { return subscribe(ex, stream, subscription, NULL); }
-	bool					subscribe(Exception& ex, const Path& stream, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), subscription, query, NULL); }
+	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream, subscription, query, NULL); }
 	bool					subscribe(Exception& ex, std::string& stream, Client& client, Subscription& subscription) { return subscribe(ex, stream, subscription, &client); }
-	bool					subscribe(Exception& ex, const Path& stream, Client& client, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), subscription, query, &client); }
+	bool					subscribe(Exception& ex, const std::string& stream, Client& client, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream, subscription, query, &client); }
 
 	void					unsubscribe(Subscription& subscription) { unsubscribe(subscription, NULL); }
 	void					unsubscribe(Client& client, Subscription& subscription) { unsubscribe(subscription, &client); }
@@ -109,7 +109,7 @@ protected:
 
 private:
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription, Client* pClient);
-	bool					subscribe(Exception& ex, const std::string& stream, const char* ext, Subscription& subscription, const char* query, Client* pClient);
+	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* query, Client* pClient);
 	bool					subscribe(Exception& ex, Publication& publication, Subscription& subscription, Client* pClient);
 	void					unsubscribe(Subscription& subscription, Client* pClient);
 	void					unsubscribe(Subscription& subscription, Publication* pPublication, Client* pClient);

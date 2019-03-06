@@ -194,11 +194,11 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 			UInt64 byteRate = _pSocket->sendByteRate(); // Get byteRate before write to start computing cycle on 0!
 			int result = _pSocket->write(ex, Packet(chunk, chunk.data(), size));
 			if (result && !*_pStreaming && byteRate) {
-				INFO("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', this->pWriter->format(), " starts");
+				INFO("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', String::Upper(this->pWriter->format()), " starts");
 				*_pStreaming = true;
 			}
 			if (ex || result<0)
-				WARN("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', this->pWriter->format(), ", ", ex);
+				WARN("Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', String::Upper(this->pWriter->format()), ", ", ex);
 		};
 	}) {
 }
@@ -280,17 +280,13 @@ bool  MediaSocket::Writer::writeProperties(const Media::Properties& properties) 
 }
 
 void MediaSocket::Writer::endMedia() {
-	send<EndSend>();
 	stop();
 }
 
 void MediaSocket::Writer::stopping() {
 	// Close socket to signal the end of media
-	if (!_subscribed)
-		return;
+	send<EndSend>(); // _pWriter->endMedia()!
 	io.unsubscribe(_pSocket);
-	// reset _pWriter because could be used by different thread by new Socket and its sending thread
-	_pWriter = MediaWriter::New(_pWriter->subMime());
 	_pName.reset();
 	_subscribed = false;
 	if (*_pStreaming) {

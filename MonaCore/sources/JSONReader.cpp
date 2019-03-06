@@ -26,7 +26,7 @@ using namespace std;
 namespace Mona {
 
 
-JSONReader::JSONReader(const UInt8* data, UInt32 size) : _pos(reader.position()), DataReader(data, size),_isValid(false) {
+JSONReader::JSONReader(const UInt8* data, UInt32 size) : _pos(reader.position()), DataReader(data, size), _isValid(false) {
 
 	// check first '[' and last ']' or '{ and '}'
 

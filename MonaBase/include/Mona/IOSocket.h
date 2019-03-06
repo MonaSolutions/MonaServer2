@@ -97,9 +97,6 @@ private:
 	std::atomic<UInt32>							_subscribers;
 	std::mutex									_mutex;
 	Signal										_initSignal;
-#if defined(SRT_API)
-	IOSRTSocket									_ioSRTSocket;
-#endif
 
 	struct Action;
 	struct Send;

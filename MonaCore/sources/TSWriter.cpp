@@ -158,7 +158,7 @@ void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
 			writer.write16(0xE000 | (_pidPCR = (FIRST_VIDEO_PID+it.first)));
 			writer.write16(0xF000);
 		}
-		writer.write8(String::ICompare(((Track&)it.second)->format(), "HEVC")==0? 0x24 : 0x1b); // HEVC/H264 codec
+		writer.write8(it.second.codec==Media::Video::CODEC_HEVC ? 0x24 : 0x1b); // HEVC/H264 codec
 		writer.write16(0xE000 | (FIRST_VIDEO_PID+it.first));
 		
 		UInt16 esiSize = UInt16(it.second.langs.size())*6;
@@ -222,7 +222,7 @@ void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packe
 		}
 		
 		// add the new track
-		it = _audios.emplace_hint(it, SET, forward_as_tuple(track), forward_as_tuple(tag.codec == Media::Audio::CODEC_AAC ? new ADTSWriter() : NULL));
+		it = _audios.emplace_hint(it, SET, forward_as_tuple(track), forward_as_tuple(tag.codec, tag.codec == Media::Audio::CODEC_AAC ? new ADTSWriter() : NULL));
 		_changed = true;
 	} else if (tag.codec == Media::Audio::CODEC_AAC) {
 		if (!it->second) {
@@ -273,7 +273,7 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 		}
 		
 		// add the new track
-		it = _videos.emplace_hint(it, SET, forward_as_tuple(track),forward_as_tuple(((tag.codec == Media::Video::CODEC_H264)? (MediaTrackWriter*)new NALNetWriter<AVC>() : (MediaTrackWriter*)new NALNetWriter<HEVC>())));
+		it = _videos.emplace_hint(it, SET, forward_as_tuple(track),forward_as_tuple(tag.codec, tag.codec == Media::Video::CODEC_H264 ? (MediaTrackWriter*)new NALNetWriter<AVC>() : (MediaTrackWriter*)new NALNetWriter<HEVC>()));
 		_changed = true;
 	}
 

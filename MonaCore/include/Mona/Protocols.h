@@ -79,7 +79,8 @@ private:
 		ProtocolType* pProtocol(NULL);
 		if (enabled) {
 			pProtocol = loadProtocol<ProtocolType>(protocol, std::forward<Args>(args)...);
-			NOTE(protocol, " server started on ", pProtocol->address);
+			if(pProtocol)
+				NOTE(protocol, " server started on ", pProtocol->address);
 		}
 		// search other protocol declaration, ex: [HTTP2=HTTP]
 		for (auto& it : _params) {

@@ -64,11 +64,11 @@ struct FileSystem : virtual Static {
 	};
 
 
-	typedef std::function<void(const std::string&, UInt16 level)> ForEach; /// FileSystem::ListDir function type handler
+	typedef std::function<void(const std::string& file, UInt16 level)> ForEach; /// FileSystem::ListDir function type handler
 
 	/// Iterate over files under directory path
-	static UInt32	ListFiles(Exception& ex, const std::string& path, const ForEach& forEach, Mode mode= MODE_LOW) { return ListFiles(ex, path.c_str(), forEach, mode); }
-	static UInt32	ListFiles(Exception& ex, const char* path, const ForEach& forEach, Mode mode= MODE_LOW);
+	static int		ListFiles(Exception& ex, const std::string& path, const ForEach& forEach, Mode mode= MODE_LOW) { return ListFiles(ex, path.c_str(), forEach, mode); }
+	static int		ListFiles(Exception& ex, const char* path, const ForEach& forEach, Mode mode= MODE_LOW);
 
 	/// In giving a path with /, it tests one folder existance, otherwise file existance
 	static bool			Exists(const std::string& path)  { return Exists(path.data(), path.size()); }

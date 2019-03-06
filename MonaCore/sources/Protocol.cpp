@@ -36,8 +36,8 @@ Protocol::Protocol(const char* name, Protocol& gateway) :
 }
 
 
-const char* Protocol::onParamUnfound(const string& key) const {
-	return api.getString(key);
+const string* Protocol::onParamUnfound(const string& key) const {
+	return api.getParameter(key);
 }
 
 bool Protocol::load(Exception& ex) {

@@ -17,26 +17,24 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Time.h"
-#include "Mona/Net.h"
+#include "Mona/Playlist.h"
 
 namespace Mona {
 
 /*!
 Tool to compute queue congestion */
-struct Congestion : virtual Object {
-	NULLABLE 
+struct M3U8 : virtual Static {
 
-	Congestion() : _lastQueueing(0), _congested(0) {}
+	struct Writer : Playlist::Writer, virtual Object {
 
-	// Wait RTO time by default (3 sec) => sounds right with socket and file
-	UInt32 operator()(UInt32 duration = Net::RTO_INIT) const;
-	operator bool() const { return self(Net::RTO_INIT)>0; }
+		Writer(IOFile& io) : Playlist::Writer(io) {}
 
-	Congestion& operator=(UInt64 queueing);
-private:
-	UInt64	_lastQueueing;
-	Time	_congested;
+		Writer& open(const Path& path, bool append);
+		void    write(UInt32 sequence, UInt32 duration);
+
+	private:
+		std::string _ext;
+	};
 };
 
 } // namespace Mona

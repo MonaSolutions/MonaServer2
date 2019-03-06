@@ -26,7 +26,7 @@ namespace Mona {
 
 Buffer& HTTPSender::buffer() {
 	if (!_pBuffer)
-		_pBuffer.set(4, "\r\n\r\n");
+		_pBuffer.set(EXPAND("\r\n\r\n"));
 	return *_pBuffer;
 }
 

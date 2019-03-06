@@ -135,16 +135,10 @@ bool ServerAPI::subscribe(Exception& ex, string& stream, Subscription& subscript
 		query = stream.c_str() + found + 1;
 		stream.resize(found);
 	}
-	found = stream.find_last_of('.');
-	const char* ext(NULL);
-	if (found != string::npos) {
-		ext = stream.c_str() + found + 1;
-		stream.resize(found);
-	}
-	return subscribe(ex, stream, ext, subscription, query, pClient);
+	return subscribe(ex, stream, subscription, query, pClient);
 }
 
-bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, Subscription& subscription, const char* queryParameters, Client* pClient) {
+bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& subscription, const char* queryParameters, Client* pClient) {
 	// check that client is connected before!
 	if (pClient && !pClient->connection) {
 		ERROR(ex.set<Ex::Intern>("Client must be connected before ", stream, " publication subscription"))
@@ -155,8 +149,6 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, const char* ext, 
 	Parameters parameters;
 	if (queryParameters)
 		Util::UnpackQuery(queryParameters, parameters);
-	if (ext)
-		parameters.setString("format", ext);
 	const char* mbr = parameters.getString("mbr");
 	if (mbr) // add "this" mbr if mbr param!
 		parameters.emplace("mbr", String(mbr, "|", stream));

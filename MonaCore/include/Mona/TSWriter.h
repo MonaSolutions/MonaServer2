@@ -58,15 +58,17 @@ private:
 	struct Track : virtual Object {
 		NULLABLE
 
-		Track(MediaTrackWriter* pWriter) : _pWriter(pWriter) { 
+		Track(UInt8 codec, MediaTrackWriter* pWriter) : _pWriter(pWriter), codec(codec) {
 			if(pWriter)
 				pWriter->beginMedia(); 
 		}
 		~Track() { if (_pWriter) delete _pWriter; }
 
+		const UInt8 codec;
 		operator bool() const { return _pWriter ? true : false; }
 		Track& operator=(MediaTrackWriter* pWriter);
 		MediaTrackWriter* operator->() { return _pWriter; }
+		MediaTrackWriter& operator*() { return *_pWriter; }
 		std::vector<std::string> langs;
 	private:
 		MediaTrackWriter* _pWriter;

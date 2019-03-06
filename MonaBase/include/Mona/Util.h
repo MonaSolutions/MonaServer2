@@ -82,19 +82,17 @@ struct Util : virtual Static {
 	static std::size_t UnpackUrl(const char* url, std::string& path, std::string& query) {std::string address; return UnpackUrl(url, address, path, query);}
 	static std::size_t UnpackUrl(const std::string& url, std::string& address, std::string& path, std::string& query) { return UnpackUrl(url.c_str(), address, path, query); }
 	static std::size_t UnpackUrl(const char* url, std::string& address, std::string& path, std::string& query);
-	
-	typedef std::function<bool(const std::string&, const char*)> ForEachParameter;
 
 	static Parameters& UnpackQuery(const std::string& query, Parameters& parameters) { return UnpackQuery(query.data(), query.size(), parameters); }
 	static Parameters& UnpackQuery(const char* query, std::size_t count, Parameters& parameters);
 	static Parameters& UnpackQuery(const char* query, Parameters& parameters) { return UnpackQuery(query, std::string::npos, parameters); }
 
-	/// \return the number of key/value found
+	typedef std::function<bool(const std::string&, const char*)> ForEachParameter;
 	static UInt32 UnpackQuery(const std::string& query, const ForEachParameter& forEach) { return UnpackQuery(query.data(), query.size(), forEach); }
 	static UInt32 UnpackQuery(const char* query, std::size_t count, const ForEachParameter& forEach);
 	static UInt32 UnpackQuery(const char* query, const ForEachParameter& forEach) { return UnpackQuery(query, std::string::npos, forEach); }
 
-
+	
 	typedef std::function<bool(char c,bool wasEncoded)> ForEachDecodedChar;
 
 	static UInt32 DecodeURI(const std::string& value, const ForEachDecodedChar& forEach) { return DecodeURI(value.data(),value.size(),forEach); }

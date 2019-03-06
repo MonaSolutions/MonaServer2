@@ -32,8 +32,6 @@ void MediaLogs::starting(const Parameters& parameters) {
 }
 
 void MediaLogs::stopping() {
-	if(!_pPublish)
-		return;
 	Logs::RemoveLogger(path.c_str());
 	_pPublish.reset();
 	INFO(description(), " stops");

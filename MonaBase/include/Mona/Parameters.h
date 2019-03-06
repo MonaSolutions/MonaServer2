@@ -27,8 +27,6 @@ struct Parameters : String::Object<Parameters> {
 	typedef Event<void()>												   ON(Clear);
 
 	typedef std::map<std::string, std::string, String::IComparator>::const_iterator const_iterator;
-
-private:
 	struct ForEach {
 		ForEach() : _begin(Null().end()), _end(Null().end()) {}
 		ForEach(const_iterator begin, const_iterator end) : _begin(begin), _end(end) {}
@@ -38,7 +36,6 @@ private:
 		const_iterator  _begin;
 		const_iterator  _end;
 	};
-public:
 
 	Parameters() {}
 	Parameters(Parameters&& other) { setParams(std::move(other));  }
@@ -62,11 +59,11 @@ public:
 	/*!
 	Return false if key doesn't exist or if it's not a numeric type, otherwise return true and assign numeric 'value' */
 	template<typename Type>
-	bool getNumber(const std::string& key, Type& value) const { FATAL_ASSERT(std::is_arithmetic<Type>::value); const char* temp = getParameter(key); return temp && String::ToNumber(temp, value); }
+	bool getNumber(const std::string& key, Type& value) const { STATIC_ASSERT(std::is_arithmetic<Type>::value); const std::string* pValue = getParameter(key); return pValue && String::ToNumber(*pValue, value); }
 	/*!
 	A short version of getNumber with template default argument to get value by returned result */
 	template<typename Type = double, int defaultValue = 0>
-	Type getNumber(const std::string& key) const { FATAL_ASSERT(std::is_arithmetic<Type>::value); Type result((Type)defaultValue); getNumber(key, result); return result; }
+	Type getNumber(const std::string& key) const { STATIC_ASSERT(std::is_arithmetic<Type>::value); Type result((Type)defaultValue); getNumber(key, result); return result; }
 
 	/*!
 	Return false if key doesn't exist or if it's not a boolean type, otherwise return true and assign boolean 'value' */
@@ -80,22 +77,31 @@ public:
 	bool erase(const std::string& key);
 
 	const std::string& setString(const std::string& key, const std::string& value) { return setParameter(key, value); }
-	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) { return setParameter(key, value, size == std::string::npos ? strlen(value) : size); }
+	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) { return setParameter(key, std::string(value, size == std::string::npos ? strlen(value) : size)); }
 
 	template<typename Type>
-	Type setNumber(const std::string& key, Type value) { FATAL_ASSERT(std::is_arithmetic<Type>::value); setParameter(key, String(value)); return value; }
+	Type setNumber(const std::string& key, Type value) { STATIC_ASSERT(std::is_arithmetic<Type>::value); setParameter(key, String(value)); return value; }
 
 	bool setBoolean(const std::string& key, bool value) { setParameter(key, value ? "true" : "false");  return value; }
 
-	/*!
-	Emplace key-value
-	you can use it with String constructor to concat multiple chunk in key and value => emplace(String(pre, key), String(pre,value))
-	or use it with SET(piecewise_construct) to prefer "multiple argument" to build string (to cut a string with size argument for example) => emplace(SET, forward_as_tuple(key), std::forward_as_tuple(forward<Args>(args)...)) */
-	template<typename ...Args>
-	const std::string& emplace(Args&& ...args) {
-		std::pair<std::string, std::string> item(std::forward<Args>(args)...);
-		return setParameter(item.first, std::move(item.second));
+
+	const std::string* getParameter(const std::string& key) const;
+	template<typename ValueType>
+	const std::string& setParameter(const std::string& key, ValueType&& value) {
+		if (!_pMap)
+			_pMap.set();
+		const auto& it = _pMap->emplace(key, std::string());
+		if (it.second || it.first->second.compare(value) != 0) {
+			it.first->second = std::forward<ValueType>(value);
+			onParamChange(it.first->first, &it.first->second);
+		}
+		return it.first->second;
 	}
+	/*!
+	Just to match STD container (see MapWriter) */
+	template<typename ValueType>
+	const std::string& emplace(const std::string& key, ValueType&& value) { return setParameter(key, std::forward<ValueType>(value)); }
+
 	static const Parameters& Null() { static Parameters Null(nullptr); return Null; }
 
 protected:
@@ -106,24 +112,9 @@ protected:
 	virtual void onParamClear() { onClear(); }
 
 private:
-	virtual const char* onParamUnfound(const std::string& key) const { return NULL; }
+	virtual const std::string* onParamUnfound(const std::string& key) const { return NULL; }
 
 	Parameters(std::nullptr_t) : _pMap(SET) {} // Null()
-
-	const char* getParameter(const std::string& key) const;
-
-	template<typename ...Args>
-	const std::string& setParameter(const std::string& key, Args&& ...args) {
-		if (!_pMap)
-			_pMap.set();
-		std::string value(std::forward<Args>(args)...);
-		const auto& it = _pMap->emplace(key, std::string());
-		if (it.second || it.first->second.compare(value) != 0) {
-			it.first->second = std::move(value);
-			onParamChange(key, &it.first->second);
-		}
-		return it.first->second;
-	}
 
 	// shared because a lot more faster than using st::map move constructor!
 	// Also build _pMap just if required, and then not erase it but clear it (more faster that reset the shared)

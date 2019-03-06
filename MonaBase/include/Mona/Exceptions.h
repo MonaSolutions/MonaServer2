@@ -122,7 +122,7 @@ private:
 };
 
 
-#define		FATAL_ASSERT(ASSERT)			static_assert(ASSERT, #ASSERT)
+#define		STATIC_ASSERT(ASSERT)			static_assert(ASSERT, #ASSERT)
 
 #if defined(_DEBUG)
 

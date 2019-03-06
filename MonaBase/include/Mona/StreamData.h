@@ -47,11 +47,11 @@ struct StreamData : virtual Object {
 			return false;
 		}
 		if (!_pBuffer) {
-			_pBuffer.set(rest, packet.data() + packet.size() - rest);
+			_pBuffer.set(packet.data() + packet.size() - rest, rest);
 			return true;
 		}
 		if (!_pBuffer.unique()) { // if not unique => packet hold by user in "parse", buffer immutable now
-			_pBuffer.set(rest, _pBuffer->data() + _pBuffer->size() - rest);
+			_pBuffer.set(_pBuffer->data() + _pBuffer->size() - rest, rest);
 			return true;
 		}
 		if (rest < _pBuffer->size()) {

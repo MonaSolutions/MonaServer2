@@ -381,7 +381,7 @@ void RTMFPReceiver::Flow::onFragment(UInt64 stage, UInt8 flags, const Packet& pa
 	if (flags & RTMFP::MESSAGE_OPTIONS)
 		*(UInt8*)packet.data() |= RTMFP::MESSAGE_OPTIONS;
 	if (flags&RTMFP::MESSAGE_WITH_AFTERPART) {
-		_pBuffer.set(packet.size(), packet.data());
+		_pBuffer.set(packet.data(), packet.size());
 		return;
 	}
 	if(packet)

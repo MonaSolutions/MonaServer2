@@ -301,7 +301,7 @@ bool FileSystem::Delete(Exception& ex, const char* path, size_t size, Mode mode)
 	return false;
 }
 
-UInt32 FileSystem::ListFiles(Exception& ex, const char* path, const ForEach& forEach, Mode mode) {
+int FileSystem::ListFiles(Exception& ex, const char* path, const ForEach& forEach, Mode mode) {
 	string directory(*path ? path : ".");
 	MakeFolder(directory);
 	UInt32 count(0);
@@ -317,7 +317,7 @@ UInt32 FileSystem::ListFiles(Exception& ex, const char* path, const ForEach& for
 	if (fileHandle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() != ERROR_NO_MORE_FILES)
 			ex.set<Ex::System::File>("Cannot list files of directory ", directory);
-		return 0;
+		return -1;
 	}
 	do {
 		if (wcscmp(fileData.cFileName, L".") != 0 && wcscmp(fileData.cFileName, L"..") != 0) {
@@ -336,7 +336,7 @@ UInt32 FileSystem::ListFiles(Exception& ex, const char* path, const ForEach& for
 	DIR* pDirectory = opendir(directory.c_str());
 	if (!pDirectory) {
 		ex.set<Ex::System::File>("Cannot list files of directory ",directory);
-		return 0;
+		return -1;
 	}
 	struct dirent* pEntry(NULL);
 	while((pEntry = readdir(pDirectory))) {

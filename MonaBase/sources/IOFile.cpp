@@ -59,7 +59,15 @@ protected:
 	}
 private:
 	
-	virtual bool process(Exception& ex, const shared<File>& pFile) { return pFile->load(ex); }
+	virtual bool process(Exception& ex, const shared<File>& pFile) {
+		if (pFile->load(ex))
+			return true;
+		if (pFile->mode != File::MODE_DELETE)
+			return false;
+		// no error on opening en mode deletion!
+		ex = nullptr;
+		return true;
+	}
 };
 
 struct IOFile::WAction : IOFile::Action, virtual Object {

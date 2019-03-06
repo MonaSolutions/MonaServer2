@@ -218,6 +218,7 @@
     <ClInclude Include="include\Mona\HTTP\HTTPFolderSender.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPMediaSender.h" />
     <ClInclude Include="include\Mona\ICE.h" />
+    <ClInclude Include="include\Mona\M3U8.h" />
     <ClInclude Include="include\Mona\MapReader.h" />
     <ClInclude Include="include\Mona\MapWriter.h" />
     <ClInclude Include="include\Mona\Media.h" />
@@ -238,6 +239,7 @@
     <ClInclude Include="include\Mona\NALNetWriter.h" />
     <ClInclude Include="include\Mona\PacketWriter.h" />
     <ClInclude Include="include\Mona\Peer.h" />
+    <ClInclude Include="include\Mona\Playlist.h" />
     <ClInclude Include="include\Mona\Publish.h" />
     <ClInclude Include="include\Mona\QueryReader.h" />
     <ClInclude Include="include\Mona\QueryWriter.h" />
@@ -252,6 +254,7 @@
     <ClInclude Include="include\Mona\RTP_H264.h" />
     <ClInclude Include="include\Mona\RTP_MPEG.h" />
     <ClInclude Include="include\Mona\SDP.h" />
+    <ClInclude Include="include\Mona\Segments.h" />
     <ClInclude Include="include\Mona\Server.h" />
     <ClInclude Include="include\Mona\ServerAPI.h" />
     <ClInclude Include="include\Mona\SplitReader.h" />
@@ -324,6 +327,7 @@
     <ClCompile Include="sources\HTTP\HTTPMediaSender.cpp" />
     <ClCompile Include="sources\HTTP\HTTPSender.cpp" />
     <ClCompile Include="sources\ICE.cpp" />
+    <ClCompile Include="sources\M3U8.cpp" />
     <ClCompile Include="sources\Media.cpp" />
     <ClCompile Include="sources\MediaFile.cpp" />
     <ClCompile Include="sources\MediaLogs.cpp" />
@@ -347,6 +351,7 @@
     <ClCompile Include="sources\RTP_H264.cpp" />
     <ClCompile Include="sources\RTP_MPEG.cpp" />
     <ClCompile Include="sources\MediaSocket.cpp" />
+    <ClCompile Include="sources\Segments.cpp" />
     <ClCompile Include="sources\SRTWriter.cpp" />
     <ClCompile Include="sources\STUN\STUNProtocol.cpp" />
     <ClCompile Include="sources\Subscription.cpp" />

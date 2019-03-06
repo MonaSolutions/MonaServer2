@@ -23,7 +23,7 @@ namespace Mona {
 Parameters& Parameters::setParams(const Parameters& other) {
 	if (!other.count()) {
 		clear();
-		return *this;
+		return self;
 	}
 	// clear self!
 	if (_pMap && !_pMap->empty()) {
@@ -37,15 +37,15 @@ Parameters& Parameters::setParams(const Parameters& other) {
 		*_pMap = *other._pMap;
 	}
 	// onChange!
-	for (auto& it : *this)
+	for (auto& it : self)
 		onParamChange(it.first, &it.second);
-	return *this;
+	return self;
 }
 
 Parameters& Parameters::setParams(Parameters&& other) {
 	if (!other.count()) {
 		clear();
-		return *this;
+		return self;
 	}
 	// clear self!
 	if(_pMap && !_pMap->empty()) {
@@ -60,7 +60,7 @@ Parameters& Parameters::setParams(Parameters&& other) {
 	// onChange!
 	for (auto& it : self)
 		onParamChange(it.first, &it.second);
-	return *this;
+	return self;
 }
 
 Parameters::ForEach Parameters::range(const std::string& prefix) const {
@@ -72,38 +72,38 @@ Parameters::ForEach Parameters::range(const std::string& prefix) const {
 }
 
 bool Parameters::getString(const string& key, std::string& value) const {
-	const char* temp = getParameter(key);
-	if (!temp)
+	const string* pValue = getParameter(key);
+	if (!pValue)
 		return false;
-	value.assign(temp);
+	value.assign(*pValue);
 	return true;
 }
 
 const char* Parameters::getString(const string& key, const char* defaultValue) const {
-	const char* temp = getParameter(key);
-	return temp ? temp : defaultValue;
+	const string* pValue = getParameter(key);
+	return pValue ? pValue->c_str() : defaultValue;
 }
 
 bool Parameters::getBoolean(const string& key, bool& value) const {
-	const char* temp = getParameter(key);
-	if (!temp)
+	const string* pValue = getParameter(key);
+	if (!pValue)
 		return false;
-	value = !String::IsFalse(temp); // otherwise considerate the value as true
+	value = !String::IsFalse(*pValue); // otherwise considerate the value as true
 	return true;
 }
 
-const char* Parameters::getParameter(const string& key) const {
+const string* Parameters::getParameter(const string& key) const {
 	if (_pMap) {
 		const auto& it = _pMap->find(key);
 		if (it != _pMap->end())
-			return it->second.c_str();
+			return &it->second;
 	}
 	return onParamUnfound(key);
 }
 
 Parameters& Parameters::clear(const string& prefix) {
 	if (!_pMap || _pMap->empty())
-		return *this;
+		return self;
 	if (!prefix.empty()) {
 		string end(prefix);
 		end.back() = prefix.back() + 1;

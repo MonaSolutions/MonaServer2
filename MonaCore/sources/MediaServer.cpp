@@ -73,8 +73,6 @@ void MediaServer::starting(const Parameters& parameters) {
 }
 
 void MediaServer::stopping() {
-	if (!_running)
-		return;
 	_running = false;
 	io.unsubscribe(_pSocket);
 	_streams.clear(); // stop all children stream!

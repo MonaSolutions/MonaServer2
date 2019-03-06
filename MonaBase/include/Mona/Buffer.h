@@ -25,10 +25,11 @@ namespace Mona {
 
 #define BUFFER_RESET(BUFFER,SIZE) (BUFFER ? BUFFER->resize(SIZE, false) : BUFFER.set(SIZE))
 
+/*!
+Buffer dynamic with clear/resize/data/size method (like std) */
 struct Buffer : Binary, virtual Object {
-	/*!
-	Buffer dynamic with clear/resize/data/size method (like std) */
-	Buffer(UInt32 size = 0, const void* data = NULL);
+	Buffer(UInt32 size = 0);
+	Buffer(const void* data, UInt32 size);
 
 	virtual ~Buffer();
 
@@ -69,7 +70,7 @@ struct Buffer : Binary, virtual Object {
 		static unique<Allocator> _PAllocator;
 	};
 private:
-	Buffer(void* buffer, UInt32 size);
+	Buffer(UInt32 size, void* buffer);
 
 	UInt32				_offset;
 	UInt8*				_data;

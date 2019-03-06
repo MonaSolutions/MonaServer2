@@ -86,42 +86,40 @@ void DetectMemoryLeak();
 
 ///// TYPES /////
 template<typename Type>
-struct shared : std::shared_ptr<Type> {
-	using std::shared_ptr<Type>::shared_ptr;
-	shared() : std::shared_ptr<Type>() {}
-	shared(const shared& other) : std::shared_ptr<Type>(other) {}
-	shared(shared&& other) : std::shared_ptr<Type>(std::move(other)) {}
-	template<typename ...Args>
-	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
-	template<typename NewType = Type, typename ...Args>
-	NewType& set(Args&&... args) { return *(NewType*)std::shared_ptr<Type>::operator=(std::make_shared<NewType>(std::forward<Args>(args)...)).get(); }
-	shared& reset() { std::shared_ptr<Type>::reset(); return self; }
-	using std::shared_ptr<Type>::operator=;
-	shared& operator=(const shared& other) { std::shared_ptr<Type>::operator=(other); return self; };
-	shared& operator=(shared&& other) { std::shared_ptr<Type>::operator=(std::move(other)); return self; };
-	shared& operator=(Type* pType) { std::shared_ptr<Type>::reset(pType); return self; };
-private:
-	template<typename NewType>
-	shared(NewType* pType) {}
-};
-template<typename Type>
 struct unique : std::unique_ptr<Type> {
 	using std::unique_ptr<Type>::unique_ptr;
 	unique() : std::unique_ptr<Type>() {}
-	unique(const unique& other) : std::unique_ptr<Type>(other) {}
-	unique(unique&& other) : std::unique_ptr<Type>(std::move(other)) {}
+	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::unique_ptr<Type>, ArgType>::value>::type>
+	unique(ArgType&& arg) : std::unique_ptr<Type>(std::forward<ArgType>(arg)) {}
 	template<typename ...Args>
 	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
 	template<typename NewType = Type, typename ...Args>
 	NewType& set(Args&&... args) { return *(NewType*)std::unique_ptr<Type>::operator=(std::make_unique<NewType>(std::forward<Args>(args)...)).get(); }
 	unique& reset() { std::unique_ptr<Type>::reset(); return self; }
-	using std::unique_ptr<Type>::operator=;
-	unique& operator=(const unique& other) { std::unique_ptr<Type>::operator=(other); return self; };
-	unique& operator=(unique&& other) { std::unique_ptr<Type>::operator=(std::move(other)); return self; };
+	template<typename ArgType>
+	unique& operator=(ArgType&& arg) { std::unique_ptr<Type>::operator=(std::forward<ArgType>(arg)); return self; };
 	unique& operator=(Type* pType) { std::unique_ptr<Type>::reset(pType); return self; };
 private:
 	template<typename NewType>
 	unique(NewType* pType) {}
+};
+template<typename Type>
+struct shared : std::shared_ptr<Type> {
+	using std::shared_ptr<Type>::shared_ptr;
+	shared() : std::shared_ptr<Type>() {}
+	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::shared_ptr<Type>, ArgType>::value>::type>
+	shared(ArgType&& arg) : std::shared_ptr<Type>(std::forward<ArgType>(arg)) {}
+	template<typename ...Args>
+	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
+	template<typename NewType = Type, typename ...Args>
+	NewType& set(Args&&... args) { return *(NewType*)std::shared_ptr<Type>::operator=(std::make_shared<NewType>(std::forward<Args>(args)...)).get(); }
+	shared& reset() { std::shared_ptr<Type>::reset(); return self; }
+	template<typename ArgType>
+	shared& operator=(ArgType&& arg) { std::shared_ptr<Type>::operator=(std::forward<ArgType>(arg)); return self; };
+	shared& operator=(Type* pType) { std::shared_ptr<Type>::reset(pType); return self; };
+private:
+	template<typename NewType>
+	shared(NewType* pType) {}
 };
 template<typename Type>
 using weak = std::weak_ptr<Type>;

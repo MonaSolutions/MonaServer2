@@ -23,11 +23,11 @@ using namespace std;
 
 namespace Mona {
 
-BinaryWriter::BinaryWriter(UInt8* buffer, UInt32 size,Byte::Order byteOrder) :
-	_offset(0), _pBuffer(new Buffer(buffer,size)), _reference(false), _flipBytes(byteOrder != Byte::ORDER_NATIVE) {
+BinaryWriter::BinaryWriter(UInt8* buffer, UInt32 size, Byte::Order byteOrder) :
+	_offset(0), _pBuffer(new Buffer(size, buffer)), _reference(false), _flipBytes(byteOrder != Byte::ORDER_NATIVE) {
 	_pBuffer->resize(0);
 }
-BinaryWriter::BinaryWriter(Buffer& buffer,  Byte::Order byteOrder) :
+BinaryWriter::BinaryWriter(Buffer& buffer, Byte::Order byteOrder) :
 	_offset(buffer.size()), _pBuffer(&buffer), _reference(true), _flipBytes(byteOrder != Byte::ORDER_NATIVE) {
 }
 

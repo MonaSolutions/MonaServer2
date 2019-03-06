@@ -27,11 +27,11 @@ namespace Mona {
 struct MediaSocket : virtual Static {
 
 	struct Reader : Media::Stream, virtual Object {
-		Reader(Media::Stream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		virtual ~Reader() { stop(); }
-
 		static unique<MediaSocket::Reader> New(Media::Stream::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		static unique<MediaSocket::Reader> New(Media::Stream::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
+
+		Reader(Media::Stream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		virtual ~Reader() { stop(); }
 
 		bool running() const { return _subscribed; }
 	
@@ -44,7 +44,7 @@ struct MediaSocket : virtual Static {
 		void starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', (_pReader ? _pReader->format() : "AUTO")); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
 
 		struct Decoder : HTTPDecoder, virtual Object {
@@ -78,12 +78,12 @@ struct MediaSocket : virtual Static {
 
 
 	struct Writer : Media::Target, Media::Stream, virtual Object {
+		static unique<MediaSocket::Writer> New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static unique<MediaSocket::Writer> New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+
 		Writer(Media::Stream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		Writer(Media::Stream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io);
 		virtual ~Writer() { stop(); }
-
-		static unique<MediaSocket::Writer> New(Media::Stream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static unique<MediaSocket::Writer> New(Media::Stream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
 
 		bool running() const { return _subscribed; }
 	
@@ -105,7 +105,7 @@ struct MediaSocket : virtual Static {
 		void starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', _pWriter->format()); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', String::Upper(_pWriter->format())); }
 		
 		template<typename SendType, typename ...Args>
 		bool send(Args&&... args) {

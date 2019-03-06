@@ -62,7 +62,7 @@ const UInt8 Util::UInt8Generators[] = {
 };
 
 const Parameters& Util::Environment() {
-	static struct Environment : Parameters, virtual Object {
+	static const struct Environment : Parameters, virtual Object {
 		Environment() {
 			const char* line(*environ);
 			for (UInt32 i = 0; (line = *(environ + i)); ++i) {

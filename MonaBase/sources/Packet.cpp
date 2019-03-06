@@ -60,7 +60,7 @@ Packet Packet::operator-(UInt32 count) const {
 const shared<const Binary>& Packet::bufferize() const {
 	if (_data && !*_ppBuffer) { // if has data, and _ppBuffer is empty (no bufferized) => bufferize!
 		_reference = false;
-		_ppBuffer = new shared<const Binary>(shared<Buffer>(SET, _size, _data));
+		_ppBuffer = new shared<const Binary>(shared<Buffer>(SET, _data, _size));
 		_data = (*_ppBuffer)->data(); // fix new data address
 	}
 	return *_ppBuffer;

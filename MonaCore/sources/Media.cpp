@@ -436,11 +436,14 @@ bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet,
 }
 
 void Media::Stream::start(const Parameters& parameters) {
+	bool start = !running();
 	starting(parameters);
-	if (running())
+	if (start && running())
 		onStart();
 }
 void Media::Stream::stop(const Exception& ex) {
+	if (!running())
+		return;
 	stopping();
 	onStop(ex);
 }
@@ -577,7 +580,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 			if (isAddress) {
 				path.set(first.c_str() + size);
 				if (!isTargets && !address.host() && (type != TYPE_UDP || isTarget)) {
-					ex.set<Ex::Net::Address::Ip>("A TCP or target Stream can't have a wildcard ip");
+					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
 					return nullptr;
 				}
 			} else {

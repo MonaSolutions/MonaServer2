@@ -28,9 +28,9 @@ struct MediaWriter : virtual Object {
 
 	static unique<MediaWriter> New(const char* subMime);
 
-	const char*			format() const;
-	MIME::Type			mime() const;
-	virtual const char* subMime() const; // Keep virtual to allow to RTPReader to redefine it
+	virtual const char*	format() const;
+	virtual MIME::Type	mime() const;
+	virtual const char* subMime() const;
 
 
 	typedef std::function<void(const Packet& packet)> OnWrite;

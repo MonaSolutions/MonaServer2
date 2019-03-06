@@ -21,6 +21,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/MediaReader.h"
 #include "Mona/MediaWriter.h"
+#include "Mona/Playlist.h"
+#include "Mona/Segments.h"
 
 namespace Mona {
 
@@ -28,11 +30,11 @@ namespace Mona {
 struct MediaFile : virtual Static  {
 
 	struct Reader : Media::Stream, virtual Object {
-		Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io);
-		virtual ~Reader() { stop(); }
-
 		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const char* subMime, const Timer& timer, IOFile& io);
 		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const Timer& timer, IOFile& io) { return New(path, source, path.extension().c_str(), timer, io); }
+
+		Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io);
+		virtual ~Reader() { stop(); }
 
 		bool running() const { return _pFile.operator bool(); }
 
@@ -43,7 +45,7 @@ struct MediaFile : virtual Static  {
 		void starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pReader->format()); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.baseName(), '.', path.extension().empty() ? _pReader->format() : path.extension().c_str()); }
 
 		struct Lost : Media::Base, virtual Object {
 			Lost(Media::Type type, UInt32 lost, UInt8 track) : Media::Base(type, Packet::Null(), track), _lost(lost) {} // lost
@@ -99,70 +101,95 @@ struct MediaFile : virtual Static  {
 
 
 	struct Writer : Media::Target, Media::Stream, virtual Object {
-		Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io);
-		virtual ~Writer() { stop(); }
-
 		static unique<MediaFile::Writer> New(const Path& path, const char* subMime, IOFile& io);
 		static unique<MediaFile::Writer> New(const Path& path, IOFile& io) { return New(path, path.extension().c_str(), io); }
 
-		bool running() const { return _running; }
-	
+		Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io);
+		virtual ~Writer() { stop(); }
+
 		IOFile&		io;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 	
+		bool running() const { return _running; }
+
 		void setMediaParams(const Parameters& parameters);
 		bool beginMedia(const std::string& name);
-		bool writeProperties(const Media::Properties& properties) { Media::Data::Type type; const Packet& packet(properties(type)); return write<MediaWrite<Media::Data>>(0, type, packet); }
-		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(track, tag, packet); }
-		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Video>>(track, tag, packet); }
-		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Data>>(track, type, packet); }
+		bool writeProperties(const Media::Properties& properties);
+		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(tag, packet, track); }
+		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Video>>(tag, packet, track); }
+		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Data>>(type, packet, track); }
 		void endMedia();
 
 	private:
 		void starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target file://...", MAKE_FOLDER(Path(path.parent()).name()), path.name(), '|', _pWriter->format()); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target file://...", MAKE_FOLDER(Path(path.parent()).name()), path.baseName(), '.', path.extension().empty() ? _pWriter->format() : path.extension().c_str()); }
 
 		template<typename WriteType, typename ...Args>
 		bool write(Args&&... args) {
 			if (!_pFile)
 				return false; // Stream not begin or has failed!
-			io.threadPool.queue<WriteType>(_writeTrack, _pName, io, _pFile, _pWriter, std::forward<Args>(args)...);
+			io.threadPool.queue<WriteType>(_writeTrack, _pFile, std::forward<Args>(args)...);
 			return true;
 		}
 
-		struct Write : Runner, virtual Object {
-			Write(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter);
-		protected:
-			MediaWriter::OnWrite	onWrite;
-			shared<MediaWriter>		pWriter;
-		private:
-			virtual bool run(Exception& ex) { pWriter->beginMedia(onWrite); return true; }
+		struct File : FileWriter, Path, virtual Object {
+			NULLABLE
+			File(const std::string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylist, UInt8 sequences, IOFile& io);
 
+			operator bool() const { return FileWriter::operator bool(); }
+
+			MediaWriter*	operator->() { return _pWriter.get(); }
+			MediaWriter&	operator*() { return *_pWriter; }
+	
+			const std::string				name;
+			MediaWriter::OnWrite			onWrite;
+			const shared<Playlist::Writer>	pPlaylist;
+			UInt32							sequence;
+		private:
+			shared<MediaWriter>			_pWriter;
+		};
+
+
+		struct Write : Runner, virtual Object {
+			Write(const shared<File>& pFile) : _pFile(pFile), Runner("MediaFileWrite") {}
+		private:
+			virtual void process(Exception& ex, File& file) = 0;
+			bool run(Exception& ex) { process(ex, *_pFile); return true; }
 			shared<File>		_pFile;
-			shared<std::string>	_pName;
-			IOFile&				_io;
+		};
+
+		struct Begin : Write, virtual Object {
+			Begin(const shared<File>& pFile, bool append) : Write(pFile), append(append) {}
+			const bool	append;
+			void process(Exception& ex, File& file);
+		};
+
+		struct ChangeSequences : Write, virtual Object {
+			ChangeSequences(const shared<File>& pFile, UInt8 sequences) : Write(pFile), sequences(sequences) {}
+			const UInt8	sequences;
+			void process(Exception& ex, File& file) { if (file.pPlaylist) ((Segments::Writer&)*file).sequences = sequences; }
 		};
 
 		template<typename MediaType>
 		struct MediaWrite : Write, MediaType, virtual Object {
-			MediaWrite(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter,
-				UInt8 track, const typename MediaType::Tag& tag, const Packet& packet) : Write(pName, io, pFile, pWriter), MediaType(tag, packet, track) {}
-			bool run(Exception& ex) { pWriter->writeMedia(*this, onWrite); return true; }
+			template<typename ...Args>
+			MediaWrite(const shared<File>& pFile, Args&&... args) : Write(pFile), MediaType(std::forward<Args>(args)...) {}
+			void process(Exception& ex, File& file) { file->writeMedia(self, file.onWrite); }
 		};
 		struct EndWrite : Write, virtual Object {
-			EndWrite(const shared<std::string>& pName, IOFile& io, const shared<File>& pFile, const shared<MediaWriter>& pWriter) : Write(pName, io, pFile, pWriter) {}
-			bool run(Exception& ex) { pWriter->endMedia(onWrite); return true; }
+			EndWrite(const shared<File>& pFile) : Write(pFile) {}
+			void process(Exception& ex, File& file) { file->endMedia(file.onWrite); }
 		};
 
-		File::OnError			_onError;
-		shared<File>			_pFile;
-		shared<MediaWriter>		_pWriter;
-		UInt16					_writeTrack;
-		bool					_running;
-		shared<std::string>		_pName;
-		bool					_append;
+		shared<File>			 _pFile;
+		shared<MediaWriter>		 _pWriter;
+		UInt16					 _writeTrack;
+		bool					 _running;
+		bool					 _append;
+		UInt8					 _sequences;
+		shared<Playlist::Writer> _pPlaylist;
 	};
 };
 

@@ -117,7 +117,7 @@ bool String::ToNumber(const char* value, size_t size, Type& result, Math base)  
 
 template<typename Type>
 bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& result, Math base) {
-	FATAL_ASSERT(is_arithmetic<Type>::value);
+	STATIC_ASSERT(is_arithmetic<Type>::value);
 	if (base > 36) {
 		ex.set<Ex::Format>(base, " is impossible to represent with ascii table, maximum base is 36");
 		return false;

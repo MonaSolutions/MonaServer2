@@ -32,7 +32,7 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		subType = "html; charset=utf-8";
 		return TYPE_TEXT;
 	}
-	static const map<string, pair<Type,const char*>, String::IComparator> Types({
+	static const map<const char*, pair<Type,const char*>, String::IComparator> Types({
 		{ "html",{ TYPE_TEXT, "html; charset=utf-8" } },
 		{ "htm",{ TYPE_TEXT, "html; charset=utf-8" } },
 		{ "txt",{ TYPE_TEXT, "plain; charset=utf-8" } },
@@ -69,7 +69,7 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		{ "xml",{ TYPE_APPLICATION, "xml" } },
 		{ "zip",{ TYPE_APPLICATION, "zip" } }
 	});
-	const auto& it(Types.find(file.extension()));
+	const auto& it = Types.find(file.extension().c_str());
 	if (it == Types.end())
 		return TYPE_UNKNOWN;
 	subType = it->second.second;

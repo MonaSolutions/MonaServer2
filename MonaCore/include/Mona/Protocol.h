@@ -44,7 +44,7 @@ protected:
 	Protocol(const char* name, Protocol& gateway);
 
 private:
-	const char* onParamUnfound(const std::string& key) const;
+	const std::string* onParamUnfound(const std::string& key) const;
 
 	shared<Socket>	_pSocket;
 };

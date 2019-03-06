@@ -63,7 +63,7 @@ ADD_TEST(Unbuffered) {
 
 ADD_TEST(Buffered) {
 
-	shared<Buffer> pBuffer(SET, 4,"data");
+	shared<Buffer> pBuffer(SET, EXPAND("data"));
 
 	Packet packet;
 	CHECK(!packet && !packet.buffer() && !packet.data() && !packet.size() && pBuffer && pBuffer->data() && pBuffer->size());
@@ -97,7 +97,7 @@ ADD_TEST(Bufferize) {
 	CHECK(packet.buffer() && &packet.buffer() != &packets.back().buffer() && data != packet.data());
 
 	// test buffered data
-	shared<Buffer> pBuffer(SET, packet.size(), packet.data());
+	shared<Buffer> pBuffer(SET, packet.data(), packet.size());
 	CHECK(packet.set(pBuffer).buffer());
 	data = packet.data();
 	packets.emplace_back(move(packet));
