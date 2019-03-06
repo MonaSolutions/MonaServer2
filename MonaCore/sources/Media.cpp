@@ -579,7 +579,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 			}
 			if (isAddress) {
 				path.set(first.c_str() + size);
-				if (!isTargets && !address.host() && (type != TYPE_UDP || isTarget)) {
+				if (!isTargets && !address.host() && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) {
 					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
 					return nullptr;
 				}
@@ -610,6 +610,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 
 	if (format.empty()) {
 		switch (type) {
+			case TYPE_SRT:
 			case TYPE_UDP:
 				// UDP and No Format => TS by default to catch with VLC => UDP = TS
 				format = "mp2t";

@@ -33,7 +33,7 @@ unique<MediaServer> MediaServer::New(Type type, const Path& path, const char* su
 const shared<Socket>& MediaServer::socket() {
 	if (!_pSocket) {
 #if defined(SRT_API)
-		if (type==Media::Stream::TYPE_SRT)
+		if (type==Stream::TYPE_SRT)
 			_pSocket.set<SRT::Socket>();
 		else
 #endif
