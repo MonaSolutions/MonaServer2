@@ -190,6 +190,9 @@
     <ClCompile Include="sources\SRT.cpp">
       <Filter>Crypto</Filter>
     </ClCompile>
+    <ClCompile Include="sources\IOSRTSocket.cpp">
+      <Filter>Net</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\BinaryReader.h">
@@ -390,6 +393,9 @@
     </ClInclude>
     <ClInclude Include="include\Mona\SRT.h">
       <Filter>Crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\IOSRTSocket.h">
+      <Filter>Net</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

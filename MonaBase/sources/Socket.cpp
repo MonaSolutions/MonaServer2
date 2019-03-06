@@ -31,26 +31,23 @@ Socket::Socket(Type type) :
 #endif
 	pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
 
-	init();
+	if (type < TYPE_OTHER)
+		init();
+	//else
+	//	_ex.set<Ex::Intern>("Socket built as a pure interface, overloads its methods");
 }
 
 // private constructor used just by Socket::accept, TCP initialized and connected socket
-Socket::Socket(NET_SOCKET id, const sockaddr& addr) : _peerAddress(addr), _address(IPAddress::Loopback(),0), // computable!
+Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(addr), _address(IPAddress::Loopback(),0), // computable!
 #if !defined(_WIN32)
 	_pWeakThis(NULL), _firstWritable(true),
 #endif
-	pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_STREAM), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
+	pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
 
-	init();
-}
-
-Socket::Socket(const sockaddr& addr) : _peerAddress(addr), _address(IPAddress::Loopback(), 0), // computable!
-#if !defined(_WIN32)
-	_pWeakThis(NULL), _firstWritable(true),
-#endif
-	pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(Socket::TYPE_DATAGRAM), _recvTime(Time::Now()), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
-
-	init();
+	if (type < TYPE_OTHER)
+		init();
+	//else
+	//	_ex.set<Ex::Intern>("Socket built as a pure interface, overloads its methods");
 }
 
 

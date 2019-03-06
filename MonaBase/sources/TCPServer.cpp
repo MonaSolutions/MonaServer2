@@ -30,6 +30,12 @@ TCPServer::~TCPServer() {
 		io.unsubscribe(_pSocket);
 }
 
+shared<Socket> TCPServer::newSocket() {
+	if (_pTLS)
+		return make_shared<TLS::Socket>(Socket::TYPE_STREAM, _pTLS);
+	return make_shared<Socket>(Socket::TYPE_STREAM);
+}
+
 bool TCPServer::start(Exception& ex,const SocketAddress& address) {
 	if (_pSocket) {
 		if (address == _pSocket->address())
@@ -37,7 +43,7 @@ bool TCPServer::start(Exception& ex,const SocketAddress& address) {
 		stop();
 	}
 
-	_pSocket.set<TLS::Socket>(Socket::TYPE_STREAM, _pTLS);
+	_pSocket = newSocket();
 	// can subscribe after bind + listen for server, no risk to miss an event
 	if (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, onConnection, onError))
 		return true;

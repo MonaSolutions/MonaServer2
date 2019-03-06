@@ -16,7 +16,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/TCPClient.h"
 #include "Mona/Exceptions.h"
-
+#include "Mona/SRT.h"
 
 using namespace std;
 
@@ -26,6 +26,14 @@ namespace Mona {
 TCPClient::TCPClient(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io), _connected(false),
 	_onReceived([this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 		_connected = true;
+#if defined(SRT_API)
+		if (_pSocket->type == Socket::TYPE_OTHER) {
+			Packet packet(pBuffer);
+			onData(packet);
+			return;
+		}
+#endif
+
 		// Check that it exceeds not socket buffer
 		if (!addStreamData(Packet(pBuffer), _pSocket->recvBufferSize())) {
 			_pSocket->shutdown(Socket::SHUTDOWN_RECV);
@@ -112,6 +120,10 @@ void TCPClient::disconnect() {
 	io.unsubscribe(_pSocket);
 	if (pSocket->peerAddress()) // else peer was not connected, no onDisconnection need
 		onDisconnection(pSocket->peerAddress()); // On properly disconnection last messages can be sent!
+#if defined(SRT_API)
+	if (pSocket->type == Socket::TYPE_OTHER)
+		pSocket->shutdown();
+#endif
 }
 
 bool TCPClient::send(Exception& ex, const Packet& packet, int flags) {

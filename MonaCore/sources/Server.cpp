@@ -221,10 +221,11 @@ void Server::loadStreams(set<shared<Media::Stream>>& streams, set<Publication*>&
 					Exception ex;
 					if (!subscribe(ex, publication, *pSubscription, pStream->query.c_str()))  // logs already displaid by subscribe
 						return false;
-					pTargets->onTargetRemove = [this, &subscriptions, pSubscription](Media::Target& target) {
-						unsubscribe(*pSubscription);
-						subscriptions.erase(pSubscription);
-					};
+					if (!pTargets->onTargetRemove)
+						pTargets->onTargetRemove = [this, &subscriptions, pSubscription](Media::Target& target) {
+							unsubscribe(*pSubscription);
+							subscriptions.erase(pSubscription);
+						};
 					subscriptions.emplace(move(pSubscription));
 					return true;
 				};

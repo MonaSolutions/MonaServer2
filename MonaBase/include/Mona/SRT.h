@@ -35,14 +35,17 @@ namespace Mona {
 struct SRT : virtual Static {
 
 	struct Client : TCPClient {
-		Client(IOSocket& io) : TCPClient(io) { }
+		Client(IOSocket& io) : Mona::TCPClient(io) { }
 
 	private:
 		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};
 
 	struct Server : TCPServer {
-		Server(IOSocket& io) : TCPServer(io) {}
+		Server(IOSocket& io) : Mona::TCPServer(io) {}
+
+	private:
+		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};
 	
 	struct Socket : virtual Object, Mona::Socket {
@@ -64,39 +67,30 @@ struct SRT : virtual Static {
 		virtual bool bind(Exception& ex, const SocketAddress& address);
 
 		virtual bool listen(Exception& ex, int backlog = SOMAXCONN);
-	private:
 
-		void disconnect();
+		virtual bool setNonBlockingMode(Exception& ex, bool value);
+
+		virtual const SocketAddress& address() const;
+
+		virtual bool setSendBufferSize(Exception& ex, int size);
+		virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex, SOL_SOCKET, ::SRTO_UDP_SNDBUF, size); }
+
+		virtual bool setRecvBufferSize(Exception& ex, int size);
+		virtual bool getRecvBufferSize(Exception& ex, int& size) const { return getOption(ex, SOL_SOCKET, ::SRTO_UDP_RCVBUF, size); }
+
+	private:
 
 		//virtual Mona::Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr);
 		virtual int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 		virtual bool flush(Exception& ex, bool deleting);
 		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);
 
+		bool getOption(Exception& ex, int level, SRT_SOCKOPT option, int& value) const;
+		bool setOption(Exception& ex, int level, SRT_SOCKOPT option, int value);
 
-		::SRTSOCKET	_srt; // SRT context ID
-		//::SRTSOCKET _currentID; // Current context ID, created after SRT accept
-		//bool		_connected;
+
+		std::atomic<bool> _shutdownRecv;
 	};
-
-	static void LogCallback(void* opaque, int level, const char* file, int line, const char* area, const char* message);
-
-	struct Singleton : virtual Object {
-		Singleton() {
-			if (::srt_startup()) {
-				FATAL_ERROR("SRT startup: Error starting SRT library");
-				return;
-			}
-			::srt_setloghandler(nullptr, LogCallback);
-			::srt_setloglevel(0xff);
-		}
-		
-		virtual ~Singleton() {
-			::srt_setloghandler(nullptr, nullptr);
-			::srt_cleanup();
-		}
-	};
-	static unique<Singleton> SRT_Singleton;
 };
 
 //
