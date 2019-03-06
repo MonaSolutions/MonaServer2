@@ -90,7 +90,7 @@ struct unique : std::unique_ptr<Type> {
 	using std::unique_ptr<Type>::unique_ptr;
 	unique() : std::unique_ptr<Type>() {}
 	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::unique_ptr<Type>, ArgType>::value>::type>
-	explicit unique(ArgType&& arg) : std::unique_ptr<Type>(std::forward<ArgType>(arg)) {}
+	unique(ArgType&& arg) : std::unique_ptr<Type>(std::forward<ArgType>(arg)) {}
 	template<typename ...Args>
 	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
 	template<typename NewType = Type, typename ...Args>
@@ -108,7 +108,7 @@ struct shared : std::shared_ptr<Type> {
 	using std::shared_ptr<Type>::shared_ptr;
 	shared() : std::shared_ptr<Type>() {}
 	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::shared_ptr<Type>, ArgType>::value>::type>
-	explicit shared(ArgType&& arg) : std::shared_ptr<Type>(std::forward<ArgType>(arg)) {}
+	shared(ArgType&& arg) : std::shared_ptr<Type>(std::forward<ArgType>(arg)) {}
 	template<typename ...Args>
 	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
 	template<typename NewType = Type, typename ...Args>
