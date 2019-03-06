@@ -88,7 +88,7 @@ private:
 };
 
 
-/*ADD_TEST(TestTCPBlocking) {
+ADD_TEST(TestTCPBlocking) {
 	Exception ex;
 
 	
@@ -115,7 +115,7 @@ private:
 	address.set(IPAddress::Loopback(), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
-	pClient.reset(new SRT::Socket());
+	/*pClient.reset(new SRT::Socket());
 	pServer.reset(new Server());
 	
 	// TODO: find a way to create an SRT::Socket without knowing the AF type, for now we consider that srt support only ipv4
@@ -135,7 +135,7 @@ private:
 	pServer->accept();
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
-	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());*
+	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());*/
 
 	// Test server TCP communication
 	CHECK(pClient->send(ex, EXPAND("hi mathieu and thomas")) == 21 && !ex);
@@ -150,7 +150,7 @@ private:
 
 	//TODO: Disabled because the socket is shutdown before receiving all messages
 	//CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)
-}*/
+}
 
 struct SRTEchoClient : SRT::Client {
 	SRTEchoClient(IOSocket& io) : SRT::Client(io) {
@@ -165,7 +165,6 @@ struct SRTEchoClient : SRT::Client {
 			CHECK(connected())
 		};
 		onData = [this](Packet& buffer)->UInt32 {
-			INFO("SRTEchoClient has received data : ", buffer.size());
 			do {
 				CHECK(!_packets.empty());
 				UInt32 size(_packets.front().size());
@@ -217,8 +216,6 @@ ADD_TEST(TestTCPNonBlocking) {
 	server.onConnection = [&](const shared<Socket>& pSocket) {
 		CHECK(pSocket && pSocket->peerAddress());
 
-		INFO("New SRTSocket : ", pSocket->id(), " ; address : ", pSocket->address(), " ; peer address : ", pSocket->peerAddress())
-
 		SRT::Client* pConnection(new SRT::Client(io));
 
 		pConnection->onError = onError;
@@ -231,7 +228,6 @@ ADD_TEST(TestTCPNonBlocking) {
 			CHECK(pConnection->connected()) 
 		};
 		pConnection->onData = [&, pConnection](Packet& buffer) {
-			INFO("pConnection has received data : ", buffer.size());
 			CHECK(pConnection->send(ex, buffer) && !ex); // echo
 			return 0;
 		};
@@ -249,7 +245,6 @@ ADD_TEST(TestTCPNonBlocking) {
 	address = server->address();
 	server.stop();
 	CHECK(!server.running() && server.start(ex, address) && !ex  && server.running()); 
-	INFO("Server started : ", server->id(), " ; address : ", server->address(), " ; peer address : ", server->peerAddress())
 
 	SRTEchoClient client(io);
 	SocketAddress target(IPAddress::Loopback(), address.port());
@@ -260,7 +255,6 @@ ADD_TEST(TestTCPNonBlocking) {
 
 	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
 
-	INFO("Client created : ", client->id(), " ; address : ", client->address(), " ; peer address : ", client->peerAddress())
 	client.disconnect();
 	CHECK(!client.connected() && !client);
 

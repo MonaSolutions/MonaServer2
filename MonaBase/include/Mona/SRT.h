@@ -96,7 +96,8 @@ struct SRT : virtual Static {
 		bool setOption(Exception& ex, int level, SRT_SOCKOPT option, int value);
 
 
-		std::atomic<bool> _shutdownRecv;
+		std::atomic<bool> _shutdownRecv; 
+		mutable std::atomic<UInt32>		_available;
 	};
 
 //

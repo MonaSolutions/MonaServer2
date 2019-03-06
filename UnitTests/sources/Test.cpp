@@ -44,7 +44,15 @@ void PoolTest::run(const string& mod,UInt32 loop) {
 	if (itTest.first == itTest.second) 
 		itTest = _mapTests.equal_range(mod + "Test");
 	if (itTest.first == itTest.second) {
-		ERROR("Module ",mod," does not exist.");
+		// Try by index
+		Exception ex;
+		UInt32 number;
+		vector<string> lTests;
+		getListTests(lTests);
+		if (String::ToNumber<UInt32>(ex, mod, number) && number < lTests.size())
+			run(lTests.at(number), loop);
+		else
+			ERROR("Module ", mod, " does not exist.");
 		return;
 	}
 

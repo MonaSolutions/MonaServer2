@@ -120,10 +120,6 @@ void TCPClient::disconnect() {
 	io.unsubscribe(_pSocket);
 	if (pSocket->peerAddress()) // else peer was not connected, no onDisconnection need
 		onDisconnection(pSocket->peerAddress()); // On properly disconnection last messages can be sent!
-#if defined(SRT_API)
-	if (pSocket->type == Socket::TYPE_OTHER)
-		pSocket->shutdown();
-#endif
 }
 
 bool TCPClient::send(Exception& ex, const Packet& packet, int flags) {
