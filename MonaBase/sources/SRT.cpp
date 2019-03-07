@@ -23,7 +23,7 @@ using namespace std;
 
 namespace Mona {
 
-SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
+SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false), _available(SRT_LIVE_DEF_PLSIZE) {
 
 	_id = ::srt_socket(AF_INET, SOCK_DGRAM, 0); // TODO: This is ipv4 for now, we must find a way to enable ipv6 without knowing the address (IPV6ONLY?)
 
@@ -31,7 +31,7 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 	::srt_setsockflag(_id, ::SRTO_SENDER, &opt, sizeof opt);*/
 }
 
-SRT::Socket::Socket(const sockaddr& addr, SRTSOCKET id) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) { }
+SRT::Socket::Socket(const sockaddr& addr, SRTSOCKET id) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false), _available(SRT_LIVE_DEF_PLSIZE) { }
 
 SRT::Socket::~Socket() {
 	if (_id == ::SRT_INVALID_SOCK)
@@ -45,7 +45,10 @@ SRT::Socket::~Socket() {
 }
 
 UInt32 SRT::Socket::available() const {
-	return SRT_LIVE_DEF_PLSIZE; // SRT buffer size
+	UInt32 value = _available;
+	if (!value)
+		_available = SRT_LIVE_DEF_PLSIZE; // reset to SRT buffer size
+	return value;
 }
 
 bool SRT::Socket::bind(Exception& ex, const SocketAddress& address) {
@@ -191,8 +194,10 @@ int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 	int result = ::srt_recvmsg(_id, STR buffer, size); // /!\ SRT expect at least a buffer of 1316 bytes
 	if (result == SRT_ERROR) {
 		int error = ::srt_getlasterror(NULL);
-		if (error == SRT_EASYNCRCV) // EAGAIN, wait for reception to be ready
+		if (error == SRT_EASYNCRCV) { // EAGAIN, wait for reception to be ready
 			SetException(ex, NET_EWOULDBLOCK, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
+			_available = 0; // to avoid an infinite loop of receive call, we cannot know the available data with SRT
+		}
 		else if (::srt_getlasterror(NULL) == SRT_ENOCONN) // Connecting (TODO: not sure it is well handled)
 			SetException(ex, NET_ENOTCONN, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
 		else if (error == ::SRT_ECONNLOST) // Connection closed, not an error
@@ -225,7 +230,8 @@ int SRT::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 			return -1;
 		}
 	}*/
-	if (::srt_send(_id, STR data, size) < 0) {
+	int sent = ::srt_send(_id, STR data, size);
+	if (sent <= 0) {
 		if (::srt_getlasterror(NULL) == SRT_ENOCONN)
 			SetException(ex, NET_ENOTCONN, " (address=", address ? address : _peerAddress, ", size=", size, ", flags=", flags, ")");
 		else
@@ -233,12 +239,12 @@ int SRT::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 		return -1;
 	}
 
-	Mona::Socket::send(size);
+	Mona::Socket::send(sent);
 
 	if (!_address)
 		_address.set(IPAddress::Loopback(), 0); // to advise that address is computable
 
-	return size;
+	return sent;
 }
 
 UInt64 SRT::Socket::queueing() const {
