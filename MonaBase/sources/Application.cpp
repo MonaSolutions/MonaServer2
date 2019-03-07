@@ -192,12 +192,12 @@ void Application::defineOptions(Exception& ex, Options& options) {
 }
 
 void Application::onParamChange(const string& key, const string* pValue) {
-	if (String::ICompare(key, EXPAND("net.bufferSize")) == 0 ||
-		String::ICompare(key, EXPAND("net.recvBufferSize")) == 0 ||
-		String::ICompare(key, EXPAND("net.sendBufferSize")) == 0 ||
-		String::ICompare(key, EXPAND("bufferSize")) == 0 ||
-		String::ICompare(key, EXPAND("recvBufferSize")) == 0 ||
-		String::ICompare(key, EXPAND("sendBufferSize")) == 0) {
+	if (String::ICompare(key, "net.bufferSize") == 0 ||
+		String::ICompare(key, "net.recvBufferSize") == 0 ||
+		String::ICompare(key, "net.sendBufferSize") == 0 ||
+		String::ICompare(key, "bufferSize") == 0 ||
+		String::ICompare(key, "recvBufferSize") == 0 ||
+		String::ICompare(key, "sendBufferSize") == 0) {
 
 		UInt32 value;
 		if (getNumber("net.recvBufferSize", value) ||
@@ -217,7 +217,7 @@ void Application::onParamChange(const string& key, const string* pValue) {
 			Net::ResetSendBufferSize();
 
 		DEBUG("Defaut socket buffers set to ", Net::GetRecvBufferSize(), "B in reception and ", Net::GetSendBufferSize(), "B in sends");
-	} else if (String::ICompare(key, EXPAND("logs.level")) == 0) {
+	} else if (String::ICompare(key, "logs.level") == 0) {
 		UInt8 level = getNumber<UInt8, LOG_DEFAULT>("arguments.log");
 		if (pValue)
 			String::ToNumber(*pValue, level);

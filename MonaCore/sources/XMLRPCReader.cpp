@@ -54,23 +54,23 @@ bool XMLRPCReader::onStartXMLElement(const char* name, Parameters& attributes) {
 	if (_validating) {
 		switch (_validating) {
 			case 3:
-				if (String::ICompare("methodResponse", name) == 0) {
+				if (String::ICompare(name, "methodResponse") == 0) {
 					_validating -= 2;
 					_isResponse = true;
 					_first = false;
 					return true;
 				}
-				if (String::ICompare("methodCall", name) != 0)
+				if (String::ICompare(name, "methodCall") != 0)
 					break;
 				--_validating;
 				return true;
 			case 2:
-				if (String::ICompare("methodName", name) != 0)
+				if (String::ICompare(name, "methodName") != 0)
 					break;
 				--_validating;
 				return true;
 			case 1:
-				if (String::ICompare("params", name) != 0)
+				if (String::ICompare(name, "params") != 0)
 					break;
 				--_validating;
 				_xmls.emplace_back(PARAMS);

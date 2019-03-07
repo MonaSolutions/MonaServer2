@@ -153,10 +153,10 @@ struct String : std::string {
 	static std::string&	ToLower(std::string& value) { for (char& c : value) c = tolower(c); return value; }
 	static std::string&	ToUpper(std::string& value) { for (char& c : value) c = toupper(c); return value; }
 
-	static int ICompare(const char* value1, const char* value2,  std::size_t size = std::string::npos);
-	static int ICompare(const std::string& value1, const std::string& value2, std::size_t size = std::string::npos) { return ICompare(value1.empty() ? NULL : value1.c_str(), value2.empty() ? NULL : value2.c_str(), size); }
-	static int ICompare(const std::string& value1, const char* value2,  std::size_t size = std::string::npos) { return ICompare(value1.empty() ? NULL : value1.c_str(), value2, size); }
-	static int ICompare(const char* value1, const std::string& value2,  std::size_t size = std::string::npos) { return ICompare(value1, value2.empty() ? NULL : value2.c_str(), size); }
+	static int ICompare(const char* data, const char* value, std::size_t count = std::string::npos) { return ICompare(data, std::string::npos, value, count); }
+	static int ICompare(const char* data, std::size_t size, const char* value, std::size_t count = std::string::npos);
+	static int ICompare(const std::string& data, const char* value, std::size_t count = std::string::npos) { return ICompare(data.c_str(), data.size(), value, count); }
+	static int ICompare(const std::string& data, const std::string& value, std::size_t count = std::string::npos) { return ICompare(data.c_str(), data.size(), value.c_str(), count); }
 
 	template<typename Type>
 	static bool ToNumber(const std::string& value, Type& result, Math base = BASE_10) { return ToNumber(value.data(), value.size(), result, base); }
@@ -186,9 +186,9 @@ struct String : std::string {
 	
 
 	static bool IsTrue(const std::string& value) { return IsTrue(value.data(),value.size()); }
-	static bool IsTrue(const char* value,std::size_t size=std::string::npos) { return ICompare(value, "1", size) == 0 || String::ICompare(value, "true", size) == 0 || String::ICompare(value, "yes", size) == 0 || String::ICompare(value, "on", size) == 0; }
+	static bool IsTrue(const char* value, std::size_t size=std::string::npos) { return ICompare(value, size, "1") == 0 || String::ICompare(value, size, "true") == 0 || String::ICompare(value, size, "yes") == 0 || String::ICompare(value, size, "on") == 0; }
 	static bool IsFalse(const std::string& value) { return IsFalse(value.data(),value.size()); }
-	static bool IsFalse(const char* value, std::size_t size = std::string::npos) { return ICompare(value, "0", size) == 0 || String::ICompare(value, "false", size) == 0 || String::ICompare(value, "no", size) == 0 || String::ICompare(value, "off", size) == 0 || String::ICompare(value, "null", size) == 0; }
+	static bool IsFalse(const char* value, std::size_t size = std::string::npos) { return ICompare(value, size, "0") == 0 || String::ICompare(value, size, "false") == 0 || String::ICompare(value, size, "no") == 0 || String::ICompare(value, size, "off") == 0 || String::ICompare(value, size, "null") == 0; }
 
 	template <typename BufferType>
 	static BufferType& ToHex(const std::string& value, BufferType& buffer) { return ToHex(value.c_str(), buffer); }

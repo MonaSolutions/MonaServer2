@@ -40,7 +40,7 @@ void Server::start(const Parameters& parameters) {
 
 	// copy and load parametes
 	for (auto& it : parameters) {
-		if (!_www && String::ICompare(it.first, EXPAND("www.dir")) == 0)
+		if (!_www && String::ICompare(it.first, "www.dir") == 0)
 			_www.set(it.second);
 		setString(it.first, it.second);
 	}

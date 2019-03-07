@@ -473,7 +473,7 @@ int Socket::sendTo(Exception& ex, const void* data, UInt32 size, const SocketAdd
 	send(rc);
 
 	if (UInt32(rc) < size && type == TYPE_DATAGRAM) {
-		ex.set<Ex::Net::Socket>("UDP Packet sent in pieces (address=", address ? address : _peerAddress, ", size=", size, ", flags=", flags, ")");
+		SetException(ex, NET_EMSGSIZE, " (address=", address ? address : _peerAddress, ", size=", size, ", flags=", flags, ")");
 		return -1;
 	}
 

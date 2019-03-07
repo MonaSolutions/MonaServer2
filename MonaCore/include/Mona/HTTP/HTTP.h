@@ -156,19 +156,10 @@ struct HTTP : virtual Static {
 		SORTBY_SIZE
 	};
 
-	enum Encoding {
-		ENCODING_IDENTITY=0,
-		ENCODING_CHUNKED,
-		ENCODING_COMPRESS,
-		ENCODING_DEFLATE,
-		ENCODING_GZIP
-	};
-
 	static const char*	 ErrorToCode(Int32 error);
 
 	static Type			 ParseType(const char* value, bool withRDV=false);
 	static UInt8		 ParseConnection(const char* value);
-	static Encoding		 ParseEncoding(const char* value);
 
 	static bool			 WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const std::string& fullPath, const std::string& path, SortBy sortBy = SORTBY_NAME, Sort sort = SORT_ASC);
 
@@ -190,7 +181,7 @@ struct HTTP : virtual Static {
 		UInt8			connection;
 		const char*		upgrade;
 		UInt8			cacheControl;
-		Encoding		encoding;
+		bool			chunked;
 		bool			progressive;
 
 		Date			ifModifiedSince;

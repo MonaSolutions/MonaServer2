@@ -65,6 +65,8 @@ struct Logs : virtual Static {
 	static bool			IsDumping() { return _IsDumping; }
 
 	static bool			Logging() { return _Logging; }
+	
+	static bool			LastCritic(std::string& critic);
 
 	template <typename ...Args>
     static void	Log(LOG_LEVEL level, const char* file, long line, Args&&... args) {
@@ -76,6 +78,8 @@ struct Logs : virtual Static {
 		static String Message;
 		File.set(file);
 		String::Assign(Message, std::forward<Args>(args)...);
+		if (level <= LOG_CRITIC)
+			_Critic.assign(Message.empty() ? "unknown" : Message.c_str());
 		for (auto& it : _Loggers) {
 			if (*it.second && !it.second->log(level, File, line, Message))
 				_Loggers.fail(*it.second);
@@ -133,6 +137,7 @@ private:
 
 	static std::mutex				_Mutex;
 	static thread_local bool		_Logging;
+	static std::string				_Critic;
 
 	static std::atomic<LOG_LEVEL>	_Level;
 	static struct Loggers : std::map<std::string, unique<Logger>, String::IComparator>, virtual Object {

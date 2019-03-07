@@ -40,7 +40,7 @@ HTTP::Header::Header(const Socket& socket, bool rendezVous) : accessControlReque
 	accessControlRequestHeaders(NULL),
 	host(socket.address()),
 	range(NULL),
-	encoding(ENCODING_IDENTITY),
+	chunked(false),
 	code(NULL),
 	rendezVous(rendezVous) {
 }
@@ -69,7 +69,12 @@ void HTTP::Header::set(const char* key, const char* value) {
 	} else if (String::ICompare(key, "sec-webSocket-accept") == 0) {
 		secWebsocketAccept = value;
 	} else if (String::ICompare(key, "transfer-encoding") == 0) {
-		encoding = ParseEncoding(value);
+		String::ForEach forEach([this](UInt32 index, const char* value) {
+			if (String::ICompare(value, "chunked") == 0)
+				chunked = true;
+			return true;
+		});
+		String::Split(value, ",", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
 	} else if (String::ICompare(key, "if-modified-since") == 0) {
 		Exception ex;
 		AUTO_ERROR(ifModifiedSince.update(ex, value, Date::FORMAT_HTTP), "HTTP header")
@@ -135,42 +140,30 @@ const char* HTTP::ErrorToCode(Int32 error) {
 HTTP::Type HTTP::ParseType(const char* value, bool withRDV) {
 	switch (strlen(value)) {
 		case 3:
-			if (withRDV && String::ICompare(value, EXPAND("RDV")) == 0)
+			if (withRDV && String::ICompare(value, "RDV") == 0)
 				return TYPE_RDV;
-			if(String::ICompare(value, EXPAND("GET")) == 0)
+			if(String::ICompare(value, "GET") == 0)
 				return TYPE_GET;
-			if (String::ICompare(value, EXPAND("PUT")) == 0)
+			if (String::ICompare(value, "PUT") == 0)
 				return TYPE_PUT;
 			break;
 		case 4:
-			if (String::ICompare(value, EXPAND("HEAD")) == 0)
+			if (String::ICompare(value, "HEAD") == 0)
 				return TYPE_HEAD;
-			if (String::ICompare(value, EXPAND("POST")) == 0)
+			if (String::ICompare(value, "POST") == 0)
 				return TYPE_POST;
 			break;
 		case 6:
-			if (String::ICompare(value, EXPAND("DELETE")) == 0)
+			if (String::ICompare(value, "DELETE") == 0)
 				return TYPE_DELETE;
 			break;
 		case 7:
-			if (String::ICompare(value, EXPAND("OPTIONS")) == 0)
+			if (String::ICompare(value, "OPTIONS") == 0)
 				return TYPE_OPTIONS;
 			break;
 		default:break;
 	}
 	return TYPE_UNKNOWN;
-}
-
-HTTP::Encoding HTTP::ParseEncoding(const char* value) {
-	if (String::ICompare(value, EXPAND("chunked")) == 0)
-		return ENCODING_CHUNKED;
-	if (String::ICompare(value, EXPAND("compress")) == 0)
-		return ENCODING_COMPRESS;
-	if (String::ICompare(value, EXPAND("deflate")) == 0)
-		return ENCODING_DEFLATE;
-	if (String::ICompare(value, EXPAND("gzip")) == 0)
-		return ENCODING_GZIP;
-	return ENCODING_IDENTITY;
 }
 
 UInt8 HTTP::ParseConnection(const char* value) {
@@ -320,7 +313,7 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 	{ // lock
 		unique_lock<mutex> lock(_mutex);
 		auto it = _remotes.lower_bound(pHeader->path.c_str());
-		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path.c_str()) == 0) {
+		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path) == 0) {
 			// found!
 			shared<Socket> pRemoteSocket = it->second->lock();
 			if (pRemoteSocket) {

@@ -120,13 +120,13 @@ UInt8 JSONReader::followingType() {
 	} while (available && *cur != ',' && *cur != '}' && *cur != ']');
 
 	if (_size == 4) {
-		if (String::ICompare(value, "true",4) == 0) {
+		if (String::ICompare(value, EXPAND("true")) == 0) {
 			_number = 1;
 			return BOOLEAN;
 		}
-		if(String::ICompare(value, "null",4) == 0)
+		if(String::ICompare(value, EXPAND("null")) == 0)
 			return NIL;
-	} else if (_size == 5 && String::ICompare(value, "false",5) == 0) {
+	} else if (_size == 5 && String::ICompare(value, EXPAND("false")) == 0) {
 		_number = 0;
 		return BOOLEAN;
 	}
@@ -230,12 +230,12 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 		// write key
 		if (!started) {
 			if (!(cur = current())) {
-				ERROR("JSON malformed, value object of property ",string(name, _size)," absent");
+				ERROR("JSON malformed, value object of property ", String::Data(name, _size)," absent");
 				return false;
 			}
 			if (*cur == '"') {
 
-				if (_size >= 4 && String::ICompare(name + (_size - 4), EXPAND("type"))==0) { // finish by "type" ("__type")
+				if (_size >= 4 && String::ICompare(name + (_size - 4), "type")==0) { // finish by "type" ("__type")
 					UInt32 size;
 					const char* value(jumpToString(size));
 					if (!value)
@@ -247,7 +247,7 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 					continue;
 				}
 				
-				if (_size >= 3 && String::ICompare(name + (_size - 3), EXPAND("raw"))==0) { // finish by "raw" ("__raw")
+				if (_size >= 3 && String::ICompare(name + (_size - 3), "raw")==0) { // finish by "raw" ("__raw")
 					UInt32 size;
 					const char* value(jumpToString(size));
 					if (!value)

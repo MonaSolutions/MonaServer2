@@ -644,7 +644,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 			pStream = MediaFile::Reader::New(path, source, format.c_str(), timer, ioFile);
 	} else {
 		if (!type) // TCP by default excepting if format is RTP where rather UDP by default
-			type = String::ICompare(format, EXPAND("RTP")) == 0 ? TYPE_UDP : TYPE_TCP;
+			type = String::ICompare(format, "RTP") == 0 ? TYPE_UDP : TYPE_TCP;
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
 		if (isTargets)
 			pStream = MediaServer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);

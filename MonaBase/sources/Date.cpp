@@ -532,7 +532,7 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 					READ;
 				if (current-value >= 3) {
 					for (int i = 0; i < 12; ++i) {
-						if (String::ICompare(_MonthNames[i],value, current - value) == 0) {
+						if (String::ICompare(_MonthNames[i], value, current - value) == 0) {
 							month = i + 1;
 							break;
 						}
@@ -609,10 +609,10 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 					READ;
 					++count;
 				}
-				if (String::ICompare(ampm,"AM",count)==0) {
+				if (String::ICompare(ampm, count, "AM")==0) {
 					if (hour == 12)
 						hour = 0;
-				} else if (String::ICompare(ampm,"PM",count)==0) {
+				} else if (String::ICompare(ampm, count, "PM")==0) {
 					if (hour < 12)
 						hour += 12;
 				} else if (optional==0)

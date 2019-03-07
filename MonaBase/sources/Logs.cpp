@@ -33,6 +33,15 @@ volatile bool			Logs::_DumpResponse(true);
 atomic<LOG_LEVEL>		Logs::_Level(LOG_DEFAULT); // default log level
 Logs::Loggers			Logs::_Loggers;
 thread_local bool		Logs::_Logging(false);
+std::string				Logs::_Critic;
+
+bool Logs::LastCritic(string& critic) {
+	lock_guard<mutex> lock(_Mutex);
+	if (!_Critic.empty())
+		return false;
+	critic.assign(_Critic);
+	return true;
+}
 
 void Logs::SetDump(const char* name) {
 	lock_guard<mutex> lock(_Mutex);

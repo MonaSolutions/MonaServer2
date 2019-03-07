@@ -116,8 +116,8 @@ void MediaSocket::Reader::starting(const Parameters& parameters) {
 			_pSocket.reset();
 			return Stream::stop(ex);
 		}
+		AUTO_ERROR(_pSocket->processParams(ex, parameters, "stream"), description());
 	}
-	AUTO_ERROR(_pSocket->processParams(ex, parameters, "stream"), description());
 
 	bool connected(_pSocket->peerAddress() ? true : false);
 	if (type == TYPE_UDP || type == TYPE_SRT || (connected && !_onSocketFlush))
@@ -253,8 +253,8 @@ void MediaSocket::Writer::starting(const Parameters& parameters) {
 			_pSocket.reset();
 			return Stream::stop(ex);
 		}
+		AUTO_ERROR(_pSocket->processParams(ex, parameters, "stream"), description());
 	}
-	AUTO_ERROR(_pSocket->processParams(ex, parameters, "stream"), description());
 	if (!_pName)
 		return; // Do nothing if not media beginning
 	bool connected(_pSocket->peerAddress() ? true : false);

@@ -67,28 +67,28 @@ size_t String::Split(const char* value, size_t size, const char* separators, con
 	return count;
 }
 
-int String::ICompare(const char* value1, const char* value2,  size_t size) {
-	if (value1 == value2)
+int String::ICompare(const char* data, size_t size, const char* value, size_t count) {
+	if (data == value)
 		return 0;
-	if (!value1)
+	if (!data)
 		return -1;
-	if (!value2)
+	if (!value)
 		return 1;
 
-	int f(0), l(0);
+	int d, v;
 	do {
-		if (size == 0)
-			return f - l;
-		if (((f = (unsigned char)(*(value1++))) >= 'A') && (f <= 'Z'))
-			f -= 'A' - 'a';
-		if (((l = (unsigned char)(*(value2++))) >= 'A') && (l <= 'Z'))
-			l -= 'A' - 'a';
-		if (size != std::string::npos)
-			--size;
-	} while (f && (f == l));
-
-	return(f - l);
+		if (!count--)
+			return 0; // no difference until here!
+		if (((v = (unsigned char)(*(value++))) >= 'A') && (v <= 'Z'))
+			v -= 'A' - 'a';
+		if (!size--)
+			return -v;
+		if (((d = (unsigned char)(*(data++))) >= 'A') && (d <= 'Z'))
+			d -= 'A' - 'a';
+	} while (d && (d == v));
+	return d - v;
 }
+
 
 const char*	String::TrimLeft(const char* value, size_t size) {
 	if (size == string::npos)
@@ -254,7 +254,7 @@ const char* String::ShortPath(const string& path) {
 		}
 	}
 	++cur;
-	if (name && (String::ICompare(cur, "sources", name - cur) == 0 || String::ICompare(cur, "mona", name - cur) == 0))
+	if (name && (String::ICompare(cur, name - cur, "sources") == 0 || String::ICompare(cur, name - cur, "mona") == 0))
 		return name + 1;
 	return cur;
 }

@@ -357,9 +357,9 @@ void Publication::onParamChange(const string& key, const string* pValue) {
 		return;
 	const char* prop = key.c_str()+found+1;
 
-	if (String::ICompare(prop, EXPAND("audioLang")) == 0)
+	if (String::ICompare(prop, "audioLang") == 0)
 		_audios[track].lang = pValue ? pValue->c_str() : NULL;
-	else if (String::ICompare(prop, EXPAND("textLang")) == 0)
+	else if (String::ICompare(prop, "textLang") == 0)
 		_datas[track].textLang = pValue ? pValue->c_str() : NULL;
 }
 void Publication::onParamClear() {

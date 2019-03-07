@@ -72,7 +72,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	}
 
 	// Write static metadata configured
-	if (String::ICompare(getString(stream), EXPAND("publication"))==0) {
+	if (String::ICompare(getString(stream), "publication")==0) {
 		String name(stream,'.');
 		for (auto& it : range(name))
 			publication.setString(it.first.c_str()+name.size(), it.second);
@@ -171,7 +171,7 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 		it = _publications.emplace_hint(it, SET, forward_as_tuple(stream), forward_as_tuple(stream));
 
 		// Write static metadata configured
-		if (String::ICompare(getString(stream), EXPAND("publication")) == 0) {
+		if (String::ICompare(getString(stream), "publication") == 0) {
 			String name(stream, '.');
 			for (auto& itProp : range(name))
 				it->second.setString(itProp.first.c_str() + name.size(), itProp.second);

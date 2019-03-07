@@ -89,23 +89,23 @@ MIME::Type MIME::Read(const char* value, const char*& subType) {
 		subType = "html; charset=utf-8";
 
 	// type
-	if (String::ICompare(value,EXPAND("text"))==0)
+	if (String::ICompare(value, EXPAND("text"))==0)
 		return TYPE_TEXT;
-	if (String::ICompare(value,EXPAND("image"))==0)
+	if (String::ICompare(value, EXPAND("image"))==0)
 		return TYPE_IMAGE;
-	if (String::ICompare(value,EXPAND("application"))==0)
+	if (String::ICompare(value, EXPAND("application"))==0)
 		return TYPE_APPLICATION;
-	if (String::ICompare(value,EXPAND("multipart"))==0)
+	if (String::ICompare(value, EXPAND("multipart"))==0)
 		return TYPE_MULTIPART;
-	if (String::ICompare(value,EXPAND("audio"))==0)
+	if (String::ICompare(value, EXPAND("audio"))==0)
 		return TYPE_AUDIO;
-	if (String::ICompare(value,EXPAND("video"))==0)
+	if (String::ICompare(value, EXPAND("video"))==0)
 		return TYPE_VIDEO;
-	if (String::ICompare(value,EXPAND("message"))==0)
+	if (String::ICompare(value, EXPAND("message"))==0)
 		return TYPE_MODEL;
-	if (String::ICompare(value,EXPAND("model"))==0)
+	if (String::ICompare(value, EXPAND("model"))==0)
 		return TYPE_MESSAGE;
-	if (String::ICompare(value,EXPAND("example"))==0)
+	if (String::ICompare(value, EXPAND("example"))==0)
 		return TYPE_EXAMPLE;
 	return TYPE_TEXT;
 }

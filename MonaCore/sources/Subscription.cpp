@@ -80,31 +80,31 @@ Subscription::EJECTED Subscription::ejected() {
 }
 
 void Subscription::onParamChange(const string& key, const string* pValue) {
-	if (String::ICompare(key, EXPAND("audioReliable")) == 0)
+	if (String::ICompare(key, "audioReliable") == 0)
 		_audios.reliable = pValue && String::IsFalse(*pValue) ? false : true;
-	else if (String::ICompare(key, EXPAND("videoReliable")) == 0)
+	else if (String::ICompare(key, "videoReliable") == 0)
 		_videos.reliable = pValue && String::IsFalse(*pValue) ? false : true;
-	else if (String::ICompare(key, EXPAND("dataReliable")) == 0)
+	else if (String::ICompare(key, "dataReliable") == 0)
 		_datas.reliable = pValue && String::IsFalse(*pValue) ? false : true;
-	else if (String::ICompare(key, EXPAND("format")) == 0)
+	else if (String::ICompare(key, "format") == 0)
 		setFormat(pValue ? pValue->data() : NULL);
-	else if (String::ICompare(key, EXPAND("mbr")) == 0) {
+	else if (String::ICompare(key, "mbr") == 0) {
 		if (pValue)
 			String::Split(*pValue, "|", _streams);
 		else
 			_streams.clear();
-	} else if (String::ICompare(key, EXPAND("timeout")) == 0) {
+	} else if (String::ICompare(key, "timeout") == 0) {
 		_timeout = 0;
 		if (pValue && String::ToNumber(*pValue, _timeout))
 			_timeout *= 1000;
-	} else if (String::ICompare(key, EXPAND("time")) == 0) {
+	} else if (String::ICompare(key, "time") == 0) {
 		if (pValue) // else not change on remove to keep time progressive
 			setTime(pValue->c_str());
-	} else if (String::ICompare(key, EXPAND("from")) == 0) {
+	} else if (String::ICompare(key, "from") == 0) {
 		_fromTime = 0;
 		if (pValue && String::ToNumber(*pValue, _fromTime) && (_lastTime < _fromTime))
 			reset();
-	} else if (String::ICompare(key, EXPAND("to")) == 0) {
+	} else if (String::ICompare(key, "to") == 0) {
 		_toTime = 0xFFFFFFFF;
 		if (pValue && String::ToNumber(*pValue, _toTime) && (_toTime > _lastTime))
 			reset();
@@ -112,15 +112,15 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 		// audio/video/data = true => receives everything!
 		// audio/video/data = false or 0 => receives just track 0!
 		// audio/video/data = # => receives track #!
-		if (String::ICompare(key, EXPAND("data")) == 0) {
+		if (String::ICompare(key, "data") == 0) {
 			UInt8 track = 0;
 			if (!pValue || (!String::ToNumber(*pValue, track) && !String::IsFalse(*pValue)))
 				_datas.pSelection.reset();
 			else
 				_datas.pSelection.set(track);
-		} else if (String::ICompare(key, EXPAND("audio")) == 0)
+		} else if (String::ICompare(key, "audio") == 0)
 			setMediaSelection(pPublication ? &pPublication->audios : NULL, pValue, _audios);
-		else if (String::ICompare(key, EXPAND("video")) == 0)
+		else if (String::ICompare(key, "video") == 0)
 			setMediaSelection(pPublication ? &pPublication->videos : NULL, pValue, _videos);
 	}
 	Media::Properties::onParamChange(key, pValue);

@@ -115,7 +115,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					if (!_pHeader->mime)
 						_pHeader->mime = MIME::Read(_path, _pHeader->subMime);
 
-					if (_pHeader->encoding == HTTP::ENCODING_CHUNKED) {
+					if (_pHeader->chunked) {
 						_stage = CHUNKED;
 						_pHeader->progressive = true;
 						// force no content-length!
@@ -223,7 +223,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						break;
 					}
 					String::Scoped scoped(STR buffer.data());
-					if (String::ICompare(signifiant, EXPAND("HTTP")) != 0) {
+					if (String::ICompare(signifiant, "HTTP") != 0) {
 						if (!(_pHeader->type = HTTP::ParseType(signifiant, _pRendezVous.operator bool()))) {
 							_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
 							break;

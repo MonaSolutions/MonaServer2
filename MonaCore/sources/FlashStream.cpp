@@ -173,10 +173,10 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 		string type;
 		message.readString(_name);
 		if (message.readString(type)) {
-			if(String::ICompare(type, EXPAND("append"))==0) {
+			if(String::ICompare(type, "append")==0) {
 				_name += _name.find('?') == string::npos ? '?' : '&';
 				_name += "append=true";
-			} else if (String::ICompare(type, EXPAND("record")) == 0) {
+			} else if (String::ICompare(type, "record") == 0) {
 				// if stream has no extension, add a FLV extension!
 				size_t found = _name.find('?');
 				size_t point = _name.find_last_of('.', found);
