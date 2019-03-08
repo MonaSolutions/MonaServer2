@@ -24,10 +24,10 @@ using namespace std;
 namespace Mona {
 
 SRT::SRT() {
-	::srt_setloghandler(nullptr, Log);
-	::srt_setloglevel(0xff); // TODO?
 	if (::srt_startup())
-		CRITIC("SRT startup: Error starting SRT library");
+		CRITIC("SRT startup, ", ::srt_getlasterror_str());
+	::srt_setloghandler(nullptr, Log);
+	::srt_setloglevel(4);
 }
 
 SRT::~SRT() {
@@ -36,8 +36,10 @@ SRT::~SRT() {
 }
 
 void SRT::Log(void* opaque, int level, const char* file, int line, const char* area, const char* message) {
-	// TODO
-	DEBUG("L:", level, "|", file, "|", line, "|", area, "|", message)
+	if (!Logs::GetLevel() || level>4)
+		return;
+	static LOG_LEVEL levels[5] = { LOG_CRITIC, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_TRACE};
+	Logs::Log(levels[level], file, line, area, ", ", message);
 }
 
 SRT::Stats& SRT::Stats::Null() {
