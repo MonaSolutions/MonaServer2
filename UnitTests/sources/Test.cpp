@@ -43,22 +43,42 @@ void PoolTest::run(const string& mod,UInt32 loop) {
 	auto itTest = _mapTests.equal_range(mod);
 	if (itTest.first == itTest.second) 
 		itTest = _mapTests.equal_range(mod + "Test");
-	if (itTest.first == itTest.second) {
-		// Try by index
-		Exception ex;
-		UInt32 number;
-		vector<string> lTests;
-		getListTests(lTests);
-		if (String::ToNumber<UInt32>(ex, mod, number) && number < lTests.size())
-			run(lTests.at(number), loop);
-		else
-			ERROR("Module ", mod, " does not exist.");
-		return;
-	}
+	if (itTest.first == itTest.second)
+		return tryIndex(mod, loop); // try index or return an error if not found
 
 	// Run all tests of the module
 	for(auto& it = itTest.first; it != itTest.second; it++)
         it->second->run(loop);
+}
+
+void PoolTest::tryIndex(const string& mod, UInt32 loop) {
+	// Specific test?
+	Exception ex;
+	string test(mod), subTest;
+	size_t pos = test.find("::");
+	if (pos != string::npos) {
+		subTest.assign(test, pos + 2);
+		test.resize(pos);
+		if (!String::ToNumber<size_t>(ex, subTest, pos))
+			pos = string::npos; // by default if not convertible execute all tests
+	}
+
+	UInt32 number;
+	vector<string> lTests;
+	getListTests(lTests);
+	if (String::ToNumber<UInt32>(ex, test, number) && number < lTests.size()) {
+
+		// Run 1 or all tests of the module
+		auto itTest = _mapTests.equal_range(lTests.at(number));
+		number = 1;
+		for (auto& it = itTest.first; it != itTest.second; it++) {
+			if (pos == string::npos || number++ == pos)
+				it->second->run(loop);
+		}
+		if (pos == string::npos || (pos && pos < number))
+			return;
+	}
+	ERROR("Module ", mod, " does not exist.");
 }
 
 void PoolTest::getListTests(vector<string>& lTests) {

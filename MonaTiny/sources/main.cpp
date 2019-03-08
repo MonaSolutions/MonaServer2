@@ -1,6 +1,7 @@
+
 #include "Mona/Server.h"
 #include "Mona/ServerApplication.h"
-#include "Mona/MonaTiny.h"
+#include "MonaTiny.h"
 #include "Version.h"
 
 #define VERSION		"1." STRINGIZE(MONA_VERSION)

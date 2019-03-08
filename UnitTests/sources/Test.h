@@ -72,6 +72,8 @@ private:
 	virtual ~PoolTest(){}
 		/// \brief destructor of PoolTest
 
+	void tryIndex(const std::string& mod, Mona::UInt32 loop);
+		/// \brief Try to run the test at index mod (can be in the form XX for 1 module or XX::YY to select 1 specific test index from a module)
 };
 
 

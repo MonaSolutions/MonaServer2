@@ -18,7 +18,6 @@ details (or else see http://www.gnu.org/licenses/).
 
 #pragma once
 
-#include "Mona/Mona.h"
 #include "Mona/Server.h"
 #include "Mona/TerminateSignal.h"
 #include "App.h"

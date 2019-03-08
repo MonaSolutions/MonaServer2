@@ -54,6 +54,9 @@ struct Server : private Thread {
 	
 	const SocketAddress& bind(const SocketAddress& address) {
 		Exception ex;
+		CHECK(_server.setLinger(ex, true, 0) && !ex);
+		CHECK(_server.setReuseAddress(ex, true) && !ex);
+		
 		CHECK(_server.bind(ex, address) && !ex && _server.address() && !_server.address().host());
 		CHECK(_server.listen(ex) && !ex);
 		return _server.address();
@@ -67,6 +70,11 @@ struct Server : private Thread {
 	const Socket& connection() {
 		_signal.wait(); 
 		return *_pConnection;
+	}
+
+	// WARN: not thread-safe
+	SRT::Socket& socket() {
+		return _server;
 	}
 
 private:
@@ -255,13 +263,16 @@ ADD_TEST(TestTCPNonBlocking) {
 
 	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
 
+	// Try a reconnection on another address before disconnecting
+	SocketAddress unknown(IPAddress::Loopback(), 62434);
+	CHECK(client.connect(ex, unknown) && !ex && client->peerAddress() == target);
+
 	client.disconnect();
 	CHECK(!client.connected() && !client);
 
 	CHECK(!client.ex);
 	
 	// Test a refused connection
-	SocketAddress unknown(IPAddress::Loopback(), 62434);
 	if (client.connect(ex, unknown)) {
 		CHECK(!ex && !client.connected() && client.connecting() && client->address() && client->peerAddress() == unknown);
 		if (Util::Random()%2) // Random to check that with or without sending, after SocketEngine join we get a client.connected()==false!
@@ -282,6 +293,64 @@ ADD_TEST(TestTCPNonBlocking) {
 	_ThreadPool.join();
 	handler.flush();
 	CHECK(!io.subscribers());
+}
+
+ADD_TEST(TestOptions) {
+
+
+	unique_ptr<SRT::Socket> pClient(new SRT::Socket());
+	unique_ptr<Server> pServer(new Server());
+
+	int value;
+	Exception ex;
+	CHECK(pClient->setRecvBufferSize(ex, 0xFFFF));
+	CHECK(pClient->getRecvBufferSize(ex, value) && value == 0xFFFF);
+	CHECK(pClient->setSendBufferSize(ex, 0xFFFF));
+	CHECK(pClient->getSendBufferSize(ex, value) && value == 0xFFFF);
+
+	CHECK(pClient->setLatency(ex, 500));
+	CHECK(pClient->setPeerLatency(ex, 600));
+	CHECK(pClient->setMSS(ex, 900) && !ex);
+	CHECK(pClient->setOverheadBW(ex, 50) && !ex);
+	CHECK(pClient->setMaxBW(ex, 2000) && !ex);
+
+	// Encryption
+	CHECK(pClient->getEncryptionState(ex, value) && !ex && value == ::SRT_KM_S_UNSECURED);
+	CHECK(pClient->getPeerDecryptionState(ex, value) && !ex && value == ::SRT_KM_S_UNSECURED);
+	CHECK(pClient->setPassphrase(ex, EXPAND("passphrase")) && !ex);
+	CHECK(pServer->socket().setPassphrase(ex, EXPAND("passphrase")) && !ex);
+
+	// Connect client
+	SocketAddress source(IPAddress::Wildcard(), 6123);
+	SocketAddress target(IPAddress::Loopback(), 6123);
+	CHECK(pServer->bind(source));
+	pServer->accept();
+	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
+
+	// It's impossible to set options after connexion with SRT
+	CHECK(!pClient->setRecvBufferSize(ex, 2000) && ex.cast<Ex::Net::Socket>().code == NET_EINVAL);
+	ex = NULL;
+	CHECK(pClient->getRecvBufferSize(ex, value) && !ex && value == 0xFFFF);
+
+	// 1 byte packet to mean "end of data" (SHUTDOWN_SEND is not possible now)
+	CHECK(pClient->send(ex, EXPAND("\0")));
+
+	// Some options can only work after connection
+	const SRT::Socket& connection = (SRT::Socket&)pServer->connection();
+	CHECK(pClient->getEncryptionState(ex, value) && !ex && value == ::SRT_KM_S_SECURED);
+	CHECK(connection.getPeerDecryptionState(ex, value) && !ex && value == ::SRT_KM_S_SECURED);
+
+	CHECK(pClient->getLatency(ex, value) && !ex && value == 500);
+	CHECK(pClient->getPeerLatency(ex, value) && !ex && value == 600);
+	CHECK(connection.getPeerLatency(ex, value) && !ex && value == 500);
+	CHECK(connection.getLatency(ex, value) && !ex && value == 600);
+
+	CHECK(pClient->getMSS(ex, value) && !ex && value == 900);
+	Int64 val64;
+	CHECK(pClient->getMaxBW(ex, val64) && !ex && val64 == 2000);
+
+	SRT_TRACEBSTATS perf;
+	CHECK(pClient->getStats(ex, &perf) && !ex && perf.pktRcvLoss == 0 && (perf.pktSent == 1 || perf.pktSndBuf == 1)); // Can be sent or bufferised now
 }
 
 }
