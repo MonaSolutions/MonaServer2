@@ -42,6 +42,14 @@ void SRT::Log(void* opaque, int level, const char* file, int line, const char* a
 
 SRT::Stats& SRT::Stats::Null() {
 	static struct Null : Stats, virtual Object {
+		UInt32 bandwidthEstimated() const { return 0; }
+		UInt32 bandwidthMaxUsed() const { return 0; }
+		UInt32 bufferTime() const { return 0; }
+		UInt16 negotiatedLatency() const { return 0; }
+		UInt32 recvLostCount() const { return 0; }
+		UInt32 sendLostCount() const { return 0; }
+		double retransmitRate() const { return 0; }
+		UInt16 rtt() const { return 0; }
 	} Null;
 	return Null;
 }

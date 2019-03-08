@@ -34,6 +34,14 @@ namespace Mona {
 
 struct SRT : virtual Object {
 	struct Stats : virtual Object {
+		virtual UInt32 bandwidthEstimated() const = 0;
+		virtual UInt32 bandwidthMaxUsed() const = 0;
+		virtual UInt32 bufferTime() const = 0;
+		virtual UInt16 negotiatedLatency() const = 0;
+		virtual UInt32 recvLostCount() const = 0;
+		virtual UInt32 sendLostCount() const = 0;
+		virtual double retransmitRate() const = 0;
+		virtual UInt16 rtt() const = 0;
 		static Stats& Null();
 	};
 #if !defined(SRT_API)
@@ -58,7 +66,7 @@ struct SRT : virtual Object {
 		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};
 	
-	struct Socket : virtual Object, Stats, Mona::Socket {
+	struct Socket : virtual Object, Mona::Socket {
 		Socket();
 		Socket(const sockaddr& addr, SRTSOCKET id);
 		virtual ~Socket();
