@@ -455,10 +455,10 @@ Net::Stats& Media::Stream::netStats() const {
 		WARN(typeof(self), " should implement netStats");
 	return Net::Stats::Null();
 }
-Net::Stats&  Media::Stream::srtStats() const {
+SRT::Stats&  Media::Stream::srtStats() const {
 	if (type == TYPE_SRT)
 		WARN(typeof(self)," should implement srtStats");
-	return Net::Stats::Null();
+	return SRT::Stats::Null();
 }
 Net::Stats&  Media::Stream::fileStats() const {
 	if (type == TYPE_FILE)
