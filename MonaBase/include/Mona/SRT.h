@@ -32,7 +32,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-struct SRT : virtual Static {
+struct SRT : virtual Object {
 	struct Stats : virtual Object {
 		static Stats& Null();
 	};
@@ -103,6 +103,11 @@ struct SRT : virtual Static {
 		mutable std::atomic<UInt32>		_available;
 	};
 
+	static void Log(void* opaque, int level, const char* file, int line, const char* area, const char* message);
+
+	SRT();
+	~SRT();
+	static SRT _SRT;
 //
 // Automatically link Base library with SRT
 //

@@ -33,8 +33,6 @@ struct IOSRTSocket : virtual IOSocket, virtual Object {
 	
 	virtual void			unsubscribe(Socket* pSocket);
 
-	static void				LogCallback(void* opaque, int level, const char* file, int line, const char* area, const char* message);
-
 	virtual void			stop();
 private:
 	virtual bool			run(Exception& ex, const volatile bool& requestStop);

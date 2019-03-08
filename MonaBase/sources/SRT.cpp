@@ -23,6 +23,23 @@ using namespace std;
 
 namespace Mona {
 
+SRT::SRT() {
+	::srt_setloghandler(nullptr, Log);
+	::srt_setloglevel(0xff); // TODO?
+	if (::srt_startup())
+		CRITIC("SRT startup: Error starting SRT library");
+}
+
+SRT::~SRT() {
+	::srt_setloghandler(nullptr, nullptr);
+	::srt_cleanup();
+}
+
+void SRT::Log(void* opaque, int level, const char* file, int line, const char* area, const char* message) {
+	// TODO
+	DEBUG("L:", level, "|", file, "|", line, "|", area, "|", message)
+}
+
 SRT::Stats& SRT::Stats::Null() {
 	static struct Null : Stats, virtual Object {
 	} Null;

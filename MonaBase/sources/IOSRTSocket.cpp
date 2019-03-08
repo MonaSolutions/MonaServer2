@@ -22,11 +22,6 @@ using namespace std;
 
 namespace Mona {
 
-void IOSRTSocket::LogCallback(void* opaque, int level, const char* file, int line, const char* area, const char* message) {
-	//if (level != 7)
-		DEBUG("L:", level, "|", file, "|", line, "|", area, "|", message)
-}
-
 IOSRTSocket::IOSRTSocket(const Handler& handler, const ThreadPool& threadPool, const char* name) : IOSocket(handler, threadPool, name) {
 }
 
@@ -77,12 +72,6 @@ void IOSRTSocket::unsubscribe(Socket* pSocket) {
 bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 
 	_epoll=0;
-	if (::srt_startup()) {
-		ex.set<Ex::Net::System>("SRT startup: Error starting SRT library");
-		return false;
-	}
-	::srt_setloghandler(nullptr, LogCallback);
-	::srt_setloglevel(0xff);
 
 	// max possible socket, must be superior to the maximum threads possible on the system, 
 	// and not too high because could exceed stack limitation of 1Mo like on Android
@@ -186,8 +175,6 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 		}
 	}
 	::srt_epoll_release(_epoll);
-	::srt_setloghandler(nullptr, nullptr);
-	::srt_cleanup();
 
 	if (result < 0) { // error
 		ex.set<Ex::Net::System>("impossible to manage sockets (error ", errno, ")");
