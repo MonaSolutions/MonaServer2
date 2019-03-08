@@ -33,17 +33,15 @@ struct MediaSocket : virtual Static {
 		Reader(Media::Stream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		virtual ~Reader() { stop(); }
 
-		bool running() const { return _subscribed; }
+		bool running() const { return _pSocket.operator bool(); }
 	
 		const SocketAddress			address;
 		IOSocket&					io;
-		const shared<Socket>&		socket();
-		Socket*						operator->() { return socket().get(); }
-
+	
 	private:
 		void starting(const Parameters& parameters);
 		void stopping();
-
+	
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
 
@@ -72,7 +70,6 @@ struct MediaSocket : virtual Static {
 		shared<MediaReader>		_pReader;
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
-		bool					_subscribed;
 		Int8					_streaming;
 	};
 
@@ -85,15 +82,12 @@ struct MediaSocket : virtual Static {
 		Writer(Media::Stream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io);
 		virtual ~Writer() { stop(); }
 
-		bool running() const { return _subscribed; }
+		bool running() const { return _pSocket.operator bool(); }
 	
 		const SocketAddress		address;
 		IOSocket&				io;
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
-		const shared<Socket>&	socket();
-		Socket*					operator->() { return socket().get(); }
-
-
+		
 		bool beginMedia(const std::string& name);
 		bool writeProperties(const Media::Properties& properties);
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return send<MediaSend<Media::Audio>>(track, tag, packet); }
@@ -109,7 +103,7 @@ struct MediaSocket : virtual Static {
 		
 		template<typename SendType, typename ...Args>
 		bool send(Args&&... args) {
-			if (!_subscribed)
+			if (!_pSocket)
 				return false; // Stream not started!
 			io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter, _pStreaming, std::forward<Args>(args)...);
 			return true;
@@ -147,7 +141,6 @@ struct MediaSocket : virtual Static {
 		shared<TLS>						_pTLS;
 		shared<MediaWriter>				_pWriter;
 		UInt16							_sendTrack;
-		bool							_subscribed;
 		shared<std::string>				_pName;
 		shared<bool>					_pStreaming;
 	};

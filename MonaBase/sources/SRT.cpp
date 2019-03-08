@@ -23,6 +23,13 @@ using namespace std;
 
 namespace Mona {
 
+SRT::Stats& SRT::Stats::Null() {
+	static struct Null : Stats, virtual Object {
+	} Null;
+	return Null;
+}
+
+
 SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false), _available(SRT_LIVE_DEF_PLSIZE) {
 
 	_id = ::srt_socket(AF_INET, SOCK_DGRAM, 0); // TODO: This is ipv4 for now, we must find a way to enable ipv6 without knowing the address (IPV6ONLY?)

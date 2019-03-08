@@ -16,7 +16,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "Mona/MonaTiny.h"
+#include "MonaTiny.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -72,7 +72,7 @@ void MonaTiny::onStart() {
 	//_applications["/ffmpeg"] = new FFMPEG(*this);
 }
 
-void MonaTiny::manage() {
+void MonaTiny::onManage() {
 	// manage application!
 	for (auto& it : _applications)
 		it.second->manage();

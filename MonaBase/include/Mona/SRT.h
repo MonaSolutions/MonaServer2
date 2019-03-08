@@ -33,6 +33,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct SRT : virtual Static {
+	struct Stats : virtual Object {
+		static Stats& Null();
+	};
 #if !defined(SRT_API)
 	enum {
 		RELIABLE_SIZE = Net::MTU_RELIABLE_SIZE
@@ -55,7 +58,7 @@ struct SRT : virtual Static {
 		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};
 	
-	struct Socket : virtual Object, Mona::Socket {
+	struct Socket : virtual Object, Stats, Mona::Socket {
 		Socket();
 		Socket(const sockaddr& addr, SRTSOCKET id);
 		virtual ~Socket();

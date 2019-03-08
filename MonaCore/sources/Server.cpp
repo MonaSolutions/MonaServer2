@@ -66,7 +66,6 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 		Buffer::Allocator::Set<BufferPool>();
 
 	Timer::OnTimer onManage;
-	set<shared<Media::Stream>>	streams;
 	set<Publication*>			publications;
 	set<shared<Subscription>>	subscriptions;
 
@@ -96,7 +95,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 		onStart();
 
 		// Start streams after onStart to get onPublish/onSubscribe permissions!
-		loadStreams(streams, publications, subscriptions);
+		loadIniStreams(publications, subscriptions);
 
 		onManage = ([&](UInt32) {
 			sessions.manage(); // in first to detect session useless died
@@ -108,9 +107,9 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 					pSubscription->reset(); // reset ejected!
 			}
 			// Pulse streams!
-			for (const shared<Media::Stream>& pStream : streams)
-				pStream->start(self);
-			manage(); // client manage (script, etc..)
+			for (const shared<const Media::Stream>& pStream : _iniStreams)
+				((Media::Stream&)*pStream).start(self);
+			this->onManage(); // client manage (script, etc..)
 			if (clients.size() != countClient)
 				INFO((countClient = clients.size()), " clients");
 			// TODO? relayer.manage();
@@ -155,8 +154,9 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	// delete streams after handler flush
 	for (const shared<Subscription>& pSubscription : subscriptions)
 		unsubscribe(*pSubscription);
-	for (const shared<Media::Stream>& pStream : streams)
-		pStream->stop();
+	for (const shared<const Media::Stream>& pStream : _iniStreams)
+		((Media::Stream&)*pStream).stop();
+	_iniStreams.clear();
 	for (const shared<Media::Stream>& pStream : _streams)
 		pStream->stop();
 	_streams.clear();
@@ -173,7 +173,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	return true;
 }
 
-void Server::loadStreams(set<shared<Media::Stream>>& streams, set<Publication*>& publications, set<shared<Subscription>>& subscriptions) {
+void Server::loadIniStreams(set<Publication*>& publications, set<shared<Subscription>>& subscriptions) {
 	// Load Streams configs
 	multimap<string, string> lines;
 	string temp;
@@ -241,7 +241,7 @@ void Server::loadStreams(set<shared<Media::Stream>>& streams, set<Publication*>&
 				pLastPublication = pPublication;
 			if (it.second.empty()) { // LOGS PUBLICATION!
 				pStream.set<MediaLogs>("logs",*pPublication, api()); // on error remove this stream, if no error server is shutdown!
-				pStream->onStop = [&streams, pStream](const Exception& ex) { if (ex) streams.erase(pStream); };
+				pStream->onStop = [this, pStream](const Exception& ex) { if (ex) _iniStreams.erase(pStream); };
 			} else {
 				AUTO_ERROR(pStream = Media::Stream::New(ex = nullptr, *pPublication, it.second, timer, ioFile, ioSocket, pTLSClient), it.second);
 				if (!pStream)
@@ -251,7 +251,7 @@ void Server::loadStreams(set<shared<Media::Stream>>& streams, set<Publication*>&
 			pStream->start(self);
 			publications.emplace(pPublication);
 		}
-		streams.emplace(move(pStream));
+		_iniStreams.emplace(move(pStream));
 	}
 }
 
@@ -259,7 +259,10 @@ shared<Media::Stream> Server::stream(Media::Source& source, const string& descri
 	Exception ex;
 	unique<Media::Stream> pStream;
 	AUTO_ERROR(pStream = Media::Stream::New(ex, source, description, timer, ioFile, ioSocket, pTLSClient), description);
-	return pStream ? *_streams.emplace(move(pStream)).first : nullptr;
+	if (!pStream)
+		return nullptr;
+	_streams.emplace_back(move(pStream));
+	return _streams.back();
 }
 
 

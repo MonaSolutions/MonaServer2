@@ -342,7 +342,7 @@ void MonaServer::onStop() {
 }
 
 
-void MonaServer::manage() {
+void MonaServer::onManage() {
 	servers.manage(*this);
 	if (!_pService)
 		return;

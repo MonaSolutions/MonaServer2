@@ -30,6 +30,17 @@ namespace Mona {
 
 Net Net::_Net;
 
+Net::Stats& Net::Stats::Null() {
+	static struct Null : Stats, virtual Object {
+		Time	recvTime() const { return 0; }
+		UInt64	recvByteRate() const { return 0; }
+		Time	sendTime() const { return 0; }
+		UInt64	sendByteRate() const { return 0; }
+		UInt64	queueing() const { return 0; }
+	} Null;
+	return Null;
+}
+
 const char* Net::ErrorToMessage(int error) {
 	// To fix target where NET_EAGAIN!=NET_EWOULDBLOCK
 	if (error == NET_EAGAIN)
@@ -121,6 +132,7 @@ Net::~Net() {
 	WSACleanup();
 #endif
 }
+
 
 UInt32 Net::GetInterfaceIndex(const SocketAddress& address) {
 	if (!address.host())

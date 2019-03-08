@@ -46,7 +46,7 @@ const shared<Socket>& MediaServer::socket() {
 }
 
 MediaServer::MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(Media::Stream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()), _running(false) {
+	Media::Stream(Media::Stream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		shared<MediaSocket::Writer> pStream(SET, this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
@@ -61,20 +61,19 @@ MediaServer::MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWri
 }
 
 void MediaServer::starting(const Parameters& parameters) {
-	if (_running)
+	if (_pSocket)
 		return;
 	Exception ex;
 	// can subscribe after bind + listen for server, no risk to miss an event
-	AUTO_ERROR(_running = (socket()->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, _onConnnection, _onError)), description());
-	if (!_running) {
-		_pSocket.reset();
-		return Stream::stop(ex);
-	}
+	_pSocket = newSocket(parameters, _pTLS);
 	INFO(description(), " starts");
+	bool success;
+	AUTO_ERROR(success = (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, _onConnnection, _onError)), description());
+	if (!success)
+		Stream::stop(ex);
 }
 
 void MediaServer::stopping() {
-	_running = false;
 	io.unsubscribe(_pSocket);
 	_streams.clear(); // stop all children stream!
 	INFO(description(), " stops");

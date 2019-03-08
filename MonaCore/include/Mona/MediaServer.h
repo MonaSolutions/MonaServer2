@@ -39,16 +39,15 @@ struct MediaServer : Media::Stream, Media::Targets, virtual Object {
 	MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 	virtual ~MediaServer() { stop(); }
 
-	bool running() const { return _running; }
+	bool running() const { return _pSocket.operator bool(); }
 	
 	const SocketAddress		address;
 	IOSocket&				io;
-	const shared<Socket>&	socket();
-	Socket*					operator->() { return socket().get(); }
 
 private:
 	void starting(const Parameters& parameters);
 	void stopping();
+	const shared<Socket>&	socket();
 
 	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
 		
@@ -59,7 +58,6 @@ private:
 	shared<TLS>					_pTLS;
 	const char*					_subMime;
 	const char*					_format;
-	bool						_running;
 	std::set<shared<Media::Stream>> _streams;
 
 };

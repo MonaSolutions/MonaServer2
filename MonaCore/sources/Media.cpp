@@ -438,14 +438,52 @@ bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet,
 void Media::Stream::start(const Parameters& parameters) {
 	bool start = !running();
 	starting(parameters);
-	if (start && running())
-		onStart();
+	if (!start || !running())
+		return;
+	++_startCount;
+	onStart();
 }
 void Media::Stream::stop(const Exception& ex) {
 	if (!running())
 		return;
 	stopping();
 	onStop(ex);
+}
+
+Net::Stats& Media::Stream::netStats() const {
+	if (type>0)
+		WARN(typeof(self), " should implement netStats");
+	return Net::Stats::Null();
+}
+Net::Stats&  Media::Stream::srtStats() const {
+	if (type == TYPE_SRT)
+		WARN(typeof(self)," should implement srtStats");
+	return Net::Stats::Null();
+}
+Net::Stats&  Media::Stream::fileStats() const {
+	if (type == TYPE_FILE)
+		WARN(typeof(self), " should implement fileStats");
+	return Net::Stats::Null();
+}
+
+shared<Socket> Media::Stream::newSocket(const Parameters& parameters, const shared<TLS>& pTLS) {
+	if (type <= 0)
+		return nullptr;
+	shared<Socket> pSocket;
+	if (type == TYPE_SRT) {
+#if defined(SRT_API)
+		pSocket.set<SRT::Socket>();
+		return pSocket;
+#endif
+		ERROR(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
+	}
+	if (pTLS)
+		pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, pTLS);
+	else
+		pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
+	Exception ex;
+	AUTO_ERROR(pSocket->processParams(ex, parameters, "stream"), description());
+	return pSocket;
 }
 
 unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {

@@ -380,15 +380,14 @@ struct Media : virtual Static {
 		typedef Event<void(const Exception&)>	ON(Stop);
 
 		enum Type {
-			TYPE_FILE=0,
+			TYPE_LOGS = -1,
+			TYPE_FILE = 0, // > 0 = socket!
 			TYPE_TCP = 1, // to match MediaServer::Type
 			TYPE_SRT = 2, // to match MediaServer::Type
 			TYPE_UDP = 3,
-			TYPE_HTTP = 4,
-			TYPE_LOGS = 5
+			TYPE_HTTP = 4
 		};
-
-		static const char* TypeToString(Type type) { static const char* Strings[] = { "file", "tcp", "srt", "udp", "http", "logs" }; return Strings[UInt8(type)]; }
+		static const char* TypeToString(Type type) { static const char* Strings[] = { "logs", "file", "tcp", "srt", "udp", "http" }; return Strings[UInt8(type)+1]; }
 
 
 		const Type			type;
@@ -408,11 +407,18 @@ struct Media : virtual Static {
 		File => file[.format][?path] [MediaFormat] [parameter] */
 		static unique<Stream> New(Exception& ex, Source& source, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr);
 
+		UInt32 startCount() const { return _startCount; };
+
 		void start(const Parameters& parameters = Parameters::Null());
 		void stop(const Exception& ex = nullptr);
+
 		virtual bool running() const = 0;
+
+		virtual Net::Stats& netStats() const;
+		virtual Net::Stats& srtStats() const;
+		virtual Net::Stats& fileStats() const;
 	protected:
-		Stream(Type type, const Path& path, Source& source = Source::Null()) : type(type), path(path), source(source) {}
+		Stream(Type type, const Path& path, Source& source = Source::Null()) : _startCount(0), type(type), path(path), source(source) {}
 
 		Source& source;
 
@@ -426,6 +432,8 @@ struct Media : virtual Static {
 			LOG(level, description(), ", ", ex.set<ExType>(std::forward<Args>(args)...));
 			stop(ex);
 		}
+
+		shared<Socket> newSocket(const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
 	private:
 		/*!
 		/!\ Implementation have to support a pulse start! */
@@ -435,6 +443,7 @@ struct Media : virtual Static {
 		virtual std::string& buildDescription(std::string& description) = 0;
 
 		mutable std::string	_description;
+		UInt32				_startCount;
 	};
 
 };

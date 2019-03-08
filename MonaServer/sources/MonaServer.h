@@ -33,7 +33,7 @@ public:
 	Servers					servers;
 
 private:
-	void					manage();
+	void					onManage();
 
 
 	void					readAddressRedirection(const std::string& protocol, int& index, std::set<Mona::SocketAddress> & addresses);

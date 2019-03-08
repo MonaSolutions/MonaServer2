@@ -59,11 +59,15 @@ protected:
 	Publication* publish(Exception& ex, Args&&... args) { return ServerAPI::publish(ex, args ...); }
 
 	ServerAPI& api() { return self; }
-private:
-	
-	virtual void	manage() {}
 
-	void  loadStreams(std::set<shared<Media::Stream>>& streams, std::set<Publication*>& publications, std::set<shared<Subscription>>& subscriptions);
+	const std::set<shared<const Media::Stream>>& streams() const { return _iniStreams; }
+
+private:
+	virtual void onStart() {}
+	virtual void onManage() {}
+	virtual void onStop() {}
+
+	void  loadIniStreams(std::set<Publication*>& publications, std::set<shared<Subscription>>& subscriptions);
 
 	bool			run(Exception& ex, const volatile bool& requestStop);
 
@@ -72,7 +76,8 @@ private:
 	Protocols		_protocols;
 	Sessions		_sessions;
 	Path			_www;
-	std::set<shared<Media::Stream>> _streams;
+	std::deque<shared<Media::Stream>>		_streams;
+	std::set<shared<const Media::Stream>>	_iniStreams;
 };
 
 

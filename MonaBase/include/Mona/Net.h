@@ -227,6 +227,8 @@ struct Net : virtual Object {
 		virtual double	sendLostRate() const { return 0; }
 
 		virtual UInt64	queueing() const = 0;
+
+		static Stats& Null();
 	};
 
 private:

@@ -21,7 +21,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/Server.h"
 #include "Mona/TerminateSignal.h"
-#include "Mona/App.h"
+#include "App.h"
 
 
 namespace Mona {
@@ -39,8 +39,9 @@ protected:
 	//// Server Events /////
 
 	void onStart();
+	void onManage();
 	void onStop();
-	void manage();
+	
 
 	//// Client Events /////
 	SocketAddress& onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection);
