@@ -17,11 +17,25 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/SRT.h"
 
-#if defined(SRT_API)
-
 using namespace std;
 
 namespace Mona {
+
+SRT::Stats& SRT::Stats::Null() {
+	static struct Null : Stats, virtual Object {
+		double bandwidthEstimated() const { return 0; }
+		double bandwidthMaxUsed() const { return 0; }
+		UInt32 bufferTime() const { return 0; }
+		double negotiatedLatency() const { return 0; }
+		UInt32 recvLostCount() const { return 0; }
+		UInt32 sendLostCount() const { return 0; }
+		double retransmitRate() const { return 0; }
+		double rtt() const { return 0; }
+	} Null;
+	return Null;
+}
+
+#if defined(SRT_API)
 
 SRT::SRT() {
 	if (::srt_startup())
@@ -42,19 +56,7 @@ void SRT::Log(void* opaque, int level, const char* file, int line, const char* a
 	Logs::Log(levels[level], file, line, area, ", ", message);
 }
 
-SRT::Stats& SRT::Stats::Null() {
-	static struct Null : Stats, virtual Object {
-		double bandwidthEstimated() const { return 0; }
-		double bandwidthMaxUsed() const { return 0; }
-		UInt32 bufferTime() const { return 0; }
-		double negotiatedLatency() const { return 0; }
-		UInt32 recvLostCount() const { return 0; }
-		UInt32 sendLostCount() const { return 0; }
-		double retransmitRate() const { return 0; }
-		double rtt() const { return 0; }
-	} Null;
-	return Null;
-}
+
 
 int SRT::GetError(int error) {
 	switch (error) {
@@ -411,6 +413,8 @@ bool SRT::Socket::getStats(Exception& ex, SRT_TRACEBSTATS* perf) const {
 	return false;
 }
 
+#endif
+
 }  // namespace Mona
 
-#endif
+
