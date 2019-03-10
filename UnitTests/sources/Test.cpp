@@ -57,7 +57,7 @@ void PoolTest::tryIndex(const string& mod, UInt32 loop) {
 	string test(mod), subTest;
 	size_t pos = test.find("::");
 	if (pos != string::npos) {
-		subTest.assign(test, pos + 2);
+		subTest.assign(test, pos + 2, string::npos);
 		test.resize(pos);
 		if (!String::ToNumber<size_t>(ex, subTest, pos))
 			pos = string::npos; // by default if not convertible execute all tests
