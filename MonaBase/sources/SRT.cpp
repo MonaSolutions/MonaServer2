@@ -131,7 +131,7 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 	::srt_setsockflag(_id, ::SRTO_SENDER, &opt, sizeof opt);*/
 }
 
-SRT::Socket::Socket(const sockaddr& addr, SRTSOCKET id) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) { }
+SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) { }
 
 SRT::Socket::~Socket() {
 	if (_id == ::SRT_INVALID_SOCK)
@@ -219,8 +219,8 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 
 	sockaddr_in6 scl;
 	int sclen = sizeof scl;
-	::SRTSOCKET newSocket = ::srt_accept(_id, (sockaddr*)&scl, &sclen);
-	if (newSocket == SRT_INVALID_SOCK) {
+	::SRTSOCKET sockfd = ::srt_accept(_id, (sockaddr*)&scl, &sclen);
+	if (sockfd == SRT_INVALID_SOCK) {
 		if (::srt_getlasterror(NULL) == SRT_EASYNCRCV) { // not an error
 			SetException(ex, NET_EWOULDBLOCK);
 			return false;
@@ -228,8 +228,7 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 		SetException(ex);
 		return false;
 	}
-
-	pSocket.set<SRT::Socket>((sockaddr&)scl, newSocket);
+	pSocket = new SRT::Socket(sockfd, (sockaddr&)scl);
 	return true;
 }
 

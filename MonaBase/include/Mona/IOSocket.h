@@ -108,7 +108,6 @@ private:
 	shared<IOSRTSocket>							_pIOSRTSocket;
 
 	struct Action;
-	struct Send;
 };
 
 

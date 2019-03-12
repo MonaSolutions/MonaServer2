@@ -44,8 +44,7 @@ struct TLS : virtual Object {
 		bool  isSecure() const { return pTLS ? true : false; }
 
 		UInt32  available() const;
-		UInt64	queueing() const;
-
+	
 		bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout = 0);
 		int	 receive(Exception& ex, void* buffer, UInt32 size, int flags = 0) { return Mona::Socket::receive(ex, buffer, size, flags); }
 		int	 sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags = 0);

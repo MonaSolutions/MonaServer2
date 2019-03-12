@@ -98,7 +98,8 @@ struct unique : std::unique_ptr<Type> {
 	unique& reset() { std::unique_ptr<Type>::reset(); return self; }
 	template<typename ArgType>
 	unique& operator=(ArgType&& arg) { std::unique_ptr<Type>::operator=(std::forward<ArgType>(arg)); return self; };
-	unique& operator=(Type* pType) { std::unique_ptr<Type>::reset(pType); return self; };
+	template<typename NewType>
+	unique& operator=(NewType* pType) { std::unique_ptr<Type>::reset(pType); return self; };
 private:
 	template<typename NewType>
 	unique(NewType* pType) {}
@@ -116,7 +117,8 @@ struct shared : std::shared_ptr<Type> {
 	shared& reset() { std::shared_ptr<Type>::reset(); return self; }
 	template<typename ArgType>
 	shared& operator=(ArgType&& arg) { std::shared_ptr<Type>::operator=(std::forward<ArgType>(arg)); return self; };
-	shared& operator=(Type* pType) { std::shared_ptr<Type>::reset(pType); return self; };
+	template<typename NewType>
+	shared& operator=(NewType* pType) { std::shared_ptr<Type>::reset(pType); return self; };
 private:
 	template<typename NewType>
 	shared(NewType* pType) {}

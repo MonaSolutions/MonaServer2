@@ -82,7 +82,7 @@ struct Socket : virtual Object, Net::Stats {
 	UInt32				sendBufferSize() const { return _sendBufferSize; }
 
 	virtual UInt32		available() const;
-	virtual UInt64		queueing() const { return _queueing; }
+	UInt64				queueing() const { return _queueing; }
 	
 	const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }

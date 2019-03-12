@@ -97,7 +97,6 @@ struct SRT : virtual Object {
 
 	struct Socket : virtual Object, Stats, Mona::Socket {
 		Socket();
-		Socket(const sockaddr& addr, SRTSOCKET id);
 		virtual ~Socket();
 
 		bool  isSecure() const { return true; }
@@ -146,8 +145,9 @@ struct SRT : virtual Object {
 
 		bool getStats(Exception& ex, SRT::Stats& stats) const;
 
-		
 	private:
+		Socket(SRTSOCKET id, const sockaddr& addr);
+
 		void computeAddress();
 
 		template <typename ...Args>
@@ -156,7 +156,6 @@ struct SRT : virtual Object {
 			return ex;
 		}
 
-		//virtual Mona::Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr);
 		virtual int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH) { return type ? (::srt_close(_id) == 0) : (_shutdownRecv = true); }
 

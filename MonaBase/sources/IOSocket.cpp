@@ -48,7 +48,6 @@ struct IOSocket::Action : Runner, virtual Object {
 
 protected:
 
-	
 	struct Handle : Runner, virtual Object {
 		Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Runner(name), _ex(ex), _weakSocket(pSocket) {}
 	private:
@@ -267,40 +266,6 @@ void IOSocket::unsubscribe(Socket* pSocket) {
 #endif
 }
 
-
-struct IOSocket::Send : IOSocket::Action {
-	Send(int error, const shared<Socket>& pSocket) : Action("SocketSend", error, pSocket) {}
-
-	bool process(Exception& ex, const shared<Socket>& pSocket) {
-		if (!pSocket->flush(ex))
-			return false;
-		// handle if no more queueing data (and on first time allow to get connection info!)
-		if (!pSocket->queueing())
-			handle<Handle>(pSocket);
-		return true;
-	}
-
-private:
-	struct Handle : Action::Handle {
-		Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Action::Handle(name, pSocket, ex) {}
-	private:
-		void handle(const shared<Socket>& pSocket) {
-			if (!pSocket->queueing()) // check again on handle, "queueing" can had changed
-				pSocket->onFlush();
-		}
-	};
-};
-
-
-void IOSocket::write(const shared<Socket>& pSocket, int error) {
-	// ::printf("WRITE(%d) socket %d\n", error, pSocket->id());
-#if !defined(_WIN32)
-	if (pSocket->_firstWritable)
-		pSocket->_firstWritable = false;
-#endif
-	threadPool.queue<Send>(0, error, pSocket);
-}
-
 void IOSocket::read(const shared<Socket>& pSocket, int error) {
 	// ::printf("READ(%d) socket %d\n", error, pSocket->id());
 	if(pSocket->_reading && !error)
@@ -359,7 +324,6 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 
 	struct Receive : Action {
 		Receive(int error, const shared<Socket>& pSocket) : Action("SocketReceive", error, pSocket) {}
-
 	private:
 		struct Handle : Action::Handle {
 			Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex, shared<Buffer>& pBuffer, const SocketAddress& address, bool& stop) :
@@ -397,7 +361,6 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 					available = 2048; // in UDP allows to avoid a NET_EMSGSIZE error (where packet is lost!), and 2048 to be greater than max possible MTU (~1500 bytes)
 				shared<Buffer>	pBuffer(SET, available);
 				SocketAddress	address;
-				bool queueing(pSocket->queueing() ? true : false);
 				int received = pSocket->receive(ex, pBuffer->data(), available, 0, &address);
 				if (received < 0) {
 					if (ex.cast<Ex::Net::Socket>().code != NET_ESHUTDOWN) {
@@ -406,18 +369,9 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 						if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 							return false; 
 						// ::printf("NET_EWOULDBLOCK %d\n", pSocket->id());
-						ex = nullptr;
-						// Should almost never happen, when happen it's usually a "would block" relating a writing request (SSL handshake for example)
-						if (queueing)
-							Send(0, pSocket).process(ex, pSocket);
-						available = pSocket->available();
-						if (available)
-							continue;
-						break;
-					}
-					// If "shutdown" error on receive it means that that the user has called a shutdown BOTH because waits nothing else however IOSocket has receveid the "recv=0", so it's not an error!
+					} else // If "shutdown" error on receive it means that that the user has called a shutdown BOTH because waits nothing else however IOSocket has receveid the "recv=0", so it's not an error!
+						pSocket->_reading = 0xFF; // block reception!
 					ex = nullptr;
-					pSocket->_reading = 0xFF; // block reception!
 					return true;
 				}
 
@@ -442,6 +396,36 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 
 	threadPool.queue<Receive>(pSocket->_threadReceive, error, pSocket);
 }
+
+void IOSocket::write(const shared<Socket>& pSocket, int error) {
+	// ::printf("WRITE(%d) socket %d\n", error, pSocket->id());
+#if !defined(_WIN32)
+	if (pSocket->_firstWritable)
+		pSocket->_firstWritable = false;
+#endif
+	struct Send : Action {
+		Send(int error, const shared<Socket>& pSocket) : Action("SocketSend", error, pSocket) {}
+	private:
+		bool process(Exception& ex, const shared<Socket>& pSocket) {
+			if (!pSocket->flush(ex))
+				return false;
+			// handle if no more queueing data (and on first time allow to get connection info!)
+			if (!pSocket->queueing())
+				handle<Handle>(pSocket);
+			return true;
+		}
+		struct Handle : Action::Handle {
+			Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Action::Handle(name, pSocket, ex) {}
+		private:
+			void handle(const shared<Socket>& pSocket) {
+				if (!pSocket->queueing()) // check again on handle, "queueing" can had changed
+					pSocket->onFlush();
+			}
+		};
+	};
+	threadPool.queue<Send>(0, error, pSocket);
+}
+
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
 	// ::printf("CLOSE(%d) socket %d\n", error, pSocket->id());
