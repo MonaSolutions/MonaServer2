@@ -164,6 +164,8 @@ void Application::displayHelp() {
 }
 
 bool Application::initLogs(string& directory, UInt32& sizeByFile, UInt16& rotation) {
+	if (!getBoolean<true>("logs"))
+		return false;
 	getString("logs.directory", directory);
 	getNumber("logs.rotation", rotation);
 	getNumber("logs.maxSize", sizeByFile);

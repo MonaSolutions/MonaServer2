@@ -70,9 +70,8 @@ ADD_TEST(BufferPool) {
 		buffer = buffer1.data();
 	}
 	Buffer::Allocator::Set(); // reset default Allocator
-	Buffer buffer2(1000);
-	CHECK(buffer2.capacity() == 1024);
-	CHECK(buffer2.data() != buffer);
+	Buffer buffer1(1000);
+	CHECK(buffer1.capacity() == 1024);
 }
 
 }

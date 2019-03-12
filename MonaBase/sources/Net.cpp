@@ -42,9 +42,6 @@ Net::Stats& Net::Stats::Null() {
 }
 
 const char* Net::ErrorToMessage(int error) {
-	// To fix target where NET_EAGAIN!=NET_EWOULDBLOCK
-	if (error == NET_EAGAIN)
-		error = NET_EWOULDBLOCK;
 	switch (error) {
 		case NET_ESYSNOTREADY: return "Net subsystem not ready";
 		case NET_ENOTINIT: return "Net subsystem not initialized";

@@ -22,17 +22,8 @@ using namespace std;
 namespace Mona {
 
 SRT::Stats& SRT::Stats::Null() {
-	static struct Null : Stats, virtual Object {
-		double bandwidthEstimated() const { return 0; }
-		double bandwidthMaxUsed() const { return 0; }
-		UInt32 bufferTime() const { return 0; }
-		double negotiatedLatency() const { return 0; }
-		UInt32 recvLostCount() const { return 0; }
-		UInt32 sendLostCount() const { return 0; }
-		double retransmitRate() const { return 0; }
-		double rtt() const { return 0; }
-	} Null;
-	return Null;
+	static SRT::Stats Stats;
+	return Stats;
 }
 
 #if defined(SRT_API)
@@ -57,8 +48,16 @@ void SRT::Log(void* opaque, int level, const char* file, int line, const char* a
 }
 
 
-
-int SRT::GetError(int error) {
+int SRT::LastError() {
+	int lastError;
+	int error = ::srt_getlasterror(&lastError);
+	if (lastError) {
+#if !defined(_WIN32)
+		if (lastError == EAGAIN)
+			return NET_EWOULDBLOCK;
+#endif
+		return lastError;
+	}
 	switch (error) {
 		case SRT_EUNKNOWN:
 		//case SRT_SUCCESS:
@@ -120,17 +119,19 @@ int SRT::GetError(int error) {
 			return NET_ENOTSUP;
 		
 	}
-	return (int)error; // not found
+	return error; // not found
 }
 
-SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false), _available(SRT_LIVE_DEF_PLSIZE) {
+SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 	_id = ::srt_socket(AF_INET, SOCK_DGRAM, 0); // TODO: This is ipv4 for now, we must find a way to set the family when creating the socket
 
+	if (_id == ::SRT_INVALID_SOCK)
+		SetException(_ex);
 	/*int opt = 1;
 	::srt_setsockflag(_id, ::SRTO_SENDER, &opt, sizeof opt);*/
 }
 
-SRT::Socket::Socket(const sockaddr& addr, SRTSOCKET id) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false), _available(SRT_LIVE_DEF_PLSIZE) { }
+SRT::Socket::Socket(const sockaddr& addr, SRTSOCKET id) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) { }
 
 SRT::Socket::~Socket() {
 	if (_id == ::SRT_INVALID_SOCK)
@@ -139,20 +140,22 @@ SRT::Socket::~Socket() {
 	/// shutdown + flush
 	Exception ignore;
 	flush(ignore, true);
-
 	close();
 }
 
 UInt32 SRT::Socket::available() const {
-	UInt32 value = _available;
-	if (!value)
-		_available = SRT_LIVE_DEF_PLSIZE; // reset to SRT buffer size
-	return value;
+	if(!_shutdownRecv) {
+		Int32 events;
+		Exception ignore;
+		if(getOption(ignore, ::SRTO_EVENT, events) && (events&SRT_EPOLL_IN))
+			return SRT_LIVE_DEF_PLSIZE; // just one packet!
+	}
+	return 0;
 }
 
 bool SRT::Socket::bind(Exception& ex, const SocketAddress& address) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
@@ -165,7 +168,7 @@ bool SRT::Socket::bind(Exception& ex, const SocketAddress& address) {
 	sockaddr* pAdd = reinterpret_cast<sockaddr*>(&addr);
 	pAdd->sa_family = address.family() == IPAddress::IPv6 ? AF_INET6 : AF_INET;
 	if (::srt_bind(_id, pAdd, addrSize)) {
-		SetException(ex, GetError(), " (address=", address, ")");
+		SetException(ex, " (address=", address, ")");
 		return false;
 	}
 
@@ -178,8 +181,8 @@ bool SRT::Socket::bind(Exception& ex, const SocketAddress& address) {
 }
 
 bool SRT::Socket::listen(Exception& ex, int backlog) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
@@ -187,46 +190,30 @@ bool SRT::Socket::listen(Exception& ex, int backlog) {
 		_listening = true;
 		return true;
 	}
-	SetException(ex, GetError(), " (backlog=", backlog, ")");
+	SetException(ex, " (backlog=", backlog, ")");
 	return false;
 }
 
 bool SRT::Socket::setNonBlockingMode(Exception& ex, bool value) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN, "SRT setNonBlockingMode");
+	if (!setOption(ex, ::SRTO_SNDSYN, !value) || !setOption(ex, ::SRTO_RCVSYN, !value))
 		return false;
-	}
-
-	bool block = !value;
-	if (::srt_setsockflag(_id, SRTO_SNDSYN, &block, sizeof(block)) != 0) {
-		SetException(ex, GetError(), " ", ::srt_getlasterror_str());
-		return false;
-	}
-	if (::srt_setsockflag(_id, SRTO_RCVSYN, &block, sizeof(block)) != 0) {
-		SetException(ex, GetError(), " ", ::srt_getlasterror_str());
-		return false;
-	}
-	
-	return _nonBlockingMode = value;
+	_nonBlockingMode = value;
+	return true;
 }
 
-const SocketAddress& SRT::Socket::address() const {
-	if (_address && !_address.port()) {
-		// computable!
-		union {
-			struct sockaddr_in  sa_in;
-			struct sockaddr_in6 sa_in6;
-		} addr;
-		int addrSize = sizeof(addr);
-		if (::srt_getsockname(_id, (sockaddr*)&addr, &addrSize) == 0)
-			_address.set((sockaddr&)addr);
-	}
-	return _address;
+void SRT::Socket::computeAddress() {
+	union {
+		struct sockaddr_in  sa_in;
+		struct sockaddr_in6 sa_in6;
+	} addr;
+	int addrSize = sizeof(addr);
+	if (::srt_getsockname(_id, (sockaddr*)&addr, &addrSize) == 0)
+		_address.set((sockaddr&)addr);
 }
 
 bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
@@ -238,7 +225,7 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 			SetException(ex, NET_EWOULDBLOCK);
 			return false;
 		}
-		SetException(ex, GetError(), " ", ::srt_getlasterror_str());
+		SetException(ex);
 		return false;
 	}
 
@@ -247,8 +234,8 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 }
 
 bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 
@@ -271,7 +258,7 @@ bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 	int rc, error(0);
 	rc = ::srt_connect(_id, pAdd, addrSize);
 	if (rc) {
-		SetException(ex, GetError(), " (address=", address, ")");
+		SetException(ex, " (address=", address, ")");
 		return false; // fail
 	}
 
@@ -281,9 +268,13 @@ bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 }
 
 int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
-		return false;
+	if (_ex) {
+		ex = _ex;
+		return -1;
+	}
+	if (_shutdownRecv) {
+		Mona::Socket::SetException(ex, NET_ESHUTDOWN);
+		return -1;
 	}
 
 	// assign pAddress (no other way possible here)
@@ -294,12 +285,10 @@ int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 	int result = ::srt_recvmsg(_id, STR buffer, size); // /!\ SRT expect at least a buffer of 1316 bytes
 	if (result == SRT_ERROR) {
 		int error = ::srt_getlasterror(NULL);
-		if (error == SRT_EASYNCRCV) { // EAGAIN, wait for reception to be ready
+		if (error == SRT_EASYNCRCV) // EAGAIN, wait for reception to be ready
 			SetException(ex, NET_EWOULDBLOCK, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
-			_available = 0; // to avoid an infinite loop of receive call, we cannot know the available data with SRT
-		}
 		else
-			SetException(ex, GetError(error), " ", ::srt_getlasterror_str(), " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
+			SetException(ex, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
 		return -1;
 	}
 	Mona::Socket::receive(result);
@@ -311,9 +300,9 @@ int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 }
 
 int SRT::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const SocketAddress& address, int flags) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
-		return false;
+	if (_ex) {
+		ex = _ex;
+		return -1;
 	}
 
 	if (!size || size > ::SRT_LIVE_DEF_PLSIZE) {
@@ -331,7 +320,7 @@ int SRT::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 	}*/
 	int sent = ::srt_send(_id, STR data, size);
 	if (sent <= 0) {
-		SetException(ex, GetError(), " ", ::srt_getlasterror_str());
+		SetException(ex);
 		return -1;
 	}
 
@@ -341,16 +330,6 @@ int SRT::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 		_address.set(IPAddress::Loopback(), 0); // to advise that address is computable
 
 	return sent;
-}
-
-bool SRT::Socket::close(Socket::ShutdownType type) {
-	if (type == Socket::SHUTDOWN_RECV) {
-		_shutdownRecv = true;
-		return true;
-	}
-	if (::srt_close(_id) < 0)
-		return false;
-	return true;
 }
 
 bool SRT::Socket::setRecvBufferSize(Exception& ex, int size) {
@@ -367,20 +346,19 @@ bool SRT::Socket::setSendBufferSize(Exception& ex, int size) {
 }
 
 bool SRT::Socket::setPassphrase(Exception& ex, const char* data, UInt32 size) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
-	
 	if (::srt_setsockflag(_id, SRTO_PASSPHRASE, data, size) != -1)
 		return true;
-	SetException(ex, GetError(), " ", ::srt_getlasterror_str());
+	SetException(ex);
 	return false;
 }
 
 bool SRT::Socket::setLinger(Exception& ex, bool on, int seconds) {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 	struct linger l;
@@ -390,8 +368,8 @@ bool SRT::Socket::setLinger(Exception& ex, bool on, int seconds) {
 }
 
 bool SRT::Socket::getLinger(Exception& ex, bool& on, int& seconds) const {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
 	struct linger l;
@@ -402,14 +380,14 @@ bool SRT::Socket::getLinger(Exception& ex, bool& on, int& seconds) const {
 	return true;
 }
 
-bool SRT::Socket::getStats(Exception& ex, SRT_TRACEBSTATS* perf) const {
-	if (_id == ::SRT_INVALID_SOCK) {
-		SetException(ex, NET_ESHUTDOWN);
+bool SRT::Socket::getStats(Exception& ex, SRT::Stats& stats) const {
+	if (_ex) {
+		ex = _ex;
 		return false;
 	}
-	if (::srt_bistats(_id, perf, 0, 0) != -1)
+	if (::srt_bistats(_id, (SRT_TRACEBSTATS*)&stats, 0, 0) != -1)
 		return true;
-	SetException(ex, GetError(), " ", ::srt_getlasterror_str());
+	SetException(ex);
 	return false;
 }
 

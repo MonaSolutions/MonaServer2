@@ -86,10 +86,7 @@ struct TLS : virtual Object {
 						// Socket error!
 						if(!result)
 							return 0; // happen when socket recv returns 0
-						int error = Net::LastError();
-						if (error == NET_EAGAIN)
-							error = NET_EWOULDBLOCK;
-						SetException(ex, error, std::forward<Args>(args)...);
+						SetException(ex, Net::LastError(), std::forward<Args>(args)...);
 						break;
 					}
 				default: // mainly SSL_ERROR_SSL

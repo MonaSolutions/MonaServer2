@@ -29,29 +29,58 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/TCPClient.h"
 #include "Mona/TCPServer.h"
 
-
 namespace Mona {
 
 struct SRT : virtual Object {
-	struct Stats : virtual Object {
-		virtual double bandwidthEstimated() const = 0;
-		virtual double bandwidthMaxUsed() const = 0;
-		virtual UInt32 bufferTime() const = 0;
-		virtual double negotiatedLatency() const = 0;
-		virtual UInt32 recvLostCount() const = 0;
-		virtual UInt32 sendLostCount() const = 0;
-		virtual double retransmitRate() const = 0;
-		virtual double rtt() const = 0;
-		static Stats& Null();
-	};
+	
 #if !defined(SRT_API)
 	enum {
 		RELIABLE_SIZE = Net::MTU_RELIABLE_SIZE
+	};
+	struct Stats {
+		Stats() {}
+		double bandwidthEstimated() const { return 0; }
+		double bandwidthMaxUsed() const { return 0; }
+		UInt32 recvBufferTime() const { return 0; }
+		double recvNegotiatedDelay() const { return 0; }
+		UInt32 recvLostCount() const { return 0; }
+		UInt32 sendBufferTime() const { return 0; }
+		double sendNegotiatedDelay() const { return 0; }
+		UInt32 sendLostCount() const { return 0; }
+		double retransmitRate() const { return 0; }
+		double rtt() const { return 0; }
+
+		static Stats& Null();
 	};
 #else
 	enum {
 		RELIABLE_SIZE = ::SRT_LIVE_DEF_PLSIZE
 	};
+	struct Stats {
+		Stats() {}
+		double bandwidthEstimated() const { return _stats.mbpsBandwidth; }
+		double bandwidthMaxUsed() const { return _stats.mbpsMaxBW; }
+		UInt32 recvBufferTime() const { return _stats.msRcvBuf; }
+		UInt32 recvNegotiatedDelay() const { return _stats.msRcvTsbPdDelay; }
+		UInt32 recvLostCount() const { return _stats.pktRcvLoss; }
+		UInt32 sendBufferTime() const { return _stats.msSndBuf; }
+		UInt32 sendNegotiatedDelay() const { return _stats.msSndTsbPdDelay; }
+		UInt32 sendLostCount() const { return _stats.pktSndLoss; }
+		UInt64 retransmitRate() const { return _stats.byteRetrans; }
+		double rtt() const { return _stats.msRTT; }
+
+		const SRT_TRACEBSTATS*	operator->() const { return &_stats; }
+		const SRT_TRACEBSTATS*	operator&() const { return &_stats; }
+
+		static Stats& Null();
+	private:
+		SRT_TRACEBSTATS _stats;
+	};
+
+	static int  LastError();
+	static const char* LastErrorMessage() { return ::srt_getlasterror_str(); }
+
+
 	struct Client : TCPClient {
 		Client(IOSocket& io) : Mona::TCPClient(io) { }
 
@@ -65,7 +94,7 @@ struct SRT : virtual Object {
 	private:
 		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};
-	
+
 	struct Socket : virtual Object, Stats, Mona::Socket {
 		Socket();
 		Socket(const sockaddr& addr, SRTSOCKET id);
@@ -86,8 +115,6 @@ struct SRT : virtual Object {
 		virtual bool listen(Exception& ex, int backlog = SOMAXCONN);
 
 		virtual bool setNonBlockingMode(Exception& ex, bool value);
-
-		virtual const SocketAddress& address() const;
 
 		virtual bool setSendBufferSize(Exception& ex, int size);
 		virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex, ::SRTO_UDP_SNDBUF, size); }
@@ -117,57 +144,51 @@ struct SRT : virtual Object {
 		bool setMaxBW(Exception& ex, Int64 value) { return setOption(ex, ::SRTO_MAXBW, value); }
 		bool getMaxBW(Exception& ex, Int64& value) const { return getOption(ex, ::SRTO_MAXBW, value); }		
 
-		bool getStats(Exception& ex, SRT_TRACEBSTATS* perf) const;
+		bool getStats(Exception& ex, SRT::Stats& stats) const;
 
-		// Stats
-		virtual double bandwidthEstimated() const { Exception ex; return !getStats(ex, &_stats) ? 0 : _stats.mbpsBandwidth; }
-		virtual double bandwidthMaxUsed() const { Exception ex; return !getStats(ex, &_stats) ? 0 : _stats.mbpsMaxBW; }
-		virtual UInt32 bufferTime() const { Exception ex; return !getStats(ex, &_stats) ? 0 : _stats.msRcvBuf; } // TODO: not sure it is just rcv
-		virtual double negotiatedLatency() const { Exception ex; int val1, val2; return (!getLatency(ex, val1) || !getLatency(ex, val2)) ? 0 : val1 + val2; }
-		virtual UInt32 recvLostCount() const { Exception ex; return !getStats(ex, &_stats) ? 0 : _stats.pktRcvLoss; }
-		virtual UInt32 sendLostCount() const { Exception ex; return !getStats(ex, &_stats) ? 0 : _stats.pktSndLoss; }
-		virtual double retransmitRate() const { Exception ex; return !getStats(ex, &_stats) ? 0 : (double)_stats.byteRetrans; }
-		virtual double rtt() const { Exception ex; return !getStats(ex, &_stats) ? 0 : _stats.msRTT; }
-
+		
 	private:
+		void computeAddress();
+
+		template <typename ...Args>
+		static Exception& SetException(Exception& ex, Args&&... args) {
+			ex.set<Ex::Net::Socket>(LastErrorMessage(), std::forward<Args>(args)...).code = LastError();
+			return ex;
+		}
 
 		//virtual Mona::Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr);
 		virtual int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
-		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);
+		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH) { return type ? (::srt_close(_id) == 0) : (_shutdownRecv = true); }
 
 		template<typename Type>
 		bool getOption(Exception& ex, SRT_SOCKOPT option, Type& value) const {
-			if (_id == ::SRT_INVALID_SOCK) {
-				SetException(ex, NET_ESHUTDOWN);
+			if (_ex) {
+				ex = _ex;
 				return false;
 			}
 			int length(sizeof(value));
 			if (::srt_getsockflag(_id, option, reinterpret_cast<char*>(&value), &length) != -1)
 				return true;
-			SetException(ex, GetError(::srt_getlasterror(NULL)), " ", ::srt_getlasterror_str());
+			SetException(ex);
 			return false;
 		}
 
 		template<typename Type>
 		bool setOption(Exception& ex, SRT_SOCKOPT option, Type value) {
-			if (_id == ::SRT_INVALID_SOCK) {
-				SetException(ex, NET_ESHUTDOWN);
+			if (_ex) {
+				ex = _ex;
 				return false;
 			}
 			int length(sizeof(value));
 			if (::srt_setsockflag(_id, option, reinterpret_cast<const char*>(&value), length) != -1)
 				return true;
-			SetException(ex, GetError(::srt_getlasterror(NULL)), " ", ::srt_getlasterror_str());
+			SetException(ex);
 			return false;
 		}
 
-		std::atomic<bool>				_shutdownRecv; 
-		mutable std::atomic<UInt32>		_available; // available bytes (1316 or 0 if eagain has been received)
-		mutable SRT_TRACEBSTATS			_stats; // permanent stats object
+		Exception				_ex;
+		volatile bool			_shutdownRecv;
 	};
-
-	static int GetError(int error=::srt_getlasterror(NULL));
-	/// \brief map the SRT error to the Mona Error code
 
 	static void Log(void* opaque, int level, const char* file, int line, const char* area, const char* message);
 

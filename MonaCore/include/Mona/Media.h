@@ -416,8 +416,8 @@ struct Media : virtual Static {
 		virtual bool running() const = 0;
 
 		virtual Net::Stats& netStats() const;
-		virtual SRT::Stats& srtStats() const;
 		virtual Net::Stats& fileStats() const;
+		virtual bool getSRTStats(SRT::Stats& stats) const;
 	protected:
 		Stream(Type type, const Path& path, Source& source = Source::Null()) : _startCount(0), type(type), path(path), source(source) {}
 

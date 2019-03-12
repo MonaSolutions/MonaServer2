@@ -34,7 +34,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define NET_EFAULT          WSAEFAULT
 #define NET_EINVAL          WSAEINVAL
 #define NET_EMFILE          WSAEMFILE
-#define NET_EAGAIN          WSAEWOULDBLOCK
 #define NET_EWOULDBLOCK     WSAEWOULDBLOCK
 #define NET_EINPROGRESS     WSAEINPROGRESS
 #define NET_EALREADY        WSAEALREADY
@@ -102,7 +101,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define NET_EFAULT          EFAULT
 #define NET_EINVAL          EINVAL
 #define NET_EMFILE          EMFILE
-#define NET_EAGAIN          EAGAIN
 #define NET_EWOULDBLOCK     EWOULDBLOCK
 #define NET_EINPROGRESS     EINPROGRESS
 #define NET_EALREADY        EALREADY
@@ -211,7 +209,7 @@ struct Net : virtual Object {
 #if defined(_WIN32)
 	static int  LastError() { return WSAGetLastError(); }
 #else
-	static int  LastError() { return errno; }
+	static int  LastError() { int error = errno;  return error == EAGAIN ? NET_EWOULDBLOCK : error; }
 #endif
 
 	static const char* ErrorToMessage(int error);

@@ -33,8 +33,8 @@ Socket::Socket(Type type) :
 
 	if (type < TYPE_OTHER)
 		init();
-	//else
-	//	_ex.set<Ex::Intern>("Socket built as a pure interface, overloads its methods");
+	else
+		_ex.set<Ex::Intern>("Socket built as a pure interface, overloads its methods");
 }
 
 // private constructor used just by Socket::accept, TCP initialized and connected socket
@@ -46,8 +46,6 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(ad
 
 	if (type < TYPE_OTHER)
 		init();
-	//else
-	//	_ex.set<Ex::Intern>("Socket built as a pure interface, overloads its methods");
 }
 
 
@@ -125,8 +123,10 @@ UInt32 Socket::available() const {
 
 bool Socket::setNonBlockingMode(Exception& ex, bool value) {
 #if defined(_WIN32)
-	if (!ioctlsocket(_id, FIONBIO, (u_long*)&value))
-		return _nonBlockingMode = value;
+	if (!ioctlsocket(_id, FIONBIO, (u_long*)&value)) {
+		_nonBlockingMode = value;
+		return true;
+	}
 #else
 	int flags = fcntl(_id, F_GETFL, 0);
 	if (flags != -1) {
@@ -134,8 +134,10 @@ bool Socket::setNonBlockingMode(Exception& ex, bool value) {
 			flags |= O_NONBLOCK;
 		else
 			flags &= ~O_NONBLOCK;
-		if (fcntl(_id, F_SETFL, flags) != -1)
-			return _nonBlockingMode = value;
+		if (fcntl(_id, F_SETFL, flags) != -1) {
+			_nonBlockingMode = value;
+			return true;
+		}
 	}
 #endif
 	SetException(ex, Net::LastError(), " (value=", value, ")");
@@ -174,17 +176,19 @@ bool Socket::processParams(Exception& ex, const Parameters& parameters, const ch
 }
 
 const SocketAddress& Socket::address() const {
-	if (_address && !_address.port()) {
-		// computable!
-		union {
-			struct sockaddr_in  sa_in;
-			struct sockaddr_in6 sa_in6;
-		} addr;
-		NET_SOCKLEN addrSize = sizeof(addr);
-		if (::getsockname(_id, (sockaddr*)&addr, &addrSize) == 0)
-			_address.set((sockaddr&)addr);
-	}
+	if (_address && !_address.port())
+		((Socket*)this)->computeAddress();
 	return _address;
+}
+void Socket::computeAddress() {
+	// computable!
+	union {
+		struct sockaddr_in  sa_in;
+		struct sockaddr_in6 sa_in6;
+	} addr;
+	NET_SOCKLEN addrSize = sizeof(addr);
+	if (::getsockname(_id, (sockaddr*)&addr, &addrSize) == 0)
+		_address.set((sockaddr&)addr);
 }
 
 
@@ -271,8 +275,6 @@ bool Socket::accept(Exception& ex, shared<Socket>& pSocket) {
 		sockfd = ::accept(_id, (sockaddr*)&addr, &addrSize);
 	} while (sockfd == NET_INVALID_SOCKET && (error = Net::LastError()) == NET_EINTR);
 	if (sockfd == NET_INVALID_SOCKET) {
-		if (error == NET_EAGAIN)
-			error = NET_EWOULDBLOCK;
 		SetException(ex, error);
 		return false;
 	}
@@ -424,8 +426,6 @@ int Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketA
 	} while (rc < 0 && (error=Net::LastError()) == NET_EINTR);
 		
 	if (rc < 0) {
-		if (error == NET_EAGAIN)
-			error = NET_EWOULDBLOCK; // if non blocking socket keep returns -1 to differenciate it of disconnection which returns 0 (a non-blocking socket should use available before to call receive)
 		if (pAddress)
 			SetException(ex, error, " (from=", *pAddress,", size=", size, ", flags=", flags, ")");
 		else if(_peerAddress)
@@ -461,8 +461,6 @@ int Socket::sendTo(Exception& ex, const void* data, UInt32 size, const SocketAdd
 			rc = ::send(_id, STR data, size, flags);
 	} while (rc < 0 && (error=Net::LastError()) == NET_EINTR);
 	if (rc < 0) {
-		if (error == NET_EAGAIN)
-			error = NET_EWOULDBLOCK;
 		SetException(ex, error, " (address=", address ? address : _peerAddress, ", size=", size, ", flags=", flags, ")");
 		return -1;
 	}
@@ -512,11 +510,6 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 }
 
 bool Socket::flush(Exception& ex, bool deleting) {
-	if (_ex) {
-		ex = _ex;
-		return false;
-	}
-
 	UInt32 written(0);
 
 	unique_lock<mutex> lock(_mutexSending, defer_lock);

@@ -64,7 +64,6 @@ struct Socket : virtual Object, Net::Stats {
 	/*!
 	Creates a Socket which supports IPv4 and IPv6 */
 	Socket(Type type);
-
 	virtual ~Socket();
 
 	const	Type		type;
@@ -85,7 +84,7 @@ struct Socket : virtual Object, Net::Stats {
 	virtual UInt32		available() const;
 	virtual UInt64		queueing() const { return _queueing; }
 	
-	virtual const SocketAddress& address() const;
+	const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }
 
 	bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net");
@@ -163,7 +162,6 @@ protected:
 	mutable SocketAddress	_address;
 	SocketAddress			_peerAddress;
 	NET_SOCKET				_id;
-	Exception				_ex;
 
 	mutable std::atomic<int>	_recvBufferSize;
 	mutable std::atomic<int>	_sendBufferSize;
@@ -180,11 +178,15 @@ protected:
 	virtual bool	close(ShutdownType type = SHUTDOWN_BOTH);
 private:
 	void init();
+	virtual void computeAddress();
 
 	template<typename Type>
 	bool getOption(Exception& ex, int level, int option, Type& value) const {
 		if (_ex) {
-			ex = _ex;
+			if (_ex.cast<Ex::Intern>())
+				ex.set<Ex::Unsupported>("Option ", option," of type ", typeof<Type>()," not supported by ", typeof(self));
+			else
+				ex = _ex;
 			return false;
 		}
         NET_SOCKLEN length(sizeof(value));
@@ -197,7 +199,10 @@ private:
 	template<typename Type>
 	bool setOption(Exception& ex, int level, int option, Type value) {
 		if (_ex) {
-			ex = _ex;
+			if (_ex.cast<Ex::Intern>())
+				ex.set<Ex::Unsupported>("Option ", option, " of type ", typeof<Type>(), " not supported by ", typeof(self));
+			else
+				ex = _ex;
 			return false;
 		}
         NET_SOCKLEN length(sizeof(value));
@@ -214,6 +219,7 @@ private:
 		const int			flags;
 	};
 
+	Exception					_ex;
 	mutable std::mutex			_mutexSending;
 	std::deque<Sending>			_sendings;
 	std::atomic<UInt64>			_queueing;

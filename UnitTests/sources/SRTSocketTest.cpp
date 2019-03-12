@@ -349,8 +349,8 @@ ADD_TEST(TestOptions) {
 	Int64 val64;
 	CHECK(pClient->getMaxBW(ex, val64) && !ex && val64 == 2000);
 
-	SRT_TRACEBSTATS perf;
-	CHECK(pClient->getStats(ex, &perf) && !ex && perf.pktRcvLoss == 0 && (perf.pktSent == 1 || perf.pktSndBuf == 1)); // Can be sent or bufferised now
+	SRT::Stats stats;
+	CHECK(pClient->getStats(ex, stats) && !ex && stats.recvLostCount() == 0 && (stats->pktSent == 1 || stats->pktSndBuf == 1)); // Can be sent or bufferised now
 }
 
 }
