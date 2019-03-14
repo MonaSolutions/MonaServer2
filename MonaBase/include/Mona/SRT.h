@@ -126,6 +126,9 @@ struct SRT : virtual Object {
 		virtual bool setLinger(Exception& ex, bool on, int seconds);
 		virtual bool getLinger(Exception& ex, bool& on, int& seconds) const;
 
+		bool setConnectionTimeout(Exception& ex, int value) { return setOption(ex, ::SRTO_CONNTIMEO, value); }
+		bool getConnectionTimeout(Exception& ex, int& value) const { return getOption(ex, ::SRTO_CONNTIMEO, value); }
+
 		bool getEncryptionState(Exception& ex, int& state) const { return getOption(ex, ::SRTO_RCVKMSTATE, state); }
 		bool getPeerDecryptionState(Exception& ex, int& state) const { return getOption(ex, ::SRTO_SNDKMSTATE, state); }
 		bool getEncryptionType(Exception& ex, int& type) const { return getOption(ex, ::SRTO_PBKEYLEN, type); }
@@ -141,7 +144,7 @@ struct SRT : virtual Object {
 		bool setOverheadBW(Exception& ex, int value) { return setOption(ex, ::SRTO_OHEADBW, value); }
 		// bool getOverheadBW(Exception& ex, int& value) const { return getOption(ex, ::SRTO_OHEADBW, value); }  Not supported for now in SRT
 		bool setMaxBW(Exception& ex, Int64 value) { return setOption(ex, ::SRTO_MAXBW, value); }
-		bool getMaxBW(Exception& ex, Int64& value) const { return getOption(ex, ::SRTO_MAXBW, value); }		
+		bool getMaxBW(Exception& ex, Int64& value) const { return getOption(ex, ::SRTO_MAXBW, value); }	
 
 		bool getStats(Exception& ex, SRT::Stats& stats) const;
 

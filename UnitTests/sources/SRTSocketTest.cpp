@@ -105,6 +105,7 @@ ADD_TEST(TestTCPBlocking) {
 
 	// Test a connection refused
 	SocketAddress unknown(IPAddress::Loopback(), 62434);
+	CHECK(((SRT::Socket*)pClient.get())->setConnectionTimeout(ex, 1000) && !ex);
 	CHECK(!pClient->connect(ex, unknown) && ex && !pClient->address() && !pClient->peerAddress());
 	ex = NULL;
 
@@ -123,15 +124,13 @@ ADD_TEST(TestTCPBlocking) {
 	address.set(IPAddress::Loopback(), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
-	/*pClient.reset(new SRT::Socket());
+	pClient.reset(new SRT::Socket());
 	pServer.reset(new Server());
 	
-	// TODO: find a way to create an SRT::Socket without knowing the AF type, for now we consider that srt support only ipv4
-	// Test a IPv6 server
-	address.set(IPAddress::Wildcard(IPAddress::IPv6), port);
-	CHECK(pServer->bind(address) == address);
+	// Test a IPv6 server (with a new port)
+	address.set(IPAddress::Wildcard(IPAddress::IPv6), 0);
+	port = pServer->bind(address).port();
 
-	// TODO: make it work, I think srt is missing option IPV6_V6ONLY
 	// Test IPv4 client accepted by IPv6 server
 	pServer->accept();
 	address.set(IPAddress::Loopback(), port);
@@ -143,7 +142,7 @@ ADD_TEST(TestTCPBlocking) {
 	pServer->accept();
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
-	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());*/
+	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
 
 	// Test server TCP communication
 	CHECK(pClient->send(ex, EXPAND("hi mathieu and thomas")) == 21 && !ex);

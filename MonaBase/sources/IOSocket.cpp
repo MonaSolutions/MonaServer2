@@ -211,11 +211,10 @@ void IOSocket::unsubscribe(shared<Socket>& pSocket) {
 	pSocket->onAccept = nullptr;
 	pSocket->onError = nullptr;
 
-	if (pSocket->type < Socket::TYPE_OTHER) {
+	if (pSocket->type < Socket::TYPE_OTHER)
 		unsubscribe(pSocket.get());
-	}
 #if defined(SRT_API)
-	else
+	else if (_pIOSRTSocket)
 		_pIOSRTSocket->unsubscribe(pSocket.get());
 #endif
 	pSocket.reset();
