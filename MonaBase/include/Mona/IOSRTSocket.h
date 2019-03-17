@@ -27,8 +27,6 @@ struct IOSRTSocket : virtual IOSocket, virtual Object {
 	IOSRTSocket(const Handler& handler, const ThreadPool& threadPool, const char* name = "IOSRTSocket");
 	~IOSRTSocket();
 
-	//UInt32					subscribers() const { return _subscribers; }
-
 	virtual bool			subscribe(Exception& ex, const shared<Socket>& pSocket);
 	
 	virtual void			unsubscribe(Socket* pSocket);

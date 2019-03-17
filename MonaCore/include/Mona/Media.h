@@ -290,7 +290,7 @@ struct Media : virtual Static {
 	/*!
 	To write a media part from source (just a part of one media, so no beginMedia/endMedia and writeProperties) */
 	struct Source : virtual Object {
-		virtual const std::string&	name() const { static std::string Name("?");  return Name; }
+		virtual const std::string&	name() const { return typeof(self); }
 
 		virtual void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;
 		virtual void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;
@@ -350,35 +350,16 @@ struct Media : virtual Static {
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return writeData(type, packet, reliable); }
 	};
 
-	struct Targets : virtual Object {
-		typedef Event<bool(Media::Target&)>	ON(TargetAdd);
-		typedef Event<void(Media::Target&)>	ON(TargetRemove);
-
-		typedef std::set<Media::Target*>::const_iterator const_iterator;
-
-		const_iterator	begin() const { return _targets.begin(); }
-		const_iterator	end() const { return _targets.end(); }
-		UInt32			count() const { return _targets.size(); }
-
-		bool addTarget(Media::Target& target) { return (!onTargetAdd || onTargetAdd(target)) && _targets.emplace(&target).second; }
-		bool removeTarget(Media::Target& target) {
-			if (!_targets.erase(&target))
-				return false;
-			onTargetRemove(target);
-			return true;
-		}
-	private:
-		std::set<Media::Target*> _targets;
-	};
-
 	/*!
 	A Media stream (sources or targets) allows mainly to bound a publication with input and ouput stream.
 	Its behavior must support an automatic mode to (re)start the stream as long time as desired
 	Implementation have to call protected stop(...) to log and callback an error if the user prefer delete stream on error
 	/!\ start() can be used to pulse the stream (connect attempt) */
 	struct Stream : virtual Object {
-		typedef Event<void()>					ON(Start);
-		typedef Event<void(const Exception&)>	ON(Stop);
+		typedef Event<bool()>								ON(Start);
+		typedef Event<void(const Exception&)>				ON(Stop);
+		typedef Event<void()>								ON(Delete);
+		typedef Event<void(const shared<Media::Target>&)>	ON(NewTarget); // stay available until unique()!
 
 		enum Type {
 			TYPE_LOGS = -1,
@@ -418,6 +399,8 @@ struct Media : virtual Static {
 		virtual Net::Stats& netStats() const;
 		virtual Net::Stats& fileStats() const;
 		virtual bool getSRTStats(SRT::Stats& stats) const;
+
+		~Stream() { onDelete(); }
 	protected:
 		Stream(Type type, const Path& path, Source& source = Source::Null()) : _startCount(0), type(type), path(path), source(source) {}
 
@@ -435,6 +418,20 @@ struct Media : virtual Static {
 		}
 
 		shared<Socket> newSocket(const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
+
+		template<typename Type, typename ...Args>
+		void newStreamTarget(Args&&... args) {
+			STATIC_ASSERT(std::is_base_of<Media::Target, Type>::value);
+			shared<Target> pTarget;
+			pTarget.set<Type>(std::forward<Args>(args)...);
+			onNewTarget(pTarget);
+			if (pTarget.unique())
+				return;
+			((Stream&)*pTarget).onStop = [this, weakTarget = weak<Target>(pTarget)](const Exception& ex) {
+				_targets.erase(weakTarget.lock());
+			};
+			_targets.emplace(std::move(pTarget));
+		}
 	private:
 		/*!
 		/!\ Implementation have to support a pulse start! */
@@ -445,6 +442,7 @@ struct Media : virtual Static {
 
 		mutable std::string	_description;
 		UInt32				_startCount;
+		std::set<shared<Target>> _targets;
 	};
 
 };

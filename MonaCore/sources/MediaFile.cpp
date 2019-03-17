@@ -219,9 +219,11 @@ void MediaFile::Writer::endMedia() {
 }
 
 void MediaFile::Writer::stopping() {
-	write<EndWrite>(); // _pWriter->endMedia()!
 	_running = false;
-	_pFile.reset();
+	if(_pFile) {
+		write<EndWrite>(); // _pWriter->endMedia()!
+		_pFile.reset();
+	}
 	INFO(description(), " stops");
 }
 

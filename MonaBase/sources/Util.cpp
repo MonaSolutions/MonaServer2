@@ -192,7 +192,7 @@ size_t Util::UnpackUrl(const char* url, string& address, string& path, string& q
 
 Parameters& Util::UnpackQuery(const char* query, size_t count, Parameters& parameters) {
 	ForEachParameter forEach([&parameters](const string& key, const char* value) {
-		parameters.setString(key, value ? value : "");
+		parameters.setParameter(key, value ? value : "");
 		return true;
 	});
 	UnpackQuery(query, count, forEach);

@@ -143,6 +143,14 @@ SRT::Socket::~Socket() {
 	close();
 }
 
+bool SRT::Socket::close(Socket::ShutdownType type) {
+	if (!type)
+		return _shutdownRecv = true;
+	bool success = ::srt_close(_id) == 0;
+	_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
+	return success;
+}
+
 UInt32 SRT::Socket::available() const {
 	if(!_shutdownRecv) {
 		Int32 events;

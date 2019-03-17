@@ -157,7 +157,7 @@ struct SRT : virtual Object {
 		}
 
 		virtual int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
-		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH) { return type ? (::srt_close(_id) == 0) : (_shutdownRecv = true); }
+		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);
 
 		template<typename Type>
 		bool getOption(Exception& ex, SRT_SOCKOPT option, Type& value) const {

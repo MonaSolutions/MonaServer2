@@ -46,6 +46,8 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(ad
 
 	if (type < TYPE_OTHER)
 		init();
+	else
+		_ex.set<Ex::Intern>("Socket built as a pure interface, overloads its methods");
 }
 
 

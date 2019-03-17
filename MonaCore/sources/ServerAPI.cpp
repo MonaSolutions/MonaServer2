@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/ServerAPI.h"
-#include "Mona/QueryReader.h"
 #include "Mona/MapWriter.h"
 #include "Mona/MapReader.h"
 #include "Mona/Util.h"
@@ -28,8 +27,8 @@ using namespace std;
 
 namespace Mona {
 
-ServerAPI::ServerAPI(const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores) :
-	threadPool(cores), www(www), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool, cores), publications(_publications), clients() {
+ServerAPI::ServerAPI(map<string, Publication>& publications, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores) :
+	_publications(publications), threadPool(cores), www(www), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool, cores), clients() {
 }
 
 Publication* ServerAPI::publish(Exception& ex, string& stream, Client* pClient) {
@@ -66,9 +65,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 		// write metadata!
 		// allow to work with any protocol and easy query writing
 		// Ignore the FMLE case which write two times properties (use query and metadata, anyway query are include in metadata (more complete))
-		QueryReader reader(query);
-		MapWriter<Parameters> writer(publication);
-		reader.read(writer);
+		Util::UnpackQuery(query, publication);
 	}
 
 	// Write static metadata configured

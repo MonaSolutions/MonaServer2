@@ -201,23 +201,27 @@ MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& p
 	Media::Stream(type, path), io(io), address(pSocket->peerAddress()), _sendTrack(0), _pWriter(move(pWriter)), _pStreaming(SET, false) {
 	_onDisconnection = [this]() { Stream::stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
 	_onError = [this](const Exception& ex) { Stream::stop(*_pStreaming ? LOG_WARN : LOG_DEBUG, ex); };
+	newSocket();
+}
+
+bool MediaSocket::Writer::newSocket(const Parameters& parameters) {
+	if (!_pSocket)
+		_pSocket = Media::Stream::newSocket(parameters, _pTLS);
+	if (!_onFlush)
+		_onFlush = [this]() { _onFlush = nullptr; };
+	Exception ex;
+	bool success;
+	AUTO_ERROR(success = io.subscribe(ex, _pSocket, nullptr, _onFlush, _onError, _onDisconnection), description());
+	if (!success)
+		_pSocket.reset();
+	return success;
 }
 
 void MediaSocket::Writer::starting(const Parameters& parameters) {
 	
-	if (!_pSocket) {
-		_pSocket = newSocket(parameters, _pTLS);
-		// engine subscription BEFORE connect to be able to detect connection success/failure
-		if (!_onFlush)
-			_onFlush = [this]() { _onFlush = nullptr; };
-		Exception ex;
-		bool success;
-		AUTO_ERROR(success = io.subscribe(ex, _pSocket, nullptr, _onFlush, _onError, _onDisconnection), description());
-		if (!success) {
-			_pSocket.reset();
-			return;
-		}
-	}
+	if (!_pSocket && !newSocket(parameters))
+		return;
+
 	if (!_pName)
 		return; // Do nothing if not media beginning
 	bool connected(_pSocket->peerAddress() ? true : false);
@@ -267,9 +271,11 @@ void MediaSocket::Writer::endMedia() {
 
 void MediaSocket::Writer::stopping() {
 	// Close socket to signal the end of media
-	send<EndSend>(); // _pWriter->endMedia()!
 	io.unsubscribe(_pSocket);
-	_pName.reset();
+	if(_pName) { // else not beginMedia!
+		send<EndSend>(); // _pWriter->endMedia()!
+		_pName.reset();
+	}
 	if (*_pStreaming) {
 		INFO(description(), " stops");
 		_pStreaming.set(false);

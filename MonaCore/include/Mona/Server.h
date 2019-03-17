@@ -48,26 +48,30 @@ struct Server : protected ServerAPI, private Thread {
 	Publish a publication, stays valid until !*Publish */
 	Publish* publish(const char* name);
 	/*!
-	Create a media stream target, stays valid until pStream.unique() */
-	shared<Media::Stream> stream(const std::string& description) { return stream(Media::Source::Null(), description); }
+	Create a media stream target */
+	unique<Media::Stream> stream(const std::string& description) { return stream(Media::Source::Null(), description); }
 	/*!
-	Create a media stream source, stays valid until pStream.unique() */
-	shared<Media::Stream> stream(Media::Source& source, const std::string& description);
+	Create a media stream source
+	Trick: use '!' in description to create a "logs" publication */
+	unique<Media::Stream> stream(Media::Source& source, const std::string& description);
+	
 
 protected:
+	/*!
+	Create a media stream source or target (if description prefixed with '@') automatically linked to a publication,
+	Trick: use '!' in description to create a "logs" publication */
+	shared<Media::Stream> stream(const std::string& publication, const std::string& description);
+
 	template<typename  ...Args>
 	Publication* publish(Exception& ex, Args&&... args) { return ServerAPI::publish(ex, args ...); }
 
-	ServerAPI& api() { return self; }
-
-	const std::set<shared<const Media::Stream>>& streams() const { return _iniStreams; }
-
+	ServerAPI& api() { return self; }	
 private:
 	virtual void onStart() {}
 	virtual void onManage() {}
 	virtual void onStop() {}
 
-	void  loadIniStreams(std::set<Publication*>& publications, std::set<shared<Subscription>>& subscriptions);
+	void  loadIniStreams();
 
 	bool			run(Exception& ex, const volatile bool& requestStop);
 
@@ -76,8 +80,11 @@ private:
 	Protocols		_protocols;
 	Sessions		_sessions;
 	Path			_www;
-	std::deque<shared<Media::Stream>>		_streams;
-	std::set<shared<const Media::Stream>>	_iniStreams;
+
+	std::map<shared<Media::Stream>, unique<Subscription>>			_iniStreams;
+	std::multimap<const char*, Publication*, String::Comparator>	_streamPublications; // contains publications initiated by autoStreams
+	std::map<shared<Media::Target>, unique<Subscription>>			_streamSubscriptions; // contains susbscriptions created by auto streams target
+	std::map<std::string, Publication>								_publications;
 };
 
 

@@ -77,7 +77,8 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	~Subscription();
 
 	/*!
-	Subscription ejected (insufficient bandwidth, timeout, target error, ...) */
+	Subscription ejected (insufficient bandwidth, timeout, target error, ...) 
+	Call periodically this method! */
 	EJECTED				ejected();
 	
 	

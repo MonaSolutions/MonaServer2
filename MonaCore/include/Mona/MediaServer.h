@@ -19,13 +19,13 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/MediaWriter.h"
+#include "Mona/MediaSocket.h"
 #include "Mona/SRT.h"
 
 namespace Mona {
 
 
-struct MediaServer : Media::Stream, Media::Targets, virtual Object {
+struct MediaServer : Media::Stream, virtual Object {
 	enum Type {
 		TYPE_TCP = 1 // to match Media::Stream::Type
 #if defined(SRT_API)
@@ -47,19 +47,16 @@ struct MediaServer : Media::Stream, Media::Targets, virtual Object {
 private:
 	void starting(const Parameters& parameters);
 	void stopping();
-	const shared<Socket>&	socket();
 
 	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
 		
 	Socket::OnAccept			_onConnnection;
 	Socket::OnError				_onError;
 
-	shared<Socket>				_pSocket;
-	shared<TLS>					_pTLS;
-	const char*					_subMime;
-	const char*					_format;
-	std::set<shared<Media::Stream>> _streams;
-
+	shared<Socket>					_pSocket;
+	shared<TLS>						_pTLS;
+	const char*						_subMime;
+	const char*						_format;
 };
 
 } // namespace Mona

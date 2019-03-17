@@ -32,7 +32,7 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pUpgradeSession(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(new HTTPWriter(*this)), _fileWriter(protocol.api.ioFile),
+HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pUpgradeSession(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(SET, self), _fileWriter(protocol.api.ioFile),
 	_onResponse([this](HTTP::Response& response) {
 		kill(ERROR_PROTOCOL, "A HTTP response has been received instead of request");
 	}),
@@ -379,8 +379,8 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 				return _pWriter->writeFile(file, fileProperties); // VOD
 			if (request->query == "?") {
 				// request publication properties!
-				const auto& it = api.publications.find(file.baseName());
-				if (it == api.publications.end())
+				const auto& it = api.publications().find(file.baseName());
+				if (it == api.publications().end())
 					_pWriter->writeError(HTTP_CODE_404, "Publication ", file.baseName(), " unfound");
 				else
 					MapReader<Parameters>(it->second).read(_pWriter->writeResponse("json"));

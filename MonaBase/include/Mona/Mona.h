@@ -85,33 +85,34 @@ void DetectMemoryLeak();
 #endif
 
 ///// TYPES /////
+/*!
+unique_ptr on the mode of shared and which forbid custom deleter (too complicated, use a event on object deletion rather) */
 template<typename Type>
 struct unique : std::unique_ptr<Type> {
-	using std::unique_ptr<Type>::unique_ptr;
 	unique() : std::unique_ptr<Type>() {}
 	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::unique_ptr<Type>, ArgType>::value>::type>
 	unique(ArgType&& arg) : std::unique_ptr<Type>(std::forward<ArgType>(arg)) {}
 	template<typename ...Args>
-	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(std::make_unique<Type>(std::forward<Args>(args)...)) {}
+	unique(SET_T, Args&&... args) : std::unique_ptr<Type>(new Type(std::forward<Args>(args)...)) {}
+
 	template<typename NewType = Type, typename ...Args>
-	NewType& set(Args&&... args) { return *(NewType*)std::unique_ptr<Type>::operator=(std::make_unique<NewType>(std::forward<Args>(args)...)).get(); }
+	NewType& set(Args&&... args) { std::unique_ptr<Type>::reset(new NewType(std::forward<Args>(args)...)); return (NewType&)*self; }
 	unique& reset() { std::unique_ptr<Type>::reset(); return self; }
 	template<typename ArgType>
 	unique& operator=(ArgType&& arg) { std::unique_ptr<Type>::operator=(std::forward<ArgType>(arg)); return self; };
 	template<typename NewType>
 	unique& operator=(NewType* pType) { std::unique_ptr<Type>::reset(pType); return self; };
-private:
-	template<typename NewType>
-	unique(NewType* pType) {}
 };
+/*!
+shared_ptr which forbid new construction (too slow) and custom deleter (too complicated, use a event on object deletion rather) */
 template<typename Type>
 struct shared : std::shared_ptr<Type> {
-	using std::shared_ptr<Type>::shared_ptr;
 	shared() : std::shared_ptr<Type>() {}
 	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::shared_ptr<Type>, ArgType>::value>::type>
 	shared(ArgType&& arg) : std::shared_ptr<Type>(std::forward<ArgType>(arg)) {}
 	template<typename ...Args>
 	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
+
 	template<typename NewType = Type, typename ...Args>
 	NewType& set(Args&&... args) { return *(NewType*)std::shared_ptr<Type>::operator=(std::make_shared<NewType>(std::forward<Args>(args)...)).get(); }
 	shared& reset() { std::shared_ptr<Type>::reset(); return self; }

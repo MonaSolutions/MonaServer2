@@ -440,8 +440,9 @@ void Media::Stream::start(const Parameters& parameters) {
 	starting(parameters);
 	if (!start || !running())
 		return;
+	if (onStart && !onStart())
+		return stop();
 	++_startCount;
-	onStart();
 }
 void Media::Stream::stop(const Exception& ex) {
 	if (!running())

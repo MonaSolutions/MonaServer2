@@ -52,7 +52,7 @@ struct ServerAPI : virtual Object, Parameters {
 	const Protocols&			protocols;
 	const Entity::Map<Client>	clients;
 	
-	const std::map<std::string, Publication>&	publications;
+	const std::map<std::string, Publication>&	publications() { return _publications; }
 
 	ThreadPool 				threadPool; // keep in first (must be build before ioSocket and ioFile)
 	IOSocket				ioSocket;
@@ -103,7 +103,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient){}
 
 protected:
-	ServerAPI(const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
+	ServerAPI(std::map<std::string, Publication>& publications, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
 
 private:
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription, Client* pClient);
@@ -117,7 +117,7 @@ private:
 	void					unpublish(Publication& publication, Client* pClient);
 
 
-	std::map<std::string,Publication>	_publications;
+	std::map<std::string, Publication>&	_publications;
 };
 
 

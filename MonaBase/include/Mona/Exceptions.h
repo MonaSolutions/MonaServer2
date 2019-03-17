@@ -122,7 +122,7 @@ private:
 };
 
 
-#define		STATIC_ASSERT(ASSERT)			static_assert(ASSERT, #ASSERT)
+#define		STATIC_ASSERT(...)			static_assert(__VA_ARGS__, #__VA_ARGS__)
 
 #if defined(_DEBUG)
 

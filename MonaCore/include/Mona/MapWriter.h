@@ -29,16 +29,16 @@ struct MapWriter : DataWriter, virtual Object {
 
 	MapWriter(MapType& map) : _layers({{0,0}}), _map(map), _isProperty(false) {}
 
-	UInt64 beginObject(const char* type = NULL) { return beginComplex(); }
+	UInt64 beginObject(const char* type = NULL) { return beginComplex(0); }
 	void   writePropertyName(const char* value) { _property = value; _isProperty = true; }
 	void   endObject() { endComplex(); }
 
 	void  clear() { _isProperty = false; _property.clear(); _key.clear(); _layers.assign({ {0,0} }); _map.clear(); }
 
-	UInt64 beginArray(UInt32 size) { return beginComplex(); }
+	UInt64 beginArray(UInt32 size) { return beginComplex(size); }
 	void   endArray() { endComplex();  }
 
-	UInt64 beginObjectArray(UInt32 size) { beginComplex(); return beginComplex(true); }
+	UInt64 beginObjectArray(UInt32 size) { beginComplex(size); _layers.emplace_back(_key.size(), 0); return 0; }
 
 	void writeString(const char* value, UInt32 size) { set(value, size); }
 	void writeNumber(double value) { set(String(value)); }
@@ -48,15 +48,16 @@ struct MapWriter : DataWriter, virtual Object {
 	UInt64 writeBytes(const UInt8* data, UInt32 size) { set(STR data, size); return 0; }
 	
 private:
-	UInt64 beginComplex(bool ignore=false) {
+	UInt64 beginComplex(UInt32 count) {
 		_layers.emplace_back(_key.size(), 0);
-		if (ignore || _layers.size()<3)
+		if (_layers.size()<3)
 			return 0;
 		if (_isProperty) {
-			String::Append(_key, _property, '.');
+			_map.emplace(_key.append(_property), String(count)); // count
 			_isProperty = false;
 		} else
-			String::Append(_key, (++_layers.rbegin())->second++, '.');
+			_map.emplace(String::Append(_key, (++_layers.rbegin())->second++), String(count)); // count
+		_key += '.';
 		return 0;
 	}
 

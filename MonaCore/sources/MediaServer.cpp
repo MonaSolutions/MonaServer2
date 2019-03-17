@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MediaServer.h"
-#include "Mona/MediaSocket.h"
 
 
 using namespace std;
@@ -30,33 +29,11 @@ unique<MediaServer> MediaServer::New(Type type, const Path& path, const char* su
 	return pWriter ? make_unique<MediaServer>(type, path, move(pWriter), address, io, pTLS) : nullptr;
 }
 
-const shared<Socket>& MediaServer::socket() {
-	if (!_pSocket) {
-#if defined(SRT_API)
-		if (type==Stream::TYPE_SRT)
-			_pSocket.set<SRT::Socket>();
-		else
-#endif
-		if (_pTLS)
-			_pSocket.set<TLS::Socket>(Socket::TYPE_STREAM, _pTLS);
-		else
-			_pSocket.set(Socket::TYPE_STREAM);
-	}
-	return _pSocket;
-}
-
 MediaServer::MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	Media::Stream(Media::Stream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
-		shared<MediaSocket::Writer> pStream(SET, this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
-		pStream->onStop = [this, pStream](const Exception& ex) {
-			// MediaSocket::Writer stop = pSocket->reset = disconnection!
-			removeTarget(*pStream);
-			_streams.erase(pStream);
-		};
-		if(addTarget(*pStream)) // before start to allow a call to start with parameters
-			pStream->start(); // necessary MediaServer is running here!
+		newStreamTarget<MediaSocket::Writer>(this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
 	};
 }
 
@@ -75,7 +52,6 @@ void MediaServer::starting(const Parameters& parameters) {
 
 void MediaServer::stopping() {
 	io.unsubscribe(_pSocket);
-	_streams.clear(); // stop all children stream!
 	INFO(description(), " stops");
 }
 

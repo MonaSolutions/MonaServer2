@@ -100,6 +100,7 @@ struct MediaSocket : virtual Static {
 		void stopping();
 
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', String::Upper(_pWriter->format())); }
+		bool newSocket(const Parameters& parameters = Parameters::Null());
 		
 		template<typename SendType, typename ...Args>
 		bool send(Args&&... args) {
