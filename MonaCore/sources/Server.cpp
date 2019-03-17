@@ -220,8 +220,6 @@ void Server::loadIniStreams() {
 		erase(key);
 
 	// Create streams
-	Exception ex;
-	Publication* pLastPublication(NULL);
 	for (auto& it : lines) {
 		shared<Media::Stream> pStream = stream(*it.first, it.second);
 		if (!pStream)
