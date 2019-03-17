@@ -123,10 +123,17 @@ int SRT::LastError() {
 }
 
 SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
-	_id = ::srt_socket(AF_INET, SOCK_DGRAM, 0); // TODO: This is ipv4 for now, we must find a way to set the family when creating the socket
+	_id = ::srt_socket(AF_INET6, SOCK_DGRAM, 0); // TODO: This is ipv4 for now, we must find a way to set the family when creating the socket
 
-	if (_id == ::SRT_INVALID_SOCK)
+	if (_id == ::SRT_INVALID_SOCK) {
 		SetException(_ex);
+		return;
+	}
+
+	if (!setOption(_ex, SRTO_IPV6ONLY, 0)) {
+		SetException(_ex);
+		return;
+	}
 	/*int opt = 1;
 	::srt_setsockflag(_id, ::SRTO_SENDER, &opt, sizeof opt);*/
 }
@@ -167,15 +174,7 @@ bool SRT::Socket::bind(Exception& ex, const SocketAddress& address) {
 		return false;
 	}
 
-	union {
-		struct sockaddr_in  sa_in;
-		struct sockaddr_in6 sa_in6;
-	} addr;
-	int addrSize = address.family() == IPAddress::IPv6 ? sizeof(sockaddr_in6) : sizeof(sockaddr_in);
-	memcpy(&addr, address.data(), addrSize);
-	sockaddr* pAdd = reinterpret_cast<sockaddr*>(&addr);
-	pAdd->sa_family = address.family() == IPAddress::IPv6 ? AF_INET6 : AF_INET;
-	if (::srt_bind(_id, pAdd, addrSize)) {
+	if (::srt_bind(_id, address.data(), address.size())) {
 		SetException(ex, " (address=", address, ")");
 		return false;
 	}
@@ -246,24 +245,10 @@ bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 		return false;
 	}
 
-	bool block = false;
-	if (timeout && !_nonBlockingMode) {
-		block = true;
-		if (!setNonBlockingMode(ex, true))
-			return false;
-	}
+	if (timeout && !setConnectionTimeout(ex, timeout))
+		return false;
 
-	union {
-		struct sockaddr_in  sa_in;
-		struct sockaddr_in6 sa_in6;
-	} addr;
-	int addrSize = address.family() == IPAddress::IPv6 ? sizeof(sockaddr_in6) : sizeof(sockaddr_in);
-	memcpy(&addr, address.data(), addrSize);
-	sockaddr* pAdd = reinterpret_cast<sockaddr*>(&addr);
-	pAdd->sa_family = address.family() == IPAddress::IPv6 ? AF_INET6 : AF_INET;
-	
-	int rc, error(0);
-	rc = ::srt_connect(_id, pAdd, addrSize);
+	int rc = ::srt_connect(_id, address.data(), address.size());
 	if (rc) {
 		SetException(ex, " (address=", address, ")");
 		return false; // fail
@@ -271,7 +256,7 @@ bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 
 	_address.set(IPAddress::Loopback(), 0); // to advise that address must be computed
 	_peerAddress = address;
-	return error ? false : true;
+	return true;
 }
 
 int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress) {
