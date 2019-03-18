@@ -57,6 +57,7 @@ private:
 	shared<TLS>						_pTLS;
 	const char*						_subMime;
 	const char*						_format;
+	std::set<shared<Media::Target>>	_targets;
 };
 
 } // namespace Mona

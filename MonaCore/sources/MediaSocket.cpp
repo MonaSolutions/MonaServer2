@@ -174,10 +174,7 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 		UInt32 size = 0;
 		Packet chunk(packet);
 		while (chunk += size) {
-			if (type == TYPE_UDP)
-				size = chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
-			else if(type==TYPE_SRT)
-				size = chunk.size() > SRT::RELIABLE_SIZE ? SRT::RELIABLE_SIZE : chunk.size();
+			size = (type == TYPE_UDP || type == TYPE_SRT) && chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
 			DUMP_RESPONSE(_pName->c_str(), chunk.data(), size, _pSocket->peerAddress());
 			Exception ex;
 			UInt64 byteRate = _pSocket->sendByteRate(); // Get byteRate before write to start computing cycle on 0!

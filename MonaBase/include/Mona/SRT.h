@@ -34,9 +34,6 @@ namespace Mona {
 struct SRT : virtual Object {
 	
 #if !defined(SRT_API)
-	enum {
-		RELIABLE_SIZE = Net::MTU_RELIABLE_SIZE
-	};
 	struct Stats {
 		Stats() {}
 		double bandwidthEstimated() const { return 0; }
@@ -53,9 +50,6 @@ struct SRT : virtual Object {
 		static Stats& Null();
 	};
 #else
-	enum {
-		RELIABLE_SIZE = ::SRT_LIVE_DEF_PLSIZE
-	};
 	struct Stats {
 		Stats() {}
 		double bandwidthEstimated() const { return _stats.mbpsBandwidth; }

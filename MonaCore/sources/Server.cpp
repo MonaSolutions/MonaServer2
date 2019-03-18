@@ -224,7 +224,6 @@ void Server::loadIniStreams() {
 		shared<Media::Stream> pStream = stream(*it.first, it.second);
 		if (!pStream)
 			continue;
-		INFO(pStream->description(), " loaded on publication ", *it.first);
 		pStream->start(self);
 		// move stream target from _streamSubscriptions to _iniStreams to avoid double iteration on onManage!
 		const auto& itTarget = _streamSubscriptions.find(dynamic_pointer_cast<Media::Target>(pStream));

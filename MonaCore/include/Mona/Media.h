@@ -419,19 +419,6 @@ struct Media : virtual Static {
 
 		shared<Socket> newSocket(const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
 
-		template<typename Type, typename ...Args>
-		void newStreamTarget(Args&&... args) {
-			STATIC_ASSERT(std::is_base_of<Media::Target, Type>::value);
-			shared<Target> pTarget;
-			pTarget.set<Type>(std::forward<Args>(args)...);
-			onNewTarget(pTarget);
-			if (pTarget.unique())
-				return;
-			((Stream&)*pTarget).onStop = [this, weakTarget = weak<Target>(pTarget)](const Exception& ex) {
-				_targets.erase(weakTarget.lock());
-			};
-			_targets.emplace(std::move(pTarget));
-		}
 	private:
 		/*!
 		/!\ Implementation have to support a pulse start! */
@@ -442,7 +429,6 @@ struct Media : virtual Static {
 
 		mutable std::string	_description;
 		UInt32				_startCount;
-		std::set<shared<Target>> _targets;
 	};
 
 };
