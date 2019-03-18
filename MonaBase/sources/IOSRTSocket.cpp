@@ -94,9 +94,8 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 	int result(0);
 	for (;;) {
 
-		// TODO: fix 250, normally we should wait for events without end
 		int rnum(MAXEVENTS), wnum(MAXEVENTS);
-		result = ::srt_epoll_wait(_epoll, &revents[0], &rnum, &wevents[0], &wnum, 50, nullptr, nullptr, nullptr, nullptr);
+		result = ::srt_epoll_wait(_epoll, &revents[0], &rnum, &wevents[0], &wnum, -1, nullptr, nullptr, nullptr, nullptr);
 
 		if (!_subscribers) {
 			lock_guard<mutex> lock(_mutex);
@@ -110,7 +109,8 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 
 		int i;
 		if (result < 0) {
-			if (::srt_getlasterror(NULL) == SRT_ETIMEOUT) // ETIMEOUT is not an error
+			int error = ::srt_getlasterror(NULL);
+			if (error == SRT_ETIMEOUT || error == SRT_EINVPARAM) // ETIMEOUT is not an error, EINVPARAM can be received when no subscribers have been subscribed yet
 				continue;
 			break;
 		}
@@ -134,7 +134,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 			switch (state) {
 				case ::SRTS_LISTENING:
 				case ::SRTS_CONNECTED: {
-					read(pSocket, 0); 
+						read(pSocket, 0); 
 					break;
 				}						
 				case ::SRTS_BROKEN:
@@ -171,13 +171,19 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 			if (!pSocket)
 				continue; // socket error
 
-			write(pSocket, 0);
+			Int32 type;
+			int length(sizeof(type));
+			::srt_getsockflag(event, ::SRTO_EVENT, &type, &length);
+			if (type & SRT_EPOLL_OUT)
+				write(pSocket, 0);
+			else if (type & SRT_EPOLL_ERR)
+				close(pSocket, 0);
 		}
 	}
 	::srt_epoll_release(_epoll);
 
 	if (result < 0) { // error
-		ex.set<Ex::Net::System>("impossible to manage sockets (error ", errno, ")");
+		ex.set<Ex::Net::System>("impossible to manage sockets (error ", SRT::LastErrorMessage(), ")");
 		return false;
 	}
 	

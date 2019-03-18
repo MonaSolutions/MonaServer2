@@ -250,6 +250,13 @@ bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 
 	int rc = ::srt_connect(_id, address.data(), address.size());
 	if (rc) {
+		int error = LastError();
+		if (_peerAddress || error == SRT_ECONNSOCK) { // if already connected (_peerAddress is true OR error ISCONN)
+			if (_peerAddress == address)
+				return true; // already connected to this address => no error
+			SetException(ex, NET_EISCONN, " (address=", address, ")");
+			return false;  // already connected to one other address => error
+		}
 		SetException(ex, " (address=", address, ")");
 		return false; // fail
 	}
