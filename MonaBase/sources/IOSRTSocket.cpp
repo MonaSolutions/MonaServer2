@@ -77,8 +77,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 	// and not too high because could exceed stack limitation of 1Mo like on Android
 #define MAXEVENTS  1024
 
-	::SRTSOCKET revents[MAXEVENTS];
-	::SRTSOCKET wevents[MAXEVENTS];
+	::SRT_EPOLL_EVENT events[MAXEVENTS];
 	_epoll = ::srt_epoll_create();
 
 	if(_epoll <= 0)
@@ -93,9 +92,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 
 	int result(0);
 	for (;;) {
-
-		int rnum(MAXEVENTS), wnum(MAXEVENTS);
-		result = ::srt_epoll_wait(_epoll, &revents[0], &rnum, &wevents[0], &wnum, -1, nullptr, nullptr, nullptr, nullptr);
+		result = ::srt_epoll_wait2(_epoll, &events[0], MAXEVENTS, -1, true);
 
 		if (!_subscribers) {
 			lock_guard<mutex> lock(_mutex);
@@ -116,69 +113,30 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 		}
 
 		// for each reading socket
-		for(i=0;i<rnum;++i) {
+		for(i=0;i<result;++i) {
 
-			SRTSOCKET& event(revents[i]);
+			SRT_EPOLL_EVENT& event(events[i]);
 
 			shared<Socket> pSocket;
 			{
 				lock_guard<mutex> lock(_mutexSockets);
-				auto it = _sockets.find(event);
+				auto it = _sockets.find(event.fd);
 				if (it != _sockets.end())
 					pSocket = it->second.lock();
 			}
 			if (!pSocket)
 				continue; // socket error
 
-			::SRT_SOCKSTATUS state = ::srt_getsockstate(event);
-			switch (state) {
-				case ::SRTS_LISTENING:
-				case ::SRTS_CONNECTED: {
-						read(pSocket, 0); 
-					break;
-				}						
-				case ::SRTS_BROKEN:
-				case ::SRTS_NONEXIST:
-				case ::SRTS_CLOSING:
-				case ::SRTS_CLOSED: {
-					int error = ::srt_getlasterror(NULL);
-					//DEBUG("Remove socket from poll (on poll event); ", event, " ; ", state, " ; error ", error);
-					if (error == SRT_ETIMEOUT)
-						close(pSocket, NET_ECONNREFUSED);
-					else
-						close(pSocket, 0); // Do we need to close the socket? (can be called multiple times)
-				}
-				break;
-				default: {
-					WARN("Unexpected event on ", event, "state ", state); 
-					break;
-				}					 
-			}
-		}
-
-		// for each writting socket
-		for (i = 0; i<wnum; ++i) {
-
-			SRTSOCKET& event(wevents[i]);
-
-			shared<Socket> pSocket;
-			{
-				lock_guard<mutex> lock(_mutexSockets);
-				auto it = _sockets.find(event);
-				if (it != _sockets.end())
-					pSocket = it->second.lock();
-			}
-			if (!pSocket)
-				continue; // socket error
-
-			Int32 type;
-			int length(sizeof(type));
-			::srt_getsockflag(event, ::SRTO_EVENT, &type, &length);
-			if (type & SRT_EPOLL_OUT)
+			if (event.events & SRT_EPOLL_IN)
+				read(pSocket, 0);
+			if (event.events & SRT_EPOLL_OUT)
 				write(pSocket, 0);
-			else if (type & SRT_EPOLL_ERR)
+			if (event.events & SRT_EPOLL_ERR)
 				close(pSocket, 0);
+			if (!event.events)
+				WARN("Event without value : ", event.events);
 		}
+		
 	}
 	::srt_epoll_release(_epoll);
 

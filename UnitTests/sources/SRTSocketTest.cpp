@@ -96,7 +96,7 @@ private:
 };
 
 
-ADD_TEST(TestTCPBlocking) {
+ADD_TEST(TestBlocking) {
 	Exception ex;
 
 	
@@ -207,7 +207,7 @@ private:
 	deque<Packet>	_packets;
 };
 
-ADD_TEST(TestTCPNonBlocking) {
+ADD_TEST(TestNonBlocking) {
 	Exception ex;
 	MainHandler	 handler;
 	IOSocket io(handler, _ThreadPool);
@@ -216,7 +216,7 @@ ADD_TEST(TestTCPNonBlocking) {
 	set<SRT::Client*> pConnections;
 
 	SRT::Server::OnError onError([](const Exception& ex) {
-		FATAL_ERROR("TCPEchoServer, ", ex);
+		FATAL_ERROR("EchoServer, ", ex);
 	});
 	server.onError = onError;
 
@@ -289,6 +289,86 @@ ADD_TEST(TestTCPNonBlocking) {
 	server.onConnection = nullptr;
 	server.onError = nullptr;
 	
+	_ThreadPool.join();
+	handler.flush();
+	CHECK(!io.subscribers());
+}
+
+ADD_TEST(TestEpoll) {
+	Exception ex;
+	MainHandler	 handler;
+	IOSocket io(handler, _ThreadPool);
+
+	SRT::Server   server(io);
+	set<SRT::Client*> pConnections;
+
+	SRT::Server::OnError onError([](const Exception& ex) {
+		FATAL_ERROR("EchoServer, ", ex);
+	});
+	server.onError = onError;
+
+	server.onConnection = [&](const shared<Socket>& pSocket) {
+		CHECK(pSocket && pSocket->peerAddress());
+
+		SRT::Client* pConnection(new SRT::Client(io));
+
+		pConnection->onError = onError;
+		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
+			CHECK(!pConnection->connected() && address && !*pConnection);
+			pConnections.erase(pConnection);
+			delete pConnection; // here no unsubscription required because event dies before the function
+		};
+		pConnection->onFlush = [pConnection]() {
+			INFO("onFlush pConnection")
+			CHECK(pConnection->connected())
+		};
+		pConnection->onData = [&, pConnection](Packet& buffer) {
+			CHECK(pConnection->send(ex, buffer) && !ex); // echo
+			return 0;
+		};
+
+		Exception ex;
+		CHECK(pConnection->connect(ex, pSocket) && !ex);
+		DEBUG("Creation of pConnection ", (*pConnection)->id(), " binding address ", (*pConnection)->address());
+
+		pConnections.emplace(pConnection);
+	};
+
+	SocketAddress address;
+	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
+	address = server->address();
+	DEBUG("Creation of server ", server->id(), " binding address ", address);
+
+	SRTEchoClient client(io);
+	SocketAddress target(IPAddress::Loopback(), address.port());
+	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
+	DEBUG("Creation of client ", client->id(), " binding address ", client->address());
+
+	CHECK(handler.join([&]()->bool { return client.connected(); }));
+
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); }));
+
+	// Closing
+	client.disconnect();
+	CHECK(!client.connected());
+
+	server.stop();
+	CHECK(!server.running() && !server);
+	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
+
+	server.onConnection = nullptr;
+	server.onError = nullptr;
+
 	_ThreadPool.join();
 	handler.flush();
 	CHECK(!io.subscribers());

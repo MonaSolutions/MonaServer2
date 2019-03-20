@@ -92,8 +92,7 @@ void MediaSocket::Reader::starting(const Parameters& parameters) {
 		_pSocket = newSocket(parameters, _pTLS);
 		Exception ex;
 		bool success;
-		if(type == TYPE_UDP || type == TYPE_SRT) {
-			// Bind if UDP/SRT
+		if(type == TYPE_UDP) { // Bind if UDP
 			AUTO_ERROR(success = _pSocket->bind(ex = nullptr, address), description());
 			if (!success) {
 				_pSocket.reset();
@@ -118,9 +117,9 @@ void MediaSocket::Reader::starting(const Parameters& parameters) {
 	}
 
 	bool connected(_pSocket->peerAddress() ? true : false);
-	if (type == TYPE_UDP || type == TYPE_SRT || (connected && !_onSocketFlush))
+	if (type == TYPE_UDP || (connected && !_onSocketFlush))
 		return;
-	// Pulse connect
+	// Pulse connect if TCP/SRT
 	Exception ex;
 	if (!_pSocket->connect(ex, address)) {
 		if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
