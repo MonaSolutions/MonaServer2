@@ -191,7 +191,7 @@
       <Filter>Crypto</Filter>
     </ClCompile>
     <ClCompile Include="sources\IOSRTSocket.cpp">
-      <Filter>Net</Filter>
+      <Filter>Crypto</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -395,7 +395,7 @@
       <Filter>Crypto</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\IOSRTSocket.h">
-      <Filter>Net</Filter>
+      <Filter>Crypto</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

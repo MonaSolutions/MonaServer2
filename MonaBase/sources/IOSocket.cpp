@@ -353,9 +353,9 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 		bool process(Exception& ex, const shared<Socket>& pSocket) {
 			if (!pSocket->_reading--) // me and something else! useless!
 				return true;
-			UInt32 available = pSocket->available();
 			bool stop(false);
 			while (!stop) {
+				UInt32 available = pSocket->available();
 				if (!available) // always get something (maybe a new reception has been gotten since the last pSocket->available() call)
 					available = 2048; // in UDP allows to avoid a NET_EMSGSIZE error (where packet is lost!), and 2048 to be greater than max possible MTU (~1500 bytes)
 				shared<Buffer>	pBuffer(SET, available);
@@ -387,7 +387,6 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 					pSocket->pDecoder->decode(pBuffer, address, pSocket);
 				if(pBuffer)
 					handle<Handle>(pSocket, pBuffer, address, stop);
-				available = pSocket->available();
 			};
 			return true;
 		}

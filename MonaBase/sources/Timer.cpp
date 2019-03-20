@@ -16,7 +16,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 
 #include "Mona/Timer.h"
-#include "Mona/Logs.h"
 
 
 using namespace std;

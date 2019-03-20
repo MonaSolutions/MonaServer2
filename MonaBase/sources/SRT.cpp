@@ -126,6 +126,7 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 	_id = ::srt_socket(AF_INET6, SOCK_DGRAM, 0); // TODO: This is ipv4 for now, we must find a way to set the family when creating the socket
 
 	if (_id == ::SRT_INVALID_SOCK) {
+		_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
 		SetException(_ex);
 		return;
 	}
@@ -141,7 +142,7 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) { }
 
 SRT::Socket::~Socket() {
-	if (_id == ::SRT_INVALID_SOCK)
+	if (_id == NET_INVALID_SOCKET)
 		return;
 	// gracefull disconnection => flush + shutdown + close
 	/// shutdown + flush
@@ -155,6 +156,7 @@ bool SRT::Socket::close(Socket::ShutdownType type) {
 		return _shutdownRecv = true;
 	bool success = ::srt_close(_id) == 0;
 	_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
+	_ex.set<Ex::Net::Socket>(Net::ErrorToMessage(NET_ESHUTDOWN)).code = NET_ESHUTDOWN; // to forbid access to _id now in this class!
 	return success;
 }
 
@@ -173,6 +175,13 @@ bool SRT::Socket::bind(Exception& ex, const SocketAddress& address) {
 		ex = _ex;
 		return false;
 	}
+
+	// http://stackoverflow.com/questions/3757289/tcp-option-so-linger-zero-when-its-required =>
+	/// If you must restart your server application which currently has thousands of client connections you might consider
+	// setting this socket option to avoid thousands of server sockets in TIME_WAIT(when calling close() from the server end)
+	// as this might prevent the server from getting available ports for new client connections after being restarted.
+	setLinger(ex, true, 0); // avoid a SRT port overriding on server usage
+	setReuseAddress(ex, true); // to avoid a conflict between address bind on not exactly same address (see http://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t)
 
 	if (::srt_bind(_id, address.data(), address.size())) {
 		SetException(ex, " (address=", address, ")");

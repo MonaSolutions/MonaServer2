@@ -187,6 +187,15 @@ private:
 	static const UInt16 _CharacterTypes[128];
 };
 
+template<typename ListType, typename FType, typename ...Args>
+inline auto Calls(ListType& objects, FType&& pF, Args&&... args) {
+	typedef typename ListType::value_type ObjType;
+	auto result = std::result_of<decltype(pF)(ObjType, Args...)>::type();
+	for (ObjType& obj : objects)
+		result += (obj.*pF)(7);
+	return result;
+}
+
 inline UInt64 abs(double value) { return (UInt64)std::abs(value); }
 inline UInt64 abs(float value) { return (UInt64)std::abs(value); }
 inline UInt64 abs(Int64 value) { return (UInt64)std::abs(value); }
