@@ -127,6 +127,9 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 			if (!pSocket)
 				continue; // socket error
 
+			// EPOLLIN | EPOLLOUT | EPOLLERR
+			//printf("%d => %u\n", pSocket->id(), event.events);
+
 			if (event.events & SRT_EPOLL_IN)
 				read(pSocket, 0);
 			if (event.events & SRT_EPOLL_OUT)
