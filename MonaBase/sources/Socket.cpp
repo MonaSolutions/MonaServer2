@@ -173,7 +173,7 @@ bool Socket::processParams(Exception& ex, const Parameters& parameters, const ch
 	if ((prefixLen && parameters.getNumber(superKey.append(".sendBufferSize"), value)) ||
 		parameters.getNumber("sendBufferSize", value) ||
 		parameters.getNumber("bufferSize", value))
-		result = setRecvBufferSize(ex = nullptr, value) && result;
+		result = setSendBufferSize(ex = nullptr, value) && result;
 	return result;
 }
 

@@ -131,15 +131,20 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 		return;
 	}
 
-	if (!setOption(_ex, SRTO_IPV6ONLY, 0)) {
-		SetException(_ex);
-		return;
-	}
-	/*int opt = 1;
-	::srt_setsockflag(_id, ::SRTO_SENDER, &opt, sizeof opt);*/
+	Exception ignore;
+	// to be compatible IPv6 and IPv4!
+	setOption(ignore, SRTO_IPV6ONLY, 0);
+	// Set Recv/Send Buffer size as configured in Net, and before any connect/bind!
+	setOption(ignore, SRTO_RCVBUF, _recvBufferSize.load());
+	setOption(ignore, SRTO_SNDBUF, _sendBufferSize.load());
 }
 
-SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) { }
+SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) {
+	Exception ignore;
+	// Set Recv/Send Buffer size as configured in Net, and before any connect/bind!
+	setOption(ignore, SRTO_RCVBUF, _recvBufferSize.load());
+	setOption(ignore, SRTO_SNDBUF, _sendBufferSize.load());
+}
 
 SRT::Socket::~Socket() {
 	if (_id == NET_INVALID_SOCKET)

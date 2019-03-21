@@ -168,7 +168,7 @@ struct SRTEchoClient : SRT::Client {
 		onDisconnection = [this](const SocketAddress& peerAddress){ 
 			CHECK(!connected()) 
 		};
-		onFlush = [this](){ 
+		onFlush = [this](){
 			CHECK(connected())
 		};
 		onData = [this](Packet& buffer)->UInt32 {
@@ -294,7 +294,7 @@ ADD_TEST(TestNonBlocking) {
 	CHECK(!io.subscribers());
 }
 
-ADD_TEST(TestEpoll) {
+ADD_TEST(TestLoad) {
 	Exception ex;
 	MainHandler	 handler;
 	IOSocket io(handler, _ThreadPool);
@@ -329,7 +329,6 @@ ADD_TEST(TestEpoll) {
 
 		Exception ex;
 		CHECK(pConnection->connect(ex, pSocket) && !ex);
-		DEBUG("Creation of pConnection ", (*pConnection)->id(), " binding address ", (*pConnection)->address());
 
 		pConnections.emplace(pConnection);
 	};
@@ -337,30 +336,20 @@ ADD_TEST(TestEpoll) {
 	SocketAddress address;
 	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
 	address = server->address();
-	DEBUG("Creation of server ", server->id(), " binding address ", address);
 
 	SRTEchoClient client(io);
+
 	SocketAddress target(IPAddress::Loopback(), address.port());
 	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
-	DEBUG("Creation of client ", client->id(), " binding address ", client->address());
 
 	CHECK(handler.join([&]()->bool { return client.connected(); }));
 
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
-	client.echo(_Long0Data.c_str(), _Long0Data.size());
+	for (int i = 0; i < 500; ++i)
+		client.echo(_Long0Data.c_str(), _Long0Data.size());
 	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); }));
 
 	// Closing
 	client.disconnect();
-	CHECK(!client.connected());
 
 	server.stop();
 	CHECK(!server.running() && !server);

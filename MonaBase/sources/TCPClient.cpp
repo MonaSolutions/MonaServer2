@@ -26,13 +26,6 @@ namespace Mona {
 TCPClient::TCPClient(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io), _connected(false),
 	_onReceived([this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 		_connected = true;
-#if defined(SRT_API)
-		if (_pSocket->type == Socket::TYPE_OTHER) {
-			Packet packet(pBuffer);
-			onData(packet);
-			return;
-		}
-#endif
 
 		// Check that it exceeds not socket buffer
 		if (!addStreamData(Packet(pBuffer), _pSocket->recvBufferSize())) {
