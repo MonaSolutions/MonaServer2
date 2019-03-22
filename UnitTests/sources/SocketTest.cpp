@@ -416,6 +416,88 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	CHECK(!io.subscribers());
 }
 
+ADD_TEST(TestTCPLoad) {
+	const shared<TLS>& pClientTLS = nullptr;
+	const shared<TLS>& pServerTLS = nullptr;
+	Exception ex;
+	MainHandler	 handler;
+	IOSocket io(handler, _ThreadPool);
+
+	TCPServer   server(io, pServerTLS);
+	set<TCPClient*> pConnections;
+
+	TCPServer::OnError onError([](const Exception& ex) {
+		FATAL_ERROR("TCPEchoServer, ", ex);
+	});
+	server.onError = onError;
+
+	server.onConnection = [&](const shared<Socket>& pSocket) {
+		CHECK(pSocket && pSocket->peerAddress());
+
+		TCPClient* pConnection(new TCPClient(io, pClientTLS));
+
+		pConnection->onError = onError;
+		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
+			CHECK(!pConnection->connected() && address && !*pConnection);
+			pConnections.erase(pConnection);
+			delete pConnection; // here no unsubscription required because event dies before the function
+		};
+		pConnection->onFlush = [pConnection]() { CHECK(pConnection->connected()) };
+		pConnection->onData = [&, pConnection](Packet& buffer) {
+			CHECK(pConnection->send(ex, buffer) && !ex);
+			return 0;
+		};
+
+		Exception ex;
+		CHECK(pConnection->connect(ex, pSocket) && !ex);
+
+		pConnections.emplace(pConnection);
+	};
+
+
+	SocketAddress address;
+	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
+	// Restart on the same address (to test start/stop/start server on same address binding)
+	address = server->address();
+	server.stop();
+	CHECK(!server.running() && server.start(ex, address) && !ex  && server.running());
+
+	TCPEchoClient client(io, pClientTLS);
+	SocketAddress target(IPAddress::Loopback(), address.port());
+	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
+	for (int i = 0; i < 500; ++i)
+		client.echo(_Short0Data.c_str(), _Short0Data.size());
+	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); }));
+
+	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
+
+		client.disconnect();
+	CHECK(!client.connected() && !client);
+
+	CHECK(!client.ex);
+
+	// Test a refused connection
+	SocketAddress unknown(IPAddress::Loopback(), 62434);
+	if (client.connect(ex, unknown)) {
+		CHECK(!ex && !client.connected() && client.connecting() && client->address() && client->peerAddress() == unknown);
+		if (Util::Random() % 2) // Random to check that with or without sending, after SocketEngine join we get a client.connected()==false!
+			CHECK((client.send(ex, Packet(EXPAND("salut"))) && !ex) || ex);
+		CHECK(handler.join([&client]()->bool { return !client.connecting(); }));
+		CHECK((ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED && !client.ex) || client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED); // if ex it has been set by random client.send
+	}
+	CHECK(!client.connected() && !client.connecting());
+
+	server.stop();
+	CHECK(!server.running() && !server);
+	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
+
+	server.onConnection = nullptr;
+	server.onError = nullptr;
+
+	_ThreadPool.join();
+	handler.flush();
+	CHECK(!io.subscribers());
+}
 
 ADD_TEST(TCP_NonBlocking) {
 	TestTCPNonBlocking();
