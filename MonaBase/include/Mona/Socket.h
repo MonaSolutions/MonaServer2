@@ -157,15 +157,8 @@ struct Socket : virtual Object, Net::Stats {
 	}
 
 protected:
-	bool					_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
-	volatile bool			_nonBlockingMode;
-	mutable SocketAddress	_address;
-	SocketAddress			_peerAddress;
-	NET_SOCKET				_id;
-
-	mutable std::atomic<int>	_recvBufferSize;
-	mutable std::atomic<int>	_sendBufferSize;
-
+	void init();
+	
 	// Create a socket from Socket::accept
 	Socket(NET_SOCKET id, const sockaddr& addr, Type type=TYPE_STREAM);
 	virtual Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr) { return new Socket(sockfd, (sockaddr&)addr); }
@@ -176,8 +169,18 @@ protected:
 	void			receive(UInt32 count) { _recvTime = Time::Now(); _recvByteRate += count; }
 	virtual bool	flush(Exception& ex, bool deleting);
 	virtual bool	close(ShutdownType type = SHUTDOWN_BOTH);
+
+	bool					_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
+	volatile bool			_nonBlockingMode;
+	mutable SocketAddress	_address;
+	SocketAddress			_peerAddress;
+	NET_SOCKET				_id;
+
+	mutable std::atomic<int>	_recvBufferSize;
+	mutable std::atomic<int>	_sendBufferSize;
+
 private:
-	void init();
+	virtual bool setIPV6Only(Exception& ex, bool enable) { return setOption(ex, IPPROTO_IPV6, IPV6_V6ONLY, enable ? 1 : 0); }
 	virtual void computeAddress();
 
 	template<typename Type>

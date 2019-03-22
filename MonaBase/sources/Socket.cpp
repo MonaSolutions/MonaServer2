@@ -31,9 +31,13 @@ Socket::Socket(Type type) :
 #endif
 	pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
 
-	if (type < TYPE_OTHER)
-		init();
-	else
+	if (type < TYPE_OTHER) {
+		_id = ::socket(AF_INET6, type, 0);
+		if (_id == NET_INVALID_SOCKET)
+			SetException(_ex, Net::LastError());
+		else
+			init();
+	} else
 		_ex.set<Ex::Intern>("Socket built as a pure interface, overloads its methods");
 }
 
@@ -86,22 +90,12 @@ bool Socket::shutdown(Socket::ShutdownType type) {
 }
 
 void Socket::init() {
-
-	if (_id == NET_INVALID_SOCKET) {
-		_id = ::socket(AF_INET6, type, 0);
-		if (_id == NET_INVALID_SOCKET) {
-			SetException(_ex, Net::LastError());
-			return;
-		}
-	}
-
 	Exception ignore;
 	// to be compatible IPv6 and IPv4!
-	setOption(ignore, IPPROTO_IPV6, IPV6_V6ONLY, 0);
+	setIPV6Only(ignore, false);
 	// Set Recv/Send Buffer size as configured in Net, and before any connect/bind!
-	setOption(ignore, SOL_SOCKET, SO_RCVBUF, _recvBufferSize.load());
-	setOption(ignore, SOL_SOCKET, SO_SNDBUF, _sendBufferSize.load());
-
+	setRecvBufferSize(ignore, _recvBufferSize.load());
+	setSendBufferSize(ignore, _sendBufferSize.load());
 	if (type==Socket::TYPE_STREAM)
 		setNoDelay(ignore,true); // to avoid the nagle algorithm, ignore error if not possible
 }

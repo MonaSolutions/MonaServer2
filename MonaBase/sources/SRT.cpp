@@ -123,27 +123,16 @@ int SRT::LastError() {
 }
 
 SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
-	_id = ::srt_socket(AF_INET6, SOCK_DGRAM, 0); // TODO: This is ipv4 for now, we must find a way to set the family when creating the socket
-
+	_id = ::srt_socket(AF_INET6, SOCK_DGRAM, 0);
 	if (_id == ::SRT_INVALID_SOCK) {
 		_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
 		SetException(_ex);
-		return;
-	}
-
-	Exception ignore;
-	// to be compatible IPv6 and IPv4!
-	setOption(ignore, SRTO_IPV6ONLY, 0);
-	// Set Recv/Send Buffer size as configured in Net, and before any connect/bind!
-	setOption(ignore, SRTO_RCVBUF, _recvBufferSize.load());
-	setOption(ignore, SRTO_SNDBUF, _sendBufferSize.load());
+	} else
+		init();
 }
 
 SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) {
-	Exception ignore;
-	// Set Recv/Send Buffer size as configured in Net, and before any connect/bind!
-	setOption(ignore, SRTO_RCVBUF, _recvBufferSize.load());
-	setOption(ignore, SRTO_SNDBUF, _sendBufferSize.load());
+	init();
 }
 
 SRT::Socket::~Socket() {

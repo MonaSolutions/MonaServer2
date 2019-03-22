@@ -164,7 +164,7 @@ struct SRT : virtual Object {
 
 	private:
 		Socket(SRTSOCKET id, const sockaddr& addr);
-
+		bool setIPV6Only(Exception& ex, bool enable) { return setOption(ex, SRTO_IPV6ONLY, enable ? 1 : 0); }
 		void computeAddress();
 
 		template <typename ...Args>
