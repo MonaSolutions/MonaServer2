@@ -287,6 +287,8 @@ int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 	int result = ::srt_recvmsg(_id, STR buffer, size); // /!\ SRT expect at least a buffer of 1316 bytes
 	if (result == SRT_ERROR) {
 		int error = ::srt_getlasterror(NULL);
+		if (error == SRT_ECONNLOST)
+			return 0; // disconnection!
 		if (error == SRT_EASYNCRCV) // EAGAIN, wait for reception to be ready
 			SetException(ex, NET_EWOULDBLOCK, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
 		else

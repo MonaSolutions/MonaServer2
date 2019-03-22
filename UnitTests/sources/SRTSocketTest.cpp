@@ -100,8 +100,8 @@ ADD_TEST(TestBlocking) {
 	Exception ex;
 
 	
-	unique_ptr<Socket> pClient(new SRT::Socket());
-	unique_ptr<Server> pServer(new Server());
+	unique<Socket> pClient(new SRT::Socket());
+	unique<Server> pServer(SET);
 
 	// Test a connection refused
 	SocketAddress unknown(IPAddress::Loopback(), 62434);
@@ -118,14 +118,14 @@ ADD_TEST(TestBlocking) {
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
 	CHECK(!pClient->connect(ex, address, 1) && ex && !pClient->address() && !pClient->peerAddress());
 	ex = NULL;
-	pClient.reset(new SRT::Socket());
+	pClient.set<SRT::Socket>();
 
 	// Test IPv4 client accepted by IPv4 server
 	address.set(IPAddress::Loopback(), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
-	pClient.reset(new SRT::Socket());
-	pServer.reset(new Server());
+	pClient.set<SRT::Socket>();
+	pServer.set<Server>();
 	
 	// Test a IPv6 server (with a new port)
 	address.set(IPAddress::Wildcard(IPAddress::IPv6), 0);
@@ -136,7 +136,7 @@ ADD_TEST(TestBlocking) {
 	address.set(IPAddress::Loopback(), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
-	pClient.reset(new SRT::Socket());
+	pClient.set<SRT::Socket>();
 
 	// Test IPv6 client accepted by IPv6 server
 	pServer->accept();
@@ -156,7 +156,7 @@ ADD_TEST(TestBlocking) {
 		message.append(buffer, received);
 
 	//TODO: Disabled because the socket is shutdown before receiving all messages
-	//CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)
+	//CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)*/
 }
 
 struct SRTEchoClient : SRT::Client {
@@ -366,8 +366,8 @@ ADD_TEST(TestLoad) {
 ADD_TEST(TestOptions) {
 
 
-	unique_ptr<SRT::Socket> pClient(new SRT::Socket());
-	unique_ptr<Server> pServer(new Server());
+	unique<SRT::Socket> pClient(SET);
+	unique<Server> pServer(SET);
 
 	int value;
 	Exception ex;
