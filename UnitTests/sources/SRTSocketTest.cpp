@@ -347,7 +347,7 @@ ADD_TEST(TestLoad) {
 
 	CHECK(handler.join([&]()->bool { return client.connected(); }));
 
-	for (int i = 0; i < messages; ++i)
+	for (UInt32 i = 0; i < messages; ++i)
 		client.echo(_Long0Data.c_str(), _Long0Data.size());
 	CHECK(handler.join([&]()->bool { return client.connected() && received == messages && !client.echoing(); }));
 

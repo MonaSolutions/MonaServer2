@@ -159,12 +159,12 @@ bool Socket::processParams(Exception& ex, const Parameters& parameters, const ch
 	string superKey;
 	size_t prefixLen = prefix ? strlen(prefix) : 0;
 	// search always in priority with net. prefix to be prioritary on general common version (ex: search in Session params, then in [Protocol] params, and finally in general common where .net is prioritary!)
-	if ((prefixLen && parameters.getNumber(String::Assign(superKey, prefix, ".recvBufferSize"), value)) ||
+	if ((prefixLen && parameters.getNumber(String::Assign(superKey, prefix, "recvBufferSize"), value)) ||
 		parameters.getNumber("recvBufferSize", value) ||
 		parameters.getNumber("bufferSize", value))
 		result = setRecvBufferSize(ex, value);
 	superKey.resize(prefixLen);
-	if ((prefixLen && parameters.getNumber(superKey.append(".sendBufferSize"), value)) ||
+	if ((prefixLen && parameters.getNumber(superKey.append("sendBufferSize"), value)) ||
 		parameters.getNumber("sendBufferSize", value) ||
 		parameters.getNumber("bufferSize", value))
 		result = setSendBufferSize(ex = nullptr, value) && result;
