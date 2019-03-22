@@ -50,14 +50,13 @@ private:
 
 	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
 		
-	Socket::OnAccept			_onConnnection;
-	Socket::OnError				_onError;
+	Socket::OnAccept	_onConnnection;
+	Socket::OnError		_onError;
 
 	shared<Socket>					_pSocket;
 	shared<TLS>						_pTLS;
 	const char*						_subMime;
 	const char*						_format;
-	std::set<shared<Media::Target>>	_targets;
 };
 
 } // namespace Mona

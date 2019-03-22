@@ -356,10 +356,10 @@ struct Media : virtual Static {
 	Implementation have to call protected stop(...) to log and callback an error if the user prefer delete stream on error
 	/!\ start() can be used to pulse the stream (connect attempt) */
 	struct Stream : virtual Object {
-		typedef Event<bool()>								ON(Start);
-		typedef Event<void(const Exception&)>				ON(Stop);
-		typedef Event<void()>								ON(Delete);
-		typedef Event<void(const shared<Media::Target>&)>	ON(NewTarget); // stay available until unique()!
+		typedef Event<bool()>										ON(Start);
+		typedef Event<void(const Exception&)>						ON(Stop);
+		typedef Event<void()>										ON(Delete);
+		typedef Event<void(const shared<Media::Target>& pTarget)>	ON(NewTarget); // valid until pTarget.unique()!
 
 		enum Type {
 			TYPE_LOGS = -1,
@@ -377,6 +377,11 @@ struct Media : virtual Static {
 		const std::string	query;
 		bool				isSource() const { return &source == &Source::Null(); }
 		const std::string&	description() const { return _description.empty() ? ((Stream*)this)->buildDescription(_description) : _description; }
+
+		/*!
+		Children targets */
+		const std::set<shared<const Stream>>& targets;
+
 
 		/*!
 		New Stream target => [host:port][?path] [type/TLS][/MediaFormat] [parameter]
@@ -402,7 +407,7 @@ struct Media : virtual Static {
 
 		~Stream() { onDelete(); }
 	protected:
-		Stream(Type type, const Path& path, Source& source = Source::Null()) : _startCount(0), type(type), path(path), source(source) {}
+		Stream(Type type, const Path& path, Source& source = Source::Null()) : targets(_targets), _startCount(0), type(type), path(path), source(source) {}
 
 		Source& source;
 
@@ -419,6 +424,34 @@ struct Media : virtual Static {
 
 		shared<Socket> newSocket(const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
 
+		template <typename StreamType, typename ...Args>
+		StreamType* addTarget(Args&&... args) {
+			STATIC_ASSERT(std::is_base_of<Media::Target, StreamType>::value);
+			shared<StreamType> pTarget(SET, std::forward<Args>(args) ...);
+			auto it = _targets.lower_bound(pTarget);
+			if (it != _targets.end()) {
+				if (running() && it->unique())
+					it = _targets.erase(it); // target useless!
+				if(*it == pTarget)
+					return NULL; // already exists!
+			}
+			if (running()) { // else wait run!
+				onNewTarget(pTarget);
+				if (pTarget.unique())
+					return NULL;
+			}
+			_targets.emplace_hint(it, pTarget);
+			return pTarget.get();
+		}
+		template<typename StreamType>
+		void removeTarget(StreamType& target) {
+			const auto& it = lower_bound(_targets, target, [](const std::set<shared<const Stream>>::const_iterator& it, StreamType& target) {
+				return  ToPointer(*it) < ToPointer(target);
+			});
+			if(it!=_targets.end() && it->get() == &target)
+				_targets.erase(it);
+		}
+
 	private:
 		/*!
 		/!\ Implementation have to support a pulse start! */
@@ -427,8 +460,10 @@ struct Media : virtual Static {
 
 		virtual std::string& buildDescription(std::string& description) = 0;
 
-		mutable std::string	_description;
-		UInt32				_startCount;
+		mutable std::string				_description;
+		UInt32							_startCount;
+		std::set<shared<const Stream>>	_targets;
+		shared<Target>					_pTarget;
 	};
 
 };

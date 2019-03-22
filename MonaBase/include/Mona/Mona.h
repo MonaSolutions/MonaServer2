@@ -110,6 +110,8 @@ struct shared : std::shared_ptr<Type> {
 	shared() : std::shared_ptr<Type>() {}
 	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::shared_ptr<Type>, ArgType>::value>::type>
 	shared(ArgType&& arg) : std::shared_ptr<Type>(std::forward<ArgType>(arg)) {}
+	template<typename ArgType>
+	shared(const ArgType& arg, Type* pObj) : std::shared_ptr<Type>(arg, pObj) {}
 	template<typename ...Args>
 	shared(SET_T, Args&&... args) : std::shared_ptr<Type>(std::make_shared<Type>(std::forward<Args>(args)...)) {}
 
@@ -187,12 +189,39 @@ private:
 	static const UInt16 _CharacterTypes[128];
 };
 
+template <typename Type>
+class is_smart_pointer : virtual Static {
+	template<typename S> static char(&G(typename std::enable_if<
+		std::is_same<decltype(static_cast<typename S::element_type*(S::*)() const>(&S::get)), typename S::element_type*(S::*)() const>::value,
+		void
+	>::type*))[1];
+	template<typename S> static char(&G(...))[2];
+public:
+	static bool const value = sizeof(G<Type>(0)) == 1;
+};
+
+template<typename Type, typename = typename std::enable_if<std::is_pointer<Type>::value>::type>
+Type ToPointer(Type pType) { return pType; }
+template<typename Type, typename = typename std::enable_if<!std::is_pointer<Type>::value && !is_smart_pointer<Type>::value>::type>
+Type* ToPointer(Type& type) { return &type; }
+template<typename Type>
+Type* ToPointer(const std::shared_ptr<Type>& type) { return type.get(); }
+template<typename Type>
+Type* ToPointer(const std::unique_ptr<Type>& type) { return type.get(); }
+template<typename K, typename V>
+auto ToPointer(std::pair<K, V>& type) { return ToPointer(type.second); }
+
+struct PtrComparator {
+	template<typename Type>
+	bool operator() (Type&& ptr1, Type&& ptr2) const { return ToPointer(ptr1) < ToPointer(ptr2); }
+};
+
 template<typename ListType, typename FType, typename ...Args>
 inline auto Calls(ListType& objects, FType&& pF, Args&&... args) {
 	typedef typename ListType::value_type ObjType;
 	auto result = std::result_of<decltype(pF)(ObjType, Args...)>::type();
 	for (ObjType& obj : objects)
-		result += (obj.*pF)(7);
+		result += (ToPointer(obj)->*pF)(std::forward<Args>(args) ...);
 	return result;
 }
 
@@ -255,14 +284,14 @@ inline const std::string& typeof() {
 }
 
 template<typename MapType, typename ValType, typename Comparator>
-inline typename MapType::const_iterator lower_bound(MapType& map, const ValType& value, Comparator& compare) {
+inline typename MapType::const_iterator lower_bound(MapType& map, ValType&& value, Comparator& compare) {
 	typename MapType::const_iterator it, result(map.begin());
 	UInt32 count(map.size()), step;
 	while (count) {
 		it = result;
 		step = count / 2;
 		std::advance(it, step);
-		if (compare(it, value)) {
+		if (compare(it, std::forward<ValType>(value))) {
 			result = ++it;
 			count -= step + 1;
 		} else

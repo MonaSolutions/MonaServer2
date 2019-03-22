@@ -442,12 +442,27 @@ void Media::Stream::start(const Parameters& parameters) {
 		return;
 	if (onStart && !onStart())
 		return stop();
-	++_startCount;
+	if (!_startCount++) {
+		Target* pTarget = dynamic_cast<Target*>(this);
+		if (pTarget)
+			_pTarget = shared<Target>(make_shared<Target>(), pTarget); // aliasing!
+	}
+	if (_pTarget)
+		onNewTarget(_pTarget);
+	auto it = _targets.begin();
+	while (it != _targets.end()) {
+		if (!it->unique()) {
+			onNewTarget(shared<Target>(*it, (Target*)it->get()));
+			++it;
+		} else
+			it = _targets.erase(it);
+	}
 }
 void Media::Stream::stop(const Exception& ex) {
 	if (!running())
 		return;
 	stopping();
+	_targets.clear(); // to invalid targets!
 	onStop(ex);
 }
 

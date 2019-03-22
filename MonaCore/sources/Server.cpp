@@ -268,9 +268,6 @@ shared<Media::Stream> Server::stream(const string& publication, const string& de
 		if (!subscribe(ex, publication, *it->second, query))
 			_streamSubscriptions.erase(it);
 	};
-	shared<Media::Target> pTarget = dynamic_pointer_cast<Media::Target>(pStream);
-	if (pTarget)
-		pStream->onNewTarget(pTarget);
 	INFO(pStream->description(), " loaded on publication ", publication);
 	return pStream;
 }

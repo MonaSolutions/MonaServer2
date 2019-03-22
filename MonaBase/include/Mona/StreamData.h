@@ -27,26 +27,22 @@ struct StreamData : virtual Object {
 	bool addStreamData(const Packet& packet, UInt32 limit, Args... args) {
 		// Call onStreamData just one time to prefer recursivity rather "while repeat", and allow a "flush" info!
 		UInt32 rest;
-		if (_pBuffer) {
-			_pBuffer->append(packet.data(), packet.size());
-			shared<Buffer> pBuffer(_pBuffer); // trick to keep reference to _pBuffer!
-			Packet buffer(pBuffer);
-			rest = min(onStreamData(buffer, std::forward<Args>(args)...), _pBuffer->size());
+		shared<Buffer> pBuffer(std::move(_pBuffer)); // because onStreamData returning 0 can delete this!
+		if (pBuffer) {
+			pBuffer->append(packet.data(), packet.size());
+			shared<const Binary> pBinary(pBuffer); // trick to keep reference to _pBuffer!
+			Packet buffer(pBinary);
+			rest = min(onStreamData(buffer, std::forward<Args>(args)...), pBuffer->size());
 		} else {
 			Packet buffer(packet);
 			rest = min(onStreamData(buffer, std::forward<Args>(args)...), packet.size());
 		}
-		if (!rest) {
-			// no rest, can have deleted this, so return immediatly!
-			_pBuffer.reset();
+		if (!rest) // no rest, can have deleted this, so return immediatly!
 			return true;
-		}
-		if (rest > limit) {
-			// test limit on rest no before to allow a pBuffer in input of limit size + pBuffer stored = limit size too
-			_pBuffer.reset();
+		if (rest > limit) // test limit on rest no before to allow a pBuffer in input of limit size + pBuffer stored = limit size too
 			return false;
-		}
-		if (!_pBuffer) {
+		_pBuffer = std::move(pBuffer);
+		if (!_pBuffer) { // copy!
 			_pBuffer.set(packet.data() + packet.size() - rest, rest);
 			return true;
 		}

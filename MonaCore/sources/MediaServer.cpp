@@ -33,15 +33,12 @@ MediaServer::MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWri
 	Media::Stream(Media::Stream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
 	_onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
-		shared<MediaSocket::Writer> pStream(SET, this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
-		onNewTarget(pStream);
-		if (pStream.unique())
-			return;
-		// onStop => close socket => remove targets!
-		weak<Media::Target> weakTarget(pStream);
-		pStream->onDelete = [this, weakTarget]() { _targets.erase(weakTarget.lock()); };
-		pStream->onStop = [this, weakTarget](const Exception& ex) { _targets.erase(weakTarget.lock()); };
-		_targets.emplace(std::move(pStream));
+		// let's call beginMedia to start the stream!
+		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
+		if (!pTarget)
+			return Stream::stop<Ex::Intern>(LOG_ERROR, "Impossibe to add target ", pTarget->description());
+		// onStop => close socket => remove target!
+		pTarget->onStop = [this, pTarget](const Exception& ex) { removeTarget(*pTarget); };	
 	};
 }
 
@@ -60,7 +57,6 @@ void MediaServer::starting(const Parameters& parameters) {
 
 void MediaServer::stopping() {
 	io.unsubscribe(_pSocket);
-	_targets.clear(); // to allow to detect MonaServer stop!
 	INFO(description(), " stops");
 }
 
