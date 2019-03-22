@@ -129,6 +129,8 @@ struct SRT : virtual Object {
 
 		virtual bool setNonBlockingMode(Exception& ex, bool value);
 
+		virtual bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "srt.");
+
 		virtual bool setSendBufferSize(Exception& ex, int size);
 		virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex, ::SRTO_UDP_SNDBUF, size); }
 		virtual bool setRecvBufferSize(Exception& ex, int size);
@@ -145,13 +147,16 @@ struct SRT : virtual Object {
 
 		bool getEncryptionState(Exception& ex, int& state) const { return getOption(ex, ::SRTO_RCVKMSTATE, state); }
 		bool getPeerDecryptionState(Exception& ex, int& state) const { return getOption(ex, ::SRTO_SNDKMSTATE, state); }
+		bool setEncryptionType(Exception& ex, int type) { return setOption(ex, ::SRTO_PBKEYLEN, type); }
 		bool getEncryptionType(Exception& ex, int& type) const { return getOption(ex, ::SRTO_PBKEYLEN, type); }
 		bool setPassphrase(Exception& ex, const char* data, UInt32 size);
 
-		bool setLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_RCVLATENCY, value); }
-		bool getLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_RCVLATENCY, value); }
+		bool setLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_TSBPDDELAY, value); }
+		bool getLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_TSBPDDELAY, value); }
+		bool setRecvLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_RCVLATENCY, value); }
+		bool getRecvLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_RCVLATENCY, value); }
 		bool setPeerLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_PEERLATENCY, value); }
-		bool getPeerLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_PEERLATENCY, value); }		
+		bool getPeerLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_PEERLATENCY, value); }
 
 		bool setMSS(Exception& ex, int value) { return setOption(ex, ::SRTO_MSS, value); }
 		bool getMSS(Exception& ex, int& value) const { return getOption(ex, ::SRTO_MSS, value); }
@@ -159,6 +164,9 @@ struct SRT : virtual Object {
 		// bool getOverheadBW(Exception& ex, int& value) const { return getOption(ex, ::SRTO_OHEADBW, value); }  Not supported for now in SRT
 		bool setMaxBW(Exception& ex, Int64 value) { return setOption(ex, ::SRTO_MAXBW, value); }
 		bool getMaxBW(Exception& ex, Int64& value) const { return getOption(ex, ::SRTO_MAXBW, value); }	
+
+		bool setPktDrop(Exception& ex, bool value) { return setOption(ex, ::SRTO_TLPKTDROP, value); }
+		bool getPktDrop(Exception& ex, bool& value) const { int val; bool res = getOption(ex, ::SRTO_TLPKTDROP, val); value = val > 0; return res; }
 
 		bool getStats(Exception& ex, SRT::Stats& stats) const;
 

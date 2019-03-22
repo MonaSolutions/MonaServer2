@@ -156,7 +156,7 @@ ADD_TEST(TestBlocking) {
 		message.append(buffer, received);
 
 	//TODO: Disabled because the socket is shutdown before receiving all messages
-	//CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)*/
+	//CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)
 }
 
 struct SRTEchoClient : SRT::Client {
@@ -307,6 +307,8 @@ ADD_TEST(TestLoad) {
 	});
 	server.onError = onError;
 
+	const UInt32 messages(20000);
+	atomic<UInt32> received(0);
 	server.onConnection = [&](const shared<Socket>& pSocket) {
 		CHECK(pSocket && pSocket->peerAddress());
 
@@ -319,10 +321,11 @@ ADD_TEST(TestLoad) {
 			delete pConnection; // here no unsubscription required because event dies before the function
 		};
 		pConnection->onFlush = [pConnection]() {
-			INFO("onFlush pConnection")
 			CHECK(pConnection->connected())
 		};
 		pConnection->onData = [&, pConnection](Packet& buffer) {
+			CHECK(buffer.size() == 1316);
+			++received;
 			CHECK(pConnection->send(ex, buffer) && !ex); // echo
 			return 0;
 		};
@@ -344,9 +347,9 @@ ADD_TEST(TestLoad) {
 
 	CHECK(handler.join([&]()->bool { return client.connected(); }));
 
-	for (int i = 0; i < 500; ++i)
+	for (int i = 0; i < messages; ++i)
 		client.echo(_Long0Data.c_str(), _Long0Data.size());
-	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); }));
+	CHECK(handler.join([&]()->bool { return client.connected() && received == messages && !client.echoing(); }));
 
 	// Closing
 	client.disconnect();
@@ -376,7 +379,7 @@ ADD_TEST(TestOptions) {
 	CHECK(pClient->setSendBufferSize(ex, 0xFFFF));
 	CHECK(pClient->getSendBufferSize(ex, value) && value == 0xFFFF);
 
-	CHECK(pClient->setLatency(ex, 500));
+	CHECK(pClient->setRecvLatency(ex, 500));
 	CHECK(pClient->setPeerLatency(ex, 600));
 	CHECK(pClient->setMSS(ex, 900) && !ex);
 	CHECK(pClient->setOverheadBW(ex, 50) && !ex);
@@ -385,13 +388,15 @@ ADD_TEST(TestOptions) {
 	// Encryption
 	CHECK(pClient->getEncryptionState(ex, value) && !ex && value == ::SRT_KM_S_UNSECURED);
 	CHECK(pClient->getPeerDecryptionState(ex, value) && !ex && value == ::SRT_KM_S_UNSECURED);
+	CHECK(pClient->setEncryptionType(ex, 24) && !ex);
+	CHECK(pClient->getEncryptionType(ex, value) && !ex && value == 24);
 	CHECK(pClient->setPassphrase(ex, EXPAND("passphrase")) && !ex);
 	CHECK(pServer->socket().setPassphrase(ex, EXPAND("passphrase")) && !ex);
 
 	// Connect client
-	SocketAddress source(IPAddress::Wildcard(), 6123);
-	SocketAddress target(IPAddress::Loopback(), 6123);
-	CHECK(pServer->bind(source));
+	SocketAddress source(IPAddress::Wildcard(), 0);
+	source.setPort(pServer->bind(source).port());
+	SocketAddress target(IPAddress::Loopback(), source.port());
 	pServer->accept();
 	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
 
@@ -408,10 +413,10 @@ ADD_TEST(TestOptions) {
 	CHECK(pClient->getEncryptionState(ex, value) && !ex && value == ::SRT_KM_S_SECURED);
 	CHECK(connection.getPeerDecryptionState(ex, value) && !ex && value == ::SRT_KM_S_SECURED);
 
-	CHECK(pClient->getLatency(ex, value) && !ex && value == 500);
+	CHECK(pClient->getRecvLatency(ex, value) && !ex && value == 500);
 	CHECK(pClient->getPeerLatency(ex, value) && !ex && value == 600);
 	CHECK(connection.getPeerLatency(ex, value) && !ex && value == 500);
-	CHECK(connection.getLatency(ex, value) && !ex && value == 600);
+	CHECK(connection.getRecvLatency(ex, value) && !ex && value == 600);
 
 	CHECK(pClient->getMSS(ex, value) && !ex && value == 900);
 	Int64 val64;
@@ -419,6 +424,44 @@ ADD_TEST(TestOptions) {
 
 	SRT::Stats stats;
 	CHECK(pClient->getStats(ex, stats) && !ex && stats.recvLostCount() == 0 && (stats->pktSent == 1 || stats->pktSndBuf == 1)); // Can be sent or bufferised now
+
+	pClient.set<SRT::Socket>();
+	pServer.set<Server>();
+
+	// New test with params
+	Parameters params;
+	params.setNumber("bufferSize", 50000);
+	params.setBoolean("pktDrop", false);
+	params.setNumber("encryption", 16);
+	params.setString("passphrase", "This is a pass");
+	params.setNumber("latency", 2000);
+	params.setNumber("mss", 750);
+	params.setNumber("overheadbw", 60);
+	params.setNumber("maxbw", 50000000);
+	CHECK(pClient->processParams(ex, params) && !ex);
+
+	// Connect
+	CHECK(pServer->socket().setEncryptionType(ex, 16));
+	CHECK(pServer->socket().setPassphrase(ex, EXPAND("This is a pass")) && !ex);
+	CHECK(pServer->bind(source));
+	pServer->accept();
+	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
+
+	// 1 byte packet to mean "end of data" (SHUTDOWN_SEND is not possible now)
+	CHECK(pClient->send(ex, EXPAND("\0")));
+
+	// Then check parameters
+	bool bValue;
+	CHECK(pClient->getPktDrop(ex, bValue) && !ex && bValue == false);
+
+	CHECK(pClient->getSendBufferSize(ex, value) && !ex && value == 50000);
+	CHECK(pClient->getRecvBufferSize(ex, value) && !ex && value == 50000);
+
+	CHECK(pClient->getLatency(ex, value) && !ex && value == 2000);
+	CHECK(pClient->getPeerLatency(ex, value) && !ex && value == 2000);
+
+	CHECK(pClient->getMSS(ex, value) && !ex && value == 750);
+	CHECK(pClient->getMaxBW(ex, val64) && !ex && val64 == 50000000);
 }
 
 }

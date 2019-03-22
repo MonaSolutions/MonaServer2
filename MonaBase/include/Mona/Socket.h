@@ -87,7 +87,7 @@ struct Socket : virtual Object, Net::Stats {
 	const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }
 
-	bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net");
+	virtual bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net.");
 
 	virtual bool setSendBufferSize(Exception& ex, int size);
 	virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex,SOL_SOCKET, SO_SNDBUF, size); }
