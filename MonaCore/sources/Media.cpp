@@ -444,15 +444,18 @@ void Media::Stream::start(const Parameters& parameters) {
 	if (_running && !_starting)
 		return; // nothing todo!
 	_running = true; // to allow to call stop in starting!
-	_starting = !starting(parameters) && _running;
-	if (_running)
+	if (starting(parameters)) 
 		finalizeStart();
+	else
+		_starting = _running; // wait finalizeStart call
 }
-void Media::Stream::finalizeStart() {
+bool Media::Stream::finalizeStart() {
 	if (!_starting)
-		return;
-	if (onStart && !onStart())
-		return stop();
+		return false;
+	if (onStart && !onStart()) {
+		stop();
+		return false;
+	}
 	_starting = false;
 	INFO(description(), " starts");
 	if (!_startCount++) {
@@ -470,6 +473,7 @@ void Media::Stream::finalizeStart() {
 		} else
 			it = _targets.erase(it);
 	}
+	return true;
 }
 void Media::Stream::stop() {
 	if (!_running)

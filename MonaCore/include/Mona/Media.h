@@ -412,7 +412,7 @@ struct Media : virtual Static {
 
 		Source& source;
 
-		void finalizeStart();
+		bool finalizeStart();
 		void stop(LOG_LEVEL level, const Exception& exc) {
 			LOG(level, description(), ", ", ex= exc);
 			stop();

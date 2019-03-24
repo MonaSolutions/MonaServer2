@@ -199,7 +199,8 @@ bool MediaFile::Writer::beginMedia(const string& name) {
 	if (_pFile)
 		return true; // already running (MBR switch)
 	start(); // begin media, we can try to start here (just on beginMedia!)
-	finalizeStart();
+	if (!finalizeStart())
+		return false;
 	_pFile.set(name, path, _pWriter, _pPlaylist, _sequences, io).onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	write<Begin>(_append);
 	return true;

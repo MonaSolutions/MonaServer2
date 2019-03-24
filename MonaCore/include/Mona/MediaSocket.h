@@ -94,16 +94,16 @@ struct MediaSocket : virtual Static {
 	private:
 		bool starting(const Parameters& parameters);
 		void stopping();
-
+	
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', String::Upper(_pWriter->format())); }
 		bool newSocket(const Parameters& parameters = Parameters::Null());
 		
 		template<typename SendType, typename ...Args>
 		bool send(UInt8 track, Args&&... args) {
+			if (!_onSocketFlush)
+				finalizeStart();
 			if (!_pSocket)
 				return false; // Stream not started!
-			if(Stream::starting() && !_onSocketFlush)
-				finalizeStart();
 			io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter, track,  std::forward<Args>(args)...);
 			return true;
 		}
