@@ -36,13 +36,11 @@ struct MediaFile : virtual Static  {
 		Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io);
 		virtual ~Reader() { stop(); }
 
-		bool running() const { return _pFile.operator bool(); }
-
 		IOFile&			io;
 		const Timer&	timer;
 
 	private:
-		void starting(const Parameters& parameters);
+		bool starting(const Parameters& parameters);
 		void stopping();
 
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.baseName(), '.', path.extension().empty() ? _pReader->format() : path.extension().c_str()); }
@@ -110,8 +108,6 @@ struct MediaFile : virtual Static  {
 		IOFile&		io;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 	
-		bool running() const { return _running; }
-
 		void setMediaParams(const Parameters& parameters);
 		bool beginMedia(const std::string& name);
 		bool writeProperties(const Media::Properties& properties);
@@ -121,7 +117,7 @@ struct MediaFile : virtual Static  {
 		void endMedia();
 
 	private:
-		void starting(const Parameters& parameters);
+		bool starting(const Parameters& parameters);
 		void stopping();
 
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target file://...", MAKE_FOLDER(Path(path.parent()).name()), path.baseName(), '.', path.extension().empty() ? _pWriter->format() : path.extension().c_str()); }
@@ -186,7 +182,6 @@ struct MediaFile : virtual Static  {
 		shared<File>			 _pFile;
 		shared<MediaWriter>		 _pWriter;
 		UInt16					 _writeTrack;
-		bool					 _running;
 		bool					 _append;
 		UInt8					 _sequences;
 		shared<Playlist::Writer> _pPlaylist;

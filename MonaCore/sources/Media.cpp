@@ -435,13 +435,26 @@ bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet,
 	return true;
 }
 
+Media::Stream::Stream(Type type, const Path& path, Source& source) :
+	_starting(false), _running(false), targets(_targets), _startCount(0),
+	type(type), path(path), source(source) {
+}
 void Media::Stream::start(const Parameters& parameters) {
-	bool start = !running();
-	starting(parameters);
-	if (!start || !running())
+	ex = nullptr; // reset lastEx on pullse start!
+	if (_running && !_starting)
+		return; // nothing todo!
+	_running = true; // to allow to call stop in starting!
+	_starting = !starting(parameters) && _running;
+	if (_running)
+		finalizeStart();
+}
+void Media::Stream::finalizeStart() {
+	if (!_starting)
 		return;
 	if (onStart && !onStart())
 		return stop();
+	_starting = false;
+	INFO(description(), " starts");
 	if (!_startCount++) {
 		Target* pTarget = dynamic_cast<Target*>(this);
 		if (pTarget)
@@ -458,14 +471,19 @@ void Media::Stream::start(const Parameters& parameters) {
 			it = _targets.erase(it);
 	}
 }
-void Media::Stream::stop(const Exception& ex) {
-	if (!running())
+void Media::Stream::stop() {
+	if (!_running)
 		return;
 	stopping();
+	_running = false;
 	_targets.clear(); // to invalid targets!
-	onStop(ex);
+	if (_starting) {
+		_starting = false;
+		return;
+	}
+	INFO(description(), " stops");
+	onStop(); // in last to allow possibily a delete this (beware impossible with Subscription usage!)
 }
-
 Net::Stats& Media::Stream::netStats() const {
 	if (type>0)
 		WARN(typeof(self), " should implement netStats");

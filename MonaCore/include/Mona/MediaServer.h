@@ -39,13 +39,11 @@ struct MediaServer : Media::Stream, virtual Object {
 	MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 	virtual ~MediaServer() { stop(); }
 
-	bool running() const { return _pSocket.operator bool(); }
-	
 	const SocketAddress		address;
 	IOSocket&				io;
 
 private:
-	void starting(const Parameters& parameters);
+	bool starting(const Parameters& parameters);
 	void stopping();
 
 	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }

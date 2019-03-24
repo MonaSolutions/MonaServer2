@@ -33,13 +33,11 @@ struct MediaSocket : virtual Static {
 		Reader(Media::Stream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		virtual ~Reader() { stop(); }
 
-		bool running() const { return _pSocket.operator bool(); }
-	
 		const SocketAddress			address;
 		IOSocket&					io;
 	
 	private:
-		void starting(const Parameters& parameters);
+		bool starting(const Parameters& parameters);
 		void stopping();
 	
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
@@ -82,8 +80,6 @@ struct MediaSocket : virtual Static {
 		Writer(Media::Stream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io);
 		virtual ~Writer() { stop(); }
 
-		bool running() const { return _pSocket.operator bool(); }
-	
 		const SocketAddress		address;
 		IOSocket&				io;
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
@@ -96,22 +92,26 @@ struct MediaSocket : virtual Static {
 		void endMedia();
 		
 	private:
-		void starting(const Parameters& parameters);
+		bool starting(const Parameters& parameters);
 		void stopping();
 
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', String::Upper(_pWriter->format())); }
 		bool newSocket(const Parameters& parameters = Parameters::Null());
 		
 		template<typename SendType, typename ...Args>
-		bool send(Args&&... args) {
+		bool send(UInt8 track, Args&&... args) {
 			if (!_pSocket)
 				return false; // Stream not started!
-			io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter, _pStreaming, std::forward<Args>(args)...);
+			if(Stream::starting() && !_onSocketFlush)
+				finalizeStart();
+			io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter, track,  std::forward<Args>(args)...);
 			return true;
 		}
+		template<typename SendType> // beginMedia or endMedia!
+		void send() { io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter); }
 
 		struct Send : Runner, virtual Object {
-			Send(Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming);
+			Send(Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter);
 		protected:
 			MediaWriter::OnWrite	onWrite;
 			shared<MediaWriter>		pWriter;
@@ -119,31 +119,29 @@ struct MediaSocket : virtual Static {
 			virtual bool run(Exception& ex) { pWriter->beginMedia(onWrite); return true; }
 
 			shared<Socket>			_pSocket;
-			shared<volatile bool>	_pStreaming;
 			shared<std::string>		_pName;
 		};
 
 		template<typename MediaType>
 		struct MediaSend : Send, MediaType, virtual Object {
-			MediaSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming,
-				UInt8 track, const typename MediaType::Tag& tag, const Packet& packet) : Send(type, pName, pSocket,pWriter, pStreaming), MediaType(tag, packet, track) {}
+			MediaSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter,
+				UInt8 track, const typename MediaType::Tag& tag, const Packet& packet) : Send(type, pName, pSocket,pWriter), MediaType(tag, packet, track) {}
 			bool run(Exception& ex) { pWriter->writeMedia(*this, onWrite); return true; }
 		};
 		struct EndSend : Send, virtual Object {
-			EndSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter, const shared<volatile bool>& pStreaming) : Send(type, pName, pSocket, pWriter, pStreaming) {}
+			EndSend(Stream::Type type, const shared<std::string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter) : Send(type, pName, pSocket, pWriter) {}
 			bool run(Exception& ex) { pWriter->endMedia(onWrite); return true; }
 		};
 
-		Socket::OnDisconnection			_onDisconnection;
-		Socket::OnFlush					_onFlush;
-		Socket::OnError					_onError;
+		Socket::OnDisconnection			_onSocketDisconnection;
+		Socket::OnFlush					_onSocketFlush;
+		Socket::OnError					_onSocketError;
 
 		shared<Socket>					_pSocket;
 		shared<TLS>						_pTLS;
 		shared<MediaWriter>				_pWriter;
 		UInt16							_sendTrack;
 		shared<std::string>				_pName;
-		shared<bool>					_pStreaming;
 	};
 };
 

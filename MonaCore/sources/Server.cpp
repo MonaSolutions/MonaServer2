@@ -112,17 +112,13 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 				}
 			}
 			// Pulse streams!
-			auto itStream = _iniStreams.begin();
-			while (itStream != _iniStreams.end()) {
-				if (itStream->second && itStream->second->ejected())
-					itStream->second->reset(); // wait next onManage to restart!
-				else if (itStream->first->type == Media::Stream::TYPE_LOGS && !itStream->first->running()) {
-					itStream = _iniStreams.erase(itStream); // no pulse for MediaLogs, eliminate (will certainly not changed!)
-					continue;
-				} else
-					itStream->first->start(self);
-				++itStream;
+			for (const auto& it : _iniStreams) {
+				if (it.second && it.second->ejected())
+					it.second->reset(); // wait next onManage to restart!
+				else
+					it.first->start(self);
 			}
+		
 			this->onManage(); // client manage (script, etc..)
 			if (clients.size() != countClient)
 				INFO((countClient = clients.size()), " clients");
@@ -225,6 +221,8 @@ void Server::loadIniStreams() {
 		if (!pStream)
 			continue;
 		pStream->start(self);
+		if (pStream->type == Media::Stream::TYPE_LOGS && !pStream->running())
+			continue; // useless, can't work!
 		// move stream target from _streamSubscriptions to _iniStreams to avoid double iteration on onManage!
 		const auto& itTarget = _streamSubscriptions.find(dynamic_pointer_cast<Media::Target>(pStream));
 		if (itTarget != _streamSubscriptions.end()) {

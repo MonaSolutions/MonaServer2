@@ -357,7 +357,7 @@ struct Media : virtual Static {
 	/!\ start() can be used to pulse the stream (connect attempt) */
 	struct Stream : virtual Object {
 		typedef Event<bool()>										ON(Start);
-		typedef Event<void(const Exception&)>						ON(Stop);
+		typedef Event<void()>										ON(Stop);
 		typedef Event<void()>										ON(Delete);
 		typedef Event<void(const shared<Media::Target>& pTarget)>	ON(NewTarget); // valid until pTarget.unique()!
 
@@ -370,19 +370,6 @@ struct Media : virtual Static {
 			TYPE_HTTP = 4
 		};
 		static const char* TypeToString(Type type) { static const char* Strings[] = { "logs", "file", "tcp", "srt", "udp", "http" }; return Strings[UInt8(type)+1]; }
-
-
-		const Type			type;
-		const Path			path;
-		const std::string	query;
-		bool				isSource() const { return &source == &Source::Null(); }
-		const std::string&	description() const { return _description.empty() ? ((Stream*)this)->buildDescription(_description) : _description; }
-
-		/*!
-		Children targets */
-		const std::set<shared<const Stream>>& targets;
-
-
 		/*!
 		New Stream target => [host:port][?path] [type/TLS][/MediaFormat] [parameter]
 		Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
@@ -394,32 +381,46 @@ struct Media : virtual Static {
 		File => file[.format][?path] [MediaFormat] [parameter] */
 		static unique<Stream> New(Exception& ex, Source& source, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr);
 
-		UInt32 startCount() const { return _startCount; };
 
-		void start(const Parameters& parameters = Parameters::Null());
-		void stop(const Exception& ex = nullptr);
+		const Type			type;
+		const Path			path;
+		const std::string	query;
+		bool				isSource() const { return &source == &Source::Null(); }
+		const std::string&	description() const { return _description.empty() ? ((Stream*)this)->buildDescription(_description) : _description; }
 
-		virtual bool running() const = 0;
+		UInt32	startCount() const { return _startCount; };
+		bool	running() const { return _running; }
+		bool	starting() const { return _starting; }
+
+		Exception			ex;
 
 		virtual Net::Stats& netStats() const;
 		virtual Net::Stats& fileStats() const;
 		virtual bool getSRTStats(SRT::Stats& stats) const;
 
+		/*!
+		Children targets */
+		const std::set<shared<const Stream>>& targets;
+
+		void start(const Parameters& parameters = Parameters::Null());
+		void stop();
+
+		
 		~Stream() { onDelete(); }
 	protected:
-		Stream(Type type, const Path& path, Source& source = Source::Null()) : targets(_targets), _startCount(0), type(type), path(path), source(source) {}
+		Stream(Type type, const Path& path, Source& source = Source::Null());
 
 		Source& source;
 
-		void stop(LOG_LEVEL level, const Exception& ex) {
-			LOG(level, description(), ", ", ex);
-			stop(ex);
+		void finalizeStart();
+		void stop(LOG_LEVEL level, const Exception& exc) {
+			LOG(level, description(), ", ", ex= exc);
+			stop();
 		}
 		template<typename ExType, typename ...Args>
 		void stop(LOG_LEVEL level, Args&&... args) {
-			Exception ex;
 			LOG(level, description(), ", ", ex.set<ExType>(std::forward<Args>(args)...));
-			stop(ex);
+			stop();
 		}
 
 		shared<Socket> newSocket(const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
@@ -430,12 +431,12 @@ struct Media : virtual Static {
 			shared<StreamType> pTarget(SET, std::forward<Args>(args) ...);
 			auto it = _targets.lower_bound(pTarget);
 			if (it != _targets.end()) {
-				if (running() && it->unique())
+				if (_running && it->unique())
 					it = _targets.erase(it); // target useless!
 				if(*it == pTarget)
 					return NULL; // already exists!
 			}
-			if (running()) { // else wait run!
+			if (_running) { // else wait run!
 				onNewTarget(pTarget);
 				if (pTarget.unique())
 					return NULL;
@@ -453,9 +454,10 @@ struct Media : virtual Static {
 		}
 
 	private:
-		/*!
+		/*! 
+		Have to call stop() if fail, and return true is starting finished (else have to call more later finalizeStart())
 		/!\ Implementation have to support a pulse start! */
-		virtual void starting(const Parameters& parameters) = 0;
+		virtual bool starting(const Parameters& parameters) = 0;
 		virtual void stopping() = 0;
 
 		virtual std::string& buildDescription(std::string& description) = 0;
@@ -464,6 +466,8 @@ struct Media : virtual Static {
 		UInt32							_startCount;
 		std::set<shared<const Stream>>	_targets;
 		shared<Target>					_pTarget;
+		bool							_running;
+		bool							_starting;
 	};
 
 };

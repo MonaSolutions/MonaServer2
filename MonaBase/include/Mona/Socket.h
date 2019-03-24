@@ -170,6 +170,14 @@ protected:
 	virtual bool	flush(Exception& ex, bool deleting);
 	virtual bool	close(ShutdownType type = SHUTDOWN_BOTH);
 
+	template<typename Type, typename = typename std::enable_if<std::is_arithmetic<Type>::value && !std::is_same<Type, bool>::value>::type>
+	bool processParam(const Parameters& parameters, const char* name, Type& value, const char* prefix = NULL) {
+		return prefix && parameters.getNumber(String(prefix, name), value) || parameters.getNumber(name, value);
+	}
+	bool processParam(const Parameters& parameters, const char* name, std::string& value, const char* prefix = NULL) { return prefix && parameters.getString(String(prefix, name), value) || parameters.getString(name, value); }
+	bool processParam(const Parameters& parameters, const char* name, bool& value, const char* prefix = NULL) { return prefix && parameters.getBoolean(String(prefix, name), value) || parameters.getBoolean(name, value); }
+	
+
 	bool					_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
 	volatile bool			_nonBlockingMode;
 	mutable SocketAddress	_address;

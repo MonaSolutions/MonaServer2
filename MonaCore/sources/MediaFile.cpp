@@ -104,19 +104,17 @@ MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaR
 			this->io.read(_pFile); // continue to read immediatly
 			return 0;
 		}) {
-	_onFileError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
+	_onFileError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 }
 
-void MediaFile::Reader::starting(const Parameters& parameters) {
-	if (_pFile)
-		return;
+bool MediaFile::Reader::starting(const Parameters& parameters) {
 	_realTime =	0; // reset realTime
 	Decoder* pDecoder = new Decoder(io.handler, _pReader, path, source.name(), _pMedias);
 	pDecoder->onFlush = _onFlush = [this]() { _onTimer(); };
 	_pFile.set(path, File::MODE_READ);
 	io.subscribe(_pFile, pDecoder, nullptr, _onFileError);
 	io.read(_pFile);
-	INFO(description(), " starts");
+	return true;
 }
 
 void MediaFile::Reader::stopping() {
@@ -124,7 +122,6 @@ void MediaFile::Reader::stopping() {
 	io.unsubscribe(_pFile);
 	_onFlush = nullptr;
 	_pMedias.set();
-	INFO(description(), " stops"); // to display "stops" before possible "publication reset"
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if (_pReader.unique())
 		_pReader->flush(source);
@@ -175,16 +172,16 @@ void MediaFile::Writer::Begin::process(Exception& ex, File& file) {
 }
 
 MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io) : _sequences(1), _append(false),
-	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _running(false), _pWriter(move(pWriter)) {
+	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _pWriter(move(pWriter)) {
 	if (String::ICompare(path.extension(), "m3u8") == 0)
 		_pPlaylist.set<M3U8::Writer>(io);
 	if(_pPlaylist)
 		_pPlaylist->onError = [this](const Exception& ex) { WARN(description(), ", ", ex); };
 }
 
-void MediaFile::Writer::starting(const Parameters& parameters) {
-	// pulse starting, already started!
-	_running = true;
+bool MediaFile::Writer::starting(const Parameters& parameters) {
+	// pulse starting, nothing todo (wait beginMedia to create _pFile)
+	return false;
 }
 
 void MediaFile::Writer::setMediaParams(const Parameters& parameters) {
@@ -198,12 +195,12 @@ void MediaFile::Writer::setMediaParams(const Parameters& parameters) {
 }
 
 bool MediaFile::Writer::beginMedia(const string& name) {
-	start(); // begin media, we can try to start here (just on beginMedia!)
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
 	if (_pFile)
 		return true; // already running (MBR switch)
-	INFO(description(), " starts");
-	_pFile.set(name, path, _pWriter, _pPlaylist, _sequences, io).onError = [this](const Exception& ex) { Stream::stop(LOG_ERROR, ex); };
+	start(); // begin media, we can try to start here (just on beginMedia!)
+	finalizeStart();
+	_pFile.set(name, path, _pWriter, _pPlaylist, _sequences, io).onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	write<Begin>(_append);
 	return true;
 }
@@ -219,12 +216,10 @@ void MediaFile::Writer::endMedia() {
 }
 
 void MediaFile::Writer::stopping() {
-	_running = false;
-	if(_pFile) {
-		write<EndWrite>(); // _pWriter->endMedia()!
-		_pFile.reset();
-	}
-	INFO(description(), " stops");
+	if (!_pFile)
+		return;
+	write<EndWrite>(); // _pWriter->endMedia()!
+	_pFile.reset();
 }
 
 

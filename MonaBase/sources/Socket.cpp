@@ -156,18 +156,12 @@ bool Socket::setSendBufferSize(Exception& ex, int size) {
 bool Socket::processParams(Exception& ex, const Parameters& parameters, const char* prefix) {
 	UInt32 value;
 	bool result(true);
-	string superKey;
-	size_t prefixLen = prefix ? strlen(prefix) : 0;
+	bool bufferSizeRead(false);
 	// search always in priority with net. prefix to be prioritary on general common version (ex: search in Session params, then in [Protocol] params, and finally in general common where .net is prioritary!)
-	if ((prefixLen && parameters.getNumber(String::Assign(superKey, prefix, ".recvBufferSize"), value)) ||
-		parameters.getNumber("recvBufferSize", value) ||
-		parameters.getNumber("bufferSize", value))
+	if (processParam(parameters, "recvBufferSize", value, prefix) || (bufferSizeRead = processParam(parameters, "bufferSize", value, prefix)))
 		result = setRecvBufferSize(ex, value);
-	superKey.resize(prefixLen);
-	if ((prefixLen && parameters.getNumber(superKey.append(".sendBufferSize"), value)) ||
-		parameters.getNumber("sendBufferSize", value) ||
-		parameters.getNumber("bufferSize", value))
-		result = setSendBufferSize(ex = nullptr, value) && result;
+	if (processParam(parameters, "sendBufferSize", value, prefix) || (bufferSizeRead || processParam(parameters, "bufferSize", value, prefix)))
+		result = setSendBufferSize(ex, value) && result;
 	return result;
 }
 

@@ -22,19 +22,20 @@ using namespace std;
 
 namespace Mona {
 
-void MediaLogs::starting(const Parameters& parameters) {
-	if (_pPublish)
-		return;
+bool MediaLogs::starting(const Parameters& parameters) {
 	_pPublish.set(_api, source);
-	INFO(description(), " starts");
-	if (!Logs::AddLogger<Publish::Logger>(path.c_str(), *_pPublish))
-		stop<Ex::Intern>(LOG_ERROR, "duplicated logger");
+	if (Logs::AddLogger<Publish::Logger>(path.c_str(), *_pPublish))
+		return true;
+	_pPublish.reset();
+	stop<Ex::Intern>(LOG_ERROR, "Duplicated logger ", path);
+	return true;
 }
 
 void MediaLogs::stopping() {
+	if (!_pPublish)
+		return;
 	Logs::RemoveLogger(path.c_str());
 	_pPublish.reset();
-	INFO(description(), " stops");
 }
 
 

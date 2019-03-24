@@ -197,13 +197,14 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 			_audioConfig.reset();
 			_dataTrack = 0;
 			if (_pPublication->recording()) {
-				_pPublication->recorder()->onStart = [this, &writer]() {
+				Media::Stream* pRecorder = _pPublication->recorder();
+				pRecorder->onStart = [this, &writer]() {
 					writer.writeAMFStatus("NetStream.Record.Start", _name + " recording started");
 					return true;
 				};
-				_pPublication->recorder()->onStop = [this, &writer](const Exception& ex) {
-					if(ex)
-						writer.writeAMFStatus("NetStream.Record.Failed", "error", ex);
+				pRecorder->onStop = [this, &writer, pRecorder]() {
+					if(pRecorder->ex)
+						writer.writeAMFStatus("NetStream.Record.Failed", "error", pRecorder->ex);
 					writer.writeAMFStatus("NetStream.Record.Stop", _pPublication->name() + " recording stopped");
 					writer.flush();
 				};

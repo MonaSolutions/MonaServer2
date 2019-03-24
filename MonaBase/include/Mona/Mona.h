@@ -284,7 +284,7 @@ inline const std::string& typeof() {
 }
 
 template<typename MapType, typename ValType, typename Comparator>
-inline typename MapType::const_iterator lower_bound(MapType& map, ValType&& value, Comparator& compare) {
+inline typename MapType::const_iterator lower_bound(MapType& map, ValType&& value, Comparator&& compare) {
 	typename MapType::const_iterator it, result(map.begin());
 	UInt32 count(map.size()), step;
 	while (count) {
