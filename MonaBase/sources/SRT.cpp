@@ -127,12 +127,42 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 	if (_id == ::SRT_INVALID_SOCK) {
 		_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
 		SetException(_ex);
-	} else
+	}
+	else {
 		init();
+		Exception ignore;
+		setPktDrop(ignore, false); // full reliable (TODO: remove this)
+	}
 }
 
 SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) {
 	init();
+	Exception ignore;
+	setPktDrop(ignore, false); // full reliable (TODO: remove this)
+}
+
+bool SRT::Socket::processParams(Exception& ex, const Parameters& parameters, const char* prefix) {
+	bool result = Mona::Socket::processParams(ex, parameters); // in first to override "net." possible same property by its "srt." version
+	int value;
+	Int64 i64Value;
+	bool bValue;
+	string stValue;
+	// search always in priority with srt. prefix to be prioritary on general common version
+	if (processParam(parameters, "pktDrop", bValue, prefix))
+		result = setPktDrop(ex, bValue) && result;
+	if (processParam(parameters, "encryption", value, prefix))
+		result = setEncryptionType(ex, value) && result;
+	if (processParam(parameters, "passphrase", stValue, prefix))
+		result = setPassphrase(ex, stValue.data(), stValue.size()) && result;
+	if (processParam(parameters, "latency", value, prefix))
+		result = setLatency(ex, value) && result;
+	if (processParam(parameters, "mss", value, prefix))
+		result = setMSS(ex, value) && result;
+	if (processParam(parameters, "overheadbw", value, prefix))
+		result = setOverheadBW(ex, value) && result;
+	if (processParam(parameters, "maxbw", i64Value, prefix))
+		result = setMaxBW(ex, i64Value) && result;
+	return result;
 }
 
 SRT::Socket::~Socket() {

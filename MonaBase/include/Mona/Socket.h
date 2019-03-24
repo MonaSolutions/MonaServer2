@@ -87,7 +87,7 @@ struct Socket : virtual Object, Net::Stats {
 	const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }
 
-	bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net");
+	virtual bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net.");
 
 	virtual bool setSendBufferSize(Exception& ex, int size);
 	virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex,SOL_SOCKET, SO_SNDBUF, size); }
@@ -172,10 +172,10 @@ protected:
 
 	template<typename Type, typename = typename std::enable_if<std::is_arithmetic<Type>::value && !std::is_same<Type, bool>::value>::type>
 	bool processParam(const Parameters& parameters, const char* name, Type& value, const char* prefix = NULL) {
-		return prefix && parameters.getNumber(String(prefix, name), value) || parameters.getNumber(name, value);
+		return (prefix && parameters.getNumber(String(prefix, name), value)) || parameters.getNumber(name, value);
 	}
-	bool processParam(const Parameters& parameters, const char* name, std::string& value, const char* prefix = NULL) { return prefix && parameters.getString(String(prefix, name), value) || parameters.getString(name, value); }
-	bool processParam(const Parameters& parameters, const char* name, bool& value, const char* prefix = NULL) { return prefix && parameters.getBoolean(String(prefix, name), value) || parameters.getBoolean(name, value); }
+	bool processParam(const Parameters& parameters, const char* name, std::string& value, const char* prefix = NULL) { return (prefix && parameters.getString(String(prefix, name), value)) || parameters.getString(name, value); }
+	bool processParam(const Parameters& parameters, const char* name, bool& value, const char* prefix = NULL) { return (prefix && parameters.getBoolean(String(prefix, name), value)) || parameters.getBoolean(name, value); }
 	
 
 	bool					_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
