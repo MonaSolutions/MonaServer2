@@ -266,7 +266,9 @@ ADD_TEST(UDP_NonBlocking) {
 	};
 
 	SocketAddress	 address;
-	CHECK(!server.bound() && server.bind(ex, address) && server.bind(ex, address) && !ex && server.bound());
+	CHECK(!server.bound() && server.bind(ex, address) && !ex && server.bound());
+	CHECK(!server.bind(ex, address) && ex.cast<Ex::Net::Socket>().code==NET_EISCONN);
+	CHECK(!server.bound() && server.bind(ex=nullptr, address) && !ex && server.bound());
 
 	UDPEchoClient    client(io);
 	SocketAddress	 target(IPAddress::Loopback(), server->address().port());
@@ -280,13 +282,13 @@ ADD_TEST(UDP_NonBlocking) {
 	CHECK(!client.connected() && !client->peerAddress());
 
 	server.close();
-	CHECK(!server.bound() && !server);
+	CHECK(!server.bound() && !server.connected());
 
 	server.onError = nullptr;
 	server.onPacket = nullptr;
 
 	client.close();
-	CHECK(!client)
+	CHECK(!client.connected())
 
 	_ThreadPool.join();
 	handler.flush();
@@ -355,7 +357,7 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 
 		pConnection->onError = onError;
 		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address && !*pConnection);
+			CHECK(!pConnection->connected() && address);
 			pConnections.erase(pConnection);
 			delete pConnection; // here no unsubscription required because event dies before the function
 		};
@@ -389,7 +391,7 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
 
 	client.disconnect();
-	CHECK(!client.connected() && !client);
+	CHECK(!client.connected());
 
 	CHECK(!client.ex);
 	
@@ -405,7 +407,7 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	CHECK(!client.connected() && !client.connecting());
 	
 	server.stop();
-	CHECK(!server.running() && !server);
+	CHECK(!server.running());
 	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
 
 	server.onConnection = nullptr;
@@ -438,7 +440,7 @@ ADD_TEST(TestTCPLoad) {
 
 		pConnection->onError = onError;
 		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address && !*pConnection);
+			CHECK(!pConnection->connected() && address);
 			pConnections.erase(pConnection);
 			delete pConnection; // here no unsubscription required because event dies before the function
 		};
@@ -472,7 +474,7 @@ ADD_TEST(TestTCPLoad) {
 	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
 
 		client.disconnect();
-	CHECK(!client.connected() && !client);
+	CHECK(!client.connected());
 
 	CHECK(!client.ex);
 
@@ -488,7 +490,7 @@ ADD_TEST(TestTCPLoad) {
 	CHECK(!client.connected() && !client.connecting());
 
 	server.stop();
-	CHECK(!server.running() && !server);
+	CHECK(!server.running());
 	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
 
 	server.onConnection = nullptr;

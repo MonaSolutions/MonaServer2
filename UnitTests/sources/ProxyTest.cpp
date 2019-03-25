@@ -83,7 +83,7 @@ struct UDPProxy : UDPSocket {
 		onError = [this](const Exception& ex) { FATAL_ERROR("UDPProxy, ", ex); };
 		onPacket = [this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 			Exception ex;
-			CHECK(_proxy.relay(ex, self, Packet(pBuffer), _address, address) && !ex);
+			CHECK(_proxy.relay(ex, socket(), Packet(pBuffer), _address, address) && !ex);
 		};
 		_proxy.onError = [this](const Exception& ex) { FATAL_ERROR("UDPProxy, ", ex); };
 	}
@@ -202,7 +202,7 @@ private:
 			onError = [this](const Exception& ex) { FATAL_ERROR("TCPProxy::Connection, ", ex); };
 			onData = [this](Packet& buffer) {
 				Exception ex;
-				CHECK(_proxy.relay(ex, self, buffer, _address) && !ex);
+				CHECK(_proxy.relay(ex, socket(), buffer, _address) && !ex);
 				return 0;
 			};
 			_proxy.onError = [this](const Exception& ex) { FATAL_ERROR("TCPProxy::Connection, ", ex); };

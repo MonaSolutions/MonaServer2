@@ -91,6 +91,7 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 		if(type == TYPE_UDP) { // Bind if UDP
 			AUTO_ERROR(success = _pSocket->bind(ex, address), description());
 			if (!success) {
+				_pSocket.reset();
 				stop();
 				return true;
 			}
@@ -105,6 +106,7 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 		// engine subscription BEFORE connect to be able to detect connection success/failure
 		AUTO_ERROR(success = io.subscribe(ex = nullptr, _pSocket, pDecoder, nullptr, _onSocketFlush, _onSocketError, _onSocketDisconnection), description());
 		if (!success) {
+			_pSocket.reset();
 			stop();
 			return true;
 		}
@@ -115,12 +117,12 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 	// Pulse connect if TCP/SRT
 	AUTO_ERROR(success = _pSocket->connect(ex = nullptr, address), description());
 	if (!success) {
-		if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK) {
-			stop();
-			return true;
-		}
-		ex = nullptr;
+		stop();
+		return true;
 	}
+	if(ex && ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK)
+		ex = nullptr;
+
 	if (!Stream::starting() && type == TYPE_HTTP) { // HTTP + first time!
 		// send HTTP Header request!
 		shared<Buffer> pBuffer(SET);
@@ -140,7 +142,8 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 }
 
 void MediaSocket::Reader::stopping() {
-	io.unsubscribe(_pSocket);
+	if(_pSocket)
+		io.unsubscribe(_pSocket);
 	_onRequest = nullptr;
 	_onResponse = nullptr;
 	if (_streaming>0) { // else source.reset useless was always connected!
@@ -213,12 +216,11 @@ bool MediaSocket::Writer::starting(const Parameters& parameters) {
 	bool success;
 	AUTO_ERROR(success = _pSocket->connect(ex, address), description());
 	if (!success) {
-		if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK) {
-			stop();
-			return true;
-		}
-		ex = nullptr;
+		stop();
+		return true;
 	}
+	if (ex && ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK)
+		ex = nullptr;
 	return false; // wait onSocketFlush + first Media data
 }
 
@@ -265,7 +267,8 @@ void MediaSocket::Writer::stopping() {
 	if (!Stream::starting()) // else not beginMedia or useless (was connecting!)
 		send<EndSend>(); // _pWriter->endMedia()!
 	_pName.reset();
-	io.unsubscribe(_pSocket);
+	if(_pSocket)
+		io.unsubscribe(_pSocket);
 }
 
 

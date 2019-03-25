@@ -43,7 +43,7 @@ namespace Mona {
 struct IOSocket::Action : Runner, virtual Object {
 	Action(const char* name, int error, const shared<Socket>& pSocket) : Runner(name), _weakSocket(pSocket) {
 		if (error)
-			Socket::SetException(_ex, error);
+			Socket::SetException(error, _ex);
 	}
 
 protected:
@@ -271,7 +271,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 		return; // useless!
 	++pSocket->_reading;
 
-	if (pSocket->_listening) {
+	if (pSocket->listening()) {
 
 		struct Accept : Action {
 			Accept(int error, const shared<Socket>& pSocket) : Action("SocketAccept", error, pSocket) {}

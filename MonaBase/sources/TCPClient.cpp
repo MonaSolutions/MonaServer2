@@ -26,7 +26,6 @@ namespace Mona {
 TCPClient::TCPClient(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io), _connected(false),
 	_onReceived([this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 		_connected = true;
-
 		// Check that it exceeds not socket buffer
 		if (!addStreamData(Packet(pBuffer), _pSocket->recvBufferSize())) {
 			_pSocket->shutdown(Socket::SHUTDOWN_RECV);
@@ -42,53 +41,46 @@ TCPClient::TCPClient(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io
 	_onDisconnection([this]() { disconnect(); }) {
 }
 
-
-TCPClient::~TCPClient() {
-	if (_pSocket)
-		io.unsubscribe(_pSocket);
-	// No disconnection required here, objet is deleting so can't have any event subscribers (TCPClient is not thread-safe!)
-}
-
 shared<Socket> TCPClient::newSocket() {
 	if (_pTLS)
 		return make_shared<TLS::Socket>(Socket::TYPE_STREAM, _pTLS);
 	return make_shared<Socket>(Socket::TYPE_STREAM);
 }
-
-bool TCPClient::connect(Exception& ex,const SocketAddress& address) {
-	// engine subscription BEFORE connect to be able to detect connection success/failure
+const shared<Socket>& TCPClient::socket() {
 	if (!_pSocket) {
 		_pSocket = newSocket();
-		if (!io.subscribe(ex, _pSocket, newDecoder(), _onReceived, _onFlush, onError, _onDisconnection)) {
-			_pSocket.reset();
-			return false;
-		}
+		Exception ex;
+		_subscribed = io.subscribe(ex, _pSocket, newDecoder(), _onReceived, _onFlush, onError, _onDisconnection);
+		if (!_subscribed || ex)
+			onError(ex);
 	}
+	return _pSocket;
+}
+
+bool TCPClient::connect(Exception& ex,const SocketAddress& address) {
 	// connect, allow multiple call to pulse connect!
-	if (_connected || _pSocket->connect(ex, address))
-		return true;
-	if (ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK) {
-		ex = nullptr;
-		return true;
+	if (!socket()->connect(ex, address)) {
+		disconnect();
+		return false;
 	}
-	disconnect(); // release resources
-	return false;
+	if (ex && ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK)
+		ex = nullptr;
+	return true;
 }
 
 bool TCPClient::connect(Exception& ex, const shared<Socket>& pSocket) {
 	if (!pSocket->peerAddress()) {
-		Socket::SetException(ex, NET_ENOTCONN);
+		Socket::SetException(NET_ENOTCONN, ex);
 		return false;
 	}
 	// here pSocket is necessary connected
-
 	if (_pSocket) {
 		// Was already connected to this socket?
 		if (_pSocket == pSocket)
 			return connect(ex, pSocket->peerAddress());
 		
 		if (_pSocket->peerAddress()) {
-			Socket::SetException(ex, NET_EISCONN, " to ", _pSocket->peerAddress());
+			Socket::SetException(NET_EISCONN, ex, " to ", _pSocket->peerAddress());
 			return false;
 		}
 	}
@@ -105,22 +97,31 @@ bool TCPClient::connect(Exception& ex, const shared<Socket>& pSocket) {
 void TCPClient::disconnect() {
 	if (!_pSocket)
 		return;
+	SocketAddress peerAddress(_pSocket->peerAddress());
+	if (!_pSocket->peerAddress())
+		return close(); //  was not connected, no onDisconnection need
 	// No shutdown here because otherwise it can reset the connection before end of sending (on a RECV shutdown TCP reset the connection if data are available, and so prevent sending too)
 	_connected = false;
 	// don't reset _sendingTrack here, because onDisconnection can send last messages
 	clearStreamData();
-	shared<Socket> pSocket(_pSocket);
-	io.unsubscribe(_pSocket);
-	if (pSocket->peerAddress()) // else peer was not connected, no onDisconnection need
-		onDisconnection(pSocket->peerAddress()); // On properly disconnection last messages can be sent!
+	close();
+	onDisconnection(peerAddress); // On properly disconnection last messages can be sent!
 }
 
 bool TCPClient::send(Exception& ex, const Packet& packet, int flags) {
 	if (!_pSocket || !_pSocket->peerAddress()) {
-		Socket::SetException(ex, NET_ENOTCONN);
+		Socket::SetException(NET_ENOTCONN, ex);
 		return false;
 	}
 	return _pSocket->write(ex, packet, flags) != -1;
+}
+
+void TCPClient::close() {
+	if (_subscribed) {
+		_subscribed = false;
+		io.unsubscribe(_pSocket);
+	}
+	_pSocket.reset();
 }
 
 

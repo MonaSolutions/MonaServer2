@@ -27,7 +27,7 @@ namespace Mona {
 struct TCPSession : Session, private TCPClient, virtual Object {
 	void connect(const shared<Socket>& pSocket);
 
-	operator const shared<Socket>&() { return TCPClient::operator const Mona::shared<Mona::Socket> &(); }
+	operator const shared<Socket>&() { return TCPClient::socket(); }
 	Socket*		operator->() { return TCPClient::operator->(); }
 	Socket&		operator*() { return TCPClient::operator*(); }
 

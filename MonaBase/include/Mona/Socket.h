@@ -86,6 +86,7 @@ struct Socket : virtual Object, Net::Stats {
 	
 	const SocketAddress& address() const;
 	const SocketAddress& peerAddress() const { return _peerAddress; }
+	bool				 listening() const { return _listening; }
 
 	virtual bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net.");
 
@@ -151,10 +152,14 @@ struct Socket : virtual Object, Net::Stats {
 	bool		 flush(Exception& ex) { return flush(ex, false); }
 
 	template <typename ...Args>
-	static Exception& SetException(Exception& ex, int error, Args&&... args) {
+	static Exception& SetException(int error, Exception& ex, Args&&... args) {
+		if (!error)
+			error = Net::LastError();
 		ex.set<Ex::Net::Socket>(Net::ErrorToMessage(error), std::forward<Args>(args)...).code = error;
 		return ex;
 	}
+	template <typename ...Args>
+	static Exception& SetException(Exception& ex, Args&&... args) { return SetException(Net::LastError(), ex, std::forward<Args>(args)...); }
 
 protected:
 	void init();
@@ -178,7 +183,7 @@ protected:
 	bool processParam(const Parameters& parameters, const char* name, bool& value, const char* prefix = NULL) { return (prefix && parameters.getBoolean(String(prefix, name), value)) || parameters.getBoolean(name, value); }
 	
 
-	bool					_listening; // no need to protect this variable because listen() have to be called before IOSocket subscription!
+	volatile bool			_listening;
 	volatile bool			_nonBlockingMode;
 	mutable SocketAddress	_address;
 	SocketAddress			_peerAddress;
@@ -203,7 +208,7 @@ private:
         NET_SOCKLEN length(sizeof(value));
 		if (::getsockopt(_id, level, option, reinterpret_cast<char*>(&value), &length) != -1)
 			return true;
-		SetException(ex, Net::LastError()," (level=",level,", option=",option,", length=",length,")");
+		SetException(ex, " (level=",level,", option=",option,", length=",length,")");
 		return false;
 	}
 
@@ -219,7 +224,7 @@ private:
         NET_SOCKLEN length(sizeof(value));
 		if (::setsockopt(_id, level, option, reinterpret_cast<const char*>(&value), length) != -1)
 			return true;
-		SetException(ex, Net::LastError()," (level=",level,", option=",option,", length=",length,")");
+		SetException(ex, " (level=",level,", option=",option,", length=",length,")");
 		return false;
 	}
 

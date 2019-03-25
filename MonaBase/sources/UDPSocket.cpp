@@ -23,22 +23,20 @@ using namespace std;
 
 namespace Mona {
 
-
-UDPSocket::UDPSocket(IOSocket& io) : io(io), _connected(false), _bound(false) {
-}
-
-UDPSocket::~UDPSocket() {
-	if (_pSocket)
-		io.unsubscribe(_pSocket);
+const shared<Socket>& UDPSocket::socket() {
+	if (!_pSocket) {
+		_pSocket.set(Socket::TYPE_DATAGRAM);
+		Exception ex;
+		_subscribed = io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError);
+		if(!_subscribed || ex)
+			onError(ex);
+	}
+	return _pSocket;
 }
 
 bool UDPSocket::connect(Exception& ex, const SocketAddress& address) {
-	if (!_pSocket) {
-		_pSocket.set(Socket::TYPE_DATAGRAM);
-		io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError);
-	}
-	if (_pSocket->connect(ex, address))
-		return _connected = true;
+	if (socket()->connect(ex, address))
+		return true;
 	close(); // release resources
 	return false;
 }
@@ -48,35 +46,23 @@ void UDPSocket::disconnect() {
 	if (!_pSocket)
 		return;
 	Exception ex;
-	if (_pSocket->connect(ex, SocketAddress::Wildcard()))
-		_connected = false;
-	if (ex)
+	if (!_pSocket->connect(ex, SocketAddress::Wildcard()) || ex)
 		onError(ex);
 }
 
 bool UDPSocket::bind(Exception& ex, const SocketAddress& address) {
-	if (_bound) {
-		if (address == _pSocket->address())
-			return true;
-		close();
-	}
-	_pSocket.set(Socket::TYPE_DATAGRAM);
-	if (io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError) && _pSocket->bind(ex, address))
-		return _bound = true;
+	if (socket()->bind(ex, address))
+		return true;
 	close(); // release resources
 	return false;
 }
 
 void UDPSocket::close() {
-	if (_pSocket)
+	if (_subscribed) {
+		_subscribed = false;
 		io.unsubscribe(_pSocket);
-	_connected = _bound = false;
-}
-
-bool UDPSocket::send(Exception& ex, const Packet& packet, const SocketAddress& address, int flags) {
-	if (!_pSocket && !bind(ex))  // explicit bind to create and subscribe socket
-		return false;
-	return _pSocket->write(ex, packet, address, flags) != -1;
+	}
+	_pSocket.reset();
 }
 
 

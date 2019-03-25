@@ -29,19 +29,17 @@ struct TCPClient : private StreamData<>, virtual Object {
 	typedef Event<void()>								ON(Flush);
 	typedef Event<void(const SocketAddress& address)>	ON(Disconnection);
 	typedef Socket::OnError								ON(Error);
-	NULLABLE
 
 /*!
 	Create a new TCPClient */
 	TCPClient(IOSocket& io, const shared<TLS>& pTLS=nullptr);
-	virtual ~TCPClient();
+	virtual ~TCPClient() { disconnect(); }
 
 	IOSocket&	io;
 
-	operator	bool() const { return _pSocket.operator bool(); }
-	operator	const shared<Socket>&() { return _pSocket; }
-	Socket&		operator*() { return *_pSocket; }
-	Socket*		operator->() { return _pSocket.get(); }
+	const shared<Socket>& socket();
+	Socket&			      operator*() { return *socket(); }
+	Socket*				  operator->() { return socket().get(); }
 	
 
 	bool		connect(Exception& ex, const SocketAddress& address);
@@ -67,6 +65,7 @@ struct TCPClient : private StreamData<>, virtual Object {
 private:
 	virtual Socket::Decoder* newDecoder() { return NULL; }
 	virtual shared<Socket> newSocket();
+	void close();
 
 	UInt32 onStreamData(Packet& buffer) { return onData(buffer); }
 
@@ -77,6 +76,7 @@ private:
 	shared<Socket>		_pSocket;
 	bool				_connected;
 	shared<TLS>			_pTLS;
+	bool				_subscribed;
 };
 
 

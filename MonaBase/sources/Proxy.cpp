@@ -60,12 +60,11 @@ const shared<Socket>& Proxy::relay(Exception& ex, const shared<Socket>& pSocket,
 	if (!_pSocket->peerAddress() || !_connected) {
 		// Pulse connect if always not writable
 		if (!_pSocket->connect(ex = nullptr, addressTo)) {
-			if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK) {
-				close();
-				return _pSocket;
-			}
-			ex = nullptr;
+			close();
+			return _pSocket;
 		}
+		if (ex && ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK)
+			ex = nullptr;
 	}
 	Exception exWrite;
 	if (_pSocket->write(exWrite, packet)<0 || exWrite)

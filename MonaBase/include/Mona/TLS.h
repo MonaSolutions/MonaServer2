@@ -69,7 +69,7 @@ struct TLS : virtual Object {
 					return 0; // can happen when socket recv returns 0 
 				case SSL_ERROR_WANT_READ:
 				case SSL_ERROR_WANT_WRITE:
-					SetException(ex, NET_EWOULDBLOCK, std::forward<Args>(args)...);
+					SetException(NET_EWOULDBLOCK, ex, std::forward<Args>(args)...);
 					break;
 					/*
 					SSL_ERROR_SYSCALL
@@ -85,7 +85,7 @@ struct TLS : virtual Object {
 						// Socket error!
 						if(!result)
 							return 0; // happen when socket recv returns 0
-						SetException(ex, Net::LastError(), std::forward<Args>(args)...);
+						SetException(ex, std::forward<Args>(args)...);
 						break;
 					}
 				default: // mainly SSL_ERROR_SSL

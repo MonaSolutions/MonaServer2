@@ -28,7 +28,7 @@ struct TCProtocol : Protocol , virtual Object {
 	TCPServer::OnConnection& onConnection;
 	TCPServer::OnError		 onError;
 
-	const shared<Socket>&	socket() { return _server; }
+	const shared<Socket>&	socket() { return _server.socket(); }
 
 	bool load(Exception& ex);
 

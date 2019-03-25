@@ -29,19 +29,18 @@ struct TCPServer : virtual Object {
 	typedef Socket::OnAccept  ON(Connection);
 	typedef Socket::OnError	  ON(Error);
 
-	TCPServer(IOSocket& io, const shared<TLS>& pTLS=nullptr);
-	virtual ~TCPServer();
+	TCPServer(IOSocket& io, const shared<TLS>& pTLS=nullptr) : io(io), _pTLS(pTLS), _subscribed(false) {}
+	virtual ~TCPServer() { stop(); }
 
-	IOSocket&	io;
-	operator	bool() const { return _pSocket.operator bool(); }
-	operator	const shared<Socket>&() { return _pSocket; }
-	Socket&		operator*() { return *_pSocket; }
-	Socket*		operator->() { return _pSocket.get(); }
+	IOSocket&			  io;
+	const shared<Socket>& socket();
+	Socket&			      operator*() { return *socket(); }
+	Socket*				  operator->() { return socket().get(); }
 
 
 	bool		start(Exception& ex, const SocketAddress& address);
 	bool		start(Exception& ex, const IPAddress& ip=IPAddress::Wildcard()) { return start(ex, SocketAddress(ip, 0)); }
-	bool		running() const { return _pSocket.operator bool();  }
+	bool		running() const { return _pSocket && _pSocket->listening();  }
 	void		stop();
 protected:
 	virtual shared<Socket> newSocket();
@@ -49,6 +48,7 @@ protected:
 private:
 	shared<Socket>		_pSocket;
 	shared<TLS>			_pTLS;
+	bool				_subscribed;
 };
 
 

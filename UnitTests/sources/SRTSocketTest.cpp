@@ -227,7 +227,7 @@ ADD_TEST(TestNonBlocking) {
 
 		pConnection->onError = onError;
 		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address && !*pConnection);
+			CHECK(!pConnection->connected() && address);
 			pConnections.erase(pConnection);
 			delete pConnection; // here no unsubscription required because event dies before the function
 		};
@@ -262,16 +262,13 @@ ADD_TEST(TestNonBlocking) {
 
 	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
 
-	// Try a reconnection on another address before disconnecting
-	SocketAddress unknown(IPAddress::Loopback(), 62434);
-	CHECK(client.connect(ex, unknown) && !ex && client->peerAddress() == target);
-
 	client.disconnect();
-	CHECK(!client.connected() && !client);
+	CHECK(!client.connected());
 
 	CHECK(!client.ex);
 	
 	// Test a refused connection
+	SocketAddress unknown(IPAddress::Loopback(), 62434);
 	if (client.connect(ex, unknown)) {
 		CHECK(!ex && !client.connected() && client.connecting() && client->address() && client->peerAddress() == unknown);
 		if (Util::Random()%2) // Random to check that with or without sending, after SocketEngine join we get a client.connected()==false!
@@ -283,7 +280,7 @@ ADD_TEST(TestNonBlocking) {
 	CHECK(!client.connected() && !client.connecting());
 	
 	server.stop();
-	CHECK(!server.running() && !server);
+	CHECK(!server.running());
 	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
 
 	server.onConnection = nullptr;
@@ -307,7 +304,7 @@ ADD_TEST(TestLoad) {
 	});
 	server.onError = onError;
 
-	const UInt32 messages(20000);
+	const UInt32 messages(10000);
 	atomic<UInt32> received(0);
 	server.onConnection = [&](const shared<Socket>& pSocket) {
 		CHECK(pSocket && pSocket->peerAddress());
@@ -316,7 +313,7 @@ ADD_TEST(TestLoad) {
 
 		pConnection->onError = onError;
 		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address && !*pConnection);
+			CHECK(!pConnection->connected() && address);
 			pConnections.erase(pConnection);
 			delete pConnection; // here no unsubscription required because event dies before the function
 		};
@@ -355,7 +352,7 @@ ADD_TEST(TestLoad) {
 	client.disconnect();
 
 	server.stop();
-	CHECK(!server.running() && !server);
+	CHECK(!server.running());
 	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
 
 	server.onConnection = nullptr;

@@ -180,6 +180,8 @@ struct SRT : virtual Object {
 			ex.set<Ex::Net::Socket>(LastErrorMessage(), std::forward<Args>(args)...).code = LastError();
 			return ex;
 		}
+		template <typename ...Args>
+		static Exception& SetException(int error, Exception& ex, Args&&... args) { return Mona::Socket::SetException(error, ex, std::forward<Args>(args)...);  }
 
 		virtual int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
 		virtual bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);

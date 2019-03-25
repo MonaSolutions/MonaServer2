@@ -200,6 +200,11 @@ bool SRT::Socket::bind(Exception& ex, const SocketAddress& address) {
 		return false;
 	}
 
+	if (_address) {
+		SetException(NET_EISCONN, ex, " (address=", address, ")");
+		return this->address() == address; // warn or error
+	}
+
 	// http://stackoverflow.com/questions/3757289/tcp-option-so-linger-zero-when-its-required =>
 	/// If you must restart your server application which currently has thousands of client connections you might consider
 	// setting this socket option to avoid thousands of server sockets in TIME_WAIT(when calling close() from the server end)
@@ -261,10 +266,6 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 	int sclen = sizeof scl;
 	::SRTSOCKET sockfd = ::srt_accept(_id, (sockaddr*)&scl, &sclen);
 	if (sockfd == SRT_INVALID_SOCK) {
-		if (::srt_getlasterror(NULL) == SRT_EASYNCRCV) { // not an error
-			SetException(ex, NET_EWOULDBLOCK);
-			return false;
-		}
 		SetException(ex);
 		return false;
 	}
@@ -281,17 +282,20 @@ bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 	if (timeout && !setConnectionTimeout(ex, timeout))
 		return false;
 
-	int rc = ::srt_connect(_id, address.data(), address.size());
-	if (rc) {
-		int error = LastError();
-		if (_peerAddress || error == SRT_ECONNSOCK) { // if already connected (_peerAddress is true OR error ISCONN)
+	int result = ::srt_connect(_id, address.data(), address.size());
+	if (result) {
+		result = LastError();
+		if (_peerAddress || result == SRT_ECONNSOCK) { // if already connected (_peerAddress is true OR error ISCONN)
 			if (_peerAddress == address)
 				return true; // already connected to this address => no error
-			SetException(ex, NET_EISCONN, " (address=", address, ")");
+			SetException(NET_EISCONN, ex, " (address=", address, ")");
 			return false;  // already connected to one other address => error
 		}
-		SetException(ex, " (address=", address, ")");
-		return false; // fail
+		if (result != NET_EWOULDBLOCK && result != NET_EALREADY && result != NET_EINPROGRESS) {
+			SetException(ex, " (address=", address, ")");
+			return false; // fail
+		}
+		SetException(NET_EWOULDBLOCK, ex, " (address=", address, ")");
 	}
 
 	_address.set(IPAddress::Loopback(), 0); // to advise that address must be computed
@@ -305,7 +309,7 @@ int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 		return -1;
 	}
 	if (_shutdownRecv) {
-		Mona::Socket::SetException(ex, NET_ESHUTDOWN);
+		SetException(NET_ESHUTDOWN, ex);
 		return -1;
 	}
 
@@ -316,13 +320,9 @@ int SRT::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 	// Read the message
 	int result = ::srt_recvmsg(_id, STR buffer, size); // /!\ SRT expect at least a buffer of 1316 bytes
 	if (result == SRT_ERROR) {
-		int error = ::srt_getlasterror(NULL);
-		if (error == SRT_ECONNLOST)
+		if (::srt_getlasterror(NULL) == SRT_ECONNLOST)
 			return 0; // disconnection!
-		if (error == SRT_EASYNCRCV) // EAGAIN, wait for reception to be ready
-			SetException(ex, NET_EWOULDBLOCK, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
-		else
-			SetException(ex, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
+		SetException(ex, " (address=", pAddress ? *pAddress : _peerAddress, ", size=", size, ", flags=", flags, ")");
 		return -1;
 	}
 	Mona::Socket::receive(result);
@@ -340,7 +340,7 @@ int SRT::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 	}
 
 	if (!size || size > ::SRT_LIVE_DEF_PLSIZE) {
-		SetException(ex, NET_EINVAL, " SRT: data sent must be in the range [1,1316]");
+		SetException(NET_EINVAL, ex, " SRT: data sent must be in the range [1,1316]");
 		return -1;
 	}
 
