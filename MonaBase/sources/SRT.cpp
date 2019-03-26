@@ -124,17 +124,12 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 		_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
 		SetException(_ex);
 	}
-	else {
+	else
 		init();
-		Exception ignore;
-		setPktDrop(ignore, false); // full reliable (TODO: remove this)
-	}
 }
 
 SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) {
 	init();
-	Exception ignore;
-	setPktDrop(ignore, false); // full reliable (TODO: remove this)
 }
 
 bool SRT::Socket::processParams(Exception& ex, const Parameters& parameters, const char* prefix) {
