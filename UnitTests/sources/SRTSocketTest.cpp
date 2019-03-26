@@ -339,6 +339,7 @@ ADD_TEST(TestLoad) {
 
 	SRTEchoClient client(io);
 
+	CHECK(((SRT::Socket&)(*client)).setPktDrop(ex, false)); // /!\we want reliable here
 	SocketAddress target(IPAddress::Loopback(), address.port());
 	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
 
