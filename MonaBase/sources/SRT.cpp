@@ -21,10 +21,6 @@ using namespace std;
 
 namespace Mona {
 
-SRT::Stats& SRT::Stats::Null() {
-	static SRT::Stats Stats;
-	return Stats;
-}
 
 #if defined(SRT_API)
 
@@ -419,7 +415,7 @@ bool SRT::Socket::getStats(Exception& ex, SRT::Stats& stats) const {
 		ex = _ex;
 		return false;
 	}
-	if (::srt_bistats(_id, (SRT_TRACEBSTATS*)&stats, 0, 0) != -1)
+	if (::srt_bistats(_id, &stats, 0, 0) != -1)
 		return true;
 	SetException(ex);
 	return false;

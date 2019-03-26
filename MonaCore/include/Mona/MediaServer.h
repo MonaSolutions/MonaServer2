@@ -41,6 +41,7 @@ struct MediaServer : Media::Stream, virtual Object {
 
 	const SocketAddress		address;
 	IOSocket&				io;
+	shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
 private:
 	bool starting(const Parameters& parameters);

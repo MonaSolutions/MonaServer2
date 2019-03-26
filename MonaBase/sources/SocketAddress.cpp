@@ -52,7 +52,11 @@ bool SocketAddress::setIntern(Exception& ex, const char* hostAndPort, bool resol
 		ex.set<Ex::Net::Address::Port>("Missing port number in ", hostAndPort);
 		return false;
 	}
-	
+	if (colon[1] == '/' && colon[2] == '/') {
+		// form http://address
+		UInt16 port = resolveService(ex, string(hostAndPort, colon - hostAndPort).c_str());
+		return port ? setIntern(ex, colon+3, port, resolveHost) : false;
+	}
 	UInt16 port = resolveService(ex, colon+1);
 	return port ? setIntern(ex, string(hostAndPort, colon - hostAndPort).c_str(), port, resolveHost) : false;
 }

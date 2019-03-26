@@ -35,6 +35,7 @@ struct MediaSocket : virtual Static {
 
 		const SocketAddress			address;
 		IOSocket&					io;
+		shared<const Socket>		socket() const { return _pSocket ? _pSocket : nullptr; }
 	
 	private:
 		bool starting(const Parameters& parameters);
@@ -83,6 +84,7 @@ struct MediaSocket : virtual Static {
 		const SocketAddress		address;
 		IOSocket&				io;
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
+		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 		
 		bool beginMedia(const std::string& name);
 		bool writeProperties(const Media::Properties& properties);

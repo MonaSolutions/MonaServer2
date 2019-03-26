@@ -488,20 +488,15 @@ void Media::Stream::stop() {
 	INFO(description(), " stops");
 	onStop(); // in last to allow possibily a delete this (beware impossible with Subscription usage!)
 }
-Net::Stats& Media::Stream::netStats() const {
+shared<const Socket> Media::Stream::socket() const {
 	if (type>0)
-		WARN(typeof(self), " should implement netStats");
-	return Net::Stats::Null();
+		WARN(typeof(self), " should implement socket()");
+	return nullptr;
 }
-bool Media::Stream::getSRTStats(SRT::Stats& stats) const {
-	if (type == TYPE_SRT)
-		WARN(typeof(self)," should implement srtStats");
-	return false;
-}
-Net::Stats&  Media::Stream::fileStats() const {
+shared<const File> Media::Stream::file() const {
 	if (type == TYPE_FILE)
-		WARN(typeof(self), " should implement fileStats");
-	return Net::Stats::Null();
+		WARN(typeof(self), " should implement file()");
+	return nullptr;
 }
 
 shared<Socket> Media::Stream::newSocket(const Parameters& parameters, const shared<TLS>& pTLS) {

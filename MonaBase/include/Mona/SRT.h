@@ -33,60 +33,37 @@ namespace Mona {
 
 struct SRT : virtual Object {
 	
-#if !defined(SRT_API)
+#if defined(SRT_API)
 	struct Stats : Net::Stats {
-		Stats() {}
-		double bandwidthEstimated() const { return 0; }
-		double bandwidthMaxUsed() const { return 0; }
-		UInt32 recvBufferTime() const { return 0; }
-		double recvNegotiatedDelay() const { return 0; }
-		UInt64 recvLostCount() const { return 0; }
-		double recvLostRate() const { return 0; }
-		UInt32 recvDropped() const { return 0; }
-		UInt32 sendBufferTime() const { return 0; }
-		double sendNegotiatedDelay() const { return 0; }
-		UInt64 sendLostCount() const { return 0; }
-		double sendLostRate() const { return 0; }
-		UInt32 sendDropped() const { return 0; }
-		double retransmitRate() const { return 0; }
-		double rtt() const { return 0; }
+		NULLABLE 
 
-		Time	recvTime() const { return 0; }
-		UInt64	recvByteRate() const { return 0; }
-		Time	sendTime() const { return 0; }
-		UInt64	sendByteRate() const { return 0; }
-		UInt64	queueing() const { return 0; }
+		Stats() { _stats.msTimeStamp = 0; }
+		operator bool() const { return _stats.msTimeStamp ? true : false; }
 
-		static Stats& Null();
-	};
-#else
-	struct Stats : Net::Stats {
-		Stats() {}
-		double bandwidthEstimated() const { return _stats.mbpsBandwidth; }
-		double bandwidthMaxUsed() const { return _stats.mbpsMaxBW; }
-		UInt32 recvBufferTime() const { return _stats.msRcvBuf; }
-		UInt32 recvNegotiatedDelay() const { return _stats.msRcvTsbPdDelay; }
-		UInt64 recvLostCount() const { return _stats.pktRcvLossTotal; }
-		double recvLostRate() const { return _stats.pktRcvLoss; }
-		UInt32 recvDropped() const { return _stats.pktRcvDropTotal; }
-		UInt32 sendBufferTime() const { return _stats.msSndBuf; }
-		UInt32 sendNegotiatedDelay() const { return _stats.msSndTsbPdDelay; }
-		UInt64 sendLostCount() const { return _stats.pktSndLossTotal; }
-		double sendLostRate() const { return _stats.pktSndLoss; }
-		UInt32 sendDropped() const { return _stats.pktSndDropTotal; }
-		UInt64 retransmitRate() const { return _stats.byteRetrans; }
-		double rtt() const { return _stats.msRTT; }
+		double bandwidthEstimated() const { return self ? _stats.mbpsBandwidth : 0; }
+		double bandwidthMaxUsed() const { return self ? _stats.mbpsMaxBW : 0; }
+		UInt32 recvBufferTime() const { return self ? _stats.msRcvBuf : 0; }
+		UInt32 recvNegotiatedDelay() const { return self ? _stats.msRcvTsbPdDelay : 0; }
+		UInt64 recvLostCount() const { return self ? _stats.pktRcvLossTotal : 0; }
+		double recvLostRate() const { return self ? _stats.pktRcvLoss : 0; }
+		UInt32 recvDropped() const { return self ? _stats.pktRcvDropTotal : 0; }
+		UInt32 sendBufferTime() const { return self ? _stats.msSndBuf : 0; }
+		UInt32 sendNegotiatedDelay() const { return self ? _stats.msSndTsbPdDelay : 0; }
+		UInt64 sendLostCount() const { return self ? _stats.pktSndLossTotal : 0; }
+		double sendLostRate() const { return self ? _stats.pktSndLoss : 0; }
+		UInt32 sendDropped() const { return self ? _stats.pktSndDropTotal : 0; }
+		UInt64 retransmitRate() const { return self ? _stats.byteRetrans : 0; }
+		double rtt() const { return self ? _stats.msRTT : 0; }
 
-		Time	recvTime() const { return Time::Now() - _stats.msRcvTsbPdDelay; }
-		UInt64	recvByteRate() const { return UInt64(_stats.mbpsRecvRate); }
-		Time	sendTime() const { return Time::Now() - _stats.msSndTsbPdDelay; }
-		UInt64	sendByteRate() const { return UInt64(_stats.mbpsSendRate); }
-		UInt64	queueing() const { return _stats.pktCongestionWindow; }
+		Time	recvTime() const { return self ? (Time::Now() - _stats.msRcvTsbPdDelay) : 0; }
+		UInt64	recvByteRate() const { return UInt64(self ? _stats.mbpsRecvRate : 0); }
+		Time	sendTime() const { return self ? (Time::Now() - _stats.msSndTsbPdDelay) : 0; }
+		UInt64	sendByteRate() const { return UInt64(self ? _stats.mbpsSendRate : 0); }
+		UInt64	queueing() const { return self ? _stats.pktCongestionWindow : 0; }
 
 		const SRT_TRACEBSTATS*	operator->() const { return &_stats; }
-		const SRT_TRACEBSTATS*	operator&() const { return &_stats; }
+		SRT_TRACEBSTATS*		operator&() { return &_stats; }
 
-		static Stats& Null();
 	private:
 		SRT_TRACEBSTATS _stats;
 	};
@@ -145,8 +122,8 @@ struct SRT : virtual Object {
 		bool setConnectionTimeout(Exception& ex, int value) { return setOption(ex, ::SRTO_CONNTIMEO, value); }
 		bool getConnectionTimeout(Exception& ex, int& value) const { return getOption(ex, ::SRTO_CONNTIMEO, value); }
 
-		bool getEncryptionState(Exception& ex, int& state) const { return getOption(ex, ::SRTO_RCVKMSTATE, state); }
-		bool getPeerDecryptionState(Exception& ex, int& state) const { return getOption(ex, ::SRTO_SNDKMSTATE, state); }
+		bool getEncryptionState(Exception& ex, SRT_KM_STATE& state) const { return getOption(ex, ::SRTO_RCVKMSTATE, state); }
+		bool getPeerDecryptionState(Exception& ex, SRT_KM_STATE& state) const { return getOption(ex, ::SRTO_SNDKMSTATE, state); }
 		bool setEncryptionType(Exception& ex, int type) { return setOption(ex, ::SRTO_PBKEYLEN, type); }
 		bool getEncryptionType(Exception& ex, int& type) const { return getOption(ex, ::SRTO_PBKEYLEN, type); }
 		bool setPassphrase(Exception& ex, const char* data, UInt32 size);

@@ -28,7 +28,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/TLS.h"
 #include "Mona/MIME.h"
 #include "Mona/Timer.h"
-#include "Mona/SRT.h"
 #include "Mona/Logs.h"
 
 
@@ -394,9 +393,8 @@ struct Media : virtual Static {
 
 		Exception			ex;
 
-		virtual Net::Stats& netStats() const;
-		virtual Net::Stats& fileStats() const;
-		virtual bool getSRTStats(SRT::Stats& stats) const;
+		virtual shared<const Socket> socket() const;
+		virtual shared<const File>	 file() const;
 
 		/*!
 		Children targets */
