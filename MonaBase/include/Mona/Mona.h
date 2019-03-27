@@ -270,7 +270,7 @@ inline typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::
 				  max(Type1 value1, Type2 value2, Args&&... args) { return value1 > value2 ? max(value1, args ...) : max(value2, args ...); }
 
 template<typename RangeType, typename Type>
-inline RangeType range(Type value) { return value > std::numeric_limits<RangeType>::max() ? std::numeric_limits<RangeType>::max() : ((std::is_signed<Type>::value && value < std::numeric_limits<RangeType>::min()) ? std::numeric_limits<RangeType>::min() : (RangeType)value); }
+inline RangeType range(Type value) { return value > std::numeric_limits<RangeType>::max() ? std::numeric_limits<RangeType>::max() : ((std::is_signed<Type>::value && value < std::numeric_limits<RangeType>::lowest()) ? std::numeric_limits<RangeType>::min() : (RangeType)value); }
 
 const std::string& typeof(const std::type_info& info);
 template<typename ObjectType>

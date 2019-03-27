@@ -37,7 +37,7 @@ std::string				Logs::_Critic;
 
 bool Logs::LastCritic(string& critic) {
 	lock_guard<mutex> lock(_Mutex);
-	if (!_Critic.empty())
+	if (_Critic.empty())
 		return false;
 	critic.assign(_Critic);
 	return true;

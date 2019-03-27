@@ -92,7 +92,6 @@ void JSONWriter::writeString(const char* value, UInt32 size) {
 	while (size--) {
 		switch (*value) {
 			case '"':
-			case '/':
 			case '\\':
 				buffer[0] = '\\';
 				buffer[1] = *value;

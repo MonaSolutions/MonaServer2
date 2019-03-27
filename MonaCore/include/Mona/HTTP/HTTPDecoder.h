@@ -30,8 +30,8 @@ struct HTTPDecoder : Socket::Decoder, private StreamData<const shared<Socket>&>,
 	typedef Event<void(HTTP::Request&)>  ON(Request);
 	typedef Event<void(HTTP::Response&)> ON(Response);
 
-	HTTPDecoder(const Handler& handler, const Path& path, const std::string& name = String::Empty());
-	HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, const std::string& name = String::Empty());
+	HTTPDecoder(const Handler& handler, const Path& path, std::string&& name = "");
+	HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, std::string&& name = "");
 
 protected:
 	void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);

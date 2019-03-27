@@ -24,12 +24,12 @@ using namespace std;
 namespace Mona {
 
 
-HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const string& name) :
-	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
+HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, string&& name) :
+	_name(move(name)), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 	FileSystem::MakeFile(_www);
 }
-HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, const string& name) : _pRendezVous(pRendezVous),
-	_name(name), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
+HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, string&& name) : _pRendezVous(pRendezVous),
+_name(move(name)), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 	FileSystem::MakeFile(_www);
 }
 
