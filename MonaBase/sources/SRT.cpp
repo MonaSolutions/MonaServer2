@@ -63,6 +63,7 @@ int SRT::LastError() {
 		case SRT_ENOSERVER:
 		case SRT_ECONNREJ:
 			return NET_ECONNREFUSED;
+
 		case SRT_ESOCKFAIL:
 		case SRT_ESECFAIL:
 			return NET_ENOTSUP;
@@ -86,20 +87,27 @@ int SRT::LastError() {
 			return NET_ENOTSUP;
 
 		case SRT_EINVOP:
+			return NET_EINVAL;
 		case SRT_EBOUNDSOCK:
 		case SRT_ECONNSOCK:
+			return NET_EISCONN;
 		case SRT_EINVPARAM:
 			return NET_EINVAL;
 		case SRT_EINVSOCK:
 			return NET_ENOTSOCK;
 		case SRT_EUNBOUNDSOCK:
 		case SRT_ENOLISTEN:
+			return NET_ENOTCONN;
 		case SRT_ERDVNOSERV:
+			return NET_ENOTSUP;
 		case SRT_ERDVUNBOUND:
+			return NET_ENOTCONN;
 		case SRT_EINVALMSGAPI:
 		case SRT_EINVALBUFFERAPI:
 		case SRT_EDUPLISTEN:
+			return NET_ENOTSUP;
 		case SRT_ELARGEMSG:
+			return NET_EMSGSIZE;
 		case SRT_EINVPOLLID:
 			return NET_ENOTSUP;
 
@@ -110,10 +118,9 @@ int SRT::LastError() {
 		case SRT_ETIMEOUT:
 			return NET_ETIMEDOUT;
 		case SRT_ECONGEST:
-
+			return NET_ENOBUFS;
 		case SRT_EPEERERR:
-			return NET_ENOTSUP;
-		
+			return NET_EPROTONOSUPPORT;
 	}
 	return error; // not found
 }
@@ -275,14 +282,14 @@ bool SRT::Socket::connect(Exception& ex, const SocketAddress& address, UInt16 ti
 
 	int result = ::srt_connect(_id, address.data(), address.size());
 	if (result) {
-		result = LastError();
+		result = ::srt_getlasterror(NULL);
 		if (_peerAddress || result == SRT_ECONNSOCK) { // if already connected (_peerAddress is true OR error ISCONN)
 			if (_peerAddress == address)
 				return true; // already connected to this address => no error
 			SetException(NET_EISCONN, ex, " (address=", address, ")");
 			return false;  // already connected to one other address => error
 		}
-		if (result != NET_EWOULDBLOCK && result != NET_EALREADY && result != NET_EINPROGRESS) {
+		if (result != SRT_EASYNCFAIL && result != SRT_EASYNCSND && result != SRT_EASYNCRCV) {
 			SetException(ex, " (address=", address, ")");
 			return false; // fail
 		}

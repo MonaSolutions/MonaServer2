@@ -135,7 +135,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 			if (event.events & SRT_EPOLL_OUT)
 				write(pSocket, 0);
 			if (event.events & SRT_EPOLL_ERR)
-				close(pSocket, 0);
+				close(pSocket, 0); // useless to test state error with ::srt_getsockstate a peer close is always signaled as BROKEN
 			if (!event.events)
 				WARN("Event without value : ", event.events);
 		}
@@ -144,7 +144,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 	::srt_epoll_release(_epoll);
 
 	if (result < 0) { // error
-		ex.set<Ex::Net::System>("impossible to manage sockets (error ", SRT::LastErrorMessage(), ")");
+		ex.set<Ex::Net::System>("impossible to manage sockets, ", ::srt_getlasterror_str());
 		return false;
 	}
 	

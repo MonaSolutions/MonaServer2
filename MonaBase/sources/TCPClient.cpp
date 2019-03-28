@@ -23,7 +23,7 @@ using namespace std;
 
 namespace Mona {
 
-TCPClient::TCPClient(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io), _connected(false),
+TCPClient::TCPClient(IOSocket& io, const shared<TLS>& pTLS) : _pTLS(pTLS), io(io), _connected(false), _subscribed(false),
 	_onReceived([this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 		_connected = true;
 		// Check that it exceeds not socket buffer
@@ -87,9 +87,10 @@ bool TCPClient::connect(Exception& ex, const shared<Socket>& pSocket) {
 
 	if (!io.subscribe(ex, pSocket, newDecoder(), _onReceived, _onFlush, onError, _onDisconnection))
 		return false; // cancel connect operation!
-
-	if (_pSocket)
+	if (_subscribed)
 		io.unsubscribe(_pSocket);
+	else
+		_subscribed = true;
 	_pSocket = pSocket;
 	return true;
 }
@@ -97,14 +98,18 @@ bool TCPClient::connect(Exception& ex, const shared<Socket>& pSocket) {
 void TCPClient::disconnect() {
 	if (!_pSocket)
 		return;
-	SocketAddress peerAddress(_pSocket->peerAddress());
-	if (!_pSocket->peerAddress())
-		return close(); //  was not connected, no onDisconnection need
-	// No shutdown here because otherwise it can reset the connection before end of sending (on a RECV shutdown TCP reset the connection if data are available, and so prevent sending too)
 	_connected = false;
+	SocketAddress peerAddress(_pSocket->peerAddress());
+	if (_subscribed) {
+		_subscribed = false;
+		io.unsubscribe(_pSocket);
+	}
+	_pSocket.reset();
+	if (!peerAddress)
+		return; //  was not connected, no onDisconnection need
+	// No shutdown here because otherwise it can reset the connection before end of sending (on a RECV shutdown TCP reset the connection if data are available, and so prevent sending too)
 	// don't reset _sendingTrack here, because onDisconnection can send last messages
 	clearStreamData();
-	close();
 	onDisconnection(peerAddress); // On properly disconnection last messages can be sent!
 }
 
@@ -114,14 +119,6 @@ bool TCPClient::send(Exception& ex, const Packet& packet, int flags) {
 		return false;
 	}
 	return _pSocket->write(ex, packet, flags) != -1;
-}
-
-void TCPClient::close() {
-	if (_subscribed) {
-		_subscribed = false;
-		io.unsubscribe(_pSocket);
-	}
-	_pSocket.reset();
 }
 
 

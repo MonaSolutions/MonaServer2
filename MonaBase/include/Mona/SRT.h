@@ -34,6 +34,9 @@ namespace Mona {
 struct SRT : virtual Object {
 	
 #if defined(SRT_API)
+	static int			LastError();
+	static const char*	LastErrorMessage() { return ::srt_getlasterror_str(); }
+
 	struct Stats : Net::Stats {
 		NULLABLE 
 
@@ -68,25 +71,7 @@ struct SRT : virtual Object {
 		SRT_TRACEBSTATS _stats;
 	};
 
-	static int  LastError();
-	static const char* LastErrorMessage() { return ::srt_getlasterror_str(); }
-
-
-	struct Client : TCPClient {
-		Client(IOSocket& io) : Mona::TCPClient(io) { }
-
-	private:
-		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
-	};
-
-	struct Server : TCPServer {
-		Server(IOSocket& io) : Mona::TCPServer(io) {}
-
-	private:
-		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
-	};
-
-	struct Socket : virtual Object, Stats, Mona::Socket {
+	struct Socket : virtual Object, Mona::Socket {
 		Socket();
 		virtual ~Socket();
 
@@ -193,10 +178,29 @@ struct SRT : virtual Object {
 		volatile bool			_shutdownRecv;
 	};
 
-	static void Log(void* opaque, int level, const char* file, int line, const char* area, const char* message);
+	struct Client : TCPClient {
+		Client(IOSocket& io) : Mona::TCPClient(io) {}
 
+		Socket&		operator*() { return (Socket&)TCPClient::operator*(); }
+		Socket*		operator->() { return (Socket*)TCPClient::operator->(); }
+	private:
+		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
+	};
+
+	struct Server : TCPServer {
+		Server(IOSocket& io) : Mona::TCPServer(io) {}
+
+		Socket&		operator*() { return (Socket&)TCPServer::operator*(); }
+		Socket*		operator->() { return (Socket*)TCPServer::operator->(); }
+	private:
+		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
+	};
+
+
+private:
 	SRT();
 	~SRT();
+	static void Log(void* opaque, int level, const char* file, int line, const char* area, const char* message);
 	static SRT _SRT;
 
 //

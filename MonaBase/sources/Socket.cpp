@@ -27,9 +27,9 @@ namespace Mona {
 
 Socket::Socket(Type type) :
 #if !defined(_WIN32)
-	_pWeakThis(NULL), _firstWritable(true),
+	_pWeakThis(NULL), 
 #endif
-	pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
+	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
 
 	if (type < TYPE_OTHER) {
 		_id = ::socket(AF_INET6, type, 0);
@@ -44,9 +44,9 @@ Socket::Socket(Type type) :
 // private constructor used just by Socket::accept, TCP initialized and connected socket
 Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(addr), _address(IPAddress::Loopback(),0), // computable!
 #if !defined(_WIN32)
-	_pWeakThis(NULL), _firstWritable(true),
+	_pWeakThis(NULL),
 #endif
-	pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
+	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
 
 	if (type < TYPE_OTHER)
 		init();

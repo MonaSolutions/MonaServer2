@@ -48,18 +48,15 @@ static string		_Long0Data(1316, '\0');
 static ThreadPool	_ThreadPool;
 
 
-struct Server : private Thread {
+struct Server : SRT::Socket, private Thread {
 	Server() : _signal(false), Thread("Server") {}
 	~Server() { stop(); }
-	
+
 	const SocketAddress& bind(const SocketAddress& address) {
 		Exception ex;
-		CHECK(_server.setLinger(ex, true, 0) && !ex);
-		CHECK(_server.setReuseAddress(ex, true) && !ex);
-		
-		CHECK(_server.bind(ex, address) && !ex && _server.address() && !_server.address().host());
-		CHECK(_server.listen(ex) && !ex);
-		return _server.address();
+		CHECK(Socket::bind(ex, address) && !ex && Socket::address() && !Socket::address().host());
+		CHECK(Socket::listen(ex) && !ex);
+		return Socket::address();
 	}
 	void accept() {
 		stop();
@@ -67,31 +64,33 @@ struct Server : private Thread {
 		start();
 	}
 
-	const Socket& connection() {
+	const Mona::Socket& connection() {
 		_signal.wait(); 
 		return *_pConnection;
 	}
 
-	// WARN: not thread-safe
-	SRT::Socket& socket() {
-		return _server;
+	void stop() {
+		if(running()) {
+			_signal.wait();
+			_pConnection->shutdown(Socket::SHUTDOWN_SEND);
+		}
+		Thread::stop();
 	}
 
 private:
 	bool run(Exception& ex, const volatile bool& requestStop) {
-		CHECK(_server.accept(ex, _pConnection) && _pConnection && !ex);
+		CHECK(Socket::accept(ex, _pConnection) && _pConnection && !ex);
 		_signal.set();
 		UInt8 buffer[8192];
 		int received(0);
 		Buffer message;
-		while ((received = _pConnection->receive(ex, buffer, sizeof(buffer))) > 1)
+		while ((received = _pConnection->receive(ex, buffer, sizeof(buffer))) > 0)
 			CHECK(_pConnection->send(ex, buffer, received) == received && !ex);
-		_pConnection->shutdown(Socket::SHUTDOWN_SEND);
 		return true;
 	}
 
 	SRT::Socket				_server;
-	shared<Socket>			_pConnection;
+	shared<Mona::Socket>	_pConnection;
 	Signal					_signal;
 };
 
@@ -147,16 +146,19 @@ ADD_TEST(TestBlocking) {
 	// Test server TCP communication
 	CHECK(pClient->send(ex, EXPAND("hi mathieu and thomas")) == 21 && !ex);
 	CHECK(UInt32(pClient->send(ex, _Long0Data.c_str(), _Long0Data.size())) == _Long0Data.size() && !ex);
-	CHECK(pClient->send(ex, EXPAND("\0"))); // 1 byte packet to mean "end of data" (SHUTDOWN_SEND is not possible now)
+	CHECK(pClient->send(ex, EXPAND("\0")) && !ex); // 1 byte packet to mean "end of data" (SHUTDOWN_SEND is not possible now)
 
 	UInt8 buffer[8192];
 	int received(0);
+	int total(0);
 	Buffer message;
-	while ((received = pClient->receive(ex, buffer, sizeof(buffer))) > 0)
-		message.append(buffer, received);
-
-	//TODO: Disabled because the socket is shutdown before receiving all messages
-	//CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)
+	while ((received = pClient->receive(ex, buffer, sizeof(buffer))) > 0) {
+		if (received > 1)
+			message.append(buffer, received);
+		else
+			pServer.reset();
+	}
+	CHECK(!ex && message.size() == (_Long0Data.size() + 21) && memcmp(message.data(), EXPAND("hi mathieu and thomas")) == 0 && memcmp(message.data() + 21, _Long0Data.data(), _Long0Data.size()) == 0)
 }
 
 struct SRTEchoClient : SRT::Client {
@@ -274,8 +276,7 @@ ADD_TEST(TestNonBlocking) {
 		if (Util::Random()%2) // Random to check that with or without sending, after SocketEngine join we get a client.connected()==false!
 			CHECK((client.send(ex, Packet(EXPAND("salut"))) && !ex) || ex);
 		CHECK(handler.join([&client]()->bool { return !client.connecting(); }));
-		//TODO: Disabled because we do not get exception NET_ECONNREFUSED
-		//CHECK((ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED && !client.ex) || client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED); // if ex it has been set by random client.send
+		CHECK((ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED && !client.ex) || client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED); // if ex it has been set by random client.send
 	}
 	CHECK(!client.connected() && !client.connecting());
 	
@@ -332,14 +333,14 @@ ADD_TEST(TestLoad) {
 
 		pConnections.emplace(pConnection);
 	};
-
+	CHECK(server->setPktDrop(ex, false) && !ex); // /!\we want reliable here
 	SocketAddress address;
 	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
 	address = server->address();
 
 	SRTEchoClient client(io);
 
-	CHECK(((SRT::Socket&)(*client)).setPktDrop(ex, false)); // /!\we want reliable here
+	CHECK(client->setPktDrop(ex, false) && !ex); // /!\we want reliable here
 	SocketAddress target(IPAddress::Loopback(), address.port());
 	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
 
@@ -384,12 +385,13 @@ ADD_TEST(TestOptions) {
 	CHECK(pClient->setMaxBW(ex, 2000) && !ex);
 
 	// Encryption
-	CHECK(pClient->getEncryptionState(ex, value) && !ex && value == ::SRT_KM_S_UNSECURED);
-	CHECK(pClient->getPeerDecryptionState(ex, value) && !ex && value == ::SRT_KM_S_UNSECURED);
+	SRT_KM_STATE state;
+	CHECK(pClient->getEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_UNSECURED);
+	CHECK(pClient->getPeerDecryptionState(ex, state) && !ex && state == ::SRT_KM_S_UNSECURED);
 	CHECK(pClient->setEncryptionType(ex, 24) && !ex);
 	CHECK(pClient->getEncryptionType(ex, value) && !ex && value == 24);
 	CHECK(pClient->setPassphrase(ex, EXPAND("passphrase")) && !ex);
-	CHECK(pServer->socket().setPassphrase(ex, EXPAND("passphrase")) && !ex);
+	CHECK(pServer->setPassphrase(ex, EXPAND("passphrase")) && !ex);
 
 	// Connect client
 	SocketAddress source(IPAddress::Wildcard(), 0);
@@ -399,7 +401,7 @@ ADD_TEST(TestOptions) {
 	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
 
 	// It's impossible to set options after connexion with SRT
-	CHECK(!pClient->setRecvBufferSize(ex, 2000) && ex.cast<Ex::Net::Socket>().code == NET_EINVAL);
+	CHECK(!pClient->setRecvBufferSize(ex, 2000) && ex.cast<Ex::Net::Socket>().code == NET_EISCONN);
 	ex = NULL;
 	CHECK(pClient->getRecvBufferSize(ex, value) && !ex && value == 0xFFFF);
 
@@ -408,8 +410,8 @@ ADD_TEST(TestOptions) {
 
 	// Some options can only work after connection
 	const SRT::Socket& connection = (SRT::Socket&)pServer->connection();
-	CHECK(pClient->getEncryptionState(ex, value) && !ex && value == ::SRT_KM_S_SECURED);
-	CHECK(connection.getPeerDecryptionState(ex, value) && !ex && value == ::SRT_KM_S_SECURED);
+	CHECK(pClient->getEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_SECURED);
+	CHECK(connection.getPeerDecryptionState(ex, state) && !ex && state == ::SRT_KM_S_SECURED);
 
 	CHECK(pClient->getRecvLatency(ex, value) && !ex && value == 500);
 	CHECK(pClient->getPeerLatency(ex, value) && !ex && value == 600);
@@ -439,14 +441,12 @@ ADD_TEST(TestOptions) {
 	CHECK(pClient->processParams(ex, params) && !ex);
 
 	// Connect
-	CHECK(pServer->socket().setEncryptionType(ex, 16));
-	CHECK(pServer->socket().setPassphrase(ex, EXPAND("This is a pass")) && !ex);
+	CHECK(pServer->setEncryptionType(ex, 16));
+	CHECK(pServer->setPassphrase(ex, EXPAND("This is a pass")) && !ex);
 	CHECK(pServer->bind(source));
 	pServer->accept();
 	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
-
-	// 1 byte packet to mean "end of data" (SHUTDOWN_SEND is not possible now)
-	CHECK(pClient->send(ex, EXPAND("\0")));
+	pServer->stop();
 
 	// Then check parameters
 	bool bValue;

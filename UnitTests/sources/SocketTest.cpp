@@ -473,7 +473,7 @@ ADD_TEST(TestTCPLoad) {
 
 	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
 
-		client.disconnect();
+	client.disconnect();
 	CHECK(!client.connected());
 
 	CHECK(!client.ex);

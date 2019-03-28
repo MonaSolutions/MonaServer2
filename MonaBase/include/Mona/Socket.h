@@ -259,9 +259,10 @@ private:
 	std::atomic<UInt8>			_reading;
 	const Handler*				_pHandler; // to diminue size of Action+Handle
 
+	bool						_opened;
+
 #if !defined(_WIN32)
 	weak<Socket>*				_pWeakThis;
-	bool						_firstWritable;
 #endif
 
 	friend struct IOSocket;

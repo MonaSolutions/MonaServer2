@@ -397,10 +397,8 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 
 void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	// ::printf("WRITE(%d) socket %d\n", error, pSocket->id());
-#if !defined(_WIN32)
-	if (pSocket->_firstWritable)
-		pSocket->_firstWritable = false;
-#endif
+	if (!pSocket->_opened)
+		pSocket->_opened = true;
 	struct Send : Action {
 		Send(int error, const shared<Socket>& pSocket) : Action("SocketSend", error, pSocket) {}
 	private:
@@ -442,6 +440,8 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 		};
 		bool process(Exception& ex, const shared<Socket>& pSocket) {
 			pSocket->_reading = 0xFF; // block reception!
+			if (!pSocket->_opened && !ex)
+				Socket::SetException(NET_ECONNREFUSED, ex);
 			handle<Handle>(pSocket);
 			return true;
 		}
@@ -668,7 +668,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 				if (event.events&EPOLLIN) {
 					/* even in EPOLLET we can miss the first WRITE event, for example with an UDP socket, its creation makes it writable quickly,
 					so the IOSocket subscribe happens after its WRITABLE state event and we miss its WRITE change state */
-					if (event.events&EPOLLOUT && !error && pSocket->_firstWritable) // for first Flush requirement!
+					if (event.events&EPOLLOUT && !error && !pSocket->_opened) // for first Flush requirement!
 						write(pSocket, 0); // before read! Connection!
 					read(pSocket, error);
 					error = 0;
