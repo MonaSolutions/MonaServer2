@@ -52,28 +52,21 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<S
 }
 
 MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(type, path, source), _streaming(0), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)) {
+	Media::Stream(type, path, source), _streaming(false), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { finalizeStart(); };
-	_onSocketError = [this](const Exception& ex) {
-		if (_streaming >= 0) { // on first time OR when streaming!
-			if (!_streaming)
-				_streaming = -1;
-			stop(LOG_WARN, ex);	
-		} else
-			stop(LOG_DEBUG, ex);
-	};
+	_onSocketError = [this](const Exception& ex) { stop(Stream::starting() ? LOG_DEBUG : LOG_WARN, ex); };
 }
 
 void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 	if (message.ex)
 		return stop<Ex::Protocol>(LOG_ERROR, message.ex);
 	if (!message.pMedia) {
-		if (_streaming>0)
+		if (_streaming)
 			return stop<Ex::Net::Socket>(LOG_DEBUG, "end of stream");
 		return stop<Ex::Protocol>(LOG_ERROR, "HTTP response is not a media");
 	}
-	_streaming = 1;
+	_streaming = true;
 	if (message.lost)
 		source.reportLost(message.pMedia->type, message.lost, message.pMedia->track);
 	else if (message.pMedia->type)
@@ -85,9 +78,9 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 }
 
 bool MediaSocket::Reader::starting(const Parameters& parameters) {
-	bool success;
 	if (!_pSocket) {
 		_pSocket = newSocket(parameters, _pTLS);
+		bool success;
 		if(type == TYPE_UDP) { // Bind if UDP
 			AUTO_ERROR(success = _pSocket->bind(ex, address), description());
 			if (!success) {
@@ -115,13 +108,12 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 	if (type == TYPE_UDP)
 		return true;
 	// Pulse connect if TCP/SRT
-	AUTO_ERROR(success = _pSocket->connect(ex = nullptr, address), description());
-	if (!success) {
-		stop();
+	if (!_pSocket->connect(ex = nullptr, address)) { // not use AUTO_ERROR because on WOULD_BLOCK it will display a wrong WARN
+		stop(LOG_ERROR, ex);
 		return true;
 	}
-	if(ex && ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK)
-		ex = nullptr;
+	if (ex && ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
+		WARN(description(), ", ", ex);
 
 	if (!Stream::starting() && type == TYPE_HTTP) { // HTTP + first time!
 		// send HTTP Header request!
@@ -146,13 +138,13 @@ void MediaSocket::Reader::stopping() {
 		io.unsubscribe(_pSocket);
 	_onRequest = nullptr;
 	_onResponse = nullptr;
-	if (_streaming>0) { // else source.reset useless was always connected!
+	if (_streaming) { // else source.reset useless was always connected!
 		if (_pReader.unique()) // works also when _pReader is null (unique()==false)
 			_pReader->flush(source);
 		else
 			source.reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
 	}
-	_streaming = 0;
+	_streaming = false;
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if(_pReader)
 		_pReader = MediaReader::New(_pReader->subMime());
@@ -213,14 +205,12 @@ bool MediaSocket::Writer::starting(const Parameters& parameters) {
 	if (_pSocket->peerAddress() && !_onSocketFlush) // Do nothing if connected and writable!
 		return false; // wait first media!
 	// beginMedia+not writable => Pulse connect
-	bool success;
-	AUTO_ERROR(success = _pSocket->connect(ex, address), description());
-	if (!success) {
+	if (!_pSocket->connect(ex, address)) { // not use AUTO_ERROR because on WOULD_BLOCK it will display a wrong WARN
 		stop();
 		return true;
 	}
-	if (ex && ex.cast<Ex::Net::Socket>().code == NET_EWOULDBLOCK)
-		ex = nullptr;
+	if (ex && ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
+		WARN(description(), ", ", ex);
 	return false; // wait onSocketFlush + first Media data
 }
 

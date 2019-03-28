@@ -69,7 +69,7 @@ struct MediaSocket : virtual Static {
 		shared<MediaReader>		_pReader;
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
-		Int8					_streaming;
+		bool					_streaming;
 	};
 
 
