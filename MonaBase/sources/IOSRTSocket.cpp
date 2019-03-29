@@ -92,7 +92,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 
 	int result(0);
 	for (;;) {
-		result = ::srt_epoll_wait2(_epoll, &events[0], MAXEVENTS, -1, true);
+		result = ::srt_epoll_uwait(_epoll, &events[0], MAXEVENTS, -1, true);
 
 		if (!_subscribers) {
 			lock_guard<mutex> lock(_mutex);
@@ -112,7 +112,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 			break;
 		}
 
-		if (result > MAXEVENTS)
+		if (result > MAXEVENTS) // result is the complete number of event waiting, the rest will be pickup on next epoll_wait call!
 			result = MAXEVENTS;
 
 		// for each reading socket
