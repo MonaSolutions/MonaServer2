@@ -112,6 +112,9 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 			break;
 		}
 
+		if (result > MAXEVENTS)
+			result = MAXEVENTS;
+
 		// for each reading socket
 		for(i=0;i<result;++i) {
 
