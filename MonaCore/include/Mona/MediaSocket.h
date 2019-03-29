@@ -47,7 +47,6 @@ struct MediaSocket : virtual Static {
 		struct Decoder : HTTPDecoder, virtual Object {
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
 				_type(type), _rest(0), _pReader(pReader), HTTPDecoder(handler, Path::Null(), name.c_str()) {}
-			~Decoder() { if (_pReader.unique()) _pReader->flush(self); }
 
 		private:
 			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);

@@ -37,6 +37,8 @@ struct ThreadPool : virtual Object {
 		_threads[thread = (_current++%_size)]->queue(std::forward<RunnerType>(pRunner));
 		++thread;
 	}
+	template<typename RunnerType>
+	void queue(std::nullptr_t, RunnerType&& pRunner) const { UInt16 thread(0); queue<RunnerType>(thread, std::forward<RunnerType>(pRunner)); }
 	template <typename RunnerType, typename ...Args>
 	void queue(UInt16& thread, Args&&... args) const { queue(thread, std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
 	template <typename RunnerType, typename ...Args>
