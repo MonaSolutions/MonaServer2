@@ -106,7 +106,12 @@ ADD_TEST(TestBlocking) {
 	SocketAddress unknown(IPAddress::Loopback(), 62434);
 	CHECK(((SRT::Socket*)pClient.get())->setConnectionTimeout(ex, 1000) && !ex);
 	CHECK(!pClient->connect(ex, unknown) && ex && !pClient->address() && !pClient->peerAddress());
-	ex = NULL;
+	pClient.set<SRT::Socket>();
+
+	// Test a connection to wildcard IP
+	SocketAddress wildcard(IPAddress::Wildcard(), 54321);
+	CHECK(((SRT::Socket*)pClient.get())->setConnectionTimeout(ex = NULL, 1000) && !ex);
+	CHECK(!pClient->connect(ex, wildcard) && ex && !pClient->address() && !pClient->peerAddress());
 
 	// Test a IPv4 server
 	SocketAddress address;
@@ -115,13 +120,12 @@ ADD_TEST(TestBlocking) {
 	
 	// Test IPv6 client refused by IPv4 server
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
-	CHECK(!pClient->connect(ex, address, 1) && ex && !pClient->address() && !pClient->peerAddress());
-	ex = NULL;
+	CHECK(!pClient->connect(ex = NULL, address, 1) && ex && !pClient->address() && !pClient->peerAddress());
 	pClient.set<SRT::Socket>();
 
 	// Test IPv4 client accepted by IPv4 server
 	address.set(IPAddress::Loopback(), port);
-	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
+	CHECK(pClient->connect(ex = NULL, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
 	pClient.set<SRT::Socket>();
 	pServer.set<Server>();
@@ -305,7 +309,7 @@ ADD_TEST(TestLoad) {
 	});
 	server.onError = onError;
 
-	const UInt32 messages(10000);
+	const UInt32 messages(20000);
 	atomic<UInt32> received(0);
 	server.onConnection = [&](const shared<Socket>& pSocket) {
 		CHECK(pSocket && pSocket->peerAddress());
