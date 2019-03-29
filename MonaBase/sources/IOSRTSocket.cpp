@@ -112,7 +112,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 			break;
 		}
 
-		// for each reading socket
+		// For each changing socket
 		for(i=0;i<result;++i) {
 
 			SRT_EPOLL_EVENT& event(events[i]);
