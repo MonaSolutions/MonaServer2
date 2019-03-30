@@ -92,7 +92,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 
 	int result(0);
 	for (;;) {
-		result = ::srt_epoll_uwait(_epoll, &events[0], MAXEVENTS, -1, true);
+		result = ::srt_epoll_uwait(_epoll, events, MAXEVENTS, -1, true);
 
 		if (!_subscribers) {
 			lock_guard<mutex> lock(_mutex);

@@ -104,11 +104,11 @@ struct unique : std::unique_ptr<Type> {
 	unique& operator=(NewType* pType) { std::unique_ptr<Type>::reset(pType); return self; };
 };
 /*!
-shared_ptr which forbid new construction (too slow) and custom deleter (too complicated, use a event on object deletion rather) */
+shared_ptr which forbid pointer/new construction (too slow) and custom deleter (too complicated, use a event on object deletion rather) */
 template<typename Type>
 struct shared : std::shared_ptr<Type> {
 	shared() : std::shared_ptr<Type>() {}
-	template<typename ArgType, typename = typename std::enable_if<std::is_constructible<std::shared_ptr<Type>, ArgType>::value>::type>
+	template<typename ArgType, typename = typename std::enable_if<!std::is_pointer<ArgType>::value && std::is_constructible<std::shared_ptr<Type>, ArgType>::value>::type>
 	shared(ArgType&& arg) : std::shared_ptr<Type>(std::forward<ArgType>(arg)) {}
 	template<typename ArgType>
 	shared(const ArgType& arg, Type* pObj) : std::shared_ptr<Type>(arg, pObj) {}
@@ -122,9 +122,6 @@ struct shared : std::shared_ptr<Type> {
 	shared& operator=(ArgType&& arg) { std::shared_ptr<Type>::operator=(std::forward<ArgType>(arg)); return self; };
 	template<typename NewType>
 	shared& operator=(NewType* pType) { std::shared_ptr<Type>::reset(pType); return self; };
-private:
-	template<typename NewType>
-	shared(NewType* pType) {}
 };
 template<typename Type>
 using weak = std::weak_ptr<Type>;

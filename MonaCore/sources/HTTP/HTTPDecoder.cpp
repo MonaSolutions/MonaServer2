@@ -29,7 +29,7 @@ HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, string&& name
 	FileSystem::MakeFile(_www);
 }
 HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, string&& name) : _pRendezVous(pRendezVous),
-_name(move(name)), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
+	_name(move(name)), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 	FileSystem::MakeFile(_www);
 }
 
