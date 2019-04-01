@@ -32,7 +32,7 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pUpgradeSession(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(SET, self), _fileWriter(protocol.api.ioFile),
+HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(SET, self), _fileWriter(protocol.api.ioFile),
 	_onResponse([this](HTTP::Response& response) {
 		kill(ERROR_PROTOCOL, "A HTTP response has been received instead of request");
 	}),
@@ -275,11 +275,9 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	_onRequest = nullptr;
 	_onResponse = nullptr;
 
-	if (_pUpgradeSession) {
+	if (_pUpgradeSession)
 		_pUpgradeSession->kill(error, reason);
-		delete _pUpgradeSession;
-		_pUpgradeSession = NULL;
-	} else
+	else
 		disconnection();
 
 	// close writer (flush)
