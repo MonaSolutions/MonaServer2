@@ -99,39 +99,15 @@ struct Util : virtual Static {
 	static UInt32 DecodeURI(const char* value, const ForEachDecodedChar& forEach)  { return DecodeURI(value,std::string::npos,forEach); }
 	static UInt32 DecodeURI(const char* value, std::size_t count, const ForEachDecodedChar& forEach);
 	
-
 	template <typename BufferType>
 	static BufferType&	EncodeURI(const char* in, BufferType& buffer) { return EncodeURI(in, std::string::npos, buffer); }
-
 	template <typename BufferType>
 	static BufferType&	EncodeURI(const char* in, std::size_t count, BufferType& buffer) {
-		while (count && (count!=std::string::npos || *in)) {
-			char c = *in++;
-			if (isxml(c))
-				buffer.append(&c, 1);
-			else if (c <= 0x20 || c > 0x7E || strchr(_URICharReserved,c))
-				String::Append(buffer, '%', String::Format<UInt8>("%2X", (UInt8)c));
-			else
-				buffer.append(&c, 1);
-			if(count!=std::string::npos)
-				--count;
-		}
-		return buffer;
-	}
-
-	template <typename BufferType>
-	static BufferType&	EncodeURL(const char* in, BufferType& buffer) { return EncodeURL(in, std::string::npos, buffer); }
-
-	template <typename BufferType>
-	static BufferType&	EncodeURL(const char* in, std::size_t count, BufferType& buffer) {
 		while (count && (count != std::string::npos || *in)) {
 			char c = *in++;
-			if (isalnum(c))
+			// https://en.wikipedia.org/wiki/Percent-encoding#Types_of_URI_characters
+			if (isalnum(c) || c== '-' || c == '_' || c == '.' || c == '~')
 				buffer.append(&c, 1);
-			else if (c== '.' || c == '-' || c == '*' || c == '_')
-				buffer.append(&c, 1);
-			else if (c == ' ')
-				buffer.append('+', 1);
 			else 
 				String::Append(buffer, '%', String::Format<UInt8>("%2X", (UInt8)c));
 			if (count != std::string::npos)
@@ -218,7 +194,6 @@ struct Util : virtual Static {
 
 
 private:
-	static const char*						_URICharReserved;
 	static const char						_B64Table[65];
 	static const char						_ReverseB64Table[128];
 };

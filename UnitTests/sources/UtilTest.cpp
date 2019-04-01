@@ -132,13 +132,11 @@ ADD_TEST(UnpackUrl) {
 	DEBUG_CHECK(Util::UnpackUrl("srt://www.clubic.com?param=value", address, path, query) == string::npos && address=="www.clubic.com" && query=="?param=value" && path.empty());
 }
 
-ADD_TEST(EncodeURL) {
+ADD_TEST(EncodeURI) {
 	string query;
-	CHECK(Util::EncodeURI("https://127.0.0.1/test/", query) == "https://127.0.0.1/test/");
+	CHECK(Util::EncodeURI("https://127.0.0.1/test/", query) == "https%3A%2F%2F127.0.0.1%2Ftest%2F");
 	query.clear();
-	CHECK(Util::EncodeURL("https://127.0.0.1/test/", query) == "https%3A%2F%2F127.0.0.1%2Ftest%2F");
-	query.clear();
-	CHECK(Util::EncodeURL("sàlùt=", query) == "s%E0l%F9t%3D");
+	CHECK(Util::EncodeURI("sàlùt=", query) == "s%E0l%F9t%3D");
 }
 
 

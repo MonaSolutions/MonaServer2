@@ -27,8 +27,6 @@ using namespace std;
 
 namespace Mona {
 
-const char* Util::_URICharReserved("%<>{}|\\\"^`#?\x7F");
-
 const char Util::_B64Table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 const char Util::_ReverseB64Table[128] = {

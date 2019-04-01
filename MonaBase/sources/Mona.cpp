@@ -155,7 +155,7 @@ const UInt16 ASCII::_CharacterTypes[128] =  {
 	/* 7c | */ PUNCT | GRAPH | PRINT,
 	/* 7d } */ PUNCT | GRAPH | PRINT,
 	/* 7e ~ */ PUNCT | GRAPH | PRINT,
-	/* 7f . */ CONTROL | XML
+	/* 7f DEL */ CONTROL
 };
 
 const string& typeof(const type_info& info) {

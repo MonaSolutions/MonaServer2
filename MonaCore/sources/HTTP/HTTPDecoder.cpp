@@ -129,10 +129,9 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					bool invocation = false;
 					switch (_pHeader->type) {
 						case HTTP::TYPE_UNKNOWN:
-							if(!_code) {
+							if(!_code) // else is response!
 								_ex.set<Ex::Protocol>("No HTTP type");
-								break;
-							} // else is response!
+							break; 
 						case HTTP::TYPE_POST:
 							if (_pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO) {
 								// Publish = POST + VIDEO/AUDIO
@@ -223,7 +222,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						break;
 					}
 					String::Scoped scoped(STR buffer.data());
-					if (String::ICompare(signifiant, "HTTP") != 0) {
+					if (String::ICompare(signifiant, EXPAND("HTTP")) != 0) { // else is response!
 						if (!(_pHeader->type = HTTP::ParseType(signifiant, _pRendezVous.operator bool()))) {
 							_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
 							break;
@@ -282,24 +281,17 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 
 		Packet packet(buffer);
 
-		if (!_length && !_ex && _stage == CHUNKED) {
+		if (_stage == CHUNKED && !_length && !_ex) {
 			for (;;) {
 				if (packet.size() < 2)
 					return buffer.size();
-				if (memcmp(packet.data(), EXPAND("\r\n")) != 0) {
-					++packet;
-					continue;
-				}
-				if(buffer.data()!=packet.data())
-					break; // at less one char gotten (to accept double \r\n\r\n and \r\n after playload data!)
-				packet += 2;
-				buffer += 2;
+				if (memcmp(packet.data(), EXPAND("\r\n")) == 0)
+					break;
+				++packet;
 			}
-			if (String::ToNumber(STR buffer.data(), packet.data() - buffer.data(), _length, BASE_16)) {
-				if (_length == 0) // end of chunked transfer-encoding
-					_stage = CMD; // to parse Header next time!
-			} else
+			if (!String::ToNumber(STR buffer.data(), packet.data() - buffer.data(), _length, BASE_16))
 				_ex.set<Ex::Protocol>("Invalid HTTP transfer-encoding chunked size ", String::Data(STR buffer.data(), packet.data() - buffer.data()));
+			_length += 2; // wait the both \r\n at the end of payload data!
 			buffer = (packet += 2); // skip chunked size and \r\n
 		}
 
@@ -311,36 +303,42 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 			receive(_ex);
 			return 0;
 		}
-		if(_length>=0) {
-			if (_length > packet.size()) {
-				if (_stage == BODY)
-					return packet.size(); // wait (return rest, concatenate all the body)	
-			} else
-				packet.shrink(UInt32(_length));
-			_length -= packet.size();
-		}
 
+		if (_length > packet.size())
+			return packet.size(); // wait, return rest to concatenate all the body or the chunk if chunked
+		if (_length >= 0) {
+			if (_stage == CHUNKED) {
+				_length -= 2; // remove "\r\n" at the end of payload data!
+				buffer += 2;
+			}
+			packet.shrink(UInt32(_length));
+			if (_stage == BODY)
+				_length = 0;
+		}
 		buffer += packet.size();
+
+		// HERE if _length=0 it means end of body or chunked transfering (chunk size = 0 is the end marker of chunked transfer)
 
 		if (_pReader) { // POST media streaming (publish)
 			_pReader->read(packet, self);
-			packet = nullptr;
-			if (_length) {
-				if(_pHeader)
-					receive(false, false); // "publish" command if _pReader->read has not already done it (same as reset, but reset is impossible at the beginning)
-			} else if(_pHeader) { // else publication has not begun!
-				_pReader->flush(self); // send end info!
+			if (!_length) { // end of reception!
+				if (!_pHeader) // else publication has not begun, no flush need!
+					_pReader->flush(self); // send end info!
 				_pReader.reset();
-			}
-		} else if (_stage != CMD) { // can be CMD on end of chunked transfer-encoding
-			if (_pHeader && _pHeader->type == HTTP::TYPE_RDV)
+			} else if (_pHeader)
+				receive(false, false); // "publish" command if _pReader->read has not already done it (same as reset, but reset is impossible at the beginning)
+		} else if(_pHeader) {
+			if(_pHeader->type == HTTP::TYPE_RDV)
 				_pRendezVous->meet(_pHeader, packet, pSocket);
 			else
 				receive(packet, !buffer); // !buffer => flush if no more data buffered
-		}
-
-		if (_stage!=CHUNKED && !_length)
+		} else if(packet) // progressive (no more header), usefull just if has content (can be empty on end of transfer chunked)
+			receive(packet, !buffer); // !buffer => flush if no more data buffered
+	
+		if (!_length)
 			_stage = CMD; // to parse Header next time!
+		else if(_length>0) // chunked mode!
+			_length = 0;
 
 //////////////////// BODY RECEPTION /////////////////////////////
 /////////////////////////////////////////////////////////////////

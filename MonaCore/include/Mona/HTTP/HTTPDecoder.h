@@ -65,14 +65,14 @@ private:
 			if (onResponse)
 				return _handler.queue(onResponse, _code, _pHeader, std::forward<Args>(args)...);
 			_pHeader.reset();
-			WARN("Response ignored");
+			WARN(_name, " response ignored");
 			return;
 		}
 		_lastRequest.update();
 		if (onRequest)
 			return _handler.queue(onRequest, _path, _pHeader, std::forward<Args>(args)...);
 		_pHeader.reset();
-		WARN("Request ignored");
+		WARN(_name, " request ignored");
 	}
 
 	Exception				_ex;
