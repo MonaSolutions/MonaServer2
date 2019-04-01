@@ -68,7 +68,7 @@ private:
 	FileWriter			_fileWriter;
 	UInt8				_EOWFlags; // 1 = end of write, 2 = has been created
 
-	Session*			_pUpgradeSession;
+	unique<Session>		_pUpgradeSession;
 
 	// options
 	std::string			_index;
