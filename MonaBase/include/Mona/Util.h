@@ -118,6 +118,27 @@ struct Util : virtual Static {
 		}
 		return buffer;
 	}
+
+	template <typename BufferType>
+	static BufferType&	EncodeURL(const char* in, BufferType& buffer) { return EncodeURL(in, std::string::npos, buffer); }
+
+	template <typename BufferType>
+	static BufferType&	EncodeURL(const char* in, std::size_t count, BufferType& buffer) {
+		while (count && (count != std::string::npos || *in)) {
+			char c = *in++;
+			if (isalnum(c))
+				buffer.append(&c, 1);
+			else if (c== '.' || c == '-' || c == '*' || c == '_')
+				buffer.append(&c, 1);
+			else if (c == ' ')
+				buffer.append('+', 1);
+			else 
+				String::Append(buffer, '%', String::Format<UInt8>("%2X", (UInt8)c));
+			if (count != std::string::npos)
+				--count;
+		}
+		return buffer;
+	}
 	
 	template <typename BufferType>
 	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer,bool append=false) {

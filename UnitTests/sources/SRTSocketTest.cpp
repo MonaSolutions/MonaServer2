@@ -154,7 +154,6 @@ ADD_TEST(TestBlocking) {
 
 	UInt8 buffer[8192];
 	int received(0);
-	int total(0);
 	Buffer message;
 	while ((received = pClient->receive(ex, buffer, sizeof(buffer))) > 0) {
 		if (received > 1)
