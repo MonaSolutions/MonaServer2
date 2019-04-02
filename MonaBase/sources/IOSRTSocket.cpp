@@ -79,14 +79,13 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 
 	::SRT_EPOLL_EVENT events[MAXEVENTS];
 	_epoll = ::srt_epoll_create();
-
-	if(_epoll <= 0)
+	if (_epoll < 0)
 		_epoll = 0;
-
 	_initSignal.set();
 
 	if (!_epoll) {
-		ex.set<Ex::Net::System>("impossible to start IOSRTSocket");
+		const char* error = ::srt_getlasterror_str();
+		ex.set<Ex::Net::System>(error ? error : ("Impossible to run IOSRTSocket"));
 		return false;
 	}
 

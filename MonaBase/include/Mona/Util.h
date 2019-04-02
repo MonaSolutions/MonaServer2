@@ -117,7 +117,7 @@ struct Util : virtual Static {
 	}
 	
 	template <typename BufferType>
-	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer,bool append=false) {
+	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
 		UInt32 accumulator(buffer.size()),bits(0);
 
 		if (!append)
