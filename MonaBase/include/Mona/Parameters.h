@@ -41,6 +41,8 @@ struct Parameters : String::Object<Parameters> {
 	Parameters(Parameters&& other) { setParams(std::move(other));  }
 	Parameters& setParams(Parameters&& other);
 
+	const Parameters& parameters() const { return self; }
+
 	const_iterator	begin() const { return _pMap ? _pMap->begin() : Null().begin(); }
 	const_iterator	end() const { return _pMap ? _pMap->end() : Null().end(); }
 	ForEach			from(const std::string& prefix) const { return _pMap ? ForEach(_pMap->lower_bound(prefix), _pMap->end()) : ForEach(); }
