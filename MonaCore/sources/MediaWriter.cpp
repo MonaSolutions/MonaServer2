@@ -101,7 +101,7 @@ unique<MediaWriter> MediaWriter::New(const char* subMime) {
 }
 
 void MediaWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
-	WARN(typeof(self), " doesn't support data writing operation");
+	DEBUG(typeof(self), " doesn't support data writing operation");
 }
 void MediaWriter::writeMedia(const Media::Base& media, const OnWrite& onWrite) {
 	switch (media.type) {
@@ -121,7 +121,7 @@ void MediaWriter::writeMedia(const Media::Base& media, const OnWrite& onWrite) {
 }
 
 void MediaTrackWriter::writeData(Media::Data::Type type, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
-	WARN(typeof(self), " doesn't support data writing operation");
+	DEBUG(typeof(self), " doesn't support data writing operation");
 }
 void MediaTrackWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!track) {

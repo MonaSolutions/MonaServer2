@@ -118,10 +118,7 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 	if (!Stream::starting() && type == TYPE_HTTP) { // HTTP + first time!
 		// send HTTP Header request!
 		shared<Buffer> pBuffer(SET);
-		BinaryWriter writer(*pBuffer);
-		writer.write(EXPAND("GET ")).write(path);
-		writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
-		writer.write(address).write(EXPAND("\r\n\r\n"));
+		String::Append(*pBuffer, "GET ", path, " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\n\r\n");
 		DUMP_REQUEST(source.name().c_str(), pBuffer->data(), pBuffer->size(), address);
 		int sent;
 		AUTO_ERROR((sent = _pSocket->write(ex = nullptr, Packet(pBuffer)))>=0, description());
@@ -166,7 +163,10 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 			size = (type == TYPE_UDP || type == TYPE_SRT) && chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
 			DUMP_RESPONSE(_pName->c_str(), chunk.data(), size, _pSocket->peerAddress());
 			Exception ex;
-			AUTO_WARN(_pSocket->write(ex, Packet(chunk, chunk.data(), size)) >= 0, "Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', String::Upper(this->pWriter->format()));
+			int result;
+			AUTO_WARN((result = _pSocket->write(ex, Packet(chunk, chunk.data(), size))) >= 0, "Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', String::Upper(this->pWriter->format()));
+			if (result < 0) // write has failed, no more reliable!
+				_pSocket->shutdown();
 		};
 	}) {
 }
@@ -225,11 +225,8 @@ bool MediaSocket::Writer::beginMedia(const string& name) {
 	if (type == TYPE_HTTP) { // first time + HTTP
 		// send HTTP Header request!
 		shared<Buffer> pBuffer(SET);
-		BinaryWriter writer(*pBuffer);
-		writer.write(EXPAND("POST ")).write(path);
-		writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
-		writer.write(address);
-		MIME::Write(writer.write(EXPAND("\r\nContent-Type: ")), _pWriter->mime(), _pWriter->subMime()).write(EXPAND("\r\n\r\n"));
+		String::Append(*pBuffer, "POST ", path, " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\nContent-Type: ");
+		String::Append(MIME::Write(BinaryWriter(*pBuffer), _pWriter->mime(), _pWriter->subMime()), "\r\n\r\n");
 		DUMP_REQUEST(name.c_str(), pBuffer->data(), pBuffer->size(), address);
 		int sent;
 		AUTO_ERROR((sent = _pSocket->write(ex = nullptr, Packet(pBuffer))) >= 0, description());

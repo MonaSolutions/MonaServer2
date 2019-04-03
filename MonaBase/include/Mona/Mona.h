@@ -276,7 +276,7 @@ inline const std::string& typeof(const ObjectType& object) { return typeof(typei
 Try to prefer this template typeof version, because is the more faster*/
 template<typename ObjectType>
 inline const std::string& typeof() {
-	static struct Type : std::string { Type() : std::string(typeof(typeid(ObjectType))) {} } Type;
+	static const std::string& Type(typeof(typeid(ObjectType)));
 	return Type;
 }
 

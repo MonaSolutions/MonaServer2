@@ -425,20 +425,22 @@ struct Media : virtual Static {
 
 		template <typename StreamType, typename ...Args>
 		StreamType* addTarget(Args&&... args) {
+			if (!_running) {
+				ERROR(description(), ", child stream target authorized only on running");
+				return NULL;
+			}
 			STATIC_ASSERT(std::is_base_of<Media::Target, StreamType>::value);
 			shared<StreamType> pTarget(SET, std::forward<Args>(args) ...);
 			auto it = _targets.lower_bound(pTarget);
 			if (it != _targets.end()) {
-				if (_running && it->unique())
+				if (it->unique())
 					it = _targets.erase(it); // target useless!
 				if(*it == pTarget)
 					return NULL; // already exists!
 			}
-			if (_running) { // else wait run!
-				onNewTarget(pTarget);
-				if (pTarget.unique())
-					return NULL;
-			}
+			onNewTarget(pTarget);
+			if (pTarget.unique())
+				return NULL;
 			_targets.emplace_hint(it, pTarget);
 			return pTarget.get();
 		}

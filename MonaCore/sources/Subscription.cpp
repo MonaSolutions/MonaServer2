@@ -318,7 +318,7 @@ void Subscription::writeProperties(const Media::Properties& properties) {
 	if (!streaming && pPublication == &properties)
 		return; // already done in beginMedia!
 
-	INFO("Properties sent to one ",name()," subscription")
+	DEBUG(name()," subscription properties sent to ", typeof(_target))
 	if(_target.writeProperties(properties)) {
 		if (_pMediaWriter)
 			_pMediaWriter->writeProperties(properties, _onMediaWrite);
@@ -349,12 +349,12 @@ void Subscription::writeData(Media::Data::Type type, const Packet& packet, UInt8
 	if (congestion) {
 		if (_datas.reliable || congestion>=Net::RTO_MAX) {
 			_ejected = EJECTED_BANDWITDH;
-			WARN("Data timeout, insufficient bandwidth to play ", name());
+			WARN(typeof(_target), " data timeout, insufficient bandwidth to play ", name());
 			return;
 		}
 		// if data is unreliable, drop the packet
 		++_datas.dropped;
-		WARN("Data packet dropped, insufficient bandwidth to play ", name());
+		WARN(typeof(_target), " data packet dropped, insufficient bandwidth to play ", name());
 		return;
 	}
 
@@ -389,13 +389,13 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 	if (congestion) {
 		if (_audios.reliable || congestion>=Net::RTO_MAX) {
 			_ejected = EJECTED_BANDWITDH;
-			WARN("Audio timeout, insufficient bandwidth to play ", name());
+			WARN(typeof(_target), " audio timeout, insufficient bandwidth to play ", name());
 			return;
 		}
 		if (!tag.isConfig) {
 			// if it's not config packet and audio is unreliable, drop the packet
 			++_audios.dropped;
-			WARN("Audio packet dropped, insufficient bandwidth to play ", name());
+			WARN(typeof(_target), " audio packet dropped, insufficient bandwidth to play ", name());
 			return;
 		}
 	}
@@ -451,7 +451,7 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 			if (pVideo->waitKeyFrame > 1)
 				return;
 			pVideo->waitKeyFrame = 2;
-			DEBUG("Video key frame waiting from ", name());
+			DEBUG(typeof(_target), " video key frame waiting from ", name());
 			return;
 		}
 	}
@@ -460,13 +460,13 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	if (congestion) {
 		if (_videos.reliable || congestion >= Net::RTO_MAX) {
 			_ejected = EJECTED_BANDWITDH;
-			WARN("Video timeout, insufficient bandwidth to play ", name());
+			WARN(typeof(_target), " video timeout, insufficient bandwidth to play ", name());
 			return;
 		}
 		if(!isConfig) {
 			// if it's not config packet and video is unreliable, drop the packet
 			++_videos.dropped;
-			WARN("Video frame dropped, insufficient bandwidth to play ", name());
+			WARN(typeof(_target), " video frame dropped, insufficient bandwidth to play ", name());
 			if(pVideo)
 				pVideo->waitKeyFrame = 1;
 			return;
@@ -491,7 +491,7 @@ void Subscription::setFormat(const char* format) {
 	reset(); // end in first to finish the previous format streaming => new format = new stream
 	_pMediaWriter = format ? MediaWriter::New(format) : nullptr;
 	if (format && !_pMediaWriter)
-		WARN("Subscription format ", format, " unknown or unsupported");
+		WARN(typeof(_target), " subscription format ", format, " unknown or unsupported");
 }
 
 void Subscription::flush() {

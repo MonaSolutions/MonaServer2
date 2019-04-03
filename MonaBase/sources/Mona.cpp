@@ -160,11 +160,14 @@ const UInt16 ASCII::_CharacterTypes[128] =  {
 
 const string& typeof(const type_info& info) {
 	static map<size_t, string> Types;
-	static mutex			   Mutex;
-	lock_guard<mutex> lock(Mutex);
+	static std::atomic_flag  _FastMutex; // keep mutex because and not thread_local because can be used for Runner!
+	while (_FastMutex.test_and_set(std::memory_order_acquire))
+		this_thread::yield();
 	string& type = Types[info.hash_code()];
-	if (!type.empty())
+	if (!type.empty()) {
+		_FastMutex.clear(std::memory_order_release);
 		return type;
+	}
 #if defined(_WIN32)
 	type = info.name();
 #else
@@ -192,6 +195,7 @@ const string& typeof(const type_info& info) {
 		}
 		++i;
 	}
+	_FastMutex.clear(std::memory_order_release);
 	return type;
 }
 

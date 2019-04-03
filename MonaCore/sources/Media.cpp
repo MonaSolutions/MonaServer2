@@ -444,10 +444,20 @@ void Media::Stream::start(const Parameters& parameters) {
 	if (_running && !_starting)
 		return; // nothing todo!
 	_running = true; // to allow to call stop in starting!
-	if (starting(parameters)) 
-		finalizeStart();
-	else
+	if (!starting(parameters))
 		_starting = _running; // wait finalizeStart call
+	if (!_running)
+		return; // has been stopped!
+	if (!_startCount && !_pTarget) {
+		Target* pTarget = dynamic_cast<Target*>(this);
+		if (pTarget)
+			_pTarget = shared<Target>(make_shared<Target>(), pTarget); // aliasing!
+	}
+	if (_pTarget)
+		onNewTarget(_pTarget);
+	// finalize Start if running and not starting!
+	if (!_starting)
+		finalizeStart();
 }
 bool Media::Stream::finalizeStart() {
 	if (!_starting)
@@ -457,22 +467,8 @@ bool Media::Stream::finalizeStart() {
 		return false;
 	}
 	_starting = false;
+	++_startCount;
 	INFO(description(), " starts");
-	if (!_startCount++) {
-		Target* pTarget = dynamic_cast<Target*>(this);
-		if (pTarget)
-			_pTarget = shared<Target>(make_shared<Target>(), pTarget); // aliasing!
-	}
-	if (_pTarget)
-		onNewTarget(_pTarget);
-	auto it = _targets.begin();
-	while (it != _targets.end()) {
-		if (!it->unique()) {
-			onNewTarget(shared<Target>(*it, (Target*)it->get()));
-			++it;
-		} else
-			it = _targets.erase(it);
-	}
 	return true;
 }
 void Media::Stream::stop() {

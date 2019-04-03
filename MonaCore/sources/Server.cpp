@@ -161,7 +161,11 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	// empty handler!
 	_handler.flush();
 
-	// clean init streams
+	// clean init streams and unsubscribe subscriptions
+	for (const auto& it : _iniStreams) {
+		if(it.second)
+			unsubscribe(*it.second);
+	}
 	_iniStreams.clear();
 	// clean and unsubscribe streamSubscriptions
 	UInt32 alives = 0;
