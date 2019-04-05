@@ -239,14 +239,14 @@ void Server::loadIniStreams() {
 
 shared<Media::Stream> Server::stream(const string& publication, const string& description) {
 	shared<Media::Stream> pStream;
-	if(description[0] != '@') { // is source
+	if(String::ICompare(description, "in ", 3)==0) { // is source
 		// PUBLISH, keep publication opened!
 		Exception ex;
 		const auto& it = _streamPublications.lower_bound(publication.c_str());
 		Publication* pPublication = it == _streamPublications.end() || publication.compare(it->first) != 0 ? publish(ex, publication) : it->second;
 		if (!pPublication)
 			return nullptr; // logs already displaid by publish call
-		pStream = stream(*pPublication, description);
+		pStream = stream(*pPublication, description.c_str() + 3);
 		if (!pStream) {
 			if (it == _streamPublications.end())
 				unpublish(*pPublication);
@@ -262,7 +262,7 @@ shared<Media::Stream> Server::stream(const string& publication, const string& de
 		};
 		Util::UnpackQuery(pStream->query, *pPublication);
 		_streamPublications.emplace_hint(it, pPublication->name().c_str(), pPublication);
-	} else if (!(pStream = stream(description.c_str() + 1))) // is Target
+	} else if (String::ICompare(description, "out ", 4)!=0 || !(pStream = stream(description.c_str() + 4))) // is Target
 		return nullptr;
 	pStream->onNewTarget = [this, publication, query = pStream->query.c_str()](const shared<Media::Target>& pTarget) {
 		const auto& it = _streamSubscriptions.emplace(pTarget, new Subscription(*pTarget)).first;
