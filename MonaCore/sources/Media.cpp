@@ -442,26 +442,28 @@ Media::Stream::Stream(Type type, const Path& path, Source& source) :
 void Media::Stream::start(const Parameters& parameters) {
 	ex = nullptr; // reset lastEx on pullse start!
 	if (_running && !_starting)
-		return; // nothing todo!
-	_running = true; // to allow to call stop in starting!
-	if (!starting(parameters))
-		_starting = _running; // wait finalizeStart call
-	if (!_running)
-		return; // has been stopped!
-	if (!_startCount && !_pTarget) {
+		return; // nothing todo, starting already done!
+	if (!_startCount && !_running) {
+		// do it just on first start call!
 		Target* pTarget = dynamic_cast<Target*>(this);
-		if (pTarget)
-			_pTarget = shared<Target>(make_shared<Target>(), pTarget); // aliasing!
+		if (pTarget) {
+			// This is a target, with beginMedia it can be start, so create a _pTarget and keep it alive all the life-time of this Stream
+			// Indeed it can be stopped and restarted with beginMedia!
+			_pTarget = shared<Target>(make_shared<Target>(), pTarget); // aliasing
+			onNewTarget(_pTarget);
+		}
 	}
-	if (_pTarget)
-		onNewTarget(_pTarget);
-	// finalize Start if running and not starting!
-	if (!_starting)
+	_starting = true;
+	if (starting(parameters))
 		finalizeStart();
+	if (_starting) // _starting can switch to false if finalizeStart (then _running is already set to true) and on stop (then _running must stay on false)
+		_running = true;
 }
 bool Media::Stream::finalizeStart() {
 	if (!_starting)
 		return false;
+	if (!_running) // called while starting!
+		_running = true;
 	if (onStart && !onStart()) {
 		stop();
 		return false;
@@ -472,7 +474,7 @@ bool Media::Stream::finalizeStart() {
 	return true;
 }
 void Media::Stream::stop() {
-	if (!_running)
+	if (!_running && !_starting)
 		return;
 	stopping();
 	_running = false;

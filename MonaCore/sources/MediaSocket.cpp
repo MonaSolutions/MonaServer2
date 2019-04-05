@@ -115,7 +115,7 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 	if (ex && ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 		WARN(description(), ", ", ex);
 
-	if (!Stream::starting() && type == TYPE_HTTP) { // HTTP + first time!
+	if (!Stream::running() && type == TYPE_HTTP) { // HTTP + first time!
 		// send HTTP Header request!
 		shared<Buffer> pBuffer(SET);
 		String::Append(*pBuffer, "GET ", path, " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\n\r\n");
@@ -186,10 +186,8 @@ MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& p
 bool MediaSocket::Writer::newSocket(const Parameters& parameters) {
 	if (!_pSocket)
 		_pSocket = Media::Stream::newSocket(parameters, _pTLS);
-	if (!_onSocketFlush)
-		_onSocketFlush = [this]() { _onSocketFlush = nullptr; };
 	bool success;
-	AUTO_ERROR(success = io.subscribe(ex, _pSocket, nullptr, _onSocketFlush, _onSocketError, _onSocketDisconnection), description());
+	AUTO_ERROR(success = io.subscribe(ex, _pSocket, nullptr, nullptr, _onSocketError, _onSocketDisconnection), description());
 	if (!success)
 		_pSocket.reset();
 	return success;
@@ -202,8 +200,6 @@ bool MediaSocket::Writer::starting(const Parameters& parameters) {
 	}
 	if (!_pName)  // Do nothing if not media beginning
 		return false; // wait beginMedia
-	if (_pSocket->peerAddress() && !_onSocketFlush) // Do nothing if connected and writable!
-		return false; // wait first media!
 	// beginMedia+not writable => Pulse connect
 	if (!_pSocket->connect(ex, address)) { // not use AUTO_ERROR because on WOULD_BLOCK it will display a wrong WARN
 		stop();

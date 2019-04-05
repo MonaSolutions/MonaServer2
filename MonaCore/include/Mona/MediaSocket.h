@@ -101,9 +101,9 @@ struct MediaSocket : virtual Static {
 		
 		template<typename SendType, typename ...Args>
 		bool send(UInt8 track, Args&&... args) {
-			if (!_onSocketFlush)
-				finalizeStart();
-			if (!_pSocket)
+			if (!_pName)
+				return false; // media not begin! ejected! (_pSocket can be true here, like if it's a MediaSocket already connected from MediaServer)
+			if (Stream::starting() && _pSocket->sendTime() && !finalizeStart())
 				return false; // Stream not started!
 			io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter, track,  std::forward<Args>(args)...);
 			return true;
@@ -135,7 +135,6 @@ struct MediaSocket : virtual Static {
 		};
 
 		Socket::OnDisconnection			_onSocketDisconnection;
-		Socket::OnFlush					_onSocketFlush;
 		Socket::OnError					_onSocketError;
 
 		shared<Socket>					_pSocket;

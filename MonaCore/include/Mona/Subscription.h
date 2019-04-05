@@ -101,14 +101,16 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	void writeProperties(const Media::Properties& properties);
 	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 	void flush();
-	void reset();
 
-	void clear();
+	void reset();
+	
 
 	template<typename TargetType=Media::Target>
 	TargetType& target() const { return (TargetType&)_target; }
 private:
 	void setTime(const char* time = NULL);
+	
+	void clear(); // block father Parameters:clear call, and usefull in private!
 
 	void setFormat(const char* format);
 

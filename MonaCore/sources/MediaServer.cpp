@@ -37,8 +37,7 @@ MediaServer::MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWri
 		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
 		if (!pTarget)
 			return stop<Ex::Intern>(LOG_ERROR, "Impossibe to add target ", pTarget->description());
-		// onStop => close socket => remove target!
-		pTarget->onStop = [this, pTarget]() { removeTarget(*pTarget); };	
+		// Don't overrides onStop => close socket => remove target!
 	};
 }
 

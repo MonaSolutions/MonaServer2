@@ -252,6 +252,8 @@ bool Subscription::start(UInt32 time) {
 }
 
 void Subscription::reset() {
+	if(_ejected) // else is a publication reset (smooth publication transition, key frame should come in first)
+		_waitingFirstVideoSync.update(); // to retablish audio/video sync!
 	_ejected = EJECTED_NONE; // Reset => maybe the next publication will solve ejection
 	if (!_streaming)
 		return;
@@ -274,9 +276,9 @@ void Subscription::reset() {
 void Subscription::clear() {
 	// must be like a new subscription creation beware not change pPublication (supervised by ServerAPI)
 	reset();
-	_waitingFirstVideoSync.update();
 	setNext(NULL);
-	_medias.flush(Source::Null());
+	_medias.flush(Source::Null()); // flush invalid medias to empty _medias collection!
+	_waitingFirstVideoSync.update(); // in last to not pertub flush of valid _medias in setNext(NULL)
 }
 
 void Subscription::stop() {
@@ -384,7 +386,7 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 			_medias.flush(Source::Null()); // impossible to recover prev audio (< to _lastTime or duration=0!)
 		}
 	} // else pass in force! (audio track = 0)
-	
+
 	UInt32 congestion = _congestion();
 	if (congestion) {
 		if (_audios.reliable || congestion>=Net::RTO_MAX) {
@@ -406,7 +408,7 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 	audio.isConfig = tag.isConfig;
 	fixTag(tag.isConfig, tag, audio);
 //	if (pPublication)
-	//	DEBUG("Audio time => ", tag.time, "-", audio.time);
+//		DEBUG("Audio time, ", tag.time, "=>", audio.time);
 	if (_pMediaWriter)
 		_pMediaWriter->writeAudio(track, audio, packet, _onMediaWrite);
 	else if(!writeToTarget(_audios, track, audio, packet, tag.isConfig))
@@ -478,7 +480,7 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	video.frame = tag.frame;
 	fixTag(isConfig, tag, video);
 //	if (pPublication)
-//		DEBUG("Video time => ", video.time, " (", video.frame, ")");
+//		DEBUG("Video time, ", tag.time, "=>", video.time, " (", video.frame, ")");
 	if (_pMediaWriter)
 		_pMediaWriter->writeVideo(track, video, packet, _onMediaWrite);
 	else if (!writeToTarget(_videos, track, video, packet, isConfig))

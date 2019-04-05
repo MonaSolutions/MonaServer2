@@ -432,31 +432,28 @@ struct Media : virtual Static {
 			STATIC_ASSERT(std::is_base_of<Media::Target, StreamType>::value);
 			shared<StreamType> pTarget(SET, std::forward<Args>(args) ...);
 			auto it = _targets.lower_bound(pTarget);
-			if (it != _targets.end()) {
-				if (it->unique())
-					it = _targets.erase(it); // target useless!
-				if(*it == pTarget)
-					return NULL; // already exists!
-			}
+			if (it != _targets.end() && it->unique())
+				it = _targets.erase(it); // target useless!
 			onNewTarget(pTarget);
 			if (pTarget.unique())
 				return NULL;
+			// by default remove children on stop, add Target user can simply cancel it in reset onStop to null!
+			pTarget->onStop = [this, &target = *pTarget]() {
+				const auto& it = lower_bound(_targets, target, [](const std::set<shared<const Stream>>::const_iterator& it, StreamType& target) {
+					return  ToPointer(*it) < ToPointer(target);
+				});
+				if (it != _targets.end() && it->get() == &target)
+					_targets.erase(it);
+			};
 			_targets.emplace_hint(it, pTarget);
 			return pTarget.get();
-		}
-		template<typename StreamType>
-		void removeTarget(StreamType& target) {
-			const auto& it = lower_bound(_targets, target, [](const std::set<shared<const Stream>>::const_iterator& it, StreamType& target) {
-				return  ToPointer(*it) < ToPointer(target);
-			});
-			if(it!=_targets.end() && it->get() == &target)
-				_targets.erase(it);
 		}
 
 	private:
 		/*! 
-		Have to call stop() if fail, and return true is starting finished (else have to call more later finalizeStart())
-		/!\ Implementation have to support a pulse start! */
+		Have to call stop() if fail, and return true is starting finished (else have to call finalizeStart() more later to finish starting)
+		On first call running() = false
+		/!\ Call be repeated until return is true or finalizeStart call! */
 		virtual bool starting(const Parameters& parameters) = 0;
 		virtual void stopping() = 0;
 
