@@ -524,8 +524,8 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 	const char* line = String::TrimLeft(description.c_str());
 
 	bool isTarget(&source==&Source::Null());
-	bool isTargets = isTarget && *line == '@';
-	if (isTargets)
+	bool isServer = *line == '@';
+	if (isServer)
 		++line;
 
 	// remove "" or ''
@@ -606,15 +606,9 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 	const char* params = strpbrk(line = String::TrimLeft(line), " \t\r\n\v\f");
 	String::Split(line, params ? (line - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
 
-	// Fix isTargets => just TCP or SRT allow
-	if (isTargets && type && type != TYPE_TCP && type != TYPE_SRT) {
-		ex.set<Ex::Unavailable>(TypeToString(type), " server stream impossible (switch to ", TypeToString(type)," target stream)");
-		isTargets = false;
-	}
-
 #if !defined(SRT_API)
 	if (type == TYPE_SRT) {
-		ex.set<Ex::Unsupported>(TypeToString(type), " stream not supported, build MonaBase with SRT support before");
+		ex.set<Ex::Unsupported>(TypeToString(type), " stream not supported, build MonaBase with SRT support first");
 		return nullptr;
 	}
 #endif
@@ -631,11 +625,11 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 		if (String::ToNumber(first.data(), size, port)) {
 			address.setPort(port);
 			path.set(first.c_str() + size);
-			if (!isTargets && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) // if no host and TCP/HTTP or target
+			if (!isServer && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) // if no host and TCP/HTTP or target
 				address.host().set(IPAddress::Loopback());
 		} else {
 			bool isAddress = false;
-			// Test if it's a address
+			// Test if it's an address
 			{
 				String::Scoped scoped(first.data() + size);
 				Exception exc;
@@ -648,7 +642,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 			}
 			if (isAddress) {
 				path.set(first.c_str() + size);
-				if (!isTargets && !address.host() && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) {
+				if (!isServer && !address.host() && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) {
 					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
 					return nullptr;
 				}
@@ -715,7 +709,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 		if (!type) // TCP by default excepting if format is RTP where rather UDP by default
 			type = String::ICompare(format, "RTP") == 0 ? TYPE_UDP : TYPE_TCP;
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-		if (isTargets)
+		if (type!= TYPE_UDP && (isServer || !address.host()))
 			pStream = MediaServer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 		else if (isTarget)
 			pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);

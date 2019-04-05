@@ -221,8 +221,9 @@ bool MediaSocket::Writer::beginMedia(const string& name) {
 	if (type == TYPE_HTTP) { // first time + HTTP
 		// send HTTP Header request!
 		shared<Buffer> pBuffer(SET);
-		String::Append(*pBuffer, "POST ", path, " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\nContent-Type: ");
-		String::Append(MIME::Write(BinaryWriter(*pBuffer), _pWriter->mime(), _pWriter->subMime()), "\r\n\r\n");
+		BinaryWriter writer(*pBuffer);
+		String::Append(writer, "POST ", path, " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\nContent-Type: ");
+		String::Append(MIME::Write(writer, _pWriter->mime(), _pWriter->subMime()), "\r\n\r\n");
 		DUMP_REQUEST(name.c_str(), pBuffer->data(), pBuffer->size(), address);
 		int sent;
 		AUTO_ERROR((sent = _pSocket->write(ex = nullptr, Packet(pBuffer))) >= 0, description());
