@@ -196,7 +196,12 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 
 void Server::loadIniStreams() {
 	// Load Streams configs
-	deque<pair<const string*, string>> lines;
+	struct Description : String {
+		Description(const string& publication, string&& description, bool isSource = false) : isSource(isSource), publication(publication), String(move(description)) {}
+		const string& publication;
+		const bool    isSource;
+	};
+	deque<Description> descriptions;
 	string temp;
 	vector<const char*> keyToRemove;
 	for (auto& it : self) {
@@ -205,13 +210,18 @@ void Server::loadIniStreams() {
 			continue;
 
 		if (String::ICompare(it.first, "logs") == 0)
-			lines.emplace_back(&it.first, "!logs");
+			descriptions.emplace_back(it.first, "!logs");
 	
 		for (auto& it2 : range(temp.assign(it.first) += '.')) {
 			const char* name(it2.first.c_str() + temp.size());
-			if (!*name || !it2.second.empty())
-				continue; // Stream line have no value!
-			lines.emplace_back(&it.first, name);
+			bool isSource = String::ICompare(name, EXPAND("in ")) == 0;
+			if (!isSource && String::ICompare(name, EXPAND("out ")) != 0)
+				continue; // no stream line!
+			name += isSource ? 3 : 4;
+			if(!it2.second.empty())
+				descriptions.emplace_back(it.first, String(name,'=',it2.second), isSource); // recompose the line!
+			else
+				descriptions.emplace_back(it.first, name, isSource);
 			keyToRemove.emplace_back(it2.first.c_str());
 		}
 	}
@@ -220,8 +230,8 @@ void Server::loadIniStreams() {
 		erase(key);
 
 	// Create streams
-	for (auto& it : lines) {
-		shared<Media::Stream> pStream = stream(*it.first, it.second);
+	for (const Description& description : descriptions) {
+		shared<Media::Stream> pStream = stream(description.publication, description, description.isSource);
 		if (!pStream)
 			continue;
 		pStream->start(self);
@@ -237,16 +247,16 @@ void Server::loadIniStreams() {
 	}
 }
 
-shared<Media::Stream> Server::stream(const string& publication, const string& description) {
+shared<Media::Stream> Server::stream(const string& publication, const string& description, bool isSource) {
 	shared<Media::Stream> pStream;
-	if(String::ICompare(description, EXPAND("in "))==0) { // is source
+	if(isSource) { // is source
 		// PUBLISH, keep publication opened!
 		Exception ex;
 		const auto& it = _streamPublications.lower_bound(publication.c_str());
 		Publication* pPublication = it == _streamPublications.end() || publication.compare(it->first) != 0 ? publish(ex, publication) : it->second;
 		if (!pPublication)
 			return nullptr; // logs already displaid by publish call
-		pStream = stream(*pPublication, description.c_str() + 3);
+		pStream = stream(*pPublication, description);
 		if (!pStream) {
 			if (it == _streamPublications.end())
 				unpublish(*pPublication);
@@ -262,7 +272,7 @@ shared<Media::Stream> Server::stream(const string& publication, const string& de
 		};
 		Util::UnpackQuery(pStream->query, *pPublication);
 		_streamPublications.emplace_hint(it, pPublication->name().c_str(), pPublication);
-	} else if (String::ICompare(description, EXPAND("out "))!=0 || !(pStream = stream(description.c_str() + 4))) // is Target
+	} else if (!(pStream = stream(description))) // is Target
 		return nullptr;
 	pStream->onNewTarget = [this, publication, query = pStream->query.c_str()](const shared<Media::Target>& pTarget) {
 		const auto& it = _streamSubscriptions.emplace(pTarget, new Subscription(*pTarget)).first;

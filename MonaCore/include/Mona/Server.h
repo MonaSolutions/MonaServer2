@@ -58,9 +58,9 @@ struct Server : protected ServerAPI, private Thread {
 
 protected:
 	/*!
-	Create a media stream source or target (if description prefixed with '@') automatically linked to a publication,
+	Create a media stream source or target automatically linked to a publication,
 	Trick: use '!' in description to create a "logs" publication */
-	shared<Media::Stream> stream(const std::string& publication, const std::string& description);
+	shared<Media::Stream> stream(const std::string& publication, const std::string& description, bool isSource = false);
 
 	template<typename  ...Args>
 	Publication* publish(Exception& ex, Args&&... args) { return ServerAPI::publish(ex, args ...); }
