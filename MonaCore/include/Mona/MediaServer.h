@@ -27,10 +27,11 @@ namespace Mona {
 
 struct MediaServer : virtual Static {
 	enum Type {
-		TYPE_TCP = 1 // to match Media::Stream::Type
+		TYPE_TCP = 1, // to match Media::Stream::Type
 #if defined(SRT_API)
-		, TYPE_SRT = 2 // to match Media::Stream::Type
+		TYPE_SRT = 2, // to match Media::Stream::Type
 #endif
+		TYPE_HTTP = 4 // to match Media::Stream::Type
 	};
 
 	struct Writer : Media::Stream, virtual Object {

@@ -59,7 +59,7 @@ void MediaServer::Writer::stopping() {
 
 
 unique<MediaServer::Reader> MediaServer::Reader::New(MediaServer::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
-	if (!*subMime && type == Media::Stream::TYPE_HTTP) // Format can be empty with HTTP source
+	if (!*subMime && type == MediaServer::Type::TYPE_HTTP) // Format can be empty with HTTP source
 		return make_unique<MediaServer::Reader>(type, path, source, unique<MediaReader>(), address, io, pTLS);
 	unique<MediaReader> pReader(MediaReader::New(subMime));
 	return pReader ? make_unique<MediaServer::Reader>(type, path, source, move(pReader), address, io, pTLS) : nullptr;
