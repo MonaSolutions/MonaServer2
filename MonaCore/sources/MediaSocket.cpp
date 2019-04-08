@@ -93,7 +93,7 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 		pDecoder->onResponse = _onResponse = [this](HTTP::Response& response)->void { writeMedia(response); };
 		pDecoder->onRequest = _onRequest = [this](HTTP::Request& request) {
 			if (type == Media::Stream::TYPE_HTTP)
-				return stop<Ex::Protocol>(LOG_ERROR, "HTTP request on a source target");
+				return stop<Ex::Protocol>(LOG_ERROR, "HTTP request on a stream source (only HTTP response is expected)");
 			writeMedia(request);
 		};
 		// engine subscription BEFORE connect to be able to detect connection success/failure

@@ -21,11 +21,11 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/MediaSocket.h"
 #include "Mona/SRT.h"
+#include "Mona/HTTP/HTTPDecoder.h"
 
 namespace Mona {
 
-
-struct MediaServer : Media::Stream, virtual Object {
+struct MediaServer : virtual Static {
 	enum Type {
 		TYPE_TCP = 1 // to match Media::Stream::Type
 #if defined(SRT_API)
@@ -33,29 +33,77 @@ struct MediaServer : Media::Stream, virtual Object {
 #endif
 	};
 
-	static unique<MediaServer> New(Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-	static unique<MediaServer> New(Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
-	
-	MediaServer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-	virtual ~MediaServer() { stop(); }
+	struct Writer : Media::Stream, virtual Object {
+		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
 
-	const SocketAddress		address;
-	IOSocket&				io;
-	shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
+		Writer(MediaServer::Type type, const Path& path,unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		virtual ~Writer() { stop(); }
 
-private:
-	bool starting(const Parameters& parameters);
-	void stopping();
+		const SocketAddress		address;
+		IOSocket&				io;
+		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
-	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
-		
-	Socket::OnAccept	_onConnnection;
-	Socket::OnError		_onError;
+	private:
+		bool starting(const Parameters& parameters);
+		void stopping();
 
-	shared<Socket>					_pSocket;
-	shared<TLS>						_pTLS;
-	const char*						_subMime;
-	const char*						_format;
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Output Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
+
+		Socket::OnAccept	_onConnnection;
+		Socket::OnError		_onError;
+
+		shared<Socket>					_pSocket;
+		shared<TLS>						_pTLS;
+		const char*						_subMime;
+		const char*						_format;
+	};
+
+	struct Reader : Media::Stream, virtual Object {
+		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
+
+		Reader(MediaServer::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		virtual ~Reader() { stop(); }
+
+		const SocketAddress		address;
+		IOSocket&				io;
+		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
+
+	private:
+		bool starting(const Parameters& parameters);
+		void stopping();
+
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Input Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
+		void writeMedia(const HTTP::Message& message);
+
+		struct Decoder : HTTPDecoder, virtual Object {
+			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
+				_type(type), _rest(0), _pReader(pReader), HTTPDecoder(handler, Path::Null(), name.c_str()) {}
+
+		private:
+			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
+			UInt32 onStreamData(Packet& buffer, const shared<Socket>& pSocket);
+
+			shared<MediaReader>		_pReader;
+			Type					_type;
+			SocketAddress			_address;
+			UInt32					_rest;
+		};
+
+		HTTPDecoder::OnRequest	_onRequest;
+		HTTPDecoder::OnResponse _onResponse;
+		Socket::OnDisconnection	_onSocketDisconnection;
+		Socket::OnFlush			_onSocketFlush;
+		Socket::OnAccept		_onConnnection;
+		Socket::OnError			_onSocketError;
+
+		shared<MediaReader>		_pReader;
+		shared<Socket>			_pSocket;
+		shared<TLS>				_pTLS;		
+		shared<Socket>			_pSocketClient;
+		bool					_streaming;
+	};
 };
 
 } // namespace Mona
