@@ -524,8 +524,8 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 	const char* line = String::TrimLeft(description.c_str());
 
 	bool isTarget(&source==&Source::Null());
-	bool isServer = *line == '@';
-	if (isServer)
+	bool isBind = *line == '@';
+	if (isBind)
 		++line;
 
 	// remove "" or ''
@@ -625,7 +625,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 		if (String::ToNumber(first.data(), size, port)) {
 			address.setPort(port);
 			path.set(first.c_str() + size);
-			if (!isServer && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) // if no host and TCP/HTTP or target
+			if (!isBind && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) // if no host and TCP/HTTP or target
 				address.host().set(IPAddress::Loopback());
 		} else {
 			bool isAddress = false;
@@ -642,7 +642,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 			}
 			if (isAddress) {
 				path.set(first.c_str() + size);
-				if (!isServer && !address.host() && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) {
+				if (!isBind && !address.host() && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) {
 					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
 					return nullptr;
 				}
@@ -709,8 +709,12 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 		if (!type) // TCP by default excepting if format is RTP where rather UDP by default
 			type = String::ICompare(format, "RTP") == 0 ? TYPE_UDP : TYPE_TCP;
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-		if (type!= TYPE_UDP && (isServer || !address.host()))
-			pStream = MediaServer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+		if (type != TYPE_UDP && (isBind || !address.host())) { // MediaServer
+			if (isTarget)
+				pStream = MediaServer::Writer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+			else
+				pStream = MediaServer::Reader::New(MediaServer::Type(type), path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+		}
 		else if (isTarget)
 			pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 		else
