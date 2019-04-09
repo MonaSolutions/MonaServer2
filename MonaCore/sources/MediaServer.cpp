@@ -30,7 +30,7 @@ unique<MediaServer::Writer> MediaServer::Writer::New(MediaServer::Type type, con
 }
 
 MediaServer::Writer::Writer(MediaServer::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(Media::Stream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
+	MediaStream(MediaStream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
 	_onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		// let's call beginMedia to start the stream!
@@ -67,7 +67,7 @@ unique<MediaServer::Reader> MediaServer::Reader::New(MediaServer::Type type, con
 }
 
 MediaServer::Reader::Reader(MediaServer::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	Media::Stream(Media::Stream::Type(type), path, source), _streaming(false), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)) {
+	MediaStream(MediaStream::Type(type), path, source), _streaming(false), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)) {
 	_onSocketDisconnection = [&]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { finalizeStart(); };
 	_onSocketError = [this](const Exception& ex) { stop(!_streaming ? LOG_DEBUG : LOG_WARN, ex); };
@@ -76,12 +76,12 @@ MediaServer::Reader::Reader(MediaServer::Type type, const Path& path, Media::Sou
 			_pSocketClient = pSocket;
 			Decoder* pDecoder(new Decoder(this->io.handler, _pReader, this->source.name(), this->type));
 			pDecoder->onResponse = _onResponse = [this](HTTP::Response& response)->void { 
-				if (this->type == Media::Stream::TYPE_HTTP)
+				if (this->type == MediaStream::TYPE_HTTP)
 					return stop<Ex::Protocol>(LOG_ERROR, "HTTP response on a server stream source (only HTTP request is expected)");
 				writeMedia(response); 
 			};
 			pDecoder->onRequest = _onRequest = [this](HTTP::Request& request) {
-				if (this->type == Media::Stream::TYPE_HTTP && request)
+				if (this->type == MediaStream::TYPE_HTTP && request)
 					return; // ignore POST header
 				writeMedia(request);
 			};

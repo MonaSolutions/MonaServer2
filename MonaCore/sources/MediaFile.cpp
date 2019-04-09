@@ -46,7 +46,7 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 }
 
 MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io) :
-	Media::Stream(TYPE_FILE, path, source), io(io), _pReader(move(pReader)), timer(timer), _pMedias(SET),
+	MediaStream(TYPE_FILE, path, source), io(io), _pReader(move(pReader)), timer(timer), _pMedias(SET),
 		_onTimer([this, &source](UInt32 delay) {
 			unique<Media::Base> pMedia;
 			while (!_pMedias->empty()) {
@@ -172,7 +172,7 @@ void MediaFile::Writer::Begin::process(Exception& ex, File& file) {
 }
 
 MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io) : _sequences(1), _append(false),
-	Media::Stream(TYPE_FILE, path), io(io), _writeTrack(0), _pWriter(move(pWriter)) {
+	MediaStream(TYPE_FILE, path), io(io), _writeTrack(0), _pWriter(move(pWriter)) {
 	if (String::ICompare(path.extension(), "m3u8") == 0)
 		_pPlaylist.set<M3U8::Writer>(io);
 	if(_pPlaylist)

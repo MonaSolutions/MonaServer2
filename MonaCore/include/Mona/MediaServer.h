@@ -27,14 +27,14 @@ namespace Mona {
 
 struct MediaServer : virtual Static {
 	enum Type {
-		TYPE_TCP = 1, // to match Media::Stream::Type
+		TYPE_TCP = 1, // to match MediaStream::Type
 #if defined(SRT_API)
-		TYPE_SRT = 2, // to match Media::Stream::Type
+		TYPE_SRT = 2, // to match MediaStream::Type
 #endif
-		TYPE_HTTP = 4 // to match Media::Stream::Type
+		TYPE_HTTP = 4 // to match MediaStream::Type
 	};
 
-	struct Writer : Media::Stream, virtual Object {
+	struct Writer : MediaStream, virtual Object {
 		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
 
@@ -43,6 +43,7 @@ struct MediaServer : virtual Static {
 
 		const SocketAddress		address;
 		IOSocket&				io;
+		bool					starting() const { return MediaStream::starting(); }
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
 	private:
@@ -60,7 +61,7 @@ struct MediaServer : virtual Static {
 		const char*						_format;
 	};
 
-	struct Reader : Media::Stream, virtual Object {
+	struct Reader : MediaStream, virtual Object {
 		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
 
@@ -69,6 +70,7 @@ struct MediaServer : virtual Static {
 
 		const SocketAddress		address;
 		IOSocket&				io;
+		bool					starting() const { return MediaStream::starting(); }
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
 	private:

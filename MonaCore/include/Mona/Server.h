@@ -49,18 +49,18 @@ struct Server : protected ServerAPI, private Thread {
 	Publish* publish(const char* name);
 	/*!
 	Create a media stream target */
-	unique<Media::Stream> stream(const std::string& description) { return stream(Media::Source::Null(), description); }
+	unique<MediaStream> stream(const std::string& description) { return stream(Media::Source::Null(), description); }
 	/*!
 	Create a media stream source
 	Trick: use '!' in description to create a "logs" publication */
-	unique<Media::Stream> stream(Media::Source& source, const std::string& description);
+	unique<MediaStream> stream(Media::Source& source, const std::string& description);
 	
 
 protected:
 	/*!
 	Create a media stream source or target automatically linked to a publication,
 	Trick: use '!' in description to create a "logs" publication */
-	shared<Media::Stream> stream(const std::string& publication, const std::string& description, bool isSource = false);
+	shared<MediaStream> stream(const std::string& publication, const std::string& description, bool isSource = false);
 
 	template<typename  ...Args>
 	Publication* publish(Exception& ex, Args&&... args) { return ServerAPI::publish(ex, args ...); }
@@ -81,7 +81,7 @@ private:
 	Sessions		_sessions;
 	Path			_www;
 
-	std::map<shared<Media::Stream>, unique<Subscription>>			_iniStreams;
+	std::map<shared<MediaStream>, unique<Subscription>>			_iniStreams;
 	std::multimap<const char*, Publication*, String::Comparator>	_streamPublications; // contains publications initiated by autoStreams
 	std::map<shared<Media::Target>, unique<Subscription>>			_streamSubscriptions; // contains susbscriptions created by auto streams target
 	std::map<std::string, Publication>								_publications;

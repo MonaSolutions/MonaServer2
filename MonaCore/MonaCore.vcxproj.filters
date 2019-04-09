@@ -361,6 +361,9 @@
     <ClInclude Include="include\Mona\Playlist.h">
       <Filter>Multimedia</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\MediaStream.h">
+      <Filter>Multimedia\Streams</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -607,6 +610,9 @@
     </ClCompile>
     <ClCompile Include="sources\M3U8.cpp">
       <Filter>Multimedia</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\MediaStream.cpp">
+      <Filter>Multimedia\Streams</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -231,11 +231,11 @@ void Server::loadIniStreams() {
 
 	// Create streams
 	for (const Description& description : descriptions) {
-		shared<Media::Stream> pStream = stream(description.publication, description, description.isSource);
+		shared<MediaStream> pStream = stream(description.publication, description, description.isSource);
 		if (!pStream)
 			continue;
 		pStream->start(self);
-		if (pStream->type == Media::Stream::TYPE_LOGS && !pStream->running())
+		if (pStream->type == MediaStream::TYPE_LOGS && !pStream->running())
 			continue; // useless, can't work!
 		// move stream target from _streamSubscriptions to _iniStreams to avoid double iteration on onManage!
 		const auto& itTarget = _streamSubscriptions.find(dynamic_pointer_cast<Media::Target>(pStream));
@@ -247,8 +247,8 @@ void Server::loadIniStreams() {
 	}
 }
 
-shared<Media::Stream> Server::stream(const string& publication, const string& description, bool isSource) {
-	shared<Media::Stream> pStream;
+shared<MediaStream> Server::stream(const string& publication, const string& description, bool isSource) {
+	shared<MediaStream> pStream;
 	if(isSource) { // is source
 		// PUBLISH, keep publication opened!
 		Exception ex;
@@ -284,11 +284,11 @@ shared<Media::Stream> Server::stream(const string& publication, const string& de
 	return pStream;
 }
 
-unique<Media::Stream> Server::stream(Media::Source& source, const string& description) {
+unique<MediaStream> Server::stream(Media::Source& source, const string& description) {
 	Exception ex;
-	unique<Media::Stream> pStream;
+	unique<MediaStream> pStream;
 	if (&source == &Media::Source::Null() || description[0] != '!') {
-		AUTO_ERROR(pStream = Media::Stream::New(ex, source, description, timer, ioFile, ioSocket, pTLSClient), description);
+		AUTO_ERROR(pStream = MediaStream::New(ex, source, description, timer, ioFile, ioSocket, pTLSClient), description);
 		if (!pStream)
 			return nullptr;
 	} else

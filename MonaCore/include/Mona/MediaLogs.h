@@ -25,10 +25,12 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-struct MediaLogs : Media::Stream, virtual Object {
+struct MediaLogs : MediaStream, virtual Object {
 
-	MediaLogs(std::string&& name, Media::Source& source, ServerAPI& api) : _api(api), Media::Stream(Media::Stream::TYPE_LOGS, name, source) {}
+	MediaLogs(std::string&& name, Media::Source& source, ServerAPI& api) : _api(api), MediaStream(MediaStream::TYPE_LOGS, name, source) {}
 	virtual ~MediaLogs() { stop(); }
+
+	bool starting() const { return MediaStream::starting(); }
 
 private:
 	bool starting(const Parameters& parameters);

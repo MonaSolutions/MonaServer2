@@ -435,21 +435,21 @@ bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet,
 	return true;
 }
 
-Media::Stream::Stream(Type type, const Path& path, Source& source) :
+MediaStream::MediaStream(Type type, const Path& path, Media::Source& source) :
 	_starting(false), _running(false), targets(_targets), _startCount(0),
 	type(type), path(path), source(source) {
 }
-void Media::Stream::start(const Parameters& parameters) {
+void MediaStream::start(const Parameters& parameters) {
 	ex = nullptr; // reset lastEx on pullse start!
 	if (_running && !_starting)
 		return; // nothing todo, starting already done!
 	if (!_startCount && !_running) {
 		// do it just on first start call!
-		Target* pTarget = dynamic_cast<Target*>(this);
+		Media::Target* pTarget = dynamic_cast<Media::Target*>(this);
 		if (pTarget) {
 			// This is a target, with beginMedia it can be start, so create a _pTarget and keep it alive all the life-time of this Stream
 			// Indeed it can be stopped and restarted with beginMedia!
-			_pTarget = shared<Target>(make_shared<Target>(), pTarget); // aliasing
+			_pTarget = shared<Media::Target>(make_shared<Media::Target>(), pTarget); // aliasing
 			onNewTarget(_pTarget);
 		}
 	}
@@ -459,7 +459,7 @@ void Media::Stream::start(const Parameters& parameters) {
 	if (_starting) // _starting can switch to false if finalizeStart (then _running is already set to true) and on stop (then _running must stay on false)
 		_running = true;
 }
-bool Media::Stream::finalizeStart() {
+bool MediaStream::finalizeStart() {
 	if (!_starting)
 		return false;
 	if (!_running) // called while starting!
@@ -473,7 +473,7 @@ bool Media::Stream::finalizeStart() {
 	INFO(description(), " starts");
 	return true;
 }
-void Media::Stream::stop() {
+void MediaStream::stop() {
 	if (!_running && !_starting)
 		return;
 	stopping();
@@ -486,18 +486,18 @@ void Media::Stream::stop() {
 	INFO(description(), " stops");
 	onStop(); // in last to allow possibily a delete this (beware impossible with Subscription usage!)
 }
-shared<const Socket> Media::Stream::socket() const {
+shared<const Socket> MediaStream::socket() const {
 	if (type>0)
 		WARN(typeof(self), " should implement socket()");
 	return nullptr;
 }
-shared<const File> Media::Stream::file() const {
+shared<const File> MediaStream::file() const {
 	if (type == TYPE_FILE)
 		WARN(typeof(self), " should implement file()");
 	return nullptr;
 }
 
-shared<Socket> Media::Stream::newSocket(const Parameters& parameters, const shared<TLS>& pTLS) {
+shared<Socket> MediaStream::newSocket(const Parameters& parameters, const shared<TLS>& pTLS) {
 	if (type <= 0)
 		return nullptr;
 	shared<Socket> pSocket;
@@ -517,13 +517,13 @@ shared<Socket> Media::Stream::newSocket(const Parameters& parameters, const shar
 	return pSocket;
 }
 
-unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
+unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
 	// Net => [address] [type/TLS][/MediaFormat] [parameter]
 	// File = > file[.format][MediaFormat][parameter]
 	
 	const char* line = String::TrimLeft(description.c_str());
 
-	bool isTarget(&source==&Source::Null());
+	bool isTarget(&source==&Media::Source::Null());
 	bool isBind = *line == '@';
 	if (isBind)
 		++line;
@@ -699,7 +699,7 @@ unique<Media::Stream> Media::Stream::New(Exception& ex, Source& source, const st
 		}
 	}
 	
-	unique<Stream> pStream;
+	unique<MediaStream> pStream;
 	if (isFile) {
 		if (isTarget)
 			pStream = MediaFile::Writer::New(path, format.c_str(), ioFile);

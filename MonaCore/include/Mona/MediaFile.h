@@ -23,13 +23,14 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MediaWriter.h"
 #include "Mona/Playlist.h"
 #include "Mona/Segments.h"
+#include "Mona/MediaStream.h"
 
 namespace Mona {
 
 
 struct MediaFile : virtual Static  {
 
-	struct Reader : Media::Stream, virtual Object {
+	struct Reader : MediaStream, virtual Object {
 		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const char* subMime, const Timer& timer, IOFile& io);
 		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const Timer& timer, IOFile& io) { return New(path, source, path.extension().c_str(), timer, io); }
 
@@ -38,6 +39,8 @@ struct MediaFile : virtual Static  {
 
 		IOFile&			io;
 		const Timer&	timer;
+
+		bool starting() const { return MediaStream::starting(); }
 
 	private:
 		bool starting(const Parameters& parameters);
@@ -98,7 +101,7 @@ struct MediaFile : virtual Static  {
 
 
 
-	struct Writer : Media::Target, Media::Stream, virtual Object {
+	struct Writer : Media::Target, MediaStream, virtual Object {
 		static unique<MediaFile::Writer> New(const Path& path, const char* subMime, IOFile& io);
 		static unique<MediaFile::Writer> New(const Path& path, IOFile& io) { return New(path, path.extension().c_str(), io); }
 
@@ -106,6 +109,7 @@ struct MediaFile : virtual Static  {
 		virtual ~Writer() { stop(); }
 
 		IOFile&		io;
+		bool		starting() const { return MediaStream::starting(); }
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 	
 		void setMediaParams(const Parameters& parameters);
