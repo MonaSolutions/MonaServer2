@@ -30,13 +30,13 @@ namespace Mona {
 
 
 XMLRPCWriter::XMLRPCWriter(Buffer& buffer) : DataWriter(buffer) {
-	writer.write(EXPAND(RESPONSE_HEADER)).write(EXPAND(RESPONSE_FOOTER));
+	String::Append(writer, RESPONSE_HEADER, RESPONSE_FOOTER);
 }
 
 void XMLRPCWriter::clear() {
 	_layers.clear();
 	DataWriter::clear();
-	writer.write(EXPAND(RESPONSE_HEADER)).write(EXPAND(RESPONSE_FOOTER));
+	String::Append(writer, RESPONSE_HEADER, RESPONSE_FOOTER);
 }
 
 UInt64 XMLRPCWriter::beginObject(const char* type) {

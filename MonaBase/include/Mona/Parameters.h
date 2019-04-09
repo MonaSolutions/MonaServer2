@@ -79,7 +79,9 @@ struct Parameters : String::Object<Parameters> {
 	bool erase(const std::string& key);
 
 	const std::string& setString(const std::string& key, const std::string& value) { return setParameter(key, value); }
-	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) { return setParameter(key, std::string(value, size == std::string::npos ? strlen(value) : size)); }
+	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) {
+		return size == std::string::npos ? setParameter(key, value) : setParameter(key, std::string(value, size));
+	}
 
 	template<typename Type>
 	Type setNumber(const std::string& key, Type value) { STATIC_ASSERT(std::is_arithmetic<Type>::value); setParameter(key, String(value)); return value; }

@@ -42,10 +42,10 @@ struct Date : Time, virtual Object {
 
 	// build a NOW date, not initialized (is null)
 	// /!\ Keep 'Type' to avoid confusion with "build from time" constructor, if a explicit Int32 offset is to set, use Date::setOffset or "build from time" contructor
-	explicit Date(Timezone::Type offset=Timezone::LOCAL) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset((Int32)offset),_isLocal(true) {}
+	Date(Timezone::Type offset=Timezone::LOCAL) : _isDST(false),_year(0), _month(0), _day(0), _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset((Int32)offset),_isLocal(true) {}
 	
 	// build from time
-	explicit Date(Int64 time,Int32 offset= Timezone::LOCAL) : _isDST(false),_year(0), _month(0), _day(0),  _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset(offset),_isLocal(true), Time(time) {}
+	Date(Int64 time, Int32 offset= Timezone::LOCAL) : _isDST(false),_year(0), _month(0), _day(0),  _weekDay(7),_hour(0), _minute(0), _second(0), _millisecond(0), _changed(false), _offset(offset),_isLocal(true), Time(time) {}
 
 	// build from other  date
 	explicit Date(const Date& other) : Time((Time&)other), _isDST(other._isDST),_year(other._year), _month(other._month), _day(other._day),  _weekDay(other._weekDay),_hour(other._hour), _minute(other._minute), _second(other._second), _millisecond(other._millisecond), _changed(other._changed), _offset(other._offset),_isLocal(other._isLocal) {

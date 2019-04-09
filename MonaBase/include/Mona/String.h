@@ -20,9 +20,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Buffer.h"
 #include "Mona/Date.h"
 #include <functional>
-#include <vector>
-#include <map>
-#include <set>
 
 #undef max
 
@@ -433,6 +430,10 @@ struct String : std::string {
 	static OutType& Append(OutType& out, const Data& data, Args&&... args) {
 		return Append<OutType>((OutType&)out.append(data.value, data.size), std::forward<Args>(args)...);
 	}
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const Binary& binary, Args&&... args) {
+		return Append<OutType>((OutType&)out.append(STR binary.data(), binary.size()), std::forward<Args>(args)...);
+	}
 
 	struct Repeat : virtual Mona::Object {
 		Repeat(UInt32 count, char value) : value(value), count(count) {}
@@ -532,7 +533,7 @@ struct String : std::string {
 		size = Append<OutType>(out, ' ', ShortPath(log.file), '[', log.line, "] ").size() - size;
 		if (size < 37)
 			out.append(37 - size, ' ');
-		return Append<OutType>(out.append(log.message.data(), log.message.size()).append(EXPAND("\n")), std::forward<Args>(args)...);
+		return Append<OutType>(out, log.message, '\n', std::forward<Args>(args)...);
 	}
 
 

@@ -262,7 +262,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 				pVideo->waitKeyFrame = false;
 			}
 			CCaption::OnText onText([this, track](UInt8 channel, shared<Buffer>& pBuffer) {
-			//	DEBUG("cc", channel, " => ", String::Data(pBuffer->data(), pBuffer->size()));
+			//	DEBUG("cc", channel, " => ", *pBuffer);
 				writeData(Media::Data::TYPE_TEXT, Packet(pBuffer), (track - 1) * 4 + channel);
 			});
 			CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {

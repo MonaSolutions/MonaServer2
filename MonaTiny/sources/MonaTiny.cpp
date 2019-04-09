@@ -36,10 +36,8 @@ private:
 			SocketAddress address(IPAddress::Loopback(), 8080);
 			_http.connect(ex, address);
 			shared<Buffer> pBuffer(SET);
-			BinaryWriter writer(*pBuffer);
-			writer.write(EXPAND("GET ")).write("/test");
-			writer.write(EXPAND(" HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: "));
-			writer.write(address).write(EXPAND("\r\n\r\n"));
+			String::Append(*pBuffer,"GET /test HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ");
+			String::Append(*pBuffer, address, "\r\n\r\n");
 			_http.send(ex, Packet(pBuffer));
 		}
 		struct HTTPClient : TCPClient {

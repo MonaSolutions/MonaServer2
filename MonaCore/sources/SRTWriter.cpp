@@ -31,11 +31,10 @@ void SRTWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& pac
 	if (Media::Data::TYPE_TEXT != type || !onWrite)
 		return;
 	shared<Buffer>	pBuffer(SET);
-	BinaryWriter writer(*pBuffer);
-	String::Append(writer, ++_index, '\n', String::Date(Date(_time), _timeFormat), " --> ", String::Date(Date(_time + (UInt32)min(max(packet.size() / 20.0, 3) * 1000, 10000)), _timeFormat), '\n');
-	writer.write(packet).write(EXPAND("\n\n"));
+	String::Append(*pBuffer, ++_index, '\n', String::Date(_time, _timeFormat), " --> ", String::Date(Date(_time + (UInt32)min(max(packet.size() / 20.0, 3) * 1000, 10000)), _timeFormat));
+	String::Append(*pBuffer, '\n', packet, "\n\n");
 	onWrite(Packet(pBuffer));
-	DEBUG("cc", track, "(", _time,") => ", String::Data(packet.data(), packet.size()));
+	DEBUG("cc", track, "(", _time,") => ", packet);
 }
 
 

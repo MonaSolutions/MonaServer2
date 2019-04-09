@@ -110,56 +110,54 @@ MIME::Type MIME::Read(const char* value, const char*& subType) {
 	return TYPE_TEXT;
 }
 
-BinaryWriter& MIME::Write(BinaryWriter& writer, Type type, const char* subType) {
+Buffer& MIME::Write(Buffer& buffer, Type type, const char* subType) {
 	switch (type) {
 		case TYPE_TEXT:
-			writer.write(EXPAND("text/"));
+			buffer.append(EXPAND("text/"));
 			if (!subType)
-				subType = "html; charset=utf-8";
+				return buffer.append(EXPAND("html; charset=utf-8"));
 			break;
 		case TYPE_IMAGE:
-			writer.write(EXPAND("image/"));
+			buffer.append(EXPAND("image/"));
 			if (!subType)
-				subType = "jpeg";
+				return buffer.append(EXPAND("jpeg"));
 			break;
 		case TYPE_APPLICATION:
-			writer.write(EXPAND("application/"));
+			buffer.append(EXPAND("application/"));
 			if (!subType)
-				subType = "octet-stream";
+				return buffer.append(EXPAND("octet-stream"));
 			break;
 		case TYPE_MULTIPART:
-			writer.write(EXPAND("multipart/"));
+			buffer.append(EXPAND("multipart/"));
 			if (!subType)
-				subType = "mixed";
+				return buffer.append(EXPAND("mixed"));
 			break;
 		case TYPE_AUDIO:
-			writer.write(EXPAND("audio/"));
+			buffer.append(EXPAND("audio/"));
 			if (!subType)
-				subType = "mp2t";
+				return buffer.append(EXPAND("mp2t"));
 			break;
 		case TYPE_VIDEO:
-			writer.write(EXPAND("video/"));
+			buffer.append(EXPAND("video/"));
 			if (!subType)
-				subType = "mp2t";
+				return buffer.append(EXPAND("mp2t"));
 			break;
 		case TYPE_MESSAGE:
-			writer.write(EXPAND("message/"));
+			buffer.append(EXPAND("message/"));
 			if (!subType)
-				subType = "example";
+				return buffer.append(EXPAND("example"));
 			break;
 		case TYPE_MODEL:
-			writer.write(EXPAND("model/"));
+			buffer.append(EXPAND("model/"));
 			if (!subType)
-				subType = "example";
+				return buffer.append(EXPAND("example"));
 			break;
 		case TYPE_EXAMPLE:
-			writer.write(EXPAND("example"));
-			subType = "";
-			break;
+			return buffer.append(EXPAND("example"));
 		default: // TYPE_NONE
-			return writer.write(EXPAND("application/octet-stream"));
+			return buffer.append(EXPAND("application/octet-stream"));
 	}
-	return writer.write(subType);
+	return buffer.append(subType, strlen(subType));
 }
 
 

@@ -79,7 +79,7 @@ void HTTP::Header::set(const char* key, const char* value) {
 		Exception ex;
 		AUTO_ERROR(ifModifiedSince.update(ex, value, Date::FORMAT_HTTP), "HTTP header")
 	} else if (String::ICompare(key, "access-control-request-headers") == 0) {
-		accessControlRequestHeaders = value;
+			accessControlRequestHeaders = value;
 	} else if (String::ICompare(key, "access-control-request-method") == 0) {
 
 		String::ForEach forEach([this](UInt32 index, const char* value) {
@@ -95,22 +95,19 @@ void HTTP::Header::set(const char* key, const char* value) {
 	} else if (String::ICompare(key, "cookie") == 0) {
 		String::ForEach forEach([this](UInt32 index, const char* data) {
 			const char* value = data;
-			// trim right
-			while (value && *value != '=' && !isblank(*value))
+			// trim key right
+			while (*value && *value != '=' && !isblank(*value))
 				++value;
-			if (value) {
-				const char *endKey = value;
-				// trim left
-				do {
-					++value;
-				} while (value && (isblank(*value) || *value == '='));
-				String::Scoped scoped(endKey);
-				setString(data, value); // cookies in Map!
-			}
+			const char *endKey = value;
+			// trim value left
+			while (*value && isblank(*++value));
+			String::Scoped scoped(endKey);
+			setString(data, value); // cookies in Map!
 			return true;
 		});
 		String::Split(value, ";", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
 	}
+	
 }
 
 const char* HTTP::ErrorToCode(Int32 error) {
@@ -222,12 +219,8 @@ static void WriteDirectoryEntry(BinaryWriter& writer, const Path& entry) {
 	else
 		String::Assign(size, String::Format<double>("%.1fG", entry.size() / 1073741824.0));
 
-	writer.write(EXPAND("<tr><td><a href=\""))
-		.write(entry.name()).write(entry.isFolder() ? "/\">" : "\">")
-		.write(entry.name()).write(entry.isFolder() ? "/" : "").write(EXPAND("</a></td><td>&nbsp;"));
-	String::Append(writer, String::Date(Date(entry.lastChange()), "%d-%b-%Y %H:%M"))
-		.write(EXPAND("</td><td align=right>&nbsp;&nbsp;"))
-		.write(size).write(EXPAND("</td></tr>\n"));
+	String::Append(writer, "<tr><td><a href=\"", entry.name(), entry.isFolder() ? "/\">" : "\">", entry.name(), entry.isFolder() ? "/" : "");
+	String::Append(writer, "</a></td><td>&nbsp;", String::Date(entry.lastChange(), "%d-%b-%Y %H:%M"), "</td><td align=right>&nbsp;&nbsp;", size, "</td></tr>\n");
 }
 
 bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const string& fullPath, const string& path, SortBy sortBy, Sort sort) {
@@ -245,16 +238,12 @@ bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const stri
 
 	// Write column names
 	// Name		Modified	Size
-	writer.write(EXPAND("<!DOCTYPE html><html><head><title>Index of "))
-		.write(path).write(EXPAND("/</title><style>th {text-align: center;}</style></head><body><h1>Index of "))
-		.write(path).write(EXPAND("/</h1><pre><table cellpadding=\"0\"><tr><th><a href=\"?N="))
-		.write(ord).write(EXPAND("\">Name</a></th><th><a href=\"?M="))
-		.write(ord).write(EXPAND("\">Modified</a></th><th><a href=\"?S="))
-		.write(ord).write(EXPAND("\">Size</a></th></tr><tr><td colspan=\"3\"><hr></td></tr>"));
+	String::Append(writer, "<!DOCTYPE html><html><head><title>Index of ", path, "/</title><style>th {text-align: center;}</style></head><body><h1>Index of ", path, "/</h1><pre><table cellpadding=\"0\"><tr><th><a href=\"?N=");
+	String::Append(writer, ord, "\">Name</a></th><th><a href=\"?M=", ord, "\">Modified</a></th><th><a href=\"?S=", ord, "\">Size</a></th></tr><tr><td colspan=\"3\"><hr></td></tr>");
 
 	// Write first entry - link to a parent directory
-	if(!path.empty())
-		writer.write(EXPAND("<tr><td><a href=\"")).write(EXPAND("..\">Parent directory</a></td><td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>\n"));
+	if (!path.empty())
+		String::Append(writer, "<tr><td><a href=\"..\">Parent directory</a></td><td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>\n");
 
 	// Sort entries
 	EntriesComparator comparator(sortBy,sort);
@@ -355,8 +344,7 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 void HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from) {
 	// Send local to remote
 	HTTPSender sender("RDVSender", pHeader, pSocket);
-	BinaryWriter writer(sender.buffer());
-	HTTP_BEGIN_HEADER(writer)
+	HTTP_BEGIN_HEADER(sender.buffer())
 		HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
 		const char* id = message->getString("from");
 		if(id)

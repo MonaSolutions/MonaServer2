@@ -19,7 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/BinaryWriter.h"
+#include "Mona/Buffer.h"
 #include "Mona/Path.h"
 
 namespace Mona {
@@ -40,9 +40,9 @@ struct MIME : virtual Static {
 		TYPE_MULTIPART
 	};
 
-	static Type				Read(const Path& file, const char*& subType);
-	static Type				Read(const char* value, const char*& subType);
-	static BinaryWriter&	Write(BinaryWriter& writer, Type type, const char* subType=NULL);
+	static Type		Read(const Path& file, const char*& subType);
+	static Type		Read(const char* value, const char*& subType);
+	static Buffer&	Write(Buffer& buffer, Type type, const char* subType=NULL);
 };
 
 

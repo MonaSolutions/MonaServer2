@@ -66,10 +66,10 @@ struct RawWriter : DataWriter, Packet, virtual Object {
 	void   clear() { _header = false; _first = true; _level = 0; DataWriter::clear(); }
 private:
 	template<typename ValueType>
-	void append(const ValueType& value) {
+	void append(ValueType&& value) {
 		if (!_header && !_level && _first)
 			_first = false;
-		String::Append(writer, value);
+		String::Append(writer, std::forward<ValueType>(value));
 	}
 
 	UInt8				_level;

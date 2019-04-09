@@ -4,7 +4,7 @@
 #include "MonaTiny.h"
 #include "Version.h"
 
-#define VERSION		"1." STRINGIZE(MONA_VERSION)
+#define VERSION		"1." STRINGIFY(MONA_VERSION)
 
 using namespace std;
 using namespace Mona;

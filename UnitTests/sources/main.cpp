@@ -28,7 +28,7 @@ using namespace std;
 struct TestApp : Application  {
 	TestApp() : _loop(1) { setString("description", "Unit tests"); }
 private:
-	const char* defineVersion() { return STRINGIZE(MONA_VERSION); }
+	const char* defineVersion() { return STRINGIFY(MONA_VERSION); }
 
 	void defineOptions(Exception& ex, Options& options) {
 		

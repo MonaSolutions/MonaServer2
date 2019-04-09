@@ -40,9 +40,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define SET_T	std::piecewise_construct_t
 #define EXPAND(VALUE)	VALUE"",(sizeof(VALUE)-1) // "" concatenation is here to check that it's a valid const string is not a pointer of char*
 
-#define STRINGIZE(x) STRINGIZE2(x)
-#define STRINGIZE2(x) #x
-#define LINE_STRING STRINGIZE(__LINE__)
+#define STRINGIFY(x) STRINGIFY_(x)
+#define STRINGIFY_(x) #x
+#define LINE_STRING STRINGIFY(__LINE__)
 #define FOURCC(a,b,c,d) uint32_t( ((a)<<24) | ((b)<<16) | ((c)<<8) | (d) )
 
 #if defined(_WIN32)

@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Test.h"
 #include "Mona/Util.h"
+#include <set>
 
 using namespace Mona;
 using namespace std;

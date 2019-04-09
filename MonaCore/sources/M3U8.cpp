@@ -15,7 +15,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/M3U8.h"
-#include "Mona/BinaryWriter.h"
 #include "Mona/Segments.h"
 
 
@@ -43,9 +42,7 @@ M3U8::Writer& M3U8::Writer::open(const Path& path, bool append) {
 
 void M3U8::Writer::write(UInt32 sequence, UInt32 duration) {
 	shared<Buffer> pBuffer(SET);
-	BinaryWriter writer(*pBuffer);
-	String::Append(writer.write(EXPAND("\n#EXTINF:")), String::Format<double>("%.3f", duration / 1000.0), ',');
-	String::Append(writer, '\n', SEGMENT(self->baseName(), sequence, _ext));
+	String::Append(*pBuffer, "\n#EXTINF:", String::Format<double>("%.3f", duration / 1000.0), ",\n", SEGMENT(self->baseName(), sequence, _ext));
 	FileWriter::write(Packet(pBuffer));
 }
 

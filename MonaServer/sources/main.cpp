@@ -20,7 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/ServerApplication.h"
 #include "Version.h"
 
-#define VERSION		"2." STRINGIZE(MONA_VERSION)
+#define VERSION		"2." STRINGIFY(MONA_VERSION)
 
 using namespace std;
 using namespace Mona;

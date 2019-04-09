@@ -62,12 +62,11 @@ protected:
 
 	template <typename ...Args>
 	void writeError(const char* code, Args&&... args) {
-		BinaryWriter writer(buffer());
-		HTML_BEGIN_COMMON_RESPONSE(writer, code)
-			UInt32 size(writer.size());
-			String::Append(writer, std::forward<Args>(args)...);
-			if (size == writer.size()) // nothing has been written, write code in content!
-				writer.write(code);
+		HTML_BEGIN_COMMON_RESPONSE(buffer(), code)
+			UInt32 size(__writer.size());
+			String::Append(__writer, std::forward<Args>(args)...);
+			if (size == __writer.size()) // nothing has been written, write code in content!
+				String::Append(__writer, code);
 		HTML_END_COMMON_RESPONSE(pRequest->host)
 	}
 

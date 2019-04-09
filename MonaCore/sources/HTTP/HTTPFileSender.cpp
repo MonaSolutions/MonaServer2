@@ -51,14 +51,13 @@ bool HTTPFileSender::load(Exception& ex) {
 		// File doesn't exists but maybe folder exists?
 		if (FileSystem::Exists(MAKE_FOLDER(path()))) {
 			/// Redirect to the real folder path
-			BinaryWriter writer(this->buffer());
 			// Full URL required here relating RFC2616 section 10.3.3
 			String::Assign(buffer, pSocket->isSecure() ? "https://" : "http://", pRequest->host, pRequest->path, '/', File::name(), '/');
-			HTTP_BEGIN_HEADER(writer)
+			HTTP_BEGIN_HEADER(this->buffer())
 				HTTP_ADD_HEADER("Location", buffer);
 			HTTP_END_HEADER
-			HTML_BEGIN_COMMON_RESPONSE(writer, EXPAND("Moved Permanently"))
-				writer.write(EXPAND("The document has moved <a href=\"")).write(buffer).write(EXPAND("\">here</a>."));
+			HTML_BEGIN_COMMON_RESPONSE(this->buffer(), "Moved Permanently")
+				String::Append(this->buffer(), "The document has moved <a href=\"", buffer, "\">here</a>.");
 			HTML_END_COMMON_RESPONSE(buffer)
 			if (!send(HTTP_CODE_301, MIME::TYPE_TEXT, "html; charset=utf-8"))
 				ex.set<Ex::Net::Socket>();
