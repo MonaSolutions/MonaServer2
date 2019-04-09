@@ -53,7 +53,7 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<S
 
 MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	MediaStream(type, path, source), _streaming(false), io(io), _pTLS(pTLS), _pReader(move(pReader)),
-	address((!address.host() && type != TYPE_UDP) ? IPAddress::Loopback() : address.host()) {
+	address((!address.host() && type != TYPE_UDP) ? IPAddress::Loopback() : address.host(), address.port()) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { finalizeStart(); };
 	_onSocketError = [this](const Exception& ex) { stop(starting() ? LOG_DEBUG : LOG_WARN, ex); };
