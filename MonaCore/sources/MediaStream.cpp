@@ -205,6 +205,7 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 	Path   path;
 	SocketAddress address;
 	UInt16 port;
+	bool isAddress = false;
 	
 	if (!isFile) {
 		// if is not explicitly a file, test if it's a port
@@ -215,7 +216,6 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 			address.setPort(port);
 			path.set(first.c_str() + size);
 		} else {
-			bool isAddress = false;
 			// Test if it's an address
 			{
 				String::Scoped scoped(first.data() + size);
@@ -227,14 +227,7 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 					return nullptr;
 				}
 			}
-			if (isAddress) {
-				path.set(first.c_str() + size);
-				// explicit 0.0.0.0 is an error if 
-				if (!isBind && !address.host() && (type != TYPE_UDP || isTarget)) {
-					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
-					return nullptr;
-				}
-			} else {
+			if (!isAddress) {
 				if (!path.set(move(first))) {
 					ex.set<Ex::Format>("No file name in stream file description");
 					return nullptr;
@@ -245,7 +238,8 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 				}
 				isFile = true;
 				type = TYPE_FILE;
-			}
+			} else
+				path.set(first.c_str() + size);
 		}
 	}
 
@@ -296,16 +290,21 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 	} else {
 		if (!type) // TCP by default excepting if format is RTP where rather UDP by default
 			type = String::ICompare(format, "RTP") == 0 ? TYPE_UDP : TYPE_TCP;
+
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-		if (type != TYPE_UDP && (isBind || !address.host())) { // MediaServer
+		if (type != TYPE_UDP && (isBind || !address.host())) { // MediaServer, UDP is always a MediaSocket!
 			if (isTarget)
 				pStream = MediaServer::Writer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 			else
 				pStream = MediaServer::Reader::New(MediaServer::Type(type), path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
-		}
-		else if (isTarget)
+		} else if (isTarget) {
+			if (!address.host() && isAddress) { // explicit 0.0.0.0 is an error here!
+					// necessary UDP here (else give a MediaServer)
+				ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
+				return nullptr;
+			}
 			pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
-		else
+		} else
 			pStream = MediaSocket::Reader::New(type, path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 	}
 
