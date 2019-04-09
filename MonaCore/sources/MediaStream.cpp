@@ -26,7 +26,7 @@ using namespace std;
 
 namespace Mona {
 
-MediaStream::MediaStream(Type type, const Path& path, Media::Source& source) :
+MediaStream::MediaStream(Type type, const Path& path, Media::Source& source) : _firstStart(true),
 	_starting(false), _running(false), targets(_targets), _startCount(0),
 	type(type), path(path), source(source) {
 }
@@ -34,15 +34,13 @@ void MediaStream::start(const Parameters& parameters) {
 	ex = nullptr; // reset lastEx on pullse start!
 	if (_running && !_starting)
 		return; // nothing todo, starting already done!
-	if (!_startCount && !_running) {
-		// do it just on first start call!
+	if (_firstStart) {
+		_firstStart = false;
+		// This is a target, with beginMedia it can be start, so create a _pTarget and keep it alive all the life-time of this Stream
+		// Indeed it can be stopped and restarted with beginMedia!
 		Media::Target* pTarget = dynamic_cast<Media::Target*>(this);
-		if (pTarget) {
-			// This is a target, with beginMedia it can be start, so create a _pTarget and keep it alive all the life-time of this Stream
-			// Indeed it can be stopped and restarted with beginMedia!
-			_pTarget = shared<Media::Target>(make_shared<Media::Target>(), pTarget); // aliasing
-			onNewTarget(_pTarget);
-		}
+		if (pTarget)
+			onNewTarget(_pTarget = shared<Media::Target>(make_shared<Media::Target>(), pTarget)); // aliasing	
 	}
 	_starting = true;
 	if (starting(parameters))
@@ -216,8 +214,6 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 		if (String::ToNumber(first.data(), size, port)) {
 			address.setPort(port);
 			path.set(first.c_str() + size);
-			if (!isBind && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) // if no host and TCP/HTTP or target
-				address.host().set(IPAddress::Loopback());
 		} else {
 			bool isAddress = false;
 			// Test if it's an address
@@ -233,7 +229,8 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 			}
 			if (isAddress) {
 				path.set(first.c_str() + size);
-				if (!isBind && !address.host() && ((type != TYPE_UDP && type != TYPE_SRT) || isTarget)) {
+				// explicit 0.0.0.0 is an error if 
+				if (!isBind && !address.host() && (type != TYPE_UDP || isTarget)) {
 					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
 					return nullptr;
 				}

@@ -138,6 +138,7 @@ private:
 	UInt32								_startCount;
 	std::set<shared<const MediaStream>>	_targets;
 	shared<Media::Target>				_pTarget;
+	bool								_firstStart;
 	bool								_running;
 	bool								_starting;
 };

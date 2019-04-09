@@ -50,7 +50,7 @@ struct MediaServer : virtual Static {
 		bool starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Output Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server source ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
 
 		Socket::OnAccept	_onConnnection;
 		Socket::OnError		_onError;
@@ -77,7 +77,7 @@ struct MediaServer : virtual Static {
 		bool starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Input Stream server ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server target ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
 
 		struct Decoder : HTTPDecoder, virtual Object {

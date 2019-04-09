@@ -23,41 +23,6 @@ using namespace std;
 
 namespace Mona {
 
-
-unique<MediaServer::Writer> MediaServer::Writer::New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
-	unique<MediaWriter> pWriter(MediaWriter::New(subMime));
-	return pWriter ? make_unique<MediaServer::Writer>(type, path, move(pWriter), address, io, pTLS) : nullptr;
-}
-
-MediaServer::Writer::Writer(MediaServer::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	MediaStream(MediaStream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
-	_onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
-	_onConnnection = [this](const shared<Socket>& pSocket) {
-		// let's call beginMedia to start the stream!
-		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
-		if (!pTarget)
-			return stop<Ex::Intern>(LOG_ERROR, "Impossibe to add target ", pTarget->description());
-		// Don't overrides onStop => close socket => remove target!
-	};
-}
-
-bool MediaServer::Writer::starting(const Parameters& parameters) {
-	// can subscribe after bind + listen for server, no risk to miss an event
-	_pSocket = newSocket(parameters, _pTLS);
-	bool success;
-	AUTO_ERROR(success = (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, _onConnnection, _onError)), description());
-	if (!success)
-		stop();
-	return true;
-}
-
-void MediaServer::Writer::stopping() {
-	io.unsubscribe(_pSocket);
-}
-
-
-
-
 unique<MediaServer::Reader> MediaServer::Reader::New(MediaServer::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
 	if (!*subMime && type == MediaServer::Type::TYPE_HTTP) // Format can be empty with HTTP source
 		return make_unique<MediaServer::Reader>(type, path, source, unique<MediaReader>(), address, io, pTLS);
@@ -177,6 +142,43 @@ void MediaServer::Reader::stopping() {
 		_pReader = MediaReader::New(_pReader->subMime());
 
 }
+
+
+
+
+unique<MediaServer::Writer> MediaServer::Writer::New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
+	unique<MediaWriter> pWriter(MediaWriter::New(subMime));
+	return pWriter ? make_unique<MediaServer::Writer>(type, path, move(pWriter), address, io, pTLS) : nullptr;
+}
+
+MediaServer::Writer::Writer(MediaServer::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
+	MediaStream(MediaStream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
+	_onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
+	_onConnnection = [this](const shared<Socket>& pSocket) {
+		// let's call beginMedia to start the stream!
+		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
+		if (!pTarget)
+			return stop<Ex::Intern>(LOG_ERROR, "Impossibe to add target ", pTarget->description());
+		// Don't overrides onStop => close socket => remove target!
+	};
+}
+
+bool MediaServer::Writer::starting(const Parameters& parameters) {
+	// can subscribe after bind + listen for server, no risk to miss an event
+	_pSocket = newSocket(parameters, _pTLS);
+	bool success;
+	AUTO_ERROR(success = (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, _onConnnection, _onError)), description());
+	if (!success)
+		stop();
+	return true;
+}
+
+void MediaServer::Writer::stopping() {
+	io.unsubscribe(_pSocket);
+}
+
+
+
 
 
 
