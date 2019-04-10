@@ -91,7 +91,11 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 			}
 		}
 		Decoder* pDecoder(new Decoder(io.handler, _pReader, source.name(), type));
-		pDecoder->onResponse = _onResponse = [this](HTTP::Response& response)->void { writeMedia(response); };
+		pDecoder->onResponse = _onResponse = [this](HTTP::Response& response)->void {
+			if(response.code != 200)
+				return stop<Ex::Protocol>(LOG_ERROR, response.getString("code", "HTTP request error"));
+			writeMedia(response);
+		};
 		pDecoder->onRequest = _onRequest = [this](HTTP::Request& request) {
 			if (type == MediaStream::TYPE_HTTP)
 				return stop<Ex::Protocol>(LOG_ERROR, "HTTP request on a stream source (only HTTP response is expected)");

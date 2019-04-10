@@ -34,33 +34,6 @@ struct MediaServer : virtual Static {
 		TYPE_HTTP = 4 // to match MediaStream::Type
 	};
 
-	struct Writer : MediaStream, virtual Object {
-		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
-
-		Writer(MediaServer::Type type, const Path& path,unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		virtual ~Writer() { stop(); }
-
-		const SocketAddress		address;
-		IOSocket&				io;
-		bool					starting() const { return MediaStream::starting(); }
-		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
-
-	private:
-		bool starting(const Parameters& parameters);
-		void stopping();
-
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server source ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
-
-		Socket::OnAccept	_onConnnection;
-		Socket::OnError		_onError;
-
-		shared<Socket>					_pSocket;
-		shared<TLS>						_pTLS;
-		const char*						_subMime;
-		const char*						_format;
-	};
-
 	struct Reader : MediaStream, virtual Object {
 		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
@@ -77,7 +50,7 @@ struct MediaServer : virtual Static {
 		bool starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server target ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
 
 		struct Decoder : HTTPDecoder, virtual Object {
@@ -107,6 +80,35 @@ struct MediaServer : virtual Static {
 		shared<Socket>			_pSocketClient;
 		bool					_streaming;
 	};
+
+
+	struct Writer : MediaStream, virtual Object {
+		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+
+		Writer(MediaServer::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		virtual ~Writer() { stop(); }
+
+		const SocketAddress		address;
+		IOSocket&				io;
+		bool					starting() const { return MediaStream::starting(); }
+		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
+
+	private:
+		bool starting(const Parameters& parameters);
+		void stopping();
+
+		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server target ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
+
+		Socket::OnAccept	_onConnnection;
+		Socket::OnError		_onError;
+
+		shared<Socket>					_pSocket;
+		shared<TLS>						_pTLS;
+		const char*						_subMime;
+		const char*						_format;
+	};
+
 };
 
 } // namespace Mona
