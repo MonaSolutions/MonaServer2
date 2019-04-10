@@ -51,36 +51,16 @@ struct MediaServer : virtual Static {
 		void stopping();
 
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
-		void writeMedia(const HTTP::Message& message);
 
-		struct Decoder : HTTPDecoder, virtual Object {
-			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
-				_type(type), _rest(0), _pReader(pReader), HTTPDecoder(handler, Path::Null(), name.c_str()) {}
+		Socket::OnAccept	_onConnnection;
+		Socket::OnError		_onError;
 
-		private:
-			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
-			UInt32 onStreamData(Packet& buffer, const shared<Socket>& pSocket);
-
-			shared<MediaReader>		_pReader;
-			Type					_type;
-			SocketAddress			_address;
-			UInt32					_rest;
-		};
-
-		HTTPDecoder::OnRequest	_onRequest;
-		HTTPDecoder::OnResponse _onResponse;
-		Socket::OnDisconnection	_onSocketDisconnection;
-		Socket::OnFlush			_onSocketFlush;
-		Socket::OnAccept		_onConnnection;
-		Socket::OnError			_onSocketError;
-
-		shared<MediaReader>		_pReader;
-		shared<Socket>			_pSocket;
-		shared<TLS>				_pTLS;		
-		shared<Socket>			_pSocketClient;
-		bool					_streaming;
+		shared<MediaReader>			_pReader;
+		shared<Socket>					_pSocket;
+		shared<TLS>						_pTLS;
+		shared<MediaSocket::Reader>	_pTarget;
+		bool						_streaming;
 	};
-
 
 	struct Writer : MediaStream, virtual Object {
 		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
@@ -100,15 +80,14 @@ struct MediaServer : virtual Static {
 
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server target ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
 
-		Socket::OnAccept	_onConnnection;
+		Socket::OnAccept		_onConnnection;
 		Socket::OnError		_onError;
 
-		shared<Socket>					_pSocket;
-		shared<TLS>						_pTLS;
+		shared<Socket>			_pSocket;
+		shared<TLS>				_pTLS;
 		const char*						_subMime;
 		const char*						_format;
 	};
-
 };
 
 } // namespace Mona

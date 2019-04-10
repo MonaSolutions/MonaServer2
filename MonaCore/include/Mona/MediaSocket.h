@@ -27,11 +27,14 @@ namespace Mona {
 
 struct MediaSocket : virtual Static {
 
+	static bool SendHTTPHeader( HTTP::Type type, const shared<Socket>& pSocket, const std::string& path, MIME::Type mime, const char* subMime, const char* name, const std::string& description);
+
 	struct Reader : MediaStream, virtual Object {
 		static unique<MediaSocket::Reader> New(MediaStream::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		static unique<MediaSocket::Reader> New(MediaStream::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
 
 		Reader(MediaStream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Reader(MediaStream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const shared<Socket>& pSocket, IOSocket& io);
 		virtual ~Reader() { stop(); }
 
 		const SocketAddress			address;
@@ -45,6 +48,7 @@ struct MediaSocket : virtual Static {
 	
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
+		bool newSocket(const Parameters& parameters = Parameters::Null());
 
 		struct Decoder : HTTPDecoder, virtual Object {
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :
@@ -71,6 +75,7 @@ struct MediaSocket : virtual Static {
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
 		bool					_streaming;
+		bool					_httpAnswer; /// true to send an http answer if instanciated by MediaServer
 	};
 
 
@@ -145,6 +150,7 @@ struct MediaSocket : virtual Static {
 		shared<MediaWriter>				_pWriter;
 		UInt16							_sendTrack;
 		shared<std::string>				_pName;
+		bool							_httpAnswer; /// true to send an http answer if instanciated by MediaServer
 	};
 };
 
