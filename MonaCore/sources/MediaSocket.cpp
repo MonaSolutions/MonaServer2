@@ -65,7 +65,7 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 	if (!message.pMedia) {
 		if (_streaming)
 			return stop<Ex::Net::Socket>(LOG_DEBUG, "end of stream");
-		return stop<Ex::Protocol>(LOG_ERROR, "HTTP response is not a media");
+		return stop<Ex::Protocol>(LOG_ERROR, "HTTP packet is not a media");
 	}
 	_streaming = true;
 	if (message.lost)
@@ -123,7 +123,7 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 	if (!running() && type == TYPE_HTTP) { // HTTP + first time!
 		// send HTTP Header request!
 		shared<Buffer> pBuffer(SET);
-		String::Append(*pBuffer, "GET ", path, " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\n\r\n");
+		String::Append(*pBuffer, "GET ", path.length() ? path : "/", " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\n\r\n");
 		DUMP_REQUEST(source.name().c_str(), pBuffer->data(), pBuffer->size(), address);
 		int sent;
 		AUTO_ERROR((sent = _pSocket->write(ex = nullptr, Packet(pBuffer)))>=0, description());
@@ -226,7 +226,7 @@ bool MediaSocket::Writer::beginMedia(const string& name) {
 	if (type == TYPE_HTTP) { // first time + HTTP
 		// send HTTP Header request!
 		shared<Buffer> pBuffer(SET);
-		String::Append(*pBuffer, "POST ", path, " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\nContent-Type: ");
+		String::Append(*pBuffer, "POST ", path.length() ? path : "/", " HTTP/1.1\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", address, "\r\nContent-Type: ");
 		String::Append(MIME::Write(*pBuffer, _pWriter->mime(), _pWriter->subMime()), "\r\n\r\n");
 		DUMP_REQUEST(name.c_str(), pBuffer->data(), pBuffer->size(), address);
 		int sent;

@@ -129,9 +129,11 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					bool invocation = false;
 					switch (_pHeader->type) {
 						case HTTP::TYPE_UNKNOWN:
-							if(!_code) // else is response!
+							if (!_code) { // else is response!
 								_ex.set<Ex::Protocol>("No HTTP type");
-							break; 
+								break;
+							}
+							// is response => continue as a POST request!
 						case HTTP::TYPE_POST:
 							if (_pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO) {
 								// Publish = POST + VIDEO/AUDIO
@@ -141,7 +143,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								break;
 							}
 						case HTTP::TYPE_PUT:
-							if (_path.extension().empty()) // else write file if PUT or append file if POST
+							if (!_code && _path.extension().empty()) // else write file if PUT or append file if POST (just valid if request => !_code)
 								invocation = true;
 							break;
 						case HTTP::TYPE_RDV:
