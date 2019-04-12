@@ -76,6 +76,8 @@ void MediaStream::stop() {
 		return;
 	stopping();
 	_running = false;
+	for(const auto& it : _targets)
+		(MediaStream::OnStop&)it->onStop = nullptr, // unsuscribe because children pTarget can continue to live alone!
 	_targets.clear(); // to invalid targets!
 	if (_starting) {
 		_starting = false;
