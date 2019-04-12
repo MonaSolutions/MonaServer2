@@ -43,11 +43,20 @@ void MediaStream::start(const Parameters& parameters) {
 			onNewTarget(_pTarget = shared<Media::Target>(make_shared<Media::Target>(), pTarget)); // aliasing	
 	}
 	_starting = true;
-	if (starting(parameters))
+	params.onUnfound = [this, &parameters](const string& key)->const string* {
+		const string* pValue = parameters.getParameter(key);
+		if (!pValue)
+			return NULL;
+		params.setParameter(key, *pValue); // set value in params!
+		return pValue;
+	};
+	if (starting(params))
 		finalizeStart();
+	params.onUnfound = NULL;
 	if (_starting) // _starting can switch to false if finalizeStart (then _running is already set to true) and on stop (then _running must stay on false)
 		_running = true;
 }
+
 bool MediaStream::finalizeStart() {
 	if (!_starting)
 		return false;
@@ -90,19 +99,22 @@ shared<Socket> MediaStream::newSocket(const Parameters& parameters, const shared
 	if (type <= 0)
 		return nullptr;
 	shared<Socket> pSocket;
-	if (type == TYPE_SRT) {
+	switch (type) {
+		case TYPE_SRT:
 #if defined(SRT_API)
-		pSocket.set<SRT::Socket>();
-		return pSocket;
+			pSocket.set<SRT::Socket>();
+			break;
+#else
+			ERROR(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
 #endif
-		ERROR(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
+		default:
+			if (pTLS)
+				pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, pTLS);
+			else
+				pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	}
-	if (pTLS)
-		pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, pTLS);
-	else
-		pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 	Exception ex;
-	AUTO_ERROR(pSocket->processParams(ex, parameters, "stream"), description());
+	AUTO_WARN(pSocket->processParams(ex, parameters, "stream."), description());
 	return pSocket;
 }
 
@@ -145,10 +157,10 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 	}
 
 	// query => parameters
-	string query;
+	Parameters params;
 	size_t queryPos = first.find('?');
 	if (queryPos != string::npos) {
-		query.assign(first.c_str()+queryPos, first.size() - queryPos);
+		Util::UnpackQuery(first.c_str() + queryPos, first.size() - queryPos, params);
 		first.resize(queryPos);
 	}
 
@@ -192,8 +204,8 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 		return false;
 	});
 
-	const char* params = strpbrk(line = String::TrimLeft(line), " \t\r\n\v\f");
-	String::Split(line, params ? (line - params) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
+	const char* args = strpbrk(line = String::TrimLeft(line), " \t\r\n\v\f");
+	String::Split(line, args ? (line - args) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
 
 #if !defined(SRT_API)
 	if (type == TYPE_SRT) {
@@ -244,12 +256,10 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 	}
 
 	// fix params!
-	if (params) {
-		while (isspace(*params)) {
-			if (!*++params) {
-				params = NULL;
-				break;
-			}
+	if (args) {
+		while (isspace(*args) && *++args);
+		if (*args) {
+			// TODO add to parameters?!
 		}
 	}
 
@@ -312,7 +322,7 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 		ex.set<Ex::Unsupported>(isTarget ? "Target stream " : "Source stream ", TypeToString(type), " format ", format, " not supported");
 		return nullptr;
 	}
-	(string&)pStream->query = move(query);
+	pStream->params.setParams(move(params));
 	return pStream;
 }
 

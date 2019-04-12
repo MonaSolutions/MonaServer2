@@ -270,14 +270,15 @@ shared<MediaStream> Server::stream(const string& publication, const string& desc
 					unpublish(*pPublication);
 			}
 		};
-		Util::UnpackQuery(pStream->query, *pPublication);
 		_streamPublications.emplace_hint(it, pPublication->name().c_str(), pPublication);
 	} else if (!(pStream = stream(description))) // is Target
 		return nullptr;
-	pStream->onNewTarget = [this, publication, query = pStream->query.c_str()](const shared<Media::Target>& pTarget) {
+	pStream->onNewTarget = [this, publication, &params = pStream->params](const shared<Media::Target>& pTarget) {
 		const auto& it = _streamSubscriptions.emplace(pTarget, new Subscription(*pTarget)).first;
+		for (const auto& itParam : params)
+			it->second->setParameter(itParam.first, itParam.second);
 		Exception ex; // logs already displaid by subscribe
-		if (!subscribe(ex, publication, *it->second, query))
+		if (!subscribe(ex, publication, *it->second))
 			_streamSubscriptions.erase(it);
 	};
 	INFO(pStream->description(), " loaded on publication ", publication);

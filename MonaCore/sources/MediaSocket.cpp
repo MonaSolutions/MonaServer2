@@ -27,12 +27,12 @@ namespace Mona {
 bool MediaSocket::SendHTTPHeader(HTTP::Type type, const shared<Socket>& pSocket, const string& path, MIME::Type mime, const char* subMime, const char* name, const string& description) {
 	shared<Buffer> pBuffer(SET);
 	switch (type) {
-	case HTTP::TYPE_GET:
-		String::Append(*pBuffer, "GET ", path.length() ? path : "/", " HTTP/1.1"); break;
-	case HTTP::TYPE_POST:
-		String::Append(*pBuffer, "POST ", path.length() ? path : "/", " HTTP/1.1"); break;
-	default:
-		String::Append(*pBuffer, "HTTP/1.1 200 OK"); break; // by default send a response
+		case HTTP::TYPE_GET:
+			String::Append(*pBuffer, "GET ", path.length() ? path : "/", " HTTP/1.1"); break;
+		case HTTP::TYPE_POST:
+			String::Append(*pBuffer, "POST ", path.length() ? path : "/", " HTTP/1.1"); break;
+		default:
+			String::Append(*pBuffer, "HTTP/1.1 200 OK"); break; // by default send a response
 	}
 	String::Append(*pBuffer, "\r\nCache-Control: no-cache, no-store\r\nPragma: no-cache\r\nConnection: close\r\nUser-Agent: MonaServer\r\nHost: ", pSocket->peerAddress());
 	if (subMime)
@@ -103,7 +103,7 @@ bool MediaSocket::Reader::newSocket(const Parameters& parameters) {
 	Decoder* pDecoder(new Decoder(io.handler, _pReader, source.name(), type));
 	pDecoder->onResponse = _onResponse = [this](HTTP::Response& response)->void {
 		if(response.code != 200)
-				return stop<Ex::Protocol>(LOG_ERROR, response.getString("code", "HTTP request error"));
+			return stop<Ex::Protocol>(LOG_ERROR, response.getString("code", "HTTP request error"));
 		if (this->type == MediaStream::TYPE_HTTP && _httpAnswer)
 			return stop<Ex::Protocol>(LOG_ERROR, "HTTP response on a server stream source (only HTTP request is expected)");
 		writeMedia(response);
@@ -112,12 +112,9 @@ bool MediaSocket::Reader::newSocket(const Parameters& parameters) {
 		if (type == MediaStream::TYPE_HTTP) {
 			if (!_httpAnswer)
 				return stop<Ex::Protocol>(LOG_ERROR, "HTTP request on a stream source (only HTTP response is expected)");
-			else if (request) {
 				// send HTTP Header answer!
-				if (!SendHTTPHeader(HTTP::TYPE_UNKNOWN, _pSocket, path, _pReader? _pReader->mime() : MIME::TYPE_UNKNOWN, _pReader? _pReader->subMime() : nullptr, source.name().c_str(), description()))
-					stop();
-				return;
-			}
+			if (request && !SendHTTPHeader(HTTP::TYPE_UNKNOWN, _pSocket, path, _pReader? _pReader->mime() : MIME::TYPE_UNKNOWN, _pReader? _pReader->subMime() : nullptr, source.name().c_str(), description()))
+				return stop();
 		}
 		writeMedia(request);
 	};

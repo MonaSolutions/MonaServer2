@@ -76,7 +76,6 @@ MediaServer::Writer::Writer(MediaServer::Type type, const Path& path, unique<Med
 	MediaStream(MediaStream::Type(type), path), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()) {
 	_onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
-		// let's call beginMedia to start the stream!
 		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->path, MediaWriter::New(_subMime), pSocket, this->io);
 		if (!pTarget)
 			return stop<Ex::Intern>(LOG_ERROR, "Impossibe to add target ", pTarget->description());

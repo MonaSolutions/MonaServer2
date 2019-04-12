@@ -181,17 +181,14 @@ MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFil
 
 bool MediaFile::Writer::starting(const Parameters& parameters) {
 	// pulse starting, nothing todo (wait beginMedia to create _pFile)
-	return false;
-}
-
-void MediaFile::Writer::setMediaParams(const Parameters& parameters) {
 	parameters.getBoolean("append", _append);
-	if (!parameters.getNumber<UInt8>("sequences", _sequences))
-		return;
-	if (!_pPlaylist)
-		WARN(description(), ", sequences usefull just for segments")
-	else if(_pFile)
-		write<ChangeSequences>(_sequences);
+	if (parameters.getNumber<UInt8>("sequences", _sequences)) {
+		if (!_pPlaylist)
+			WARN(description(), ", sequences usefull just for segments")
+		else if (_pFile)
+			write<ChangeSequences>(_sequences);
+	}
+	return false;
 }
 
 bool MediaFile::Writer::beginMedia(const string& name) {

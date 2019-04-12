@@ -111,8 +111,7 @@ struct MediaFile : virtual Static  {
 		IOFile&		io;
 		bool		starting() const { return MediaStream::starting(); }
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
-	
-		void setMediaParams(const Parameters& parameters);
+
 		bool beginMedia(const std::string& name);
 		bool writeProperties(const Media::Properties& properties);
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(tag, packet, track); }

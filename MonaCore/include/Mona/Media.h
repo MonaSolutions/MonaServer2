@@ -318,9 +318,6 @@ struct Media : virtual Static {
 		If Target is sending queueable (bufferize), returns queueing size to allow to detect congestion */
 		virtual UInt64 queueing() const { return 0; }
 		/*!
-		Can be called at any time, but by subscription way is called one time before beginMedia, and on params change */
-		virtual void setMediaParams(const Parameters& parameters) {}
-		/*!
 		/!\ can be called multiple times (without one call to endMedia) when media change (MBR switch for example) */
 		virtual bool beginMedia(const std::string& name);
 		virtual bool writeProperties(const Media::Properties& properties) { return true; }

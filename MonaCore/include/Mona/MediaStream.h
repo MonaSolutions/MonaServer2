@@ -30,10 +30,10 @@ Its behavior must support an automatic mode to (re)start the stream as long time
 Implementation have to call protected stop(...) to log and callback an error if the user prefer delete stream on error
 /!\ start() can be used to pulse the stream (connect attempt) */
 struct MediaStream : virtual Object {
-	typedef Event<bool()>										ON(Start);
-	typedef Event<void()>										ON(Stop);
-	typedef Event<void()>										ON(Delete);
-	typedef Event<void(const shared<Media::Target>& pTarget)>	ON(NewTarget); // valid until pTarget.unique()!
+	typedef Event<bool()>								ON(Start);
+	typedef Event<void()>								ON(Stop);
+	typedef Event<void()>								ON(Delete);
+	typedef Event<void(const shared<Media::Target>&)>	ON(NewTarget); // valid until pTarget.unique()!
 
 	enum Type {
 		TYPE_LOGS = -1,
@@ -58,7 +58,7 @@ struct MediaStream : virtual Object {
 
 	const Type			type;
 	const Path			path;
-	const std::string	query;
+	Parameters			params;
 	bool				isSource() const { return &source == &Media::Source::Null(); }
 	const std::string&	description() const { return _description.empty() ? ((MediaStream*)this)->buildDescription(_description) : _description; }
 
@@ -109,6 +109,9 @@ protected:
 		auto it = _targets.lower_bound(pTarget);
 		if (it != _targets.end() && it->unique())
 			it = _targets.erase(it); // target useless!
+		pTarget->start(params); // give same parameters than parent!
+		if (!pTarget->running())
+			return NULL;
 		onNewTarget(pTarget);
 		if (pTarget.unique())
 			return NULL;
@@ -121,6 +124,7 @@ protected:
 				_targets.erase(it);
 		};
 		_targets.emplace_hint(it, pTarget);
+		// let's addTarget caller call start(params)
 		return pTarget.get();
 	}
 

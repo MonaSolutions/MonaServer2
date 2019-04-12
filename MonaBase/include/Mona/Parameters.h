@@ -22,10 +22,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct Parameters : String::Object<Parameters> {
-
 	typedef Event<void(const std::string& key, const std::string* pValue)> ON(Change);
 	typedef Event<void()>												   ON(Clear);
-
+	typedef Event<const std::string*(const std::string& key)>				ON(Unfound);
+	
 	typedef std::map<std::string, std::string, String::IComparator>::const_iterator const_iterator;
 	struct ForEach {
 		ForEach() : _begin(Null().end()), _end(Null().end()) {}
@@ -116,7 +116,7 @@ protected:
 	virtual void onParamClear() { onClear(); }
 
 private:
-	virtual const std::string* onParamUnfound(const std::string& key) const { return NULL; }
+	virtual const std::string* onParamUnfound(const std::string& key) const { return onUnfound(key); }
 
 	Parameters(std::nullptr_t) : _pMap(SET) {} // Null()
 

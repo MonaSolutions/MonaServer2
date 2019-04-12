@@ -143,10 +143,10 @@ bool Subscription::start() {
 	if (_ejected)
 		return false;
 	if (_streaming) {
+		// already streaming: just compute congestion + 
 		if (_timeProperties<timeProperties()) {
 			_timeProperties = timeProperties();
 			DEBUG(name(), " subscription parameters ", self);
-			_target.setMediaParams(self);
 			if(!pPublication)
 				writeProperties(self); // if no publication media params are also the media medatata
 		}
@@ -182,8 +182,6 @@ bool Subscription::start() {
 	if (pPublication && !pPublication->publishing())
 		return false; // wait publication running to start subscription
 
-	_target.setMediaParams(self); // begin with media params!
-	
 	if (!_target.beginMedia(name())) {
 		_ejected = EJECTED_ERROR;
 		return false;
