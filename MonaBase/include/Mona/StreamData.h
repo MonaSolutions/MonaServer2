@@ -30,8 +30,7 @@ struct StreamData : virtual Object {
 		shared<Buffer> pBuffer(std::move(_pBuffer)); // because onStreamData returning 0 can delete this!
 		if (pBuffer) {
 			pBuffer->append(packet.data(), packet.size());
-			shared<const Binary> pBinary(pBuffer); // trick to keep reference to _pBuffer!
-			Packet buffer(pBinary);
+			Packet buffer(static_pointer_cast<const Binary>(pBuffer)); // trick to keep reference to _pBuffer!
 			rest = min(onStreamData(buffer, std::forward<Args>(args)...), pBuffer->size());
 		} else {
 			Packet buffer(packet);

@@ -35,14 +35,14 @@ Packet& Packet::operator+=(UInt32 offset) {
 		offset = _size;
 	_data += offset;
 	_size -= offset;
-	return *this;
+	return self;
 }
 
 Packet& Packet::operator-=(UInt32 count) {
 	if (count > _size)
 		count = _size;
 	_size -= count;
-	return *this;
+	return self;
 }
 
 Packet Packet::operator+(UInt32 offset) const {
@@ -76,18 +76,20 @@ Packet& Packet::set(const Packet&& packet) {
 	_ppBuffer = new shared<const Binary>(packet.bufferize());
 	_data = packet._data;
 	_size = packet._size;
-	return *this;
+	return self;
 }
 
 Packet& Packet::set(const Packet& packet) {
+	_data = packet._data;
+	_size = packet._size;
 	if (!_reference) {
+		if (packet._ppBuffer == _ppBuffer)
+			return self; // packet is a reference to thi, change just data aera!
 		delete _ppBuffer;
 		_reference = true;
 	}
 	_ppBuffer = packet._ppBuffer;
-	_data = packet._data;
-	_size = packet._size;
-	return *this;
+	return self;
 }
 
 Packet& Packet::set(const void* data, UInt32 size) {
@@ -98,7 +100,7 @@ Packet& Packet::set(const void* data, UInt32 size) {
 	_ppBuffer = &Null().buffer();
 	_data = BIN data;
 	_size = size;
-	return *this;
+	return self;
 }
 
 Packet& Packet::setArea(const UInt8* data, UInt32 size) {
@@ -121,7 +123,7 @@ Packet& Packet::setArea(const UInt8* data, UInt32 size) {
 #endif
 	_data = data;
 	_size = size;
-	return *this;
+	return self;
 }
 
 

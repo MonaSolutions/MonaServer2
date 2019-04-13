@@ -72,14 +72,14 @@ struct Packet: Binary, virtual Object {
 	/*!
 	Capture the buffer passed in parameter, buffer become immutable and allows safe distribution
 	(explicit to note that pBuffer is release) */
-	template<typename BinaryType>
+	template<typename BinaryType, typename = typename std::enable_if<!std::is_const<BinaryType>::value>::type>
 	explicit Packet(shared<BinaryType>& pBuffer) : _reference(true) { set(pBuffer); }
 	/*!
 	Capture the buffer passed in parameter and move area of data referenced, buffer become immutable and allows safe distribution, area have to be include inside
 	(explicit to note that pBuffer is release) */
-	template<typename BinaryType>
+	template<typename BinaryType, typename = typename std::enable_if<!std::is_const<BinaryType>::value>::type>
 	explicit Packet(shared<BinaryType>& pBuffer, const UInt8* data) : _reference(true) { set(pBuffer, data); }
-	template<typename BinaryType>
+	template<typename BinaryType, typename = typename std::enable_if<!std::is_const<BinaryType>::value>::type>
 	explicit Packet(shared<BinaryType>& pBuffer, const UInt8* data, UInt32 size) : _reference(true) { set(pBuffer, data, size); }
 	/*!
 	Release the referenced area of data */
@@ -138,7 +138,7 @@ struct Packet: Binary, virtual Object {
 	Packet& operator=(const shared<const BinaryType>& pBuffer) { return set(pBuffer); }
 	/*!
 	Capture the buffer passed in parameter, buffer become immutable and allows safe distribution */
-	template<typename BinaryType>
+	template<typename BinaryType, typename = typename std::enable_if<!std::is_const<BinaryType>::value>::type>
 	Packet& operator=(shared<BinaryType>& pBuffer) { return set(pBuffer); }
 	/*!
 	Release packet */
@@ -188,7 +188,7 @@ struct Packet: Binary, virtual Object {
 	Packet& set(const shared<const BinaryType>& pBuffer, const UInt8* data, UInt32 size) { return set(pBuffer).setArea(data, size); }
 	/*!
 	Capture the buffer passed in parameter, buffer become immutable and allows safe distribution */
-	template<typename BinaryType>
+	template<typename BinaryType, typename = typename std::enable_if<!std::is_const<BinaryType>::value>::type>
 	Packet& set(shared<BinaryType>& pBuffer) {
 		if (!pBuffer || !pBuffer->data()) // if size==0 the normal behavior is required to get the same data address
 			return set(NULL, 0); // no need here to capture pBuffer (no holder on)
@@ -203,9 +203,9 @@ struct Packet: Binary, virtual Object {
 	}
 	/*!
 	Capture the buffer passed in parameter and move area of data referenced, buffer become immutable and allows safe distribution, area have to be include inside */
-	template<typename BinaryType>
+	template<typename BinaryType, typename = typename std::enable_if<!std::is_const<BinaryType>::value>::type>
 	Packet& set(shared<BinaryType>& pBuffer, const UInt8* data) { return set(pBuffer).setArea(data, pBuffer->size() - (data - pBuffer->data())); }
-	template<typename BinaryType>
+	template<typename BinaryType, typename = typename std::enable_if<!std::is_const<BinaryType>::value>::type>
 	Packet& set(shared<BinaryType>& pBuffer, const UInt8* data, UInt32 size) { return set(pBuffer).setArea(data, size); }
 
 	static const Packet& Null() { static Packet Null(nullptr); return Null; }
