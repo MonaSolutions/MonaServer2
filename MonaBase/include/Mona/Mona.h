@@ -127,14 +127,14 @@ template<typename Type>
 using weak = std::weak_ptr<Type>;
 
 template< typename T, typename U >
-shared<T> const_pointer_cast(const shared<U>& r) noexcept { return shared<T>(r, const_cast<typename T*>(r.get())); }
+shared<T> const_pointer_cast(const shared<U>& r) noexcept { return shared<T>(r, const_cast<T*>(r.get())); }
 template< typename T, typename U >
-shared<T> static_pointer_cast(const shared<U>& r) noexcept { return shared<T>(r, static_cast<typename T*>(r.get())); }
+shared<T> static_pointer_cast(const shared<U>& r) noexcept { return shared<T>(r, static_cast<T*>(r.get())); }
 template< typename T, typename U >
-shared<T> reinterpret_pointer_cast(const shared<U>& r) noexcept { return shared<T>(r, reinterpret_cast<typename T*>(r.get())); }
+shared<T> reinterpret_pointer_cast(const shared<U>& r) noexcept { return shared<T>(r, reinterpret_cast<T*>(r.get())); }
 template< typename T, typename U >
 shared<T> dynamic_pointer_cast(const shared<U>& r) noexcept {
-	if (auto p = dynamic_cast<typename T*>(r.get()))
+	if (auto p = dynamic_cast<T*>(r.get()))
 		return shared<T>(r, p);
 	return shared<T>();
 }
