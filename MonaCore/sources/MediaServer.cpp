@@ -52,11 +52,8 @@ bool MediaServer::Reader::starting(const Parameters& parameters) {
 	Exception ex;
 	AUTO_ERROR(success = _pSocket->bind(ex, address) && _pSocket->listen(ex) && 
 		io.subscribe(ex = nullptr, _pSocket, _onConnnection, _onError), description());
-	if (!success) {
-		_pSocket.reset();
+	if (!success)
 		stop();
-		return true;
-	}
 	return true;
 }
 
