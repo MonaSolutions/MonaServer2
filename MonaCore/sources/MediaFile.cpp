@@ -91,7 +91,7 @@ MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaR
 						return 0; // pause!
 					}
 					source.reportLost(pMedia->type, (Lost&)(*pMedia), pMedia->track);
-				} else 
+				} else if(!_pReader.unique()) // else reset will be done on stop!
 					source.reset();
 			}
 			if (_pReader.unique()) {

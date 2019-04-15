@@ -56,8 +56,8 @@ private:
 	void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { receive(new Media::Data(type, packet, track)); }
 	void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) { receive(new Media::Data(type, packet, track, true)); }
 	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { if (lost) receive(type, lost, track); }
-	void reset() { receive(false, false); }
-	void flush() { receive(!_length, true); /* flush + end infos*/ }
+	void reset() { receive(!_length, !_length); if (!_length) _pReader.reset(); } // reset + end infos + reset _pReader to avoid double publication reset on flush!
+	void flush() { if(_pReader) receive(false, true); }
 
 	template <typename ...Args>
 	void receive(Args&&... args) {
