@@ -22,7 +22,7 @@ using namespace std;
 
 namespace Mona {
 
-IOSRTSocket::IOSRTSocket(const Handler& handler, const ThreadPool& threadPool, const char* name) : IOSocket(handler, threadPool, name) {
+IOSRTSocket::IOSRTSocket(const Handler& handler, const ThreadPool& threadPool, const char* name) : IOSocket(handler, threadPool, name), _epoll(0) {
 }
 
 IOSRTSocket::~IOSRTSocket() {

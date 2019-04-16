@@ -451,11 +451,6 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 
 
 bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
-#if defined(SRT_API)
-	if (!_pIOSRTSocket)
-		_pIOSRTSocket.set(handler, threadPool);
-	_pIOSRTSocket->start();
-#endif
 #if defined(_WIN32)
 	WNDCLASSEX wc;
 	::memset(&wc, 0, sizeof(wc));
