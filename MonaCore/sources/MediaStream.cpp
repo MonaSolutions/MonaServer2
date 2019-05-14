@@ -126,45 +126,34 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 	
 	const char* line = String::TrimLeft(description.c_str());
 
-	bool isTarget(&source==&Media::Source::Null());
-	bool isBind = *line == '@';
-	if (isBind)
-		++line;
-
-	// remove "" or ''
-	string first;
-	if (*line == '"' || *line =='\'') {
-		const char* end = strchr(line +1, *line);
-		if (end) {
-			++line;
-			first.assign(line, end - line);
-			line = end +1;
-		}
-	}
-
-	// isolate first (and remove blank)
+	// isolate first + capture path and query
+	Path path;
+	const char* first = line;
+	const char* query = NULL;
 	size_t size = 0;
-	for(;;) {
-		switch (line[size]) {
-			default:
-				++size;
-				continue;
-			case ' ':
-			case '\t':
-			case 0:;
+	while (*line && !isblank(*line)) {
+		switch (*line) {
+			case '?': // query
+				if(!query)
+					query = line;
+			case '/':
+			case '\\': // path
+				if(!size)
+					size = line - first;
+				break;
+			default:;
 		}
-		first.append(line, size);
-		line += size;
-		break;
+		++line;
 	}
-
 	// query => parameters
 	Parameters params;
-	size_t queryPos = first.find('?');
-	if (queryPos != string::npos) {
-		Util::UnpackQuery(first.c_str() + queryPos, first.size() - queryPos, params);
-		first.resize(queryPos);
-	}
+	if (query)
+		Util::UnpackQuery(query, line - query, params);
+	if (size) {
+		if (first[size] != '?') // size stop on '/', else no path!
+			path.set(String::Data(first + size, query - first - size));
+	} else
+		size = line - first;
 
 	Type type(TYPE_FILE);
 	bool isSecure(false);
@@ -215,46 +204,52 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 		return nullptr;
 	}
 #endif
-	
-	Path   path;
+
+	bool isTarget(&source == &Media::Source::Null());
 	SocketAddress address;
 	UInt16 port;
-	bool isAddress = false;
+	Int8 isAddress = 0; // -1 if explicit address to bind, 1 if explicit address
 	
-	if (!isFile) {
-		// if is not explicitly a file, test if it's a port
-		size = first.find_first_of("/\\", 0);
-		if (size == string::npos)
-			size = first.size(); // to fix past.set (doesn't work with string::npos)
-		if (String::ToNumber(first.data(), size, port)) {
-			address.setPort(port);
-			path.set(first.c_str() + size);
-		} else {
-			// Test if it's an address
-			{
-				String::Scoped scoped(first.data() + size);
-				Exception exc;
-				isAddress = address.set(exc, first.data());
-				if (!isAddress && type) {
-					// explicitly indicate as network, and however address invalid!
-					ex = exc;
-					return nullptr;
+
+	switch (isFile) {
+		case false: {
+			// if is not explicitly a file, test if it's a port
+			isAddress = *first == '@' ? -1 : 0;
+			if (isAddress) {
+				--size;
+				if (*++first == ':') { // is just ":port"
+					++first;
+					--size;
 				}
 			}
-			if (!isAddress) {
-				if (!path.set(move(first))) {
-					ex.set<Ex::Format>("No file name in stream file description");
-					return nullptr;
-				}
-				if (path.isFolder()) {
-					ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
-					return nullptr;
-				}
-				isFile = true;
-				type = TYPE_FILE;
-			} else
-				path.set(first.c_str() + size);
+			if (String::ToNumber(first, size, port)) {
+				address.setPort(port);
+				break;
+			}
+			// Test if it's an address
+			String::Scoped scoped(first + size);
+			Exception exc;
+			if (address.set(exc, first)) {
+				isAddress = 1; // if was -1 no pb, 
+				break;
+			}
+			if (type) { // explicitly network protocol (not file) however address invalid!
+				ex = exc;
+				return nullptr;
+			}
+			isFile = true;
+			type = TYPE_FILE;
 		}
+		default: // is a file!
+			path.set(String::Data(first, size));
+			if (path.isFolder()) {
+				ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
+				return nullptr;
+			}
+			if (!path) {
+				ex.set<Ex::Format>("No file name in stream file description");
+				return nullptr;
+			}
 	}
 
 	// fix params!
@@ -304,14 +299,14 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 			type = String::ICompare(format, "RTP") == 0 ? TYPE_UDP : TYPE_TCP;
 
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-		if (type != TYPE_UDP && (isBind || !address.host())) { // MediaServer, UDP is always a MediaSocket!
+		if (type != TYPE_UDP && (isAddress<0 || !address.host())) { // MediaServer, UDP is always a MediaSocket!
 			if (isTarget)
 				pStream = MediaServer::Writer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 			else
 				pStream = MediaServer::Reader::New(MediaServer::Type(type), path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 		} else if (isTarget) {
 			if (!address.host() && isAddress) { // explicit 0.0.0.0 is an error here!
-					// necessary UDP here (else give a MediaServer)
+				// necessary UDP here (else give a MediaServer)
 				ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
 				return nullptr;
 			}
