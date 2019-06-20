@@ -154,9 +154,9 @@ private:
 void TestTCPBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>& pServerTLS = nullptr) {
 	Exception ex;
 
-	
-	unique<TLS::Socket> pClient(SET, Socket::TYPE_STREAM, pClientTLS);
-	unique<Server> pServer(SET, pServerTLS);
+	// Note: explicit "Mona::" because strangely on osx there is an ambiguous "std::unique" in this file only
+	Mona::unique<TLS::Socket> pClient(SET, Socket::TYPE_STREAM, pClientTLS);
+	Mona::unique<Server> pServer(SET, pServerTLS);
 
 	// Test a connection refused
 	SocketAddress unknown(IPAddress::Loopback(), 62434);

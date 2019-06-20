@@ -20,8 +20,9 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <fcntl.h>
 #if !defined(_WIN32)
 #include <unistd.h>
-#if defined(_BSD)
+#if defined(_BSD) && !defined(lseek64) // not defined on 64 bit systems
 	#define lseek64 lseek
+	#define off64_t off_t
 #endif
 #endif
 

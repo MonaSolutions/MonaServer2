@@ -1,4 +1,8 @@
 /*
+This code is in part based on code from the POCO C++ Libraries,
+licensed under the Boost software license :
+https://www.boost.org/LICENSE_1_0.txt
+
 This file is a part of MonaSolutions Copyright 2017
 mathieu.poux[a]gmail.com
 jammetthomas[a]gmail.com
@@ -49,9 +53,9 @@ private:
 	static TerminateSignal		 _TerminateSignal;
 
 #if defined(_WIN32)
-	static int  __stdcall ConsoleCtrlHandler(unsigned long ctrlType);
-	static void __stdcall ServiceMain(unsigned long argc, char** argv);
-	static void __stdcall ServiceControlHandler(unsigned long control);
+	static int  __stdcall ConsoleCtrlHandler(DWORD ctrlType);
+	static void __stdcall ServiceMain(DWORD argc, char** argv);
+	static void __stdcall ServiceControlHandler(DWORD control);
 
 	bool hasConsole();
 	void registerService();
