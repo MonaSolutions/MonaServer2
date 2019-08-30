@@ -125,14 +125,23 @@ int SRT::LastError() {
 	return error; // not found
 }
 
+int SrtListenCallback(void* opaq, SRTSOCKET ns, int hsversion, const struct sockaddr* peeraddr, const char* streamid) {
+	if (streamid) {
+		SRT::Socket* pSRT = (SRT::Socket*)opaq;
+		pSRT->stream = streamid; // streamid for next accept
+	}
+	return 0; // always accept the connection
+};
+
 SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 	_id = ::srt_socket(AF_INET6, SOCK_DGRAM, 0);
 	if (_id == ::SRT_INVALID_SOCK) {
 		_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
 		SetException(_ex);
+		return;
 	}
-	else
-		init();
+	init();
+	::srt_listen_callback(_id, &SrtListenCallback, this);
 }
 
 SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) {
@@ -171,6 +180,7 @@ SRT::Socket::~Socket() {
 	Exception ignore;
 	flush(ignore, true);
 	close();
+	::srt_listen_callback(_id, NULL, NULL); // remove callback if set
 }
 
 bool SRT::Socket::close(Socket::ShutdownType type) {
@@ -267,7 +277,12 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 		SetException(ex);
 		return false;
 	}
-	pSocket = new SRT::Socket(sockfd, (sockaddr&)scl);
+	SRT::Socket* pSRTSocket = new SRT::Socket(sockfd, (sockaddr&)scl);
+	if (stream.length()) {
+		pSRTSocket->stream = stream.c_str();
+		stream.clear();
+	}
+	pSocket = pSRTSocket;
 	return true;
 }
 
@@ -383,6 +398,17 @@ bool SRT::Socket::setPassphrase(Exception& ex, const char* data, UInt32 size) {
 		return false;
 	}
 	if (::srt_setsockflag(_id, SRTO_PASSPHRASE, data, size) != -1)
+		return true;
+	SetException(ex);
+	return false;
+}
+
+bool SRT::Socket::setStreamId(Exception& ex, const char* data, UInt32 size) {
+	if (_ex) {
+		ex = _ex;
+		return false;
+	}
+	if (::srt_setsockflag(_id, SRTO_STREAMID, data, size) != -1)
 		return true;
 	SetException(ex);
 	return false;

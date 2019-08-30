@@ -112,6 +112,7 @@ struct SRT : virtual Object {
 		bool setEncryptionType(Exception& ex, int type) { return setOption(ex, ::SRTO_PBKEYLEN, type); }
 		bool getEncryptionType(Exception& ex, int& type) const { return getOption(ex, ::SRTO_PBKEYLEN, type); }
 		bool setPassphrase(Exception& ex, const char* data, UInt32 size);
+		bool setStreamId(Exception& ex, const char* data, UInt32 size);
 
 		bool setLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_TSBPDDELAY, value); }
 		bool getLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_TSBPDDELAY, value); }
@@ -131,6 +132,8 @@ struct SRT : virtual Object {
 		bool getPktDrop(Exception& ex, bool& value) const { int val; bool res = getOption(ex, ::SRTO_TLPKTDROP, val); value = val > 0; return res; }
 
 		bool getStats(Exception& ex, SRT::Stats& stats) const;
+
+		std::string	stream;
 
 	private:
 		Socket(SRTSOCKET id, const sockaddr& addr);
@@ -174,8 +177,8 @@ struct SRT : virtual Object {
 			return false;
 		}
 
-		Exception				_ex;
-		volatile bool			_shutdownRecv;
+		Exception					_ex;
+		volatile bool				_shutdownRecv;
 	};
 
 	struct Client : TCPClient {

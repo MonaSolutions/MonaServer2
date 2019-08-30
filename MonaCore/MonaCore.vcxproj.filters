@@ -49,6 +49,9 @@
     <Filter Include="Multimedia\Streams">
       <UniqueIdentifier>{81e79939-d161-43be-b958-318d9bf5319e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Protocols\SRT">
+      <UniqueIdentifier>{eb7f6d61-bf91-4967-8a56-ba9747d84aae}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\Protocol.h">
@@ -364,6 +367,12 @@
     <ClInclude Include="include\Mona\MediaStream.h">
       <Filter>Multimedia\Streams</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\SRT\SRTProtocol.h">
+      <Filter>Protocols\SRT</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\SRT\SRTSession.h">
+      <Filter>Protocols\SRT</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -613,6 +622,9 @@
     </ClCompile>
     <ClCompile Include="sources\MediaStream.cpp">
       <Filter>Multimedia\Streams</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\SRT\SRTProtocol.cpp">
+      <Filter>Protocols\SRT</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
