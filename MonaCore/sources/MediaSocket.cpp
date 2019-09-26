@@ -272,9 +272,9 @@ bool MediaSocket::Writer::beginMedia(const string& name) {
 	return true;
 }
 
-bool  MediaSocket::Writer::writeProperties(const Media::Properties& properties) {
-	Media::Data::Type type;
-	const Packet& packet = properties(type);
+bool MediaSocket::Writer::writeProperties(const Media::Properties& properties) {
+	Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
+	const Packet& packet = properties.data(type);
 	return send<MediaSend<Media::Data>>(0, type, packet);
 }
 

@@ -17,108 +17,285 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Script.h"
-#include "Mona/Entity.h"
-#include "Mona/Logs.h"
-#include "Mona/Util.h"
-#include <math.h>
 extern "C" {
-	#include "luajit-2.0/lualib.h"
+	#include "luajit/lualib.h"
 }
 
 using namespace std;
-using namespace Mona;
 
-lua_Debug	Script::LuaDebug;
+namespace Mona {
+
+
+static int LoadFile(lua_State *pState) {
+	// 1 - name
+	string file;
+	if (!Script::Resolve(pState, lua_tostring(pState, 1), file))
+		return 0;
+	if (FileSystem::IsFolder(file)) {
+		SCRIPT_BEGIN(pState)
+			SCRIPT_ERROR("Impossible to load ", file, " folder");
+		SCRIPT_END
+		return 0;
+	}
+	int top = lua_gettop(pState);
+	lua_pushvalue(pState, lua_upvalueindex(1)); // lua loadfile
+	lua_pushlstring(pState, file.data(), file.size());
+	lua_call(pState, 1, LUA_MULTRET); // lua_call rather lua_pcall because is called from LUA (callback, not CPP) => stop the script proprely without execute the rest (useless)
+	return lua_gettop(pState) - top;
+}
+
+static int DoFile(lua_State *pState) {
+	// 1 - name
+	int top = lua_gettop(pState);
+	if (LoadFile(pState))
+		lua_call(pState, 0, LUA_MULTRET);  // lua_call rather lua_pcall because is called from LUA (callback, not CPP) => stop the script proprely without execute the rest (useless)
+	return lua_gettop(pState) - top;
+}
+
+static int Require(lua_State *pState) {
+	// 1 - name
+	string file;
+	if (!Script::Resolve(pState, lua_tostring(pState, 1), file, false))
+		return 0;
+	if (FileSystem::IsFolder(file)) {
+		SCRIPT_BEGIN(pState)
+			SCRIPT_ERROR("Impossible to include ", file, " folder");
+		SCRIPT_END
+		return 0;
+	}
+	// replace / by . (LUA works like that for modules)
+	size_t found = file.find_first_of("\\/");
+	while (found != std::string::npos) {
+		file[found] = '.';
+		found = file.find_first_of("\\/", found + 1);
+	}
+	int top = lua_gettop(pState);
+	lua_pushvalue(pState, lua_upvalueindex(1)); // lua require
+	lua_pushlstring(pState, file.data(), file.size());
+	lua_call(pState, 1, LUA_MULTRET); // lua_call rather lua_pcall because is called from LUA (callback, not CPP) => stop the script proprely without execute the rest (useless)
+	return lua_gettop(pState) - top;
+}
+
+// fix luajit which doesn't support __pairs methametods without lua 5.2 activation
+int Pairs(lua_State* pState) {
+	// 1 table
+	if (lua_getmetatable(pState, 1)) {
+		lua_pushliteral(pState, "__pairs");
+		lua_rawget(pState, -2);
+		lua_replace(pState, -2); // replace metatable!
+		if (lua_isfunction(pState, -1)) {
+			lua_pushvalue(pState, 1);
+			lua_call(pState, 1, 3);
+			return 3;
+		}
+		lua_pop(pState, 1); // remove __pairs value
+	}
+	lua_getglobal(pState, "next");
+	lua_pushvalue(pState, 1);
+	lua_pushnil(pState);
+	return 3;
+}
+
+// Change 'getmetatable' when __metatable is set to flat __index + __metatable array (forbid __index + __metatable table and allows to list meta methods)
+int GetMetatable(lua_State* pState) {
+	// 1 table
+	// [2 table response]
+	lua_settop(pState, 2);
+	if (!lua_istable(pState, 2)) {
+		lua_newtable(pState);
+		lua_replace(pState, 2);
+	}
+
+	if (!lua_getmetatable(pState, 1))
+		return 0;
+
+	lua_pushliteral(pState, "__metatable");
+	lua_rawget(pState, 3);
+	if (!lua_istable(pState, -1)) {
+		if (lua_isnil(pState, -1)) {
+			// normal behavior!
+			lua_pop(pState, 1); // remove __metatable table
+			return 1; // return metatable
+		}
+		lua_pop(pState, 1); // remove __metatable table
+	}
+
+	for(;;) {
+		lua_pushliteral(pState, "__index");
+		lua_rawget(pState, 3);
+		if (!lua_istable(pState, -1)) {
+			if (lua_isfunction(pState, -1)) {
+				lua_pcall(pState, 0, 1, 0);
+				if (!lua_istable(pState, -1))
+					lua_pop(pState, 1);
+			} else
+				lua_pop(pState, 1); // remove __index table
+			break;
+		}
+		if (!lua_getmetatable(pState, -1))
+			break;
+		lua_replace(pState, 3);
+	}
+
+	// flat __metatable + __index
+	while (lua_gettop(pState) > 3) {
+		lua_pushnil(pState);  // first key 
+		while (lua_next(pState, -2)) {
+			// uses 'key' (at index -2) and 'value' (at index -1) 
+			// remove the raw!
+			lua_pushvalue(pState, -2); // duplicate key
+			lua_insert(pState, -2);
+			lua_rawset(pState, 2);
+		}
+		lua_pop(pState, 1);
+	};
+	lua_pop(pState, 1); // remove metatable!
+	return 1;
+}
+
+void Script::NewMetatable(lua_State *pState) {
+	lua_newtable(pState);
+	lua_pushliteral(pState, "__metatable");
+	lua_pushliteral(pState, "Prohibited access to metatable of mona object");
+	lua_rawset(pState, -3);
+}
+
+bool Script::Resolve(lua_State *pState, const char* value, string& file, bool withExtension) {
+	SCRIPT_BEGIN(pState)
+		if (!value) {
+			SCRIPT_ERROR("Takes a path string as first parameter");
+			return false;
+		}
+		Path path;
+		if (!FileSystem::IsAbsolute(value)) {
+			thread_local lua_Debug	Debug;
+			if (lua_getstack(pState, 1, &Debug) && lua_getinfo(pState, "S", &Debug) && strlen(Debug.short_src) && strcmp(Debug.short_src, "[C]"))
+				path.set(Debug.short_src);
+			path.set(RESOLVE(String(path.parent(), value)));
+			// make it relatives and remove extension if withExtension=false
+			if (path.parent().length() <= Path::CurrentDir().length()) {
+				file = withExtension ? path.name() : path.baseName();
+				if (path.isFolder())
+					file += '/';
+			} else
+				file.assign(path, Path::CurrentDir().length(), path.length() - Path::CurrentDir().length() - ((withExtension || path.extension().empty()) ? 0 : (path.extension().size() + 1)));
+		} else
+			path.set(RESOLVE(value));
+	SCRIPT_END
+	return true;
+}
+
+struct LogWriter : String::Writer<std::string>, virtual Object {
+	LogWriter(lua_State* pState) : _pState(pState), _top(lua_gettop(pState)), _args(0) {}
+	bool write(std::string& out) {
+		if(_args++ < _top) {
+			Script::PushString(_pState, _args);
+			size_t len;
+			const char* text = lua_tolstring(_pState, -1, &len);
+			out.append(text, len);
+			lua_remove(_pState, -1);
+		}
+		return _args < _top;
+	}
+private:
+	lua_State*  _pState;
+	int			_top;
+	int			_args;
+};
+
+
+static int Fatal(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		SCRIPT_LOG(LOG_FATAL, false, writer);
+	SCRIPT_END
+	return 0;
+}
+static int Error(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		SCRIPT_LOG(LOG_ERROR, false, writer);
+	SCRIPT_END
+	return 0;
+}
+static int Warn(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		SCRIPT_LOG(LOG_WARN, false, writer);
+	SCRIPT_END
+	return 0;
+}
+static int Note(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		SCRIPT_LOG(LOG_NOTE, false, writer);
+	SCRIPT_END
+	return 0;
+}
+static int Info(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		SCRIPT_LOG(LOG_INFO, false, writer);
+	SCRIPT_END
+	return 0;
+}
+static int Debug(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		SCRIPT_LOG(LOG_DEBUG, false, writer);
+	SCRIPT_END
+	return 0;
+}
+static int Trace(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		SCRIPT_LOG(LOG_TRACE, false, writer);
+	SCRIPT_END
+	return 0;
+}
 
 const char* Script::LastError(lua_State *pState) {
-	int top = lua_gettop(pState);
-	if (top == 0)
-		return "Unknown error";
-	const char* error = lua_tostring(pState, -1);
+	size_t size;
+	const char* error = lua_tolstring(pState, -1, &size);
+	if(!error)
+		return "No error";
 	lua_pop(pState, 1);
-	if (!error)
-		return "Unknown error";
-	return error;
-}
-
-int Script::Error(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(Mona::Logger::LEVEL_ERROR,__FILE__,__LINE__, false, ToPrint(pState,LOG_BUFFER))
-	SCRIPT_END
-	return 0;
-}
-int Script::Warn(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(Mona::Logger::LEVEL_WARN,__FILE__,__LINE__, false, ToPrint(pState,LOG_BUFFER))
-	SCRIPT_END
-	return 0;
-}
-int Script::Note(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(Mona::Logger::LEVEL_NOTE,__FILE__,__LINE__, false, ToPrint(pState,LOG_BUFFER))
-	SCRIPT_END
-	return 0;
-}
-int Script::Info(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(Mona::Logger::LEVEL_INFO,__FILE__,__LINE__, false, ToPrint(pState,LOG_BUFFER))
-	SCRIPT_END
-	return 0;
-}
-int Script::Debug(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(Mona::Logger::LEVEL_DEBUG,__FILE__,__LINE__, false, ToPrint(pState,LOG_BUFFER))
-	SCRIPT_END
-	return 0;
-}
-int Script::Trace(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(Mona::Logger::LEVEL_TRACE,__FILE__,__LINE__, false, ToPrint(pState,LOG_BUFFER))
-	SCRIPT_END
-	return 0;
-}
-
-
-int Script::Panic(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_FATAL(ToPrint(pState,LOG_BUFFER));
-	SCRIPT_END
-	return 0;
+	return size ? error : "Unknown error";
 }
 
 lua_State* Script::CreateState() {
-	lua_State* pState = lua_open();
+	lua_State* pState = luaL_newstate();
 	luaL_openlibs(pState);
-	lua_atpanic(pState,&Script::Panic);
+	lua_atpanic(pState,&Fatal);
 
-	lua_pushcfunction(pState,&Script::Error);
+	lua_pushcfunction(pState,&Error);
 	lua_setglobal(pState,"ERROR");
-	lua_pushcfunction(pState,&Script::Warn);
+	lua_pushcfunction(pState,&Warn);
 	lua_setglobal(pState,"WARN");
-	lua_pushcfunction(pState,&Script::Note);
+	lua_pushcfunction(pState,&Note);
 	lua_setglobal(pState,"NOTE");
-	lua_pushcfunction(pState,&Script::Info);
+	lua_pushcfunction(pState,&Info);
 	lua_setglobal(pState,"INFO");
-	lua_pushcfunction(pState,&Script::Debug);
+	lua_pushcfunction(pState,&Debug);
 	lua_setglobal(pState,"DEBUG");
-	lua_pushcfunction(pState,&Script::Trace);
+	lua_pushcfunction(pState,&Trace);
 	lua_setglobal(pState,"TRACE");
-	lua_pushcfunction(pState, &Script::Pairs);
+	lua_pushcfunction(pState, &Pairs);
 	lua_setglobal(pState, "pairs");
-	lua_pushcfunction(pState, &Script::IPairs);
-	lua_setglobal(pState, "ipairs");
-	lua_pushcfunction(pState, &Script::Next);
-	lua_setglobal(pState, "next");
+	lua_pushcfunction(pState, &GetMetatable);
+	lua_setglobal(pState, "getmetatable");
 
-	// set global metatable
-	lua_newtable(pState);
-#if !defined(_DEBUG)
-	lua_pushliteral(pState, "change metatable of global environment is prohibited");
-	lua_setfield(pState, -2, "__metatable");
-#endif
-	lua_setmetatable(pState, LUA_GLOBALSINDEX);
-
-
+	// set require, loadFile, dofile to fix relative path!
+	lua_getglobal(pState, "require");
+	lua_pushcclosure(pState, &Require, 1);
+	lua_setglobal(pState, "require");
+	lua_getglobal(pState, "loadfile");
+	lua_pushvalue(pState, -1);
+	lua_pushcclosure(pState, &LoadFile, 1);
+	lua_setglobal(pState, "loadfile");
+	lua_pushcclosure(pState, &DoFile, 1);
+	lua_setglobal(pState, "dofile");
+	
 	return pState;
 }
 
@@ -127,398 +304,76 @@ void Script::CloseState(lua_State* pState) {
 		lua_close(pState);
 }
 
-void Script::PushValue(lua_State* pState,const char* value) {
-	if(!value || String::ICompare(value, "null") == 0)
-		return lua_pushnil(pState);
-	if (String::ICompare(value, "false") == 0)
-		return lua_pushboolean(pState, 0);
-	if (String::ICompare(value, "true") == 0)
-		return lua_pushboolean(pState, 1);
-	double result(0);
-	if (String::ToNumber(value, result))
-		lua_pushnumber(pState, result);
-	else
-		lua_pushstring(pState, value);
-}
-
-void Script::PushValue(lua_State* pState,const UInt8* value, UInt32 size) {
-	if (size==5 && String::ICompare(STR value, "false") == 0)
-		lua_pushboolean(pState, 0);
-	else if (size==4 && String::ICompare(STR value, "true") == 0)
-		lua_pushboolean(pState, 1);
-	else if (size==4 && String::ICompare(STR value, "null") == 0)
-		lua_pushnil(pState);
-	else {
-		double result(0);
-		if (String::ToNumber(STR value,size, result))
-			lua_pushnumber(pState, result);
-		else
-			lua_pushlstring(pState, STR value,size);
+void Script::PushValue(lua_State* pState, const void* value, size_t size) {
+	switch (size) {
+		case 4:
+			if (String::ICompare(STR value, "true") == 0)
+				return lua_pushboolean(pState, 1);
+			if (String::ICompare(STR value, "null") == 0)
+				return lua_pushnil(pState);
+			break;
+		case 5:
+			if (String::ICompare(STR value, "false") == 0)
+				return lua_pushboolean(pState, 0);
+		default:;
 	}
+	lua_pushlstring(pState, STR value, size); // in LUA number or string are assimilable!
 }
-
- bool Script::GetCollection(lua_State* pState, int index,const char* field) {
-	if (!field || !lua_getmetatable(pState, index))
-		return false;
-	// get collection table
-	lua_getfield(pState, -1, field);
-	lua_replace(pState, -2); // remove metatable
-	if (!lua_istable(pState, -1)) {
-		lua_pop(pState, 1);
-		return false;
-	}
-	return true;
-}
-
- 
-void Script::DeleteCollection(lua_State* pState,int index,const char* field) {
-	if (!field || !lua_getmetatable(pState, index))
-		return;
-	lua_pushnil(pState);
-	lua_setfield(pState, -2, field);
-	lua_pop(pState, 1); // metatable
-}
-
-void Script::FillCollection(lua_State* pState, UInt32 size) {
-	int index = -1-(size<<1); // index collection (-1-2*size)
-
-	if (!lua_getmetatable(pState, index)) {
-		SCRIPT_BEGIN(pState)
-			SCRIPT_ERROR("Invalid collection to fill, no metatable")
-		SCRIPT_END
-		return;
-	}
-
-	lua_getfield(pState, -1, "|items");
-	if (!lua_istable(pState, -1)) {
-		lua_pop(pState, 2);
-		SCRIPT_BEGIN(pState)
-			SCRIPT_ERROR("Invalid collection to fill, no |items field in metatable")
-		SCRIPT_END
-		return;
-	}
-
-	lua_insert(pState, index-1); // insert |item to the collection index, just before keys/values
-	lua_insert(pState, index-1); // insert metatable just before |items
-
-	int count(0);
-	while (size-- > 0) {
-		
-		if (lua_isstring(pState, -2)) { // key
-			const char* key(lua_tostring(pState, -2));
-			const char* sub(strchr(key, '.'));
-			if (sub) {
-				*(char*)sub = '\0';
-				Collection(pState, index-2, key);
-				*(char*)sub = '.';
-				lua_pushstring(pState, sub + 1);
-				lua_pushvalue(pState, -3); // value
-				FillCollection(pState, 1);
-				lua_pop(pState, 1);
-			}
-		}
-
-		// check if key exists already to update count
-		lua_pushvalue(pState, -2); // key
-		lua_rawget(pState, index-1);
-		if (!lua_isnil(pState, -1)) { // if old value exists
-			if (lua_isnil(pState, -2)) // if new value is nil (erasing)
-				--count;
-		} else if (lua_isnil(pState, -1))  // if old value doesn't exists
-			++count;
-		lua_pop(pState, 1);
-
-		lua_rawset(pState,index);
-		index += 2;
-	}
-
-	lua_pop(pState, 1); // remove |items
-
-	lua_getfield(pState,-1,"|count");
-	lua_pushnumber(pState,lua_tonumber(pState,-1)+count);
-	lua_replace(pState, -2);
-	lua_setfield(pState,-2,"|count");
-	lua_pop(pState,1); // remove metatable
-
-}
-
-void Script::ClearCollection(lua_State* pState) {
-	// get collection table
-	if (!lua_getmetatable(pState, -1))
-		return;
-
+void Script::PushValue(lua_State* pState, const Parameters& parameters, const string& prefix) {
 	lua_newtable(pState);
-	lua_newtable(pState);
-	lua_pushliteral(pState,"v");
-	lua_setfield(pState,-2,"__mode");
-	lua_setmetatable(pState, -2);
-	lua_setfield(pState, -2, "|items");
-
-	lua_pushnumber(pState, 0);
-	lua_setfield(pState, -2, "|count");
-
-	lua_pop(pState, 1);
-}
-
-
-void Script::ClearCollectionParameters(lua_State* pState, const char* field,const Parameters& parameters) {
-	// index -1 must be the collection
-	if (!lua_getmetatable(pState, -1))
-		return;
-	string buffer;
-
-	lua_getfield(pState, -1, String::Assign(buffer,"|",field,"OnChange").c_str());
-	Parameters::OnChange::Type* pOnChange((Parameters::OnChange::Type*)lua_touserdata(pState, -1));
-	lua_pop(pState, 1);
-	lua_pushnil(pState);
-	lua_setfield(pState, -2, buffer.c_str());
-
-	lua_getfield(pState, -1, String::Assign(buffer,"|",field,"OnClear").c_str());
-	Parameters::OnClear::Type* pOnClear((Parameters::OnClear::Type*)lua_touserdata(pState, -1));
-	lua_pop(pState, 1);
-	lua_pushnil(pState);
-	lua_setfield(pState, -2, buffer.c_str());
-
-	lua_pop(pState, 1); // metatable
-
-	if (pOnChange) {
-		parameters.OnChange::unsubscribe(*pOnChange);
-		delete pOnChange;
-	}
-	if (pOnClear) {
-		parameters.OnClear::unsubscribe(*pOnClear);
-		delete pOnClear;
+	for (const auto& it : parameters.range(prefix)) {
+		lua_pushlstring(pState, it.first.data() + prefix.size(), it.first.size() - prefix.size());
+		PushValue(pState, it.second.data(), it.second.size());
+		lua_rawset(pState, -3);
 	}
 }
 
-int Script::Item(lua_State *pState) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_ERROR("This collection doesn't implement call operator, use [] operator rather")
-	SCRIPT_END
-	return 0;
-}
 
-
-int Script::IndexCollection(lua_State* pState) {
-	// 1 table
-	// 2 key
-
-	if (lua_getmetatable(pState, 1)) {
-
-		lua_getfield(pState, -1, "|items");
-		// |items
-
-		lua_pushvalue(pState, 2); // key
-		lua_gettable(pState, -2);
-		// result!
-
-		if (lua_isnil(pState, -1)) { // if no result
-			// check sub key
-			lua_pushvalue(pState, 2); // key
-			lua_gettable(pState, -4); // table
-			lua_replace(pState, -2);
-		}
-
-		lua_replace(pState, -2);
-		lua_replace(pState, -2);
-	} else
-		lua_pushnil(pState);
-
-
-	if (lua_isnil(pState, -1)) {
-		const char* name = lua_tostring(pState,2);
-		if (name && strcmp(name, "count") == 0) {
-			lua_pushnumber(pState, lua_objlen(pState, 1));
-			lua_replace(pState, -2);
-		}
-	}
-
-	return 1;
-}
-
-int Script::LenCollection(lua_State* pState) {
-	// 1 table
-	if(lua_getmetatable(pState, 1)) {
-		lua_getfield(pState, -1, "|count");
-		if (lua_isnumber(pState, -1)) {
-			lua_replace(pState, -2);
-			return 1;
-		}
-		lua_pop(pState, 2);
-	}
-	lua_pushnumber(pState,lua_objlen(pState, 1));
-	return 1;
-}
-
-int Script::CollectionToString(lua_State* pState) {
-	// 1 - table
-	lua_getfield(pState, 1, "__tostring");
-	if (!lua_isstring(pState, -1)) {
-		lua_pop(pState, 1); 
-		std::string buffer("Collection_");
-		lua_pushstring(pState,String::Append(buffer, lua_topointer(pState, 1)).c_str());
-	}
-	return 1;
-}
-
-
-int Script::Next(lua_State* pState) {
-	// 1 table
-	// [2 key] (optional)
-	if (lua_gettop(pState) < 2)
-		lua_pushnil(pState);
-	return Script::Next(pState, 1);
-}
-
-int Script::Next(lua_State* pState,int index) {
-	// -1 is key
-	if (!lua_istable(pState, index)) {
-		SCRIPT_BEGIN(pState)
-			SCRIPT_ERROR("next on a ", lua_typename(pState,lua_type(pState, 1)), " value")
-		SCRIPT_END
-		return 0;
-	}
-	if (lua_getmetatable(pState,  index)) {
-		lua_getfield(pState, -1, "|items");
-		lua_replace(pState, -2);
-		if (!lua_istable(pState, -1))
-			lua_pop(pState, 1);
-		else
-			lua_replace(pState, index);
-	};
-	int results = lua_next(pState, index);
-	if (results>0)
-		++results;
-	return results;
-}
-
-static int INext(lua_State* pState) {
-	// 1 table
-	// [2 index] (optional,start to 1)
-	if (!lua_istable(pState, 1)) {
-		SCRIPT_BEGIN(pState)
-			SCRIPT_ERROR("inext on a ", lua_typename(pState,lua_type(pState, 1)), " value")
-		SCRIPT_END
-		return 0;
-	}
-	if (lua_getmetatable(pState,  1)) {
-		lua_getfield(pState, -1, "|items");
-		lua_replace(pState, -2);
-		if (!lua_istable(pState, -1))
-			lua_pop(pState, 1);
-		else
-			lua_replace(pState, 1);
-	};
-	if (lua_gettop(pState) < 2)
-		lua_pushnumber(pState,1);
-	else
-		lua_pushnumber(pState, lua_tonumber(pState,2)+1);
-	lua_pushvalue(pState, -1);
-	lua_gettable(pState, 1);
-	if (lua_isnil(pState, -1)) {
-		lua_replace(pState, -2);
-		return 1;
-	}
-	return 2;
-}
-
-int Script::Pairs(lua_State* pState) {
-	// 1 table
-	if (!lua_istable(pState, 1)) {
-		SCRIPT_BEGIN(pState)
-			SCRIPT_ERROR("pairs on a ", lua_typename(pState,lua_type(pState, 1)), " value")
-		SCRIPT_END
-		return 0;
-	}
-	lua_pushcfunction(pState,&Next);
-	lua_pushvalue(pState, 1);
-	return 2;
-}
-
-int Script::IPairs(lua_State* pState) {
-	// 1 table
-	if (!lua_istable(pState, 1)) {
-		SCRIPT_BEGIN(pState)
-			SCRIPT_ERROR("ipairs on a ", lua_typename(pState,lua_type(pState, 1)), " value")
-		SCRIPT_END
-		return 0;
-	}
-	lua_pushcfunction(pState,&INext);
-	lua_pushvalue(pState, 1);
-	return 2;
-}
-
-
-UInt8* Script::ToId(const UInt8* data, UInt32& size) {
-	if (size == (Entity::SIZE << 1))
-		return BIN data;
-	if (size ==Entity::SIZE) {
-		Buffer buffer(BIN data, size);
-		Util::UnformatHex(buffer);
-		size = (Entity::SIZE << 1);
-		return  BIN data;
-	}
-	return false;
-}
-
-UInt8* Script::ToRawId(const UInt8* data, UInt32& size) {
-	if (size == Entity::SIZE)
-		return BIN data;
-	if (size == (Entity::SIZE << 1)) {
-		Buffer buffer(BIN data, size);
-		Util::UnformatHex(buffer);
-		size = Entity::SIZE;
-		return  BIN data;
-	}
-	return false;
-}
-
-const char* Script::ToPrint(lua_State* pState, string& out) {
-	int top = lua_gettop(pState);
-	int args = 0;
-	while (args++ < top)
-		ToString(pState,args,out);
-	return out.c_str();
-}
-
-string& Script::ToString(lua_State* pState, int index, string& out) {
+void Script::PushString(lua_State* pState, int index) {
 	int type = lua_type(pState, index);
 	switch (type) {
-		case LUA_TTABLE: {
-			if (lua_getmetatable(pState, index)) {
-				lua_getfield(pState, -1, "__tostring");
-				lua_replace(pState, -2);
-				if (lua_isfunction(pState, -1)) {
+		case LUA_TTABLE:
+			if (!lua_getmetatable(pState, index))
+				break; // display table address!
+			lua_pushliteral(pState, "__tostring");
+			lua_rawget(pState, -2);
+			lua_replace(pState, -2); // remove metatable
+			if (!lua_isnil(pState, -1)) {
+				if(lua_isfunction(pState, -1)) {
 					lua_pushvalue(pState, index);
-					lua_call(pState, 1, 1);
-					if (lua_isstring(pState, -1)) {
-						out += lua_tostring(pState,-1);
-						lua_pop(pState, 1);
-						break;
-					}
+					lua_call(pState, 1, 1); // consume arg + function
+					if (lua_isstring(pState, -1))
+						return;
+					SCRIPT_BEGIN(pState)
+						SCRIPT_ERROR("__tostring must return a string");
+					SCRIPT_END
+				} else {
+					SCRIPT_BEGIN(pState)
+						SCRIPT_ERROR("call a no-function __tostring ", lua_typename(pState, lua_type(pState, -1)));
+					SCRIPT_END
 				}
-				lua_pop(pState, 1);
 			}
-		}
-		default:
-			String::Append(out, lua_typename(pState,type), "_", lua_topointer(pState, index));
+			lua_pop(pState, 1); // remove __tostring or no-string value
 			break;
-		case LUA_TBOOLEAN: {
-			out += lua_toboolean(pState,index) ? "(true)" : "(false)";
-			break;
-		}
-		case LUA_TNIL: {
-			out += "(null)";
-			break;
-		}
+		case LUA_TBOOLEAN:
+			return lua_pushstring(pState, lua_toboolean(pState,index) ? "true" : "false");
+		case LUA_TNIL:
+			return lua_pushlstring(pState, EXPAND("null"));
 		case LUA_TNUMBER:
 		case LUA_TSTRING:
-			out += lua_tostring(pState,index);
-			break;
+			return lua_pushvalue(pState, index);
+		default:;
 	}
-	return out;
+	String str(lua_typename(pState, type), '_', lua_topointer(pState, index));
+	lua_pushlstring(pState, str.data(), str.size());
 }
 
+int Script::Concat(lua_State *pState) {
+	PushString(pState, 1);
+	PushString(pState, 2);
+	lua_concat(pState, 2);
+	return 1;
+}
 
 void Script::Test(lua_State* pState) {
 	int i;
@@ -529,29 +384,31 @@ void Script::Test(lua_State* pState) {
 	for (i = 1; i <= top; i++) {  /* repeat for each level */
 		int t = lua_type(pState, i);
 		switch (t) {
-
-		case LUA_TNONE:  /* strings */
-			printf("none\n");
-			break;
-		case LUA_TNIL:  /* strings */
-			printf("nil\n");
-			break;
-		case LUA_TSTRING:  /* strings */
-			printf("string: '%s'\n", lua_tostring(pState, i));
-			break;
-		case LUA_TBOOLEAN:  /* booleans */
-			printf("boolean %s\n", lua_toboolean(pState, i) ? "true" : "false");
-			break;
-		case LUA_TNUMBER:  /* numbers */
-			printf("number: %g\n", lua_tonumber(pState, i));
-			break;
-		default:  /* other values */
-			printf("%s: %p\n", lua_typename(pState, t),lua_topointer(pState,i));
-			break;
+			case LUA_TNONE:  /* strings */
+				printf("none\n");
+				break;
+			case LUA_TNIL:  /* strings */
+				printf("nil\n");
+				break;
+			case LUA_TSTRING:  /* strings */
+				printf("string: '%s'\n", lua_tostring(pState, i));
+				break;
+			case LUA_TBOOLEAN:  /* booleans */
+				printf("boolean %s\n", lua_toboolean(pState, i) ? "true" : "false");
+				break;
+			case LUA_TNUMBER:  /* numbers */
+				printf("number: %g\n", lua_tonumber(pState, i));
+				break;
+			default:  /* other values */
+				PushString(pState, i);
+				printf("%s: %s\n", lua_typename(pState, t), lua_tostring(pState, -1));
+				lua_pop(pState, 1);
+				break;
 		}
-		printf("  ");  /* put a separator */
 	}
 	printf("\n");  /* end the listing */
 
 }
 
+
+} // namespace Mona

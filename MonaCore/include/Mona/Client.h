@@ -29,20 +29,21 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct Client : Entity, virtual Object, Net::Stats {
-	typedef Event<const char*(const char* key, DataReader& reader)> ON(SetProperty);
+	typedef Event<bool(const std::string& key, DataReader& reader)>	ON(SetProperty);
 	NULLABLE
+
+	Client(const char* protocol);
 
 	const SocketAddress			address;
 	const SocketAddress			serverAddress;
 
-	const std::string			protocol;
+	const char*					protocol;
 
-	/*! Can be usefull in some protocol implementation to allow to change client property (like HTTP and Cookie) */
-	virtual const char*			setProperty(const char* key, DataReader& reader) {
-		const char* value = onSetProperty(key, reader);
-		return value ? ((Parameters&)properties()).setString(key, value).c_str() : NULL;
-	}
-	virtual const Parameters&	properties() const = 0;
+	/*!
+	Can be usefull in some protocol implementation to allow to change client property (like HTTP and Cookie) */
+	Parameters::const_iterator	setProperty(const std::string& key, std::string&& value, DataReader& parameters);
+	bool						eraseProperty(const std::string& key);
+	const Parameters&			properties() const { return _properties; }
 
 	operator bool() const		{ return connection ? true : false; }
 	const Time					connection;
@@ -50,27 +51,58 @@ struct Client : Entity, virtual Object, Net::Stats {
 
 	 // user data (custom data)
 	template <typename DataType>
-	DataType* setCustomData(DataType* pData) const { return (DataType*)(_pData = pData); }
-	bool	  hasCustomData() const { return _pData != NULL; }
+	DataType*			setCustomData(DataType* pData) { _pData = pData; return pData; }
+	bool				hasCustomData() const { return _pData != NULL; }
 	template<typename DataType>
-	DataType* getCustomData() const { return (DataType*)_pData; }
+	DataType*			getCustomData() const { return (DataType*)_pData; }
 
 	// Alterable in class children Peer
 	
 	const std::string			path;
 	const std::string			query;
 	
-	virtual UInt16				ping() const { return 0; } // 0 for protocol which doesn't support PING calculation
-	virtual UInt32				rto() const { return Net::RTO_MAX; }
+	UInt16						ping() const { return _ping; } // 0 for protocol which doesn't support PING calculation
+	UInt32						rto() const { return _rto; }
+
+	UInt64						queueing() const { return _pNetStats->queueing(); }
+
+	Time						recvTime() const { return _pNetStats->recvTime(); }
+	UInt64						recvByteRate() const { return _pNetStats->recvByteRate(); }
+	double						recvLostRate() const { return _pNetStats->recvLostRate(); }
+
+	Time						sendTime() const { return _pNetStats->sendTime(); }
+	UInt64						sendByteRate() const { return _pNetStats->sendByteRate(); }
+	double						sendLostRate() const { return _pNetStats->sendLostRate(); }
+
 	
-	virtual Writer&				writer() = 0;
+	Writer&						writer() { return *_pWriter; }
+
+	Writer&						newWriter() { return writer().newWriter(); }
+	DataWriter&					writeInvocation(const char* name) { return writer().writeInvocation(name); }
+	DataWriter&					writeMessage() { return writer().writeMessage(); }
+	DataWriter&					writeResponse(UInt8 type = 0) { return writer().writeResponse(type); }
+	void						writeRaw(DataReader& arguments, const Packet& packet = Packet::Null()) { writer().writeRaw(arguments, packet); }
+	void						writeRaw(const Packet& packet) { writer().writeRaw(packet); }
+	bool						flush() { return writer().flush(); }
+	void						close(Int32 error = 0, const char* reason = NULL) { writer().close(error, reason); }
 
 protected:
-	Client(const char* protocol) : protocol(protocol), _pData(NULL), connection(0), disconnection(Time::Now()) {}
+	Client(); // class children has to assign "protocol" field itself!
 
+	void setWriter(Writer& writer = Writer::Null(), Net::Stats& netStats = Net::Stats::Null()) { _pWriter = &writer; _pNetStats = &netStats; }
+
+	UInt16		setPing(UInt64 value);
 private:
 	mutable void*				_pData;
+	Net::Stats*					_pNetStats;
+	Writer*						_pWriter;
+	Parameters					_properties;
+	UInt16						_ping;
+	UInt32						_rto;
+	double						_rttvar;
+	
 };
+
 
 
 } // namespace Mona

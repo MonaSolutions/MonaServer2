@@ -18,19 +18,30 @@ details (or else see http://www.gnu.org/licenses/).
 
 #pragma once
 
-#include "Mona/Listener.h"
 #include "Script.h"
+#include "Mona/Timer.h"
 
-class LUAListener {
-public:
 
-	static void Init(lua_State *pState, Mona::Listener& listener);
-	static void Clear(lua_State* pState, Mona::Listener& listener);
-	static int Index(lua_State *pState);
-	static int IndexConst(lua_State *pState);
+namespace Mona {
+
+struct LUATimer : Timer::OnTimer {
+	LUATimer(lua_State* pState, const Timer& timer, int index);
+	~LUATimer();
+
+	const Timer& timer;
+
+	/*!
+	Pin the LUA table at index to this timer in the registry to avoid its deletion! */
+	void pin(int index);
 
 private:
-	static int SetReceiveVideo(lua_State *pState);
-	static int SetReceiveAudio(lua_State *pState);
-	static int SetReceiveData(lua_State *pState);
+	
+	void unpin();
+
+	lua_State*		_pState;
+	int				_refFunc;
+	int				_ref;
 };
+	
+
+}

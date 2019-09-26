@@ -35,8 +35,8 @@ struct MonaWriter : MediaWriter, virtual Object {
 			write(track, type, packet, onWrite);
 	}
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
-		Media::Data::Type type;
-		const Packet& packet = properties(type);
+		Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
+		const Packet& packet = properties.data(type);
 		writeData(0, type, packet, onWrite); // use data command channel (can't happen in a container) to write properties!
 	}
 private:

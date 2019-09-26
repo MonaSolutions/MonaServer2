@@ -115,7 +115,7 @@ private:
 	void setFormat(const char* format);
 
 	// Media::Properties overrides
-	void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track=1) { Properties::setProperties(type, packet, track); }
+	void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::addProperties(track, type, packet); }
 	void onParamChange(const std::string& key, const std::string* pValue);
 	void onParamClear();
 

@@ -93,12 +93,11 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 				if (!peer && handshake(request)) {
 					if(!peer.onSetProperty) {
 						// subscribe to client.properties(...)
-						peer.onSetProperty = [this](const char* key, DataReader& reader)->const char* {
-							string value;
-							if (!reader.readString(value))
-								return NULL;
-							_pWriter->writeSetCookie(key, value, reader);
-							return value.c_str();
+						peer.onSetProperty = [this](const string& key, DataReader& reader) {
+							if (!reader.available())
+								return false; // HTTP can't deleting a client property, just adding (set a cookie to empty value with expiration date to get it on next request!)
+							_pWriter->writeSetCookie(key, reader);
+							return true;
 						};
 					}
 					peer.onConnection(ex, *_pWriter, *self, parameters);
@@ -293,7 +292,7 @@ void HTTPSession::kill(Int32 error, const char* reason){
 void HTTPSession::subscribe(Exception& ex, const string& stream) {
 	if(!_pSubscription)
 		_pSubscription = new Subscription(*_pWriter);
-	if (api.subscribe(ex, stream, peer, *_pSubscription, peer.query.c_str()))
+	if (api.subscribe(ex, peer, stream, *_pSubscription, peer.query.c_str()))
 		return;
 	delete _pSubscription;
 	_pSubscription = NULL;
@@ -427,10 +426,7 @@ void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader&
 	MapWriter<Parameters> props(properties);
 	bool append(request->type == HTTP::TYPE_POST);
 	struct AppendReader : WriterReader {
-		bool writeOne(DataWriter& writer) {
-			writer.writeString(EXPAND("append"));
-			return false;
-		}
+		void writeOne(DataWriter& writer, bool& again) { writer.writeString(EXPAND("append")); }
 	} appendReader;
 	SplitReader params(parameters, append ? appendReader : DataReader::Null());
 	if (peer.onWrite(ex, request.path, params, props)) {

@@ -63,6 +63,11 @@ bool PersistentData::run(Exception& ex, const volatile bool& requestStop) {
 
 
 void PersistentData::processEntry(Exception& ex,Entry& entry) {
+	if (entry.clearing) {
+		FileSystem::Delete(ex, _rootPath, FileSystem::MODE_HEAVY);
+		return;
+	}
+
 	string directory(_rootPath);
 
 	// Security => formalize entry.path to avoid possible /../.. issue
@@ -146,13 +151,13 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 		File reader(file, File::MODE_READ);
 		if (!reader.load(ex))
 			return;
-		Buffer buffer(range<UInt32>(reader.size()));
-		if (buffer.size() > 0 && reader.read(ex, buffer.data(), buffer.size()) < 0)
+		shared<Buffer> pBuffer(SET, range<UInt32>(reader.size()));
+		if (pBuffer->size() > 0 && reader.read(ex, pBuffer->data(), pBuffer->size()) < 0)
 			return;
 
 		// compute md5
 		UInt8 result[16];
-		EVP_Digest(buffer.data(), buffer.size(), result, NULL, EVP_md5(), NULL);
+		EVP_Digest(pBuffer->data(), pBuffer->size(), result, NULL, EVP_md5(), NULL);
 		String::Assign(value, String::Hex(result, sizeof(result)));  // HEX lower case
 		// compare with file name
 		if (value != name) {
@@ -170,7 +175,7 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 		}
 
 		hasData = true;
-		forEach(path, (const UInt8*)buffer.data(), buffer.size());
+		forEach(path, Packet(pBuffer));
 	});
 
 	Exception ignore;

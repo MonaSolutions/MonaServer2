@@ -63,6 +63,31 @@ TSWriter::Track& TSWriter::Track::operator=(MediaTrackWriter* pWriter) {
 	return *this;
 }
 
+bool TSWriter::Track::addLang(const char* textLang) {
+	if (!textLang)
+		return false;
+	size_t size = strlen(textLang);
+	if (size < 3) {
+		DEBUG("TS Writer too short lang ", textLang, " ignored");
+		return false;
+	}
+	_langs.emplace_back(textLang);
+	return true;
+}
+bool TSWriter::Track::parseLang(UInt8 track, const Media::Properties& properties) {
+	_langs.clear();
+	if (type == Media::TYPE_AUDIO)
+		return addLang(properties.getString(String(track, ".textLang")));
+	// VIDEO
+	bool changed = false;
+	// 4 text langs available to describe by video track, no data description available in TS outside video track!
+	for (UInt8 i = 1; i<5; ++i) {
+		if (addLang(properties.getString(String(track + i, ".textLang"))))
+			changed = true;
+	}
+	return changed;
+}
+
 void TSWriter::beginMedia(const OnWrite& onWrite) {
 	_timePCR = 0;
 	_toWrite = 0;
@@ -90,29 +115,14 @@ void TSWriter::endMedia(const OnWrite& onWrite) {
 }
 
 void TSWriter::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
-	string prefix;
 	for (auto& it : _audios) {
-		it.second.langs.clear();
-		for (auto& itProp : properties.range(String::Assign(prefix,it.first))) {
-			if (String::ICompare(itProp.first.data() + prefix.size(), "audioLang") == 0)
-				it.second.langs.emplace_back(itProp.second);
-		}
+		if (it.second.parseLang(it.first, properties))
+			_changed = true; // update PMT!
 	}
 	for (auto& it : _videos) {
-		it.second.langs.clear();
-		for (auto& itProp : properties.range(String::Assign(prefix, it.first))) {
-			if (String::ICompare(itProp.first.data() + prefix.size(), "textLang") == 0) {
-				it.second.langs.emplace_back(itProp.second);
-				string temp;
-				for(UInt8 i=1;i<5;++i) {
-					if(properties.getString(String::Assign(temp, it.first + i,".textLang"), temp))
-						it.second.langs.emplace_back(temp);
-				}
-			}
-		}
+		if (it.second.parseLang(it.first, properties))
+			_changed = true; // update PMT!
 	}
-	if(!prefix.empty())
-		_changed = true; // update PMT!
 }
 
 void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
@@ -161,7 +171,7 @@ void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
 		writer.write8(it.second.codec==Media::Video::CODEC_HEVC ? 0x24 : 0x1b); // HEVC/H264 codec
 		writer.write16(0xE000 | (FIRST_VIDEO_PID+it.first));
 		
-		UInt16 esiSize = UInt16(it.second.langs.size())*6;
+		UInt16 esiSize = UInt16(it.second.langs().size())*6;
 		if (esiSize)
 			esiSize += 3;
 		writer.write16(0xF000 | esiSize);
@@ -169,7 +179,7 @@ void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
 			continue;
 		writer.write(0xe0 | (esiSize - 2));
 		for(UInt8 i = 0; i<4; ++i)
-			writer.write(it.second.langs[i].data(), 3).write8(0xc0 | ((it.first*4)+i)).write16(0x3FFF);
+			writer.write(it.second.lang(i).data(), 3).write8(0xc0 | ((it.first*4)+i)).write16(0x3FFF);
 	}
 	for (const auto& it : _audios) {
 		if (!_pidPCR) {
@@ -184,11 +194,11 @@ void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
 		writer.write16(0xE000 | (FIRST_AUDIO_PID+it.first));
 
 		UInt16 esiSize = 0;
-		if (!it.second.langs.empty())
+		if (!it.second.langs().empty())
 			esiSize += 6;
 		writer.write16(0xF000 | esiSize);
 		if (esiSize)
-			writer.write8(0x0a).write8(4).write(it.second.langs[0].data(), 3).write8(0);
+			writer.write8(0x0a).write8(4).write(it.second.lang().data(), 3).write8(0);
 	}
 
 	// Write len

@@ -21,21 +21,11 @@ using namespace std;
 namespace Mona {
 
 Parameters& Parameters::setParams(const Parameters& other) {
-	if (!other.count()) {
-		clear();
-		return self;
-	}
 	// clear self!
-	if (_pMap && !_pMap->empty()) {
-		_pMap->clear();
-		onParamClear();
-	}
+	clear();
 	// copy data
-	if (other._pMap && !other._pMap->empty()) {
-		if (!_pMap)
-			_pMap.set();
-		*_pMap = *other._pMap;
-	}
+	if (other.count())
+		_pMap.set() = *other._pMap;
 	// onChange!
 	for (auto& it : self)
 		onParamChange(it.first, &it.second);
@@ -43,20 +33,14 @@ Parameters& Parameters::setParams(const Parameters& other) {
 }
 
 Parameters& Parameters::setParams(Parameters&& other) {
-	if (!other.count()) {
-		clear();
-		return self;
-	}
 	// clear self!
-	if(_pMap && !_pMap->empty()) {
-		_pMap.reset();
-		onParamClear();
-	}
+	clear();
 	// move data
-	_pMap = std::move(other._pMap);
-	// clear other
-	if(_pMap && !_pMap->empty())
+	if(other.count()) {
+		_pMap = std::move(other._pMap);
+		// clear other
 		other.onParamClear();
+	}	
 	// onChange!
 	for (auto& it : self)
 		onParamChange(it.first, &it.second);
@@ -64,11 +48,11 @@ Parameters& Parameters::setParams(Parameters&& other) {
 }
 
 Parameters::ForEach Parameters::range(const std::string& prefix) const {
-	if (!_pMap)
-		return ForEach();
+	if(prefix.empty())
+		return ForEach(begin(), end());
 	string end(prefix);
 	end.back() = prefix.back() + 1;
-	return ForEach(_pMap->lower_bound(prefix), _pMap->lower_bound(end));
+	return ForEach(lower_bound(prefix), lower_bound(end));
 }
 
 bool Parameters::getString(const string& key, std::string& value) const {
@@ -93,46 +77,30 @@ bool Parameters::getBoolean(const string& key, bool& value) const {
 }
 
 const string* Parameters::getParameter(const string& key) const {
-	if (_pMap) {
-		const auto& it = _pMap->find(key);
-		if (it != _pMap->end())
-			return &it->second;
-	}
+	const auto& it = params().find(key);
+	if (it != params().end())
+		return &it->second;
 	return onParamUnfound(key);
 }
 
 Parameters& Parameters::clear(const string& prefix) {
-	if (!_pMap || _pMap->empty())
+	if (!count())
 		return self;
-	if (!prefix.empty()) {
+	if (prefix.empty()) {
+		_pMap.reset();
+		onParamClear();
+	} else {
 		string end(prefix);
 		end.back() = prefix.back() + 1;
-		auto it = _pMap->lower_bound(prefix);
-		auto itEnd = _pMap->lower_bound(end);
-		if (it != _pMap->begin() || itEnd != _pMap->end()) {
-			// partial erase
-			while (it != itEnd) {
-				// move key because "key" parameter because must stay valid for onParamChange call!
-				string key(move(it->first));
-				it = _pMap->erase(it);
-				onParamChange(key, NULL);
-			}
-			return self;
-		}
+		erase(_pMap->lower_bound(prefix), _pMap->lower_bound(end));
 	}
-	_pMap->clear();
-	onParamClear();
 	return self;
 }
 
 bool Parameters::erase(const string& key) {
 	// erase
-	if (!_pMap)
-		return false;
-	const auto& it(_pMap->find(key));
-	if (it == _pMap->end())
-		return true;
-	{
+	const auto& it(params().find(key));
+	if (it != params().end()) {
 		// move key because "key" parameter can be a "it->first" too, and must stay valid for onParamChange call!
 		string key(move(it->first));
 		_pMap->erase(it);
@@ -140,8 +108,22 @@ bool Parameters::erase(const string& key) {
 			clear();
 		else
 			onParamChange(key, NULL);
+		return true;
 	}
-	return true;
+	return false;
+}
+Parameters::const_iterator Parameters::erase(const_iterator first, const_iterator last) {
+	if (first == begin() && last == end()) {
+		clear();
+		return end();
+	}
+	const_iterator it;
+	for (it = first; it != last;) {
+		string key(move(it->first));
+		it = _pMap->erase(it);
+		onParamChange(key, NULL);
+	}
+	return it;
 }
 
 

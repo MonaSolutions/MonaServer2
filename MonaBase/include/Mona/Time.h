@@ -23,6 +23,15 @@ namespace Mona {
 
 struct Time : virtual Object {
 
+	struct Elapsed : virtual Object {
+		Elapsed() : _now(Time::Now()) {}
+		Int64 operator()() const { return Time::Now() - _now; }
+		Int64 operator()(Int64 time) const { return _now - time; }
+		bool operator()(Int64 time, Int64 duration) const { return (_now - time) > duration; }
+	private:
+		Int64 _now;
+	};
+
 	/// \brief Construct a Time instance with current time value
 	Time() : _time(Now()) {}
 

@@ -39,7 +39,7 @@ struct DataReader : virtual Object {
 	};
 
 	void			next(UInt32 count=1) { read(DataWriter::Null(), count); }
-	UInt8			nextType() { if (_nextType == END) _nextType = followingType(); return _nextType; }
+	UInt8			nextType() { if (!_nextType) _nextType = followingType(); return _nextType; }
 
 	// return the number of writing success on writer object
 	// can be override to capture many reading on the same writer

@@ -18,10 +18,12 @@ details (or else see http://www.gnu.org/licenses/).
 
 #pragma once
 
-#include "Mona/XMLParser.h"
 #include "Script.h"
+#include "Mona/XMLParser.h"
 
-class LUAXML : private Mona::XMLParser {
+namespace Mona {
+
+struct LUAXML : private XMLParser {
 /*
 XML
 
@@ -50,6 +52,18 @@ LUA
 	}
 }
 
+{ xml = {
+	{ document = {
+		{ article = {
+			{ p= {'This is the first paragraph.'} },
+			{ h2= {'Title with opt style'}, class = 'opt'}
+		}},
+		{ article = {
+			{ p= {'Some', {b='important'}, 'text' }}
+		}}
+	}},
+	version = 1.0
+}}
 
 Access to "This is the first paragraph" =>
 1 - variable[1][1][1][1]
@@ -57,29 +71,27 @@ Access to "This is the first paragraph" =>
 
 */
 
-public:
-	
-	static bool XMLToLUA(Mona::Exception& ex, lua_State* pState, const Mona::PoolBuffers& poolBuffers, const char* data, Mona::UInt32 size) { return LUAXML(pState, poolBuffers, data, size).parse(ex) != XMLParser::ERROR; }
-	static bool LUAToXML(Mona::Exception& ex, lua_State* pState, int index, Mona::BinaryWriter& writer);
+	static bool XMLToLUA(Exception& ex, lua_State* pState, const char* data, UInt32 size) { return LUAXML(pState, data, size).parse(ex) != XMLParser::RESULT_ERROR; }
+	static bool LUAToXML(Exception& ex, lua_State* pState, int index);
 
 private:
-	static bool LUAToXMLElement(Mona::Exception& ex, lua_State* pState, Mona::BinaryWriter& writer);
+	static bool LUAToXMLElement(Exception& ex, lua_State* pState, BinaryWriter& writer);
 
 
-	LUAXML(lua_State* pState, const Mona::PoolBuffers& poolBuffers, const char* data, Mona::UInt32 size) : _pState(pState), XMLParser(poolBuffers, data, size) {}
+	LUAXML(lua_State* pState, const char* data, UInt32 size) : _pState(pState), XMLParser(data, size) {}
 
 	bool onStartXMLDocument() { lua_newtable(_pState); _firstIndex = lua_gettop(_pState); return true; }
-	bool onStartXMLElement(const char* name, Mona::Parameters& attributes);
-	bool onXMLInfos(const char* name, Mona::Parameters& attributes);
-	bool onInnerXMLElement(const char* name, const char* data, Mona::UInt32 size);
+	bool onStartXMLElement(const char* name, Parameters& attributes);
+	bool onXMLInfos(const char* name, Parameters& attributes);
+	bool onInnerXMLElement(const char* name, const char* data, UInt32 size);
 	bool onEndXMLElement(const char* name);
 	void onEndXMLDocument(const char* error) { addMetatable(); }
 
 	void addMetatable();
 
-	static int Index(lua_State* pState);
-	static int NewIndex(lua_State* pState);
-
+	
 	lua_State*			_pState;
 	int					_firstIndex;
 };
+
+}

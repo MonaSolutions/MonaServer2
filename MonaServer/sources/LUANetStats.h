@@ -18,79 +18,58 @@ details (or else see http://www.gnu.org/licenses/).
 
 #pragma once
 
-#include "Mona/NetStats.h"
 #include "Script.h"
+#include "Mona/Net.h"
 
-template<typename LUAType>
-struct LUANetStats {
-	int	Bandwidth(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object.bandwidth());
-		SCRIPT_CALLBACK_RETURN
+namespace Mona {
+
+#define SCRIPT_DEFINE_NETSTATS(TYPE)	SCRIPT_DEFINE_FUNCTION("recvTime", &LUANetStats<TYPE>::RecvTime);\
+										SCRIPT_DEFINE_FUNCTION("recvByteRate", &LUANetStats<TYPE>::RecvByteRate);\
+										SCRIPT_DEFINE_FUNCTION("recvLostRate", &LUANetStats<TYPE>::RecvLostRate);\
+										SCRIPT_DEFINE_FUNCTION("sendTime", &LUANetStats<TYPE>::SendTime);\
+										SCRIPT_DEFINE_FUNCTION("sendByteRate", &LUANetStats<TYPE>::SendByteRate);\
+										SCRIPT_DEFINE_FUNCTION("sendLostRate", &LUANetStats<TYPE>::SendLostRate);\
+										SCRIPT_DEFINE_FUNCTION("queueing", &LUANetStats<TYPE>::Queueing);
+
+template<typename Type>
+struct LUANetStats : virtual Static {
+	static int RecvTime(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, object);
+			SCRIPT_WRITE_DOUBLE(NetStats(object).recvTime());
+		SCRIPT_CALLBACK_RETURN;
 	}
-	int	PBandwidth(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object->bandwidth());
-		SCRIPT_CALLBACK_RETURN
+	static int RecvByteRate(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, object);
+			SCRIPT_WRITE_DOUBLE(NetStats(object).recvByteRate());
+		SCRIPT_CALLBACK_RETURN;
 	}
-	int	RecvTime(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object.recvTime());
-		SCRIPT_CALLBACK_RETURN
+	static int RecvLostRate(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, object);
+			SCRIPT_WRITE_DOUBLE(NetStats(object).recvLostRate());
+		SCRIPT_CALLBACK_RETURN;
 	}
-	int	PRecvTime(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object->recvTime());
-		SCRIPT_CALLBACK_RETURN
+	static int SendTime(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, object);
+			SCRIPT_WRITE_DOUBLE(NetStats(object).sendTime());
+		SCRIPT_CALLBACK_RETURN;
 	}
-	int	RecvByteRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object.recvByteRate());
-		SCRIPT_CALLBACK_RETURN
+	static int SendByteRate(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, object);
+			SCRIPT_WRITE_DOUBLE(NetStats(object).sendByteRate());
+		SCRIPT_CALLBACK_RETURN;
 	}
-	int	PRecvByteRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object->recvByteRate());
-		SCRIPT_CALLBACK_RETURN
+	static int SendLostRate(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, object);
+			SCRIPT_WRITE_DOUBLE(NetStats(object).sendLostRate());
+		SCRIPT_CALLBACK_RETURN;
 	}
-	int	RecvLostRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object.recvLostRate());
-		SCRIPT_CALLBACK_RETURN
+	static int Queueing(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, object);
+			SCRIPT_WRITE_DOUBLE(NetStats(object).queueing());
+		SCRIPT_CALLBACK_RETURN;
 	}
-	int	PRecvLostRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object->recvLostRate());
-		SCRIPT_CALLBACK_RETURN
-	}
-	int	SendTime(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object.sendTime());
-		SCRIPT_CALLBACK_RETURN
-	}
-	int	PSendTime(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object->sendTime());
-		SCRIPT_CALLBACK_RETURN
-	}
-	int	SendByteRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object.sendByteRate());
-		SCRIPT_CALLBACK_RETURN
-	}
-	int	PSendByteRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object->sendByteRate());
-		SCRIPT_CALLBACK_RETURN
-	}
-	int	SendLostRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object.sendLostRate());
-		SCRIPT_CALLBACK_RETURN
-	}
-	int	PSendLostRate(lua_State* pState) {
-		SCRIPT_CALLBACK(LUAType, object)
-			SCRIPT_WRITE_BOOL(object->sendLostRate());
-		SCRIPT_CALLBACK_RETURN
-	}
+private:
+	static Net::Stats& NetStats(Type& object);
 };
+
+}

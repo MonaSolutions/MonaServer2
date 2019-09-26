@@ -51,7 +51,6 @@ private:
 		Box& operator=(BinaryReader& reader); // assign _name, _rest and _size
 		Box& operator=(std::nullptr_t) { _size = _rest = 0; return self; }
 		Box& operator-=(UInt32 readen);
-		//Box& operator-=(BinaryReader& reader);
 	private:
 		char	_name[4];
 		UInt32	_size;
@@ -91,13 +90,14 @@ private:
 			Media::Type _type;
 		};
 
-		Track() : _track(0), size(0), sample(0), samples(0), chunk(0), time(0), flushProperties(true), timeStep(0), pType(NULL) { lang[0] = 0; }
+		Track() : _track(0), size(0), sample(0), samples(0), chunk(0), time(0), timeStep(0), pType(NULL) { lang[0] = 0; }
 
 		operator UInt8() const { return _track; }
 		Track& operator=(UInt8 track) { _track = track; return *this; }
 
-		char						lang[3]; // if lang[0]==0 => undefined!
-		bool						flushProperties;
+		void writeProperties(Media::Properties& properties);
+
+		char						lang[4]; // if lang[0]==0 => undefined!
 
 		double						time;
 		double						timeStep;

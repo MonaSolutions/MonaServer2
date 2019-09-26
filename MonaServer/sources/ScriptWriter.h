@@ -23,40 +23,40 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Script.h"
 #include <vector>
 
+namespace Mona {
 
-class ScriptWriter : public Mona::DataWriter{
-public:
+struct ScriptWriter : DataWriter, virtual Object {
 	ScriptWriter(lua_State *pState);
 	virtual ~ScriptWriter();
 
-	Mona::UInt64 beginObject(const char* type=NULL);
-	void		 writePropertyName(const char* name) { lua_pushstring(_pState, name); }
-	void		 endObject() { endComplex(); }
+	UInt64	beginObject(const char* type=NULL);
+	void	writePropertyName(const char* name) { lua_pushstring(_pState, name); }
+	void	endObject() { endComplex(); }
 
-	Mona::UInt64 beginArray(Mona::UInt32 size);
-	void		 endArray() { endComplex(); }
+	UInt64	beginArray(UInt32 size);
+	void	endArray() { endComplex(); }
 
-	Mona::UInt64 beginObjectArray(Mona::UInt32 size);
+	UInt64	beginObjectArray(UInt32 size);
 
-	void		 writeNumber(double value) { start();  lua_pushnumber(_pState, value); end(); }
-	void		 writeString(const char* value,Mona::UInt32 size) { start(); lua_pushlstring(_pState,value,size); end(); }
-	void		 writeBoolean(bool value) { start(); lua_pushboolean(_pState, value); end(); }
-	void		 writeNull() { start(); lua_pushnil(_pState); end(); }
-	Mona::UInt64 writeDate(const Mona::Date& date);
-	Mona::UInt64 writeBytes(const Mona::UInt8* data,Mona::UInt32 size);
+	void	writeNumber(double value) { begin();  lua_pushnumber(_pState, value); end(); }
+	void	writeString(const char* value, UInt32 size) { begin(); lua_pushlstring(_pState,value,size); end(); }
+	void	writeBoolean(bool value) { begin(); lua_pushboolean(_pState, value); end(); }
+	void	writeNull() { begin(); lua_pushnil(_pState); end(); }
+	UInt64	writeDate(const Date& date);
+	UInt64	writeBytes(const UInt8* data,UInt32 size);
 
-	Mona::UInt64 beginMap(Mona::Exception& ex, Mona::UInt32 size, bool weakKeys = false);
-	void		 endMap() { endComplex(); }
+	UInt64	beginMap(Exception& ex, UInt32 size, bool weakKeys = false);
+	void	endMap() { endComplex(); }
 
-	void clear();
+	void	clear();
 
-	bool repeat(Mona::UInt64 reference);
+	bool	repeat(UInt64 reference);
 
 private:
-	Mona::UInt64 reference();
-	bool start();
-	void end();
-	void endComplex();
+	UInt64	reference();
+	bool	begin();
+	void	end();
+	void	endComplex();
 
 	int			_top;
 	lua_State*	_pState;
@@ -65,3 +65,5 @@ private:
 	std::vector<int>	_references;
 };
 
+
+} // namespace Mona

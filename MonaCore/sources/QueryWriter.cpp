@@ -24,25 +24,10 @@ using namespace std;
 
 namespace Mona {
 
-const char* QueryWriter::query() const {
-	if (_query)
-		return _query;
-	BinaryWriter& writer((BinaryWriter&)DataWriter::writer);
-	writer.write8(0);
-	writer.clear(writer.size() - 1);
-	return _query = STR writer.data();
-}
-
-BinaryWriter& QueryWriter::write() {
-	_query = NULL;
-	if (_isProperty) {
-		writer.write('=');
-		_isProperty = false;
-	} else if (!_first)
-		writer.write(separator); // &
-	else
-		_first = false;
-	return writer;
+void QueryWriter::clear() {
+	_isProperty = false;
+	_first = true;
+	DataWriter::clear();
 }
 
 void QueryWriter::writePropertyName(const char* value) {
@@ -52,10 +37,18 @@ void QueryWriter::writePropertyName(const char* value) {
 
 void QueryWriter::writeString(const char* value, UInt32 size) {
 	if (uriChars)
-		Util::EncodeURI(value, size, write());
+		write(String::URI(value, size));
 	else
-		write().write(value, size);
+		write(value, size);
 }
 
+UInt64 QueryWriter::writeBytes(const UInt8* data, UInt32 size) {
+	write();
+	if(_pBuffer)
+		Util::ToBase64(data, size, *_pBuffer, true);
+	else
+		Util::ToBase64(data, size, writer, true);
+	return 0;
+}
 
 } // namespace Mona

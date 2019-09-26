@@ -19,7 +19,7 @@ struct ServerApp : ServerApplication  {
 	int main(TerminateSignal& terminateSignal) {
 
 		// starts the server
-		MonaTiny server(terminateSignal, getNumber<UInt32>("cores"));
+		MonaTiny server(terminateSignal, getNumber<UInt16>("cores"));
 
 		server.start(*this);
 

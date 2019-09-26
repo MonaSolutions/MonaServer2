@@ -53,8 +53,6 @@ ADD_TEST(Normal) {
 	UInt32 i = 0;
 	CHECK(test.addStreamData(bonjour, 0xFFFF, i) && test == bonjour);
 	CHECK(test.addStreamData(bonjour, 0xFFFF, i) && !test);
-
-
 }
 
 

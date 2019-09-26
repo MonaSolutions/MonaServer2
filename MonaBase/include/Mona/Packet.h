@@ -150,6 +150,9 @@ struct Packet: Binary, virtual Object {
 	Shrink packet */
 	Packet& shrink(UInt32 available) { return setArea(_data, available); }
 	/*!
+	Move the area of data referenced */
+	Packet& clip(UInt32 offset) { return operator+=(offset); }
+	/*!
 	Reference an immutable area of unbuffered data */
 	Packet& set(const void* data, UInt32 size);
 	/*!

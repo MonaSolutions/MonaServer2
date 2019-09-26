@@ -29,14 +29,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct Publication : Media::Source, Media::Properties, virtual Object {
-	typedef Event<void(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet)>	ON(Audio);
-	typedef Event<void(UInt8 track, const Media::Video::Tag& tag, const Packet& packet)>	ON(Video);
-	typedef Event<void(UInt8 track, Media::Data::Type type, const Packet& packet)>			ON(Data);
-	typedef Event<void()>																	ON(Flush);
-	typedef Event<void(const Media::Properties&)>											ON(Properties);
-	typedef Event<void()>																	ON(End);
 	NULLABLE
-
 
 	template<typename TrackType>
 	struct Tracks : std::deque<TrackType>, virtual Object {
@@ -114,7 +107,8 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	
 	/*!
 	Set properties, prefer the direct publication object access to change properties when done by final user */
-	void							setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) { Properties::setProperties(type, packet, track); }
+	void							addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::addProperties(track, type, packet); }
+	UInt32							addProperties(UInt8 track, DataReader& reader) { Properties::addProperties(track, reader); }
 
 	void							flush();
 	void							flush(UInt16 ping);

@@ -27,29 +27,28 @@ namespace Mona {
 /*!
 Help to custom writing operation for method which require a DataReader like Writer::writeRaw =>
 struct HTTPHeader : WriterReader {
-	bool writeOne(DataWriter& writer) {
+	void writeOne(DataWriter& writer, bool& again) {
 		writer.beginObject();
 		writer.writeStringProperty("content-type", EXPAND("html"));
 		writer.endObject();
 		writer.writeString(EXPAND("hello"));
-		return false;
 	}
 } reader;
 client.writer().writeRaw(reader); */
 struct WriterReader : DataReader, virtual Object {
-	WriterReader() : _rest(true), _written(0) {}
+	WriterReader() : _again(true), _written(0) {}
 
-	void reset() { _rest = true; _written = 0; }
+	void reset() { _again = true; _written = 0; }
 
 protected:
-	virtual UInt8 followingType() { return _rest ? OTHER : END; }
+	virtual UInt8 followingType() { return _again ? OTHER : END; }
 	UInt8 written() const { return _written; }
 private:
-	virtual bool writeOne(DataWriter& writer) = 0;
+	virtual void writeOne(DataWriter& writer, bool& again) = 0;
 
-	bool readOne(UInt8 type, DataWriter& writer) { _rest = writeOne(writer);  ++_written; return _rest; }
+	bool readOne(UInt8 type, DataWriter& writer) { _again = false; writeOne(writer, _again);  ++_written; return true; }
 
-	bool  _rest;
+	bool  _again;
 	UInt8 _written;
 };
 

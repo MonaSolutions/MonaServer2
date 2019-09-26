@@ -61,4 +61,20 @@ ADD_TEST(parameters) {
 	CHECK(size == 3);
 }
 
+ADD_TEST(range) {
+
+	UInt32 u32 = 0xFFFFFFFF;
+	CHECK(range<UInt16>(u32) == 0xFFFF);
+
+	UInt16 u16 = 0xFFFF;
+	CHECK(range<UInt32>(u16) == 0x0000FFFF);
+
+	Int32 i32 = -1;
+	CHECK(range<UInt32>(i32) == 0);
+
+	u32 = 0xFFFFFFFF;
+	CHECK(range<Int32>(u32) == 0x7FFFFFFF);
+
+}
+
 }

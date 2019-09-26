@@ -127,10 +127,7 @@ bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& resul
 	UInt64 comma(0);
 
 	const char* current(value);
-	if (size == string::npos)
-		size = strlen(value);
-
-	while(current && size-->0) {
+	while(*current && size-->0) {
 
 		if (iscntrl(*current) || *current==' ') {
 			if (beginning) {
@@ -207,6 +204,68 @@ bool String::ToNumber(Exception& ex, const char* value, size_t size, Type& resul
 	result = (Type)number;
 	return true;
 }
+
+
+UInt32 String::FromURI(const char* value, std::size_t count, const ForEachDecodedChar& forEach) {
+
+	const char* begin(value);
+
+	while (count && (count != string::npos || *value)) {
+
+		if (*value == '%') {
+			// %
+			++value;
+			if (count != string::npos)
+				--count;
+			if (!count || (count == string::npos && !*value)) {
+				// syntax error
+				if (!forEach('%', false))
+					--value;
+				return value - begin;
+			}
+
+			char hi = toupper(*value);
+			++value;
+			if (count != string::npos)
+				--count;
+			if (!count || (count == string::npos && !*value)) {
+				// syntax error
+				if (forEach('%', false)) {
+					if (!forEach(hi, false))
+						--value;
+				} else
+					value -= 2;
+				return value - begin;
+			}
+			char lo = toupper(*value++);
+			if (count != string::npos)
+				--count;
+			if (!isxdigit(lo) || !isxdigit(hi)) {
+				// syntax error
+				if (forEach('%', false)) {
+					if (forEach(hi, false)) {
+						if (forEach(lo, false))
+							continue;
+					} else
+						--value;
+				} else
+					value -= 2;
+				return value - begin;
+			}
+			if (forEach(char((hi - (hi <= '9' ? '0' : '7')) << 4) | ((lo - (lo <= '9' ? '0' : '7')) & 0x0F), true))
+				continue;
+			return value - 3 - begin;
+		}
+		if (!forEach(*value, false))
+			break;
+		++value;
+		if (count != string::npos)
+			--count;
+	}
+
+	return value - begin;
+}
+
 
 #if defined(_WIN32)
 const char* String::ToUTF8(const wchar_t* value,char buffer[PATH_MAX]) {

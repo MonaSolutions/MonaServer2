@@ -42,7 +42,56 @@ struct MIME : virtual Static {
 
 	static Type		Read(const Path& file, const char*& subType);
 	static Type		Read(const char* value, const char*& subType);
-	static Buffer&	Write(Buffer& buffer, Type type, const char* subType=NULL);
+	template<typename Buffer>
+	static Buffer&  Write(Buffer& buffer, Type type, const char* subType=NULL) {
+		switch (type) {
+			case TYPE_TEXT:
+				buffer.append(EXPAND("text/"));
+				if (!subType)
+					return buffer.append(EXPAND("html; charset=utf-8"));
+				break;
+			case TYPE_IMAGE:
+				buffer.append(EXPAND("image/"));
+				if (!subType)
+					return buffer.append(EXPAND("jpeg"));
+				break;
+			case TYPE_APPLICATION:
+				buffer.append(EXPAND("application/"));
+				if (!subType)
+					return buffer.append(EXPAND("octet-stream"));
+				break;
+			case TYPE_MULTIPART:
+				buffer.append(EXPAND("multipart/"));
+				if (!subType)
+					return buffer.append(EXPAND("mixed"));
+				break;
+			case TYPE_AUDIO:
+				buffer.append(EXPAND("audio/"));
+				if (!subType)
+					return buffer.append(EXPAND("mp2t"));
+				break;
+			case TYPE_VIDEO:
+				buffer.append(EXPAND("video/"));
+				if (!subType)
+					return buffer.append(EXPAND("mp2t"));
+				break;
+			case TYPE_MESSAGE:
+				buffer.append(EXPAND("message/"));
+				if (!subType)
+					return buffer.append(EXPAND("example"));
+				break;
+			case TYPE_MODEL:
+				buffer.append(EXPAND("model/"));
+				if (!subType)
+					return buffer.append(EXPAND("example"));
+				break;
+			case TYPE_EXAMPLE:
+				return buffer.append(EXPAND("example"));
+			default: // TYPE_NONE
+				return buffer.append(EXPAND("application/octet-stream"));
+		}
+		return buffer.append(subType, strlen(subType));
+	}
 };
 
 

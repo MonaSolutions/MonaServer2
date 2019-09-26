@@ -190,6 +190,7 @@ void TSReader::parsePAT(const UInt8* data, UInt32 size, Media::Source& source) {
 		}
 		_programs.clear();
 		_properties.clear();
+		_timeProperties = _properties.timeChanged();
 		_startTime = -1;
 		_audioTrack = 0; _videoTrack = 0;
 		source.reset();
@@ -272,9 +273,9 @@ void TSReader::parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::S
 
 		if (oldType != program.type) {
 			// added or type changed!
-			if (program.type == Media::TYPE_AUDIO) {
+			if (program.type == Media::TYPE_AUDIO)
 				program->track = ++_audioTrack;
-			} else if (program.type == Media::TYPE_VIDEO)
+			else if (program.type == Media::TYPE_VIDEO)
 				program->track = ++_videoTrack;
 		}
 		readESI(reader, program);
@@ -282,11 +283,9 @@ void TSReader::parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::S
 	// ignore 4 CRC bytes
 
 	// Flush PROPERTIES if changed!
-	for (auto& it : _properties) {
-		if (it.second.first>=it.second.second.timeProperties())
-			continue; // no change
-		it.second.first = it.second.second.timeProperties();
-		source.setProperties(it.second.second, it.first);
+	if (_timeProperties < _properties.timeChanged()) {
+		_timeProperties = _properties.timeChanged();
+		source.addProperties(_properties);
 	}
 }
 
@@ -311,7 +310,7 @@ void TSReader::readESI(BinaryReader& reader, Program& program) {
 					--size;
 				}
 				if(size)
-					_properties[program->track].second.setString("audioLang", STR data, size);
+					_properties.setString(String(program->track, ".audioLang"), STR data, size);
 				break;
 			case 0x86: // Caption service descriptor http://atsc.org/wp-content/uploads/2015/03/Program-System-Information-Protocol-for-Terrestrial-Broadcast-and-Cable.pdf
 				UInt8 count = desc.read8() & 0x1F;
@@ -319,8 +318,8 @@ void TSReader::readESI(BinaryReader& reader, Program& program) {
 					data = desc.current();
 					size = desc.next(3);
 					UInt8 channel = desc.read8();
-					if (channel & 0x80)
-						_properties[program->track*4 + (channel & 0x3F)].second.setString("textLang", STR data, size);
+					if ((channel & 0x80) && (channel&=0x3F) && channel<5) // channel must be superior to 0 (see spec.) and is CC extractable just if inferior or equal to 4
+						_properties.setString(String((program->track - 1) * 4 + channel, ".textLang"), STR data, size);
 					desc.next(2);
 				}
 				break;
@@ -394,6 +393,8 @@ void TSReader::onFlush(Packet& buffer, Media::Source& source) {
 			it.second->flush(source);
 	}
 	_programs.clear();
+	_properties.clear();
+	_timeProperties = _properties.timeChanged();
 	_audioTrack = 0; _videoTrack = 0;
 	_pmts.clear();
 	_syncFound = false;

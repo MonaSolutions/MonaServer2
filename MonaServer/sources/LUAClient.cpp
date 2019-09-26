@@ -16,106 +16,78 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "LUAClient.h"
-#include "Mona/Peer.h"
-#include "Mona/Util.h"
-#include "ScriptReader.h"
-#include "ScriptWriter.h"
+#include "LUANetStats.h"
+#include "LUAMap.h"
 #include "LUAWriter.h"
-#include "LUAQualityOfService.h"
-#include "LUASocketAddress.h"
+#include "Mona/Client.h"
 
 
 using namespace std;
 using namespace Mona;
 
-int LUAClient::Item(lua_State *pState) {
-	SCRIPT_CALLBACK(Client,client)
-		ScriptReader reader(pState, SCRIPT_READ_AVAILABLE);
-		string value;
-		while (reader.available() && client.OnCallProperties::raise<false>(reader, value))
-			Script::PushValue(pState, value);
-		while (reader.readString(value)) {
-			if (client.properties().getString(value, value))
-				lua_pushlstring(pState, value.data(), value.size());
-			else
-				lua_pushnil(pState);
-		}
-	SCRIPT_CALLBACK_RETURN
+
+Net::Stats&   LUANetStats<Client>::NetStats(Client& client) { return client; }
+Writer&		  LUAWriter<Client>::Writer(Client& client) { return client.writer(); }
+
+static int __tostring(lua_State *pState) {
+	SCRIPT_CALLBACK(Client, client);
+		SCRIPT_WRITE_DATA(client.id, Entity::SIZE);
+	SCRIPT_CALLBACK_RETURN;
 }
 
-void LUAClient::Init(lua_State* pState, Client& client) {
-	Script::InitCollectionParameters<LUAClient>(pState,client,"properties",((Peer&)client).properties(),true);
-	Script::InitCollectionParameters(pState,client,"parameters",client.parameters());
+static int ping(lua_State *pState) {
+	SCRIPT_CALLBACK(Client, client);
+		SCRIPT_WRITE_INT(client.ping());
+	SCRIPT_CALLBACK_RETURN;
+}
+static int rto(lua_State *pState) {
+	SCRIPT_CALLBACK(Client, client);
+		SCRIPT_WRITE_INT(client.rto());
+	SCRIPT_CALLBACK_RETURN;
+}
 
+template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
+	struct Mapper : LUAMap<const Parameters>::Mapper<Mona::Client>, virtual Object {
+		Mapper(Mona::Client& client, lua_State* pState) : LUAMap<const Parameters>::Mapper<Mona::Client>(client, client.properties(), pState) {}
+		Parameters::const_iterator set(const string& key, string&& value, DataReader& parameters) { return obj.setProperty(key, move(value), parameters); }
+		bool erase(const Parameters::const_iterator& first, const Parameters::const_iterator& last) {
+			for (auto it = first; it != last; ++it) {
+				if (!obj.eraseProperty(it->first))
+					return false;
+			}
+			return true;
+		}
+	};
+
+	Script::AddComparator<Mona::Client>(pState);
+
+	// properties
+	lua_pushliteral(pState, "properties");
+	AddObject(pState, client.properties());
 	lua_getmetatable(pState, -1);
-	string hex;
-	lua_pushstring(pState, Mona::Util::FormatHex(client.id, Entity::SIZE, hex).c_str());
-	lua_pushvalue(pState, -1);
-	lua_setfield(pState, -3,"|id");
-	lua_replace(pState, -2);
-	lua_setfield(pState, -2, "id");
+	lua_setmetatable(pState, -6); // metatable of parameters becomes metatable of __index of subscription object!
+
+	SCRIPT_BEGIN(pState)
+		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<const Parameters>::Call<Mapper>);
+		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<const Parameters>::Pairs<Mapper>);
+		SCRIPT_DEFINE_DATA("id", client.id, Entity::SIZE)
+		SCRIPT_DEFINE_STRING("protocol", client.protocol);
+		SCRIPT_DEFINE_DOUBLE("connection", client.connection);
+		SCRIPT_DEFINE_STRING("path", client.path);
+		SCRIPT_DEFINE_STRING("query", client.query);
+		SCRIPT_DEFINE("address", NewObject(pState, new SocketAddress(client.address)));
+		SCRIPT_DEFINE("serverAddress", NewObject(pState, new SocketAddress(client.serverAddress)));
+		SCRIPT_DEFINE("writer", AddObject(pState, client.writer()));
+
+		SCRIPT_DEFINE_FUNCTION("__tostring", &__tostring);
+		SCRIPT_DEFINE_FUNCTION("ping", &ping);
+		SCRIPT_DEFINE_FUNCTION("rto", &rto);
+		SCRIPT_DEFINE_WRITER(Mona::Client);
+		SCRIPT_DEFINE_NETSTATS(Mona::Client);
+
+	SCRIPT_END
 }
-
-
-void LUAClient::Clear(lua_State* pState,Client& client){
-	Script::ClearCollectionParameters(pState,"properties",((Peer&)client).properties());
-	Script::ClearCollectionParameters(pState,"parameters",client.parameters());
-
-	Script::ClearObject<LUAWriter>(pState, ((Client&)client).writer());
-	Script::ClearObject<LUAQualityOfService>(pState, ((Client&)client).writer().qos());
-	Script::ClearObject<LUASocketAddress>(pState, client.address);
+template<> void Script::ObjClear(lua_State *pState, Mona::Client& client) {
+	RemoveObject(pState, client.properties());
+	RemoveObject(pState, client.writer());
 }
-
-
-int LUAClient::Index(lua_State *pState) {
-	SCRIPT_CALLBACK(Client,client)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if (name) {
-			if(strcmp(name,"query")==0) {
-				SCRIPT_WRITE_STRING(client.query.c_str()) // can change (HTTP client for example)
-			} else if(strcmp(name,"ping")==0) {
-				SCRIPT_WRITE_NUMBER(client.ping())  // can change
-			} else if(strcmp(name,"rto")==0) {
-				SCRIPT_WRITE_NUMBER(client.rto())  // can change
-			} else if(strcmp(name,"lastReceivedTime")==0) {
-				SCRIPT_WRITE_NUMBER(client.lastReceivedTime)  // can change
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-int LUAClient::IndexConst(lua_State *pState) {
-	SCRIPT_CALLBACK(Client,client)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if (name) {
-			if(strcmp(name,"writer")==0) {
-				Script::AddObject<LUAWriter>(pState,client.writer());
-			} else if(strcmp(name,"id")==0) {
-				lua_getmetatable(pState, 1);
-				lua_getfield(pState, -1, "|id");
-				lua_replace(pState, -2);
-			} else if(strcmp(name,"rawId")==0) {
-				SCRIPT_WRITE_BINARY(client.id,Entity::SIZE);
-			} else if(strcmp(name,"path")==0) {
-				SCRIPT_WRITE_STRING(client.path.c_str())
-			} else if(strcmp(name,"address")==0) {
-				Script::AddObject<LUASocketAddress>(pState, client.address); // can change (RTMFP client for example)
-			} else if(strcmp(name,"creationTime")==0) {
-				SCRIPT_WRITE_NUMBER(client.creationTime)
-			} else if(strcmp(name,"protocol")==0) {
-				SCRIPT_WRITE_STRING(client.protocol.c_str())
-			} else if (strcmp(name,"properties")==0) {
-				Script::Collection(pState, 1, "properties");
-			} else if (strcmp(name,"parameters")==0 || client.protocol==name) {
-				Script::Collection(pState, 1, name);
-			} else {
-				Script::Collection(pState,1, "properties");
-				lua_getfield(pState, -1, name);
-				lua_replace(pState, -2);
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-

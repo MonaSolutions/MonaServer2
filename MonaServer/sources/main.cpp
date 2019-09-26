@@ -26,30 +26,29 @@ using namespace std;
 using namespace Mona;
 
 
-struct ServerMona : ServerApplication  {
-private:
+struct ServerApp : ServerApplication  {
+
+	ServerApp() { setString("description", "MonaServer"); }
 
 	const char* defineVersion() { return VERSION; }
 
-	void defineOptions(Exception& ex, Options& options) {
-		options.acceptUnknownOption = true;
-		ServerApplication::defineOptions(ex, options);
-	}
-
+private:
 ///// MAIN
 	int main(TerminateSignal& terminateSignal) {
 
 		// starts the server
-		MonaServer server(*this, terminateSignal);
-		if (server.start(*this)) {
-			terminateSignal.wait();
-			// Stop the server
-			server.stop();
-		}
+		MonaServer server(self, terminateSignal);
+		server.start(self);
+
+		terminateSignal.wait();
+
+		// Stop the server
+		server.stop();
+
 		return Application::EXIT_OK;
 	}
 };
 
 int main(int argc, const char* argv[]) {
-	return ServerMona().run(argc, argv);
+	return ServerApp().run(argc, argv);
 }

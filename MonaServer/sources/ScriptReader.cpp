@@ -17,45 +17,20 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "ScriptReader.h"
-#include "ScriptWriter.h"
+#include "Mona/Util.h"
 
 using namespace std;
-using namespace Mona;
 
-ScriptReader::ScriptReader(lua_State *pState, UInt32 count) : _pState(pState), _start(lua_gettop(pState)) {
-	if ((int)count > _start)
-		count = _start;
-	++_start;
-	_start -= count;
-	_current = _start;
-	_end = _current + count;
-}
-
-#if defined(_DEBUG)
-UInt32 ScriptReader::read(DataWriter& writer, UInt32 count) {
-	// DEBUG causes this method is used a lot and dynamic_cast is cpu expensive
-	if (dynamic_cast<ScriptWriter*>(&writer))
-		CRITIC("A ScriptReader is writing to a ScriptWriter, behavior undefined (unsafe)")
-	return ReferableReader::read(writer, count);
-}
-#endif
-
-
-void ScriptReader::reset() {
-	_current = _start;
-	DataReader::reset();
-}
+namespace Mona {
 
 bool ScriptReader::writeNext(DataWriter& writer) {
-	int current(_current);
-	_current = lua_gettop(_pState);
-	bool result(readNext(writer));
-	_current = current;
-	return result;
+	Util::Scoped<UInt32> scopedCur(_current, range<UInt32>(lua_gettop(_pState)));
+	Util::Scoped<UInt32> scopedEnd(_end, 0); // _end can't be equal to 0!
+	return readNext(writer);
 }
 
 UInt8 ScriptReader::followingType() {
-	if (_current == _end)
+	if (_current == _end) // == to allow _end=0 (see writeNext)
 		return END;
 
 	switch (lua_type(_pState, _current)) {
@@ -68,6 +43,9 @@ UInt8 ScriptReader::followingType() {
 		case LUA_TNIL:
 			return NIL;
 		case LUA_TTABLE: {
+			if((_pPacket = Script::ToObject<Packet>(_pState, _current)))
+				return BYTES;
+
 			lua_getfield(_pState, _current, "__raw");
 			if (lua_isstring(_pState, -1)) {
 				lua_pop(_pState, 1);
@@ -87,10 +65,9 @@ UInt8 ScriptReader::followingType() {
 }
 
 bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
-	
 	SCRIPT_BEGIN(_pState)
 
-	UInt32 reference((Mona::UInt64)lua_topointer(_pState, _current));
+	UInt64 reference = UInt64(lua_topointer(_pState, _current));
 	if (reference && tryToRepeat(writer, reference)) {
 		++_current;
 		return true;
@@ -115,6 +92,10 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 			return true;
 
 		case BYTES:
+			if(_pPacket) {
+				writeBytes(writer, reference, _pPacket->data(), _pPacket->size());
+				return true;
+			}
 			lua_getfield(_pState, _current++, "__raw");
 			writeBytes(writer,reference,(const UInt8*)lua_tostring(_pState,-1),lua_objlen(_pState,-1));
 			lua_pop(_pState,1);
@@ -155,7 +136,7 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 			started = true;
 		} else {
 			lua_pushnil(_pState);  /* first key */
-			while (Script::Next(_pState, _current) != 0) {
+			while (lua_next(_pState, _current)) {
 				/* uses 'key' (at index -2) and 'value' (at index -1) */
 				if (lua_type(_pState, -2) != LUA_TSTRING || strcmp(lua_tostring(_pState, -2), "__size") != 0) {
 					 // key
@@ -190,7 +171,7 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 			// Array or mixed, write properties in first
 			object=false;
 			lua_pushnil(_pState);  /* first key */
-			while (Script::Next(_pState, _current) != 0) {
+			while (lua_next(_pState, _current)) {
 				/* uses 'key' (at index -2) and 'value' (at index -1) */
 				if(lua_type(_pState,-2)==LUA_TSTRING) {
 					if (!started) {
@@ -215,7 +196,7 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 				
 
 	lua_pushnil(_pState);  /* first key */
-	while (Script::Next(_pState, _current) != 0) {
+	while (lua_next(_pState, _current)) {
 		/* uses 'key' (at index -2) and 'value' (at index -1) */
 		if (lua_type(_pState,-2)==LUA_TSTRING) {
 			// here necessarly we are writing an object (mixed or pure object)
@@ -261,3 +242,6 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 	return true;
 
 }
+
+
+} // namespace Mona

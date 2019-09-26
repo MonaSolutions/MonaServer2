@@ -23,8 +23,7 @@ namespace Mona {
 
 /*!
 Thread Safe class to compute ByteRate */
-class LostRate : public virtual Object {
-public:
+struct LostRate : virtual Object {
 	LostRate(ByteRate& byteRate) : _byteRate(byteRate) {}
 	/*!
 	Add bytes to next byte rate calculation */
@@ -34,6 +33,7 @@ public:
 	/*!
 	Returns byte rate */
 	operator double() const { double lost(_lostRate.exact()); return lost ? (lost / (lost + _byteRate.exact())) : 0; }
+	double operator()() const { return this->operator double(); }
 
 private:
 	ByteRate& _byteRate;

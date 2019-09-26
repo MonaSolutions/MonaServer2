@@ -27,8 +27,10 @@ namespace Mona {
 struct TSWriter : MediaWriter, virtual Object {
 	// https://en.wikipedia.org/wiki/MPEG_transport_stream
 	// https://en.wikipedia.org/wiki/Packetized_elementary_stream
+	// https://en.wikipedia.org/wiki/Program-specific_information
 	// http://cmm.khu.ac.kr/korean/files/03.mpeg2ts2_timemodel_update_.pdf
 	// max delay A/V (interlace) => https://en.wikipedia.org/wiki/Audio_to_video_synchronization
+	// language = https://www.etsi.org/deliver/etsi_en/300400_300499/300468/01.03.01_40/en_300468v010301o.pdf
 	// CRC => http://www.sunshine2k.de/coding/javascript/crc/crc_js.html
 	/*
 		Acceptable error when using with MediaSocket in UDP =>
@@ -57,21 +59,29 @@ private:
 
 	struct Track : virtual Object {
 		NULLABLE
-
-		Track(UInt8 codec, MediaTrackWriter* pWriter) : _pWriter(pWriter), codec(codec) {
+		Track(Media::Audio::Codec codec, MediaTrackWriter* pWriter) : type(Media::TYPE_AUDIO), _pWriter(pWriter), codec(codec) {
+			if (pWriter)
+				pWriter->beginMedia();
+		}
+		Track(Media::Video::Codec codec, MediaTrackWriter* pWriter) : type(Media::TYPE_VIDEO), _pWriter(pWriter), codec(codec) {
 			if(pWriter)
 				pWriter->beginMedia(); 
 		}
 		~Track() { if (_pWriter) delete _pWriter; }
 
+		const Media::Type type;
 		const UInt8 codec;
 		operator bool() const { return _pWriter ? true : false; }
 		Track& operator=(MediaTrackWriter* pWriter);
 		MediaTrackWriter* operator->() { return _pWriter; }
 		MediaTrackWriter& operator*() { return *_pWriter; }
-		std::vector<std::string> langs;
+		const std::vector<std::string>& langs() const { return _langs; }
+		const std::string& lang(UInt8 i=0) const { return _langs[i]; }
+		bool parseLang(UInt8 track, const Media::Properties& properties);
 	private:
-		MediaTrackWriter* _pWriter;
+		bool addLang(const char* textLang);
+		MediaTrackWriter*			_pWriter;
+		std::vector<std::string>	_langs;  // max size is 4: match CC channels max option + don't exceed PAT table of 188 bytes!
 	};
 
 	std::map<UInt8, Track>		_videos;

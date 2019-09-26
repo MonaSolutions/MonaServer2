@@ -36,9 +36,9 @@ using namespace std;
 
 namespace Mona {
 
-const UInt32					Thread::MainId(Thread::CurrentId());
-thread_local std::string		Thread::_Name("Main");
-thread_local Thread*			Thread::_Me(NULL);
+const UInt32			Thread::MainId(Thread::CurrentId());
+thread_local string		Thread::_Name("Main");
+thread_local Thread*	Thread::_Me(NULL);
 
 void Thread::SetDebugName(const string& name) {
 #if defined(_DEBUG)

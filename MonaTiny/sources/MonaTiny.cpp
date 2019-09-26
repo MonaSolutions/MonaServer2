@@ -170,7 +170,7 @@ void MonaTiny::onUnpublish(Publication& publication, Client* pClient) {
 		NOTE("Unpublish ",publication.name())
 }
 
-bool MonaTiny::onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication, Client* pClient) {
+bool MonaTiny::onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient) {
 	if (pClient) {
 	//	_test.start(*publish(ex, publication.name()));
 		INFO(pClient->protocol, " ", pClient->address, " subscribe to ", publication.name());
@@ -181,7 +181,7 @@ bool MonaTiny::onSubscribe(Exception& ex, const Subscription& subscription, cons
 	return true; // "true" to allow, "false" to forbid
 } 
 
-void MonaTiny::onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient) {
+void MonaTiny::onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient) {
 	if (pClient) {
 	//	_test.stop();
 	//	unpublish((Publication&)publication);

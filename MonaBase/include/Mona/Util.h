@@ -92,30 +92,6 @@ struct Util : virtual Static {
 	static UInt32 UnpackQuery(const char* query, std::size_t count, const ForEachParameter& forEach);
 	static UInt32 UnpackQuery(const char* query, const ForEachParameter& forEach) { return UnpackQuery(query, std::string::npos, forEach); }
 
-	
-	typedef std::function<bool(char c,bool wasEncoded)> ForEachDecodedChar;
-
-	static UInt32 DecodeURI(const std::string& value, const ForEachDecodedChar& forEach) { return DecodeURI(value.data(),value.size(),forEach); }
-	static UInt32 DecodeURI(const char* value, const ForEachDecodedChar& forEach)  { return DecodeURI(value,std::string::npos,forEach); }
-	static UInt32 DecodeURI(const char* value, std::size_t count, const ForEachDecodedChar& forEach);
-	
-	template <typename BufferType>
-	static BufferType&	EncodeURI(const char* in, BufferType& buffer) { return EncodeURI(in, std::string::npos, buffer); }
-	template <typename BufferType>
-	static BufferType&	EncodeURI(const char* in, std::size_t count, BufferType& buffer) {
-		while (count && (count != std::string::npos || *in)) {
-			char c = *in++;
-			// https://en.wikipedia.org/wiki/Percent-encoding#Types_of_URI_characters
-			if (isalnum(c) || c== '-' || c == '_' || c == '.' || c == '~')
-				buffer.append(&c, 1);
-			else 
-				String::Append(buffer, '%', String::Format<UInt8>("%2X", (UInt8)c));
-			if (count != std::string::npos)
-				--count;
-		}
-		return buffer;
-	}
-	
 	template <typename BufferType>
 	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
 		UInt32 accumulator(buffer.size()),bits(0);
@@ -155,7 +131,7 @@ struct Util : virtual Static {
 	static bool FromBase64(BufferType& buffer) { return FromBase64(BIN buffer.data(), buffer.size(), buffer); }
 
 	template <typename BufferType>
-	static bool FromBase64(const UInt8* data, UInt32 size,BufferType& buffer,bool append=false) {
+	static bool FromBase64(const UInt8* data, UInt32 size,BufferType& buffer, bool append=false) {
 		if (!buffer.data())
 			return false; // to expect null writer 
 

@@ -17,58 +17,34 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "LUASocketAddress.h"
-#include "LUAIPAddress.h"
-#include "ServerConnection.h"
 
 using namespace std;
 using namespace Mona;
 
-void LUASocketAddress::Init(lua_State* pState, SocketAddress& address) {
+
+int __tostring(lua_State *pState) {
+	SCRIPT_CALLBACK(SocketAddress, address)
+		SCRIPT_WRITE_DATA(address.c_str(), address.length());
+	SCRIPT_CALLBACK_RETURN
+}
+
+template<> void Script::ObjInit(lua_State *pState, SocketAddress& address) {
 	Script::AddComparator<SocketAddress>(pState);
-	lua_getmetatable(pState, -1);
-	lua_pushcfunction(pState, &LUASocketAddress::Call);
-	lua_setfield(pState, -2, "__call");
-	lua_pop(pState, 1);
+
+	SCRIPT_BEGIN(pState)
+		SCRIPT_DEFINE_FUNCTION("__tostring", &__tostring)
+
+		SCRIPT_DEFINE_INT("port", address.port());
+		SCRIPT_DEFINE_BOOLEAN("isIPv6", address.family() == IPAddress::IPv6);
+		SCRIPT_DEFINE("host", NewObject(pState, new IPAddress(address.host())));
+		
+	SCRIPT_END
+}
+template<> void Script::ObjClear(lua_State *pState, SocketAddress& address) {
+
 }
 
-void LUASocketAddress::Clear(lua_State* pState, SocketAddress& address) {
-	Script::ClearObject<LUAIPAddress>(pState,address.host());
-}
-
-int LUASocketAddress::Call(lua_State* pState) {
-	SCRIPT_CALLBACK(SocketAddress,address)
-		Script::NewObject<LUASocketAddress>(pState, *new SocketAddress(address));
-	SCRIPT_CALLBACK_RETURN
-}
-
-int LUASocketAddress::Index(lua_State *pState) {
-	SCRIPT_CALLBACK(SocketAddress,address)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if (name) {
-			if(strcmp(name,"port")==0) {
-				SCRIPT_WRITE_NUMBER(address.port())
-			} else if(strcmp(name,"isIPv6")==0) {
-				SCRIPT_WRITE_BOOL(address.family()==IPAddress::IPv6)
-			} else if (strcmp(name,"value")==0) {
-				SCRIPT_WRITE_STRING(address.c_str());
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-
-int LUASocketAddress::IndexConst(lua_State *pState) {
-	SCRIPT_CALLBACK(SocketAddress,address)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if (name) {
-			if(strcmp(name,"host")==0) {
-				Script::AddObject<LUAIPAddress>(pState,address.host());
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-bool LUASocketAddress::Read(Exception& ex, lua_State *pState, int index, SocketAddress& address, bool withDNS) {
+bool LUASocketAddress::From(Exception& ex, lua_State *pState, int index, SocketAddress& address, bool withDNS) {
 
 	if (lua_isnumber(pState, index)) {
 		// just port?
@@ -86,14 +62,12 @@ bool LUASocketAddress::Read(Exception& ex, lua_State *pState, int index, SocketA
 	}
 	
 	if(lua_istable(pState,index)) {
-		bool isConst;
-
+		// In first SocketAddress because can be also a IPAddress!
 		SocketAddress* pOther = Script::ToObject<SocketAddress>(pState, index);
 		if (pOther) {
 			address.set(*pOther);
 			return true;
 		}
-
 		IPAddress* pHost = Script::ToObject<IPAddress>(pState, index);
 		if (pHost) {
 			if (lua_type(pState, ++index)==LUA_TSTRING)
@@ -104,15 +78,8 @@ bool LUASocketAddress::Read(Exception& ex, lua_State *pState, int index, SocketA
 			}
 			return address.set(ex, *pHost, 0);
 		}
-
-		ServerConnection* pServer = Script::ToObject<ServerConnection>(pState, index);
-		if (pServer) {
-			address.set(pServer->address);
-			return true;
-		}
-
 	}
 
-	ex.set(Exception::SOFTWARE, "No valid SocketAddress available to read");
+	ex.set<Ex::Net::Address>("No valid SocketAddress arguments");
 	return false;
 }

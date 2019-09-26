@@ -60,7 +60,7 @@ void MP4Writer::endMedia(const OnWrite& onWrite) {
 }
 
 void MP4Writer::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
-	
+	// TODO langs?
 }
 
 void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {

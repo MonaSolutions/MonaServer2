@@ -28,8 +28,8 @@ using namespace std;
 
 namespace Mona {
 
-Peer::Peer(ServerAPI& api, const char* protocol) : pingTime(0), // pingTime to 0 in beginning to force ping on session beginning for protocols requiring a writePing to compute it
-	Client(protocol), _rttvar(0), _rto(Net::RTO_INIT), _pWriter(&Writer::Null()), _pNetStats(NULL), _ping(0),_api(api) {
+Peer::Peer(ServerAPI& api, const char* protocol) : _api(api), pingTime(0) { // pingTime to 0 in beginning to force ping on session beginning for protocols requiring a writePing to compute it
+	Client::protocol = protocol;
 }
 
 Peer::~Peer() {
@@ -48,7 +48,7 @@ void Peer::setAddress(const SocketAddress& address) {
 	((SocketAddress&)this->address) = address;
 	onAddressChanged(oldAddress);
 	if (connection)
-		_api.onAddressChanged(*this, oldAddress);
+		_api.onAddressChanged(self, oldAddress);
 }
 
 bool Peer::setServerAddress(const string& address) {
@@ -82,34 +82,6 @@ bool Peer::setServerAddress(const SocketAddress& address) {
 	return true;
 }
 
-UInt16 Peer::setPing(UInt64 value) {
-	
-	if (value == 0)
-		value = 1;
-	else if (value > 0xFFFF)
-		value = 0xFFFF;
-
-	// Smoothed Round Trip time https://tools.ietf.org/html/rfc2988
-
-	if (!_rttvar)
-		_rttvar = value / 2.0;
-	else
-		_rttvar = ((3*_rttvar) + abs(_ping - UInt16(value)))/4.0;
-
-	if (_ping == 0)
-		_ping = UInt16(value);
-	else if (value != _ping)
-		_ping = UInt16((7*_ping + value) / 8.0);
-
-	_rto = (UInt32)(_ping + (4*_rttvar) + 200);
-	if (_rto < Net::RTO_MIN)
-		_rto = Net::RTO_MIN;
-	else if (_rto > Net::RTO_MAX)
-		_rto = Net::RTO_MAX;
-
-	pingTime.update();
-	return _ping;
-}
 
 /// EVENTS ////////
 
@@ -122,8 +94,7 @@ SocketAddress& Peer::onHandshake(SocketAddress& redirection) {
 
 void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response) {
 	if(disconnection) {
-		_pWriter = &writer;
-		_pNetStats = &netStats;
+		setWriter(writer, netStats);
 		writer.flushable = false; // response parameter causes unflushable to avoid a data corruption
 		writer.onClose = onClose;
 
@@ -140,8 +111,7 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		if (ex) {
 			writer.clear();
 			writer.onClose = nullptr;
-			_pWriter = NULL;
-			_pNetStats = NULL;
+			setWriter();
 		} else {
 			((Time&)connection).update();
 			(Time&)disconnection = 0;
@@ -160,10 +130,9 @@ void Peer::onDisconnection() {
 	((Time&)disconnection).update();
 	if (!((Entity::Map<Client>&)_api.clients).erase(id))
 		CRITIC("Client ", String::Hex(id, Entity::SIZE), " seems already disconnected!");
-	_pWriter->onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
+	writer().onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
 	_api.onDisconnection(*this);
-	_pWriter = NULL;
-	_pNetStats = NULL;
+	setWriter();
 }
 
 bool Peer::onInvocation(Exception& ex, const string& name, DataReader& reader, UInt8 responseType) {

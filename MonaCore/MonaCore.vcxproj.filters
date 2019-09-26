@@ -614,5 +614,6 @@
     <ClCompile Include="sources\MediaStream.cpp">
       <Filter>Multimedia\Streams</Filter>
     </ClCompile>
+    <ClCompile Include="sources\Client.cpp" />
   </ItemGroup>
 </Project>

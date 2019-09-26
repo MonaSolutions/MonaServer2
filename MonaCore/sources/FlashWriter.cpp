@@ -38,6 +38,9 @@ void FlashWriter::closing(Int32 error, const char* reason) {
 	if (!isMain || error <= 0)
 		return;
 	switch(error) {
+		case Session::ERROR_UPDATE:
+			writeAMFError("NetConnection.Connect.AppShutdown", reason ? reason : "Server update");
+			break;
 		case Session::ERROR_SERVER:
 			writeAMFError("NetConnection.Connect.AppShutdown", reason ? reason : "Server shutdown");
 			break;
@@ -183,7 +186,8 @@ bool FlashWriter::writeData(Media::Data::Type type, const Packet& packet, bool r
 
 bool FlashWriter::writeProperties(const Media::Properties& properties) {
 	// Always give 0 here for time, otherwise RTMP or RTMFP can't receive the data (tested..)
-	AMFWriter& writer(write(AMF::TYPE_DATA, 0, Media::Data::TYPE_AMF, properties[amf0 ? Media::Data::TYPE_AMF0 : Media::Data::TYPE_AMF], true));
+	Media::Data::Type type(amf0 ? Media::Data::TYPE_AMF0 : Media::Data::TYPE_AMF);
+	AMFWriter& writer(write(AMF::TYPE_DATA, 0, Media::Data::TYPE_AMF, properties.data(type), true));
 	// Handler required (else can't be received in flash)
 	writer.amf0 = true;
 	writer.writeString(EXPAND("onMetaData"));

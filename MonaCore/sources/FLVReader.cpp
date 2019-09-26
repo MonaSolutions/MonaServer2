@@ -121,7 +121,7 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 		switch (_type) {
 			case AMF::TYPE_VIDEO: {
 				_video.time = reader.read24() | (reader.read8() << 24);
-				UInt8 track = UInt8(reader.read24());
+				UInt8 track = range<UInt8>(reader.read24());
 				_size -= 7;
 				Packet content(buffer, reader.current(), _size);
 				content += ReadMediaHeader(content.data(), content.size(), _video);
@@ -139,7 +139,7 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 			}
 			case AMF::TYPE_AUDIO: {
 				_audio.time = reader.read24() | (reader.read8() << 24);
-				UInt8 track = UInt8(reader.read24());
+				UInt8 track = range<UInt8>(reader.read24());
 				_size -= 7;
 				Packet content(buffer, reader.current(), _size);
 				source.writeAudio(_audio, content += ReadMediaHeader(content.data(), content.size(), _audio, _audioConfig), track ? track : 1);
@@ -147,10 +147,10 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 			}
 			case AMF::TYPE_DATA: {
 				reader.next(4); // Time!
-				UInt8 track = UInt8(reader.read24());
+				UInt8 track = range<UInt8>(reader.read24());
 				_size -= 7;
 				if (memcmp(reader.current(), EXPAND("\x02\x00\x0AonMetaData")) == 0)
-					source.setProperties(Media::Data::TYPE_AMF, Packet(buffer, reader.current() + 13, _size - 13), track);
+					source.addProperties(track ? track : 1, Media::Data::TYPE_AMF, Packet(buffer, reader.current() + 13, _size - 13));
 				else
 					source.writeData(Media::Data::TYPE_AMF, Packet(buffer, reader.current(), _size), track);
 				break;

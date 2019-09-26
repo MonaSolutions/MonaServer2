@@ -173,6 +173,23 @@ MP4Reader::Box& MP4Reader::Box::operator-=(UInt32 readen) {
 	return *this;
 }
 
+void MP4Reader::Track::writeProperties(Media::Properties& properties) {
+	if (!lang[0])
+		return;
+	struct TrackReader : WriterReader {
+		TrackReader(const Track& track) : _track(track) {}
+	private:
+		void writeOne(DataWriter& writer, bool& again) {
+			writer.beginObject();
+			writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
+			writer.writeString(_track.lang, strlen(_track.lang));
+			writer.endObject();
+		}
+		const Track& _track;
+	} reader(self);
+	properties.addProperties(_track, reader);
+}
+
 
 UInt32 MP4Reader::parse(Packet& buffer, Media::Source& source) {
 	UInt32 rest = parseData(buffer, source);
@@ -251,11 +268,12 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				if (lang < 0x400 || lang==0x7FFF) { // if lang == 0x7FFF means "unspecified lang code" => "und"
 					if (lang >= 149)
 						lang = 100; // => und
-					memcpy(track.lang, _MacLangs[lang], 3);
+					memcpy(track.lang, _MacLangs[lang], sizeof(track.lang));
 				} else if (lang != 0x55C4) { // 0x55C4 = no lang information
 					track.lang[0] = ((lang >> 10) & 0x1F) + 0x60;
 					track.lang[1] = ((lang >> 5) & 0x1F) + 0x60;
 					track.lang[2] = (lang & 0x1F) + 0x60;
+					track.lang[3] = 0;
 				} else
 					track.lang[0] = 0;
 				break;
@@ -287,7 +305,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				BinaryReader elng(reader.current(), 6);
 				elng.next(4); // version + flags
 				Track& track = _tracks.back();
-				memcpy(track.lang, reader.current() + 4, 2);
+				memcpy(track.lang, reader.current() + 4, 2); // en-US => copy just 'en'
 				track.lang[2] = 0;
 				break;
 			}
@@ -889,6 +907,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 
 
 void MP4Reader::flushMedias(Media::Source& source) {
+	Media::Properties properties;
 	auto it = _medias.begin();
 	for (; it != _medias.end(); ++it) {
 		if (!_times.empty()) {
@@ -901,31 +920,15 @@ void MP4Reader::flushMedias(Media::Source& source) {
 			continue;
 		Media::Base& media = *it->second.second;
 		if (media.type) {
-			Track& track = *it->second.first;
-			if (track.flushProperties) {
-				track.flushProperties = false;
-				struct TrackReader : WriterReader {
-					TrackReader(Track& track) : _track(track) {}
-				private:
-					bool writeOne(DataWriter& writer) {
-						writer.beginObject();
-						if (_track.lang[0]) {
-							writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
-							writer.writeString(_track.lang, sizeof(_track.lang));
-						}
-						writer.endObject();
-						return false;
-					}
-					Track&				_track;
-				} reader(track);
-				source.setProperties(reader, track);
-			}
+			it->second.first->writeProperties(properties);
 			source.writeMedia(media);
 		} else
 			source.reportLost(media.type, ((Lost&)media).lost);
 		delete &media;
 	}
 	_medias.erase(_medias.begin(), it);
+	if (properties.count())
+		source.addProperties(properties);
 }
 
 void MP4Reader::onFlush(Packet& buffer, Media::Source& source) {

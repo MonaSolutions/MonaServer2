@@ -144,8 +144,8 @@ bool Subscription::start() {
 		return false;
 	if (_streaming) {
 		// already streaming: just compute congestion + 
-		if (_timeProperties<timeProperties()) {
-			_timeProperties = timeProperties();
+		if (_timeProperties<timeChanged()) {
+			_timeProperties = timeChanged();
 			DEBUG(name(), " subscription parameters ", self);
 			if(!pPublication)
 				writeProperties(self); // if no publication media params are also the media medatata

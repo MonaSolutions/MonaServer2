@@ -29,6 +29,7 @@ UInt16 WS::ErrorToCode(UInt32 error) {
 	if (!error)
 		return WS::CODE_NORMAL_CLOSE;
 	switch (error) {
+		case Session::ERROR_UPDATE:
 		case Session::ERROR_SERVER:
 			return WS::CODE_ENDPOINT_GOING_AWAY;
 		case Session::ERROR_REJECTED:

@@ -308,7 +308,7 @@ ADD_TEST(TestLoad) {
 	});
 	server.onError = onError;
 
-	const UInt32 messages(20000);
+	const UInt32 messages(5000);
 	atomic<UInt32> received(0);
 	server.onConnection = [&](const shared<Socket>& pSocket) {
 		CHECK(pSocket && pSocket->peerAddress());

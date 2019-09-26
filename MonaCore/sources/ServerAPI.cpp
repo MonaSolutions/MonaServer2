@@ -27,8 +27,8 @@ using namespace std;
 
 namespace Mona {
 
-ServerAPI::ServerAPI(map<string, Publication>& publications, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores) :
-	_publications(publications), threadPool(cores), www(www), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool, cores), clients() {
+ServerAPI::ServerAPI(std::string& www, map<string, Publication>& publications, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores) :
+	www(www), _publications(publications), threadPool(cores), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool, cores), clients() {
 }
 
 Publication* ServerAPI::publish(Exception& ex, string& stream, Client* pClient) {

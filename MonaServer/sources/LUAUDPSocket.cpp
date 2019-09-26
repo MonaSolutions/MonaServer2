@@ -16,160 +16,118 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "LUAUDPSocket.h"
+#include "Script.h"
+#include "Mona/UDPSocket.h"
 #include "LUASocketAddress.h"
-#include "LUANetStats.h"
-#include "Service.h"
+#include "LUASocket.h"
+
 
 using namespace std;
 using namespace Mona;
 
-map<string, pair<bool, lua_CFunction>> LUAUDPSocket::Methods({
-	{ "connected",	 { false, &LUAUDPSocket::Connected} },
-	{ "bound",		 { false, &LUAUDPSocket::Bound } },
-	{ "address",	 { false, &LUAUDPSocket::Address } },
-	{ "bandwidth",   { false, &LUANetStats<LUAUDPSocket>::PBandwidth } },
-	{ "recvByteRate",{ false, &LUANetStats<LUAUDPSocket>::PRecvByteRate } },
-	{ "recvTime",    { false, &LUANetStats<LUAUDPSocket>::PRecvTime } },
-	{ "sendByteRate",{ false, &LUANetStats<LUAUDPSocket>::PSendByteRate } },
-	{ "sendTime",    { false, &LUANetStats<LUAUDPSocket>::PSendTime } },
+Net::Stats&   LUANetStats<UDPSocket>::NetStats(UDPSocket& socket) { return *socket; }
+Socket&		  LUASocket<UDPSocket>::Socket(UDPSocket& socket) { return *socket; }
 
-	{ "connect",	{ true, &LUAUDPSocket::Connect } },
-	{ "disconnect", { true, &LUAUDPSocket::Disconnect } },
-	{ "bind",		{ true, &LUAUDPSocket::Bind } },
-	{ "send",		{ true, &LUAUDPSocket::Send } },
-	{ "close",		{ true, &LUAUDPSocket::Close } }
-});
+static int connected(lua_State *pState) {
+	SCRIPT_CALLBACK(UDPSocket, socket)
+		SCRIPT_WRITE_BOOLEAN(socket.connected())
+	SCRIPT_CALLBACK_RETURN
+}
+static int bound(lua_State *pState) {
+	SCRIPT_CALLBACK(UDPSocket, socket)
+		SCRIPT_WRITE_BOOLEAN(socket.bound())
+	SCRIPT_CALLBACK_RETURN
+}
+static int connect(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(UDPSocket, socket)
+		Exception ex;
+		SocketAddress address(IPAddress::Loopback(), 0);
+		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && socket.connect(ex, address)) {
+			if (ex)
+				SCRIPT_CALLBACK_THROW(ex);
+			SCRIPT_WRITE_BOOLEAN(true)
+		} else
+			SCRIPT_CALLBACK_THROW(ex)
+	SCRIPT_CALLBACK_RETURN
+}
+static int bind(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(UDPSocket, socket)
+		Exception ex;
+		SocketAddress address;
+		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && socket.bind(ex, address)) {
+			if (ex)
+				SCRIPT_CALLBACK_THROW(ex)
+			SCRIPT_WRITE_BOOLEAN(true)
+		} else 
+			SCRIPT_CALLBACK_THROW(ex);
+	SCRIPT_CALLBACK_RETURN
+}
+static int send(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(UDPSocket, socket)
+		SCRIPT_READ_PACKET(packet);
+		Exception ex;
+		SocketAddress address(IPAddress::Loopback(), 0);
+		if (socket.send(ex, packet, (SCRIPT_NEXT_READABLE&& LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address)) ? address : SocketAddress::Wildcard())) {
+			if (ex)
+				SCRIPT_CALLBACK_THROW(ex);
+			SCRIPT_WRITE_BOOLEAN(true)
+		} else
+			SCRIPT_CALLBACK_THROW(ex);
+	SCRIPT_CALLBACK_RETURN
+}
+static int disconnect(lua_State *pState) {
+	SCRIPT_CALLBACK(UDPSocket, socket)
+		socket.disconnect();
+	SCRIPT_CALLBACK_RETURN
+}
+static int close(lua_State *pState) {
+	SCRIPT_CALLBACK(UDPSocket, socket)
+		socket.close();
+	SCRIPT_CALLBACK_RETURN
+}
 
-LUAUDPSocket::LUAUDPSocket(SocketEngine& engine,bool allowBroadcast,lua_State* pState) : _pState(pState), UDPSocket(engine,allowBroadcast) {
-	
-	onError = [this](const Exception& ex) {
-		SCRIPT_BEGIN(_pState)
-			SCRIPT_MEMBER_FUNCTION_BEGIN(LUAUDPSocket, *this, "onError")
+template<> void Script::ObjInit(lua_State *pState, UDPSocket& socket) {
+	shared<Exception> pEx;
+	socket.onError = [pState, &socket](const Exception& ex) {
+		bool gotten = false;
+		SCRIPT_BEGIN(pState)
+			SCRIPT_MEMBER_FUNCTION_BEGIN(socket, "onError")
+				gotten = true;
 				SCRIPT_WRITE_STRING(ex)
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
+		if (!gotten)
+			WARN(ex);
 	};
-
-	onFlush = [this]() {
-		SCRIPT_BEGIN(_pState)
-			SCRIPT_MEMBER_FUNCTION_BEGIN(LUAUDPSocket, *this, "onFlush")
+	socket.onFlush = [pState, &socket]() {
+		SCRIPT_BEGIN(pState)
+			SCRIPT_MEMBER_FUNCTION_BEGIN(socket, "onFlush")
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
 	};
-
-	onPacket = [this](const Time& time, shared<Buffer>& pBuffer, const SocketAddress& address) {
-		SCRIPT_BEGIN(_pState)
-			SCRIPT_MEMBER_FUNCTION_BEGIN(LUAUDPSocket, *this, "onPacket")
-				SCRIPT_WRITE_NUMBER(time)
-				SCRIPT_WRITE_BINARY(pBuffer->data(),pBuffer->size())
-				SCRIPT_WRITE_STRING(address.c_str())
+	socket.onPacket = [pState, &socket](shared<Buffer>& pBuffer, const SocketAddress& address) {
+		SCRIPT_BEGIN(pState)
+			SCRIPT_MEMBER_FUNCTION_BEGIN(socket, "onPacket")
+				Script::NewObject(pState, new Packet(pBuffer));
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
 	};
-
-	
+	SCRIPT_BEGIN(pState);
+		SCRIPT_DEFINE_FUNCTION("connected", &connected);
+		SCRIPT_DEFINE_FUNCTION("connect", &connect);
+		SCRIPT_DEFINE_FUNCTION("disconnect", &disconnect);
+		SCRIPT_DEFINE_FUNCTION("bound", &bound);
+		SCRIPT_DEFINE_FUNCTION("bind", &bind);
+		SCRIPT_DEFINE_FUNCTION("send", &send);
+		SCRIPT_DEFINE_FUNCTION("close", &close);
+		SCRIPT_DEFINE_SOCKET(UDPSocket);
+	SCRIPT_END;
 }
-
-LUAUDPSocket::~LUAUDPSocket() {
-	onPacket = nullptr;
-	onFlush = nullptr;
-	onError = nullptr;
-}
-
-void LUAUDPSocket::Clear(lua_State* pState, LUAUDPSocket& udp) {
-	Script::ClearObject<LUASocketAddress>(pState, udp->address());
-	Script::ClearObject<LUASocketAddress>(pState, udp->peerAddress());
-}
-
-int	LUAUDPSocket::Connected(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket, udp)
-		SCRIPT_WRITE_BOOL(udp.connected());
-	SCRIPT_CALLBACK_RETURN
-}
-int	LUAUDPSocket::Bound(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket, udp)
-		SCRIPT_WRITE_BOOL(udp.bound());
-	SCRIPT_CALLBACK_RETURN
-}
-int	LUAUDPSocket::Address(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket, udp)
-		Script::AddObject<LUASocketAddress>(pState, udp->address());
-	SCRIPT_CALLBACK_RETURN
-}
-int	LUAUDPSocket::PeerAddress(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket, udp)
-		Script::AddObject<LUASocketAddress>(pState, udp->peerAddress());
-	SCRIPT_CALLBACK_RETURN
-}
-
-int	LUAUDPSocket::Connect(lua_State* pState) {
-	SCRIPT_CALLBACK_TRY(LUAUDPSocket,udp)
-		Exception ex;
-		SocketAddress address(IPAddress::Loopback(), 0);
-		if (!LUASocketAddress::Read(ex, pState, SCRIPT_READ_NEXT(1), address) || !udp.connect(ex, address))
-			SCRIPT_CALLBACK_THROW(ex)
-		else
-			SCRIPT_WRITE_BOOL(true)
-		if(ex)
-			SCRIPT_CALLBACK_THROW(ex)
-	SCRIPT_CALLBACK_RETURN
-}
-
-int	LUAUDPSocket::Disconnect(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket,udp)
-		udp.disconnect();
-	SCRIPT_CALLBACK_RETURN
-}
-
-int	LUAUDPSocket::Bind(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket,udp)
-		Exception ex;
-		SocketAddress address;
-		if (LUASocketAddress::Read(ex, pState, SCRIPT_READ_NEXT(1), address) && udp.bind(ex, address)) {
-			if (ex)
-				SCRIPT_WARN(ex)
-			SCRIPT_WRITE_BOOL(true)
-		} else {
-			SCRIPT_ERROR(ex)
-			SCRIPT_WRITE_BOOL(false)
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-int	LUAUDPSocket::Send(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket,udp)
-		SCRIPT_READ_BINARY(data,size)
-
-		Exception ex;
-
-		if (SCRIPT_READ_AVAILABLE) {
-			SocketAddress address(IPAddress::Loopback(),0);
-			if (LUASocketAddress::Read(ex, pState, SCRIPT_READ_NEXT(1), address) && udp.send(ex, data,size,address)) {
-				if (ex)
-					SCRIPT_WARN(ex)
-				SCRIPT_WRITE_BOOL(true)
-			} else {
-				SCRIPT_ERROR(ex)
-				SCRIPT_WRITE_BOOL(false)
-			}
-		} else if (udp.send(data, size)) {
-			if (ex)
-				SCRIPT_WARN(ex)
-				SCRIPT_WRITE_BOOL(true)
-		} else {
-			SCRIPT_ERROR(ex)
-			SCRIPT_WRITE_BOOL(false)
-		}
-
-	SCRIPT_CALLBACK_RETURN
-}
-
-int	LUAUDPSocket::Close(lua_State* pState) {
-	SCRIPT_CALLBACK(LUAUDPSocket, udp)
-		udp.close();
-	SCRIPT_CALLBACK_RETURN
+template<> void Script::ObjClear(lua_State *pState, UDPSocket& socket) {
+	socket.onPacket = nullptr;
+	socket.onFlush = nullptr;
+	socket.onError = nullptr;
 }

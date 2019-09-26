@@ -36,6 +36,7 @@ public:
 		ERROR_UNSUPPORTED = 6,
 		ERROR_UNAVAILABLE = 7,
 		ERROR_UNFOUND = 8,
+		ERROR_UPDATE = 9, // update of one application
 		// Int32 Negative => no possible to distribute a message
 		ERROR_SOCKET = -1,
 		ERROR_SHUTDOWN = -1, // no more message exchange acceptation!

@@ -17,72 +17,82 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Service.h"
-#include "Mona/String.h"
-#include "Mona/Logs.h"
-
+#include "Mona/Session.h"
 
 using namespace std;
-using namespace Mona;
 
-struct Clients : virtual Static {
-	static int Item(lua_State *pState) {
-		SCRIPT_CALLBACK(Service,service)	
+namespace Mona {
 
-			if (lua_isstring(pState, 2)) {
 
-				SCRIPT_READ_BINARY(id, size)
-		
-				Script::Collection<Service>(pState, 1, "clients");
-				
-				if (Script::ToId(id, size)) {
-					lua_pushlstring(pState,STR id, size);
-					lua_gettable(pState, -2);
-				} else
-					lua_pushnil(pState);
 
-				lua_replace(pState, -2); // remove clients collection
-			}
-
-		SCRIPT_CALLBACK_RETURN
-	}
-};
-
-Service::Service(lua_State* pState, const string& wwwPath, ServiceHandler& handler) : _wwwPath(wwwPath), _lastCheck(0), _reference(LUA_REFNIL), _pParent(NULL), _handler(handler), _pState(pState), FileWatcher(wwwPath, "/main.lua") {
-
+Service::Service(lua_State* pState, const string& wwwPath, Handler& handler) : _handler(handler), _wwwPath(wwwPath), _lastCheck(0), _reference(LUA_REFNIL), _pParent(NULL), _pState(pState), FileWatcher(wwwPath, "/main.lua") {
+	init();
 }
 
-Service::Service(lua_State* pState, const string& wwwPath, Service& parent, const string& name, ServiceHandler& handler) : _wwwPath(wwwPath), name(name), _lastCheck(0), _reference(LUA_REFNIL), _pParent(&parent), _handler(handler), _pState(pState), FileWatcher(wwwPath,parent.path,'/',name,"/main.lua") {
+Service::Service(lua_State* pState, const string& wwwPath, Service& parent, const string& name) : _handler(parent._handler), _wwwPath(wwwPath), name(name), _lastCheck(0), _reference(LUA_REFNIL), _pParent(&parent), _pState(pState), FileWatcher(wwwPath,parent.path,'/',name,"/main.lua") {
 	String::Assign((string&)path,parent.path,'/',name);
+	init();
 }
 
 Service::~Service() {
 	// clean children
 	for (auto& it : _services)
 		delete it.second;
-	// clean this
-	close(true);
+	// clean environnment
+	clearFile();
+	// release reference
+	luaL_unref(_pState, LUA_REGISTRYINDEX, _reference);
 }
 
-void Service::setReference(int reference) {
-	if (reference == _reference)
-		return;
-	// make obsolete the connected clients
-	if (_reference != LUA_REFNIL) {
-		lua_rawgeti(_pState, LUA_REGISTRYINDEX, _reference);
-		Script::Collection(_pState, -1, "clients");
-		lua_pushnil(_pState);  // first key 
-		while (lua_next(_pState, -2) != 0) {
-			bool isConst;
-			// uses 'key' (at index -2) and 'value' (at index -1)
-			Client* pClient = Script::ToObject<Client>(_pState, isConst);
-			if (pClient && pClient->hasCustomData())
-				*pClient->getCustomData<int>() = LUA_REFNIL;
-			lua_pop(_pState, 2);
-		}
-		lua_pop(_pState, 2);
-		luaL_unref(_pState, LUA_REGISTRYINDEX, _reference);
-	}
-	_reference = reference;
+void Service::init() {
+	//// create environment
+
+	// table environment
+	lua_newtable(_pState);
+
+	// metatable
+	Script::NewMetatable(_pState);
+
+	// index
+	lua_pushliteral(_pState, "__index");
+	lua_newtable(_pState);
+
+	// set name
+	lua_pushliteral(_pState, "name");
+	lua_pushlstring(_pState, name.data(), name.size());
+	lua_rawset(_pState, -3);
+
+	// set path
+	lua_pushliteral(_pState, "path");
+	lua_pushlstring(_pState, path.data(), path.size());
+	lua_rawset(_pState, -3);
+
+	// set this
+	lua_pushliteral(_pState, "this");
+	lua_pushvalue(_pState, -5);
+	lua_rawset(_pState, -3);
+
+	// metatable of index = parent or global (+ set super)
+	Script::NewMetatable(_pState); // metatable
+	lua_pushliteral(_pState, "__index");
+	if (_pParent)
+		lua_rawgeti(_pState, LUA_REGISTRYINDEX, _pParent->reference());
+	else
+		lua_pushvalue(_pState, LUA_GLOBALSINDEX);
+	/// set super
+	lua_pushliteral(_pState, "super");
+	lua_pushvalue(_pState, -2);
+	lua_rawset(_pState, -6);
+	lua_rawset(_pState, -3); // set __index
+	lua_setmetatable(_pState, -2);
+
+	lua_rawset(_pState, -3); // set __index
+
+	// set metatable
+	lua_setmetatable(_pState, -2);
+
+	// record in registry
+	_reference = luaL_ref(_pState, LUA_REGISTRYINDEX);
 }
 
 Service* Service::open(Exception& ex) {
@@ -91,15 +101,10 @@ Service* Service::open(Exception& ex) {
 		if (!watchFile() && !path.empty() && !FileSystem::Exists(file.parent())) // no path/main.lua file, no main service, no path folder
 			_ex.set<Ex::Application::Unfound>("Application ", path, " doesn't exist");
 	}
-	
-	if (_ex) {
-		ex = _ex;
-		return NULL;
-	}
-
-	// here => exists and no error on load
-	open(true);
-	return this;
+	if (!_ex)
+		return this;
+	ex = _ex;
+	return NULL;
 }
 
 Service* Service::open(Exception& ex, const string& path) {
@@ -119,7 +124,7 @@ Service* Service::open(Exception& ex, const string& path) {
 	Service* pSubService(this);
 	auto it = _services.end();
 	if (!name.empty()) {
-		it = _services.emplace(name, new Service(_pState, _wwwPath, *this, name, _handler)).first;
+		it = _services.emplace(name, new Service(_pState, _wwwPath, self, name)).first;
 		pSubService = it->second;
 	}
 
@@ -138,161 +143,50 @@ Service* Service::open(Exception& ex, const string& path) {
 	return NULL;
 }
 
-bool Service::open(bool create) {
-	if (_reference != LUA_REFNIL)
-		return true;
-	if (!create)
-		return false;
-
-	//// create environment
-
-	// table environment
-	lua_newtable(_pState);
-
-	// metatable
-	lua_newtable(_pState);
-
-#if !defined(_DEBUG)
-	// hide metatable
-	lua_pushliteral(_pState, "change metatable of environment is prohibited");
-	lua_setfield(_pState, -2, "__metatable");
-#endif
-
-	// set parent
-	if (_pParent) {
-		_pParent->open(true); // guarantee the creation of parent!
-		lua_rawgeti(_pState, LUA_REGISTRYINDEX, _pParent->reference());
-		// fill children of parent!
-		Script::Collection(_pState,-1,"children");
-		lua_pushstring(_pState, name.c_str());
-		lua_pushvalue(_pState, -5);
-		Script::FillCollection(_pState, 1);
-		lua_pop(_pState, 1); // remove children collection
-	} else
-		lua_pushvalue(_pState, LUA_GLOBALSINDEX);
-	lua_setfield(_pState,-2,"super");
-
-	// set name
-	lua_pushstring(_pState, name.c_str());
-	lua_setfield(_pState, -2, "name");
-
-	// set path
-	lua_pushstring(_pState, path.c_str());
-	lua_setfield(_pState, -2, "path");
-
-	// set this
-	lua_pushvalue(_pState,-2);
-	lua_setfield(_pState, -2, "this");
-
-	// set __index=Service::Index
-	lua_pushcfunction(_pState,&Service::Index);
-	lua_setfield(_pState,-2,"__index");
-
-	 // to be able to call SCRIPT_CALLBACK
-	lua_pushlightuserdata(_pState,this);
-	lua_setfield(_pState,-2,"|this");
-#if defined(_DEBUG)
-	lua_pushlightuserdata(_pState,(void*)&typeid(Service));
-	lua_setfield(_pState,-2,"|type");
-#endif
-
-	// set metatable
-	lua_setmetatable(_pState,-2);
-
-	// create children collection (collector required here!)
-	Script::Collection<Service>(_pState,-1,"children");
-	lua_pop(_pState, 1);
-
-	// create clients table
-	Script::Collection<Clients>(_pState, -1, "clients");
-	lua_pop(_pState, 1);
-
-	// record in registry
-	setReference(luaL_ref(_pState, LUA_REGISTRYINDEX));
-
-
-	return true;
-}
-
 void Service::loadFile() {
-
-	open(true);
-	
 	_ex = nullptr;
 
 	SCRIPT_BEGIN(_pState)
-
 		lua_rawgeti(_pState, LUA_REGISTRYINDEX, _reference);
-		if(luaL_loadfile(_pState,file.path().c_str())!=0) {
+		if(luaL_loadfile(_pState,file.c_str())==0) {
+			lua_pushvalue(_pState, -2);
+			lua_setfenv(_pState, -2);
+			if (lua_pcall(_pState, 0, 0, 0) == 0) {
+				SCRIPT_FUNCTION_BEGIN("onStart", _reference)
+					SCRIPT_WRITE_DATA(path.data(), path.size())
+					SCRIPT_FUNCTION_CALL
+				SCRIPT_FUNCTION_END
+				SCRIPT_INFO("Application www", path, " loaded")
+			} else
+				SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)));
+		} else
 			SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)))
-			lua_pop(_pState,1); // remove environment
-			return;
-		}
-
-		lua_pushvalue(_pState, -2);
-		lua_setfenv(_pState, -2);
-		if(lua_pcall(_pState, 0,0, 0)==0) {
-			SCRIPT_FUNCTION_BEGIN("onStart",_reference)
-				SCRIPT_WRITE_STRING(path.c_str())
-				SCRIPT_FUNCTION_CALL
-			SCRIPT_FUNCTION_END
-			_handler.startService(*this);
-			SCRIPT_INFO("Application www", path, " loaded")
-		} else {
-			SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)));
-			clearEnvironment();
-		}
-
-		lua_pop(_pState, 1);
-
+		lua_pop(_pState, 1); // remove environment
+		if(_ex)
+			clearFile();
 	SCRIPT_END
 }
 
-void Service::close(bool full) {
+void Service::clearFile() {
 
-	if (open(false)) {
+	if (!_ex) { // loaded!
+		SCRIPT_BEGIN(_pState)
+			SCRIPT_FUNCTION_BEGIN("onStop", _reference)
+				SCRIPT_WRITE_DATA(path.data(), path.size())
+				SCRIPT_FUNCTION_CALL
+			SCRIPT_FUNCTION_END
+		SCRIPT_END
+	} else
+		_ex = nullptr;
 
-		if (!_ex) { // loaded!
-			_handler.stopService(*this);
-			SCRIPT_BEGIN(_pState)
-				SCRIPT_FUNCTION_BEGIN("onStop",_reference)
-					SCRIPT_WRITE_STRING(path.c_str())
-					SCRIPT_FUNCTION_CALL
-				SCRIPT_FUNCTION_END
-			SCRIPT_END
-		}
+	// update signal, after onStop because will disconnects clients
+	_handler.onUpdate(self);
 
-		lua_rawgeti(_pState, LUA_REGISTRYINDEX, _reference);
-		clearEnvironment();
-		if (full) {
-			// Delete environment
-			if (lua_getmetatable(_pState, -1)) {
-				lua_getfield(_pState, -1, "super");
-				if (lua_istable(_pState, -1)) {
-					Script::Collection(_pState, -1, "children");
-					lua_pushstring(_pState, name.c_str());
-					lua_pushnil(_pState);
-					Script::FillCollection(_pState, 1);
-					lua_pop(_pState, 1);
-				}
-				lua_pushnumber(_pState, 0);
-				lua_setfield(_pState, -2, "|this");
-				lua_pop(_pState, 2);
-			}
-			setReference(LUA_REFNIL);
-		}
-		lua_pop(_pState, 1);
-
-		lua_gc(_pState, LUA_GCCOLLECT, 0);
-	}
-
-	_ex = nullptr;
-}
-
-void Service::clearEnvironment() {
 	// Clear environment
+	/// clear environment table
+	lua_rawgeti(_pState, LUA_REGISTRYINDEX, _reference);
 	lua_pushnil(_pState);  // first key 
-	while (lua_next(_pState, -2) != 0) {
+	while (lua_next(_pState, -2)) {
 		// uses 'key' (at index -2) and 'value' (at index -1) 
 		// remove the raw!
 		lua_pushvalue(_pState, -2); // duplicate key
@@ -300,219 +194,17 @@ void Service::clearEnvironment() {
 		lua_rawset(_pState, -5);
 		lua_pop(_pState, 1);
 	}
-}
-
-int Service::LoadFile(lua_State *pState) {
-	// 1 - name
-
-	SCRIPT_BEGIN(pState)
-
-	const char* name(lua_tostring(pState, 1));
-	if (!name) {
-		SCRIPT_ERROR("loadFile must take a string argument")
-		return 0;
+	/// clear index of metatable (used by few object like Timers, see LUATimer)
+	lua_getmetatable(_pState, -1);
+	int count = lua_objlen(_pState, -1);
+	for (int i = 1; i <= count; ++i) {
+		lua_pushnil(_pState);
+		lua_rawseti(_pState, -2, i);
 	}
-	if (FileSystem::IsFolder(name)) {
-		SCRIPT_ERROR("loadFile can't load a folder")
-		return 0;
-	}
-
-	if (!FileSystem::IsAbsolute(name)) {
-
-		Service* pService((Service*)lua_touserdata(pState,lua_upvalueindex(1)));
-		string path;
-
-		while (pService) {
-			Exception ex;
-			String::Assign(path,pService->_wwwPath,pService->path,'/',name);
-	
-			if (FileSystem::Exists(path)) {
-				if (luaL_loadfile(pState, path.c_str()) == 0) {
-					lua_rawgeti(pState, LUA_REGISTRYINDEX, pService->reference());
-					lua_setfenv(pState, -2);
-					return 1;
-				}
-				SCRIPT_ERROR(Script::LastError(pState))
-				return 0;
-			}
-			
-			pService = pService->_pParent;
-		}
-		
-	}
-
-	// try pure relative or absolute
-	if (luaL_loadfile(pState, name) == 0)
-		return 1;
-	
-	SCRIPT_ERROR(Script::LastError(pState))
-
-	SCRIPT_END
-	return 0;
-}
-
-int Service::ExecuteFile(lua_State *pState) {
-	// 1 - name
-
-	int results(0);
-
-	SCRIPT_BEGIN(pState)
-
-		bool isRequire(lua_toboolean(pState, lua_upvalueindex(2))!=0);
-		if (isRequire) {
-			const char* name(lua_tostring(pState, 1));
-			if (!name) {
-				SCRIPT_ERROR("require must take a string argument")
-				return 0;
-			}
-			string ext;
-			if (String::ICompare(FileSystem::GetExtension(name,ext),"lua")==0)
-				results = LoadFile(pState);
-		} else
-			results = LoadFile(pState);
-
-		if (results) {
-			results = lua_gettop(pState)-results;
-			lua_call(pState, 0, LUA_MULTRET);
-			results = lua_gettop(pState)-results;
-		} else if (isRequire) {
-			// is require, try lib
-			results = lua_gettop(pState);
-			lua_getglobal(pState, "require");
-			lua_pushvalue(pState, 1);
-			lua_call(pState, 1, LUA_MULTRET);
-			results = lua_gettop(pState)-results;
-		}
-
-	SCRIPT_END
-
-	return results;
-}
-
-int Service::Item(lua_State *pState) {
-	SCRIPT_CALLBACK(Service,service)
-	// 1 => environment table
-	// 2 => children not found
-	// here it check the existing of the service
-	if (lua_isstring(pState, 2)) {
-		string name(lua_tostring(pState, 2));
-		if (!name.empty()) {
-			Exception ex;
-			Service* pService(service.open(ex, name));
-			if (pService) // otherwise means error service
-				lua_rawgeti(pState, LUA_REGISTRYINDEX, pService->reference());
-		}
-	}
-	SCRIPT_CALLBACK_RETURN
+	lua_pop(_pState, 2); // remove metatable + environment
+	lua_gc(_pState, LUA_GCCOLLECT, 0); // collect garbage!
 }
 
 
-// Call when a key is not available in the service table
-int Service::Index(lua_State *pState) {
-	if (!lua_getmetatable(pState, 1))
-		return 0;
 
-	if (lua_isstring(pState, 2)) {
-		const char* key = lua_tostring(pState, 2);
-		
-		// |data table request?
-		if (strcmp(key, "data") == 0) {
-			lua_getfield(pState, LUA_REGISTRYINDEX, "|data");
-			if (lua_istable(pState,-1)) {
-				lua_replace(pState, -2); // replace first metatable
-
-				lua_getfield(pState, 1, "path");
-				const char* path(lua_tostring(pState, -1));
-				lua_pop(pState, 1);
-
-				if (path) {  // else return |data
-					String::ForEach forEach([pState](UInt32 index,const char* value){
-						lua_getfield(pState,-1, value);
-						if (lua_isnil(pState, -1)) {
-							lua_pop(pState, 1);
-							lua_newtable(pState);
-							lua_setfield(pState, -2, value);
-							lua_getfield(pState, -1, value);
-						}
-						lua_replace(pState, -2);
-						return true;
-					});
-					String::Split(path, "/", forEach,SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
-				}
-
-				// set data for the application!
-				lua_pushvalue(pState, 2);
-				lua_pushvalue(pState, -2);
-				lua_rawset(pState, 1);
-				return 1;
-			}
-			lua_pop(pState, 1);
-		} else if (strcmp(key, "dofile") == 0) {
-
-			lua_getfield(pState, -1, "|this");
-			if (lua_isuserdata(pState, -1)) {
-				lua_pushcclosure(pState, &Service::ExecuteFile, 1);
-
-				// save dofile function
-				lua_pushvalue(pState, 2);
-				lua_pushvalue(pState, -2);
-				lua_rawset(pState, 1);
-				return 1;
-			}
-			lua_pop(pState, 1);
-			
-		} else if (strcmp(key, "require") == 0) {
-
-			lua_getfield(pState, -1, "|this");
-			if (lua_isuserdata(pState, -1)) {
-				lua_pushboolean(pState, true);
-				lua_pushcclosure(pState, &Service::ExecuteFile, 2);
-
-				// save require function
-				lua_pushvalue(pState, 2);
-				lua_pushvalue(pState, -2);
-				lua_rawset(pState, 1);
-				return 1;
-			}
-			lua_pop(pState, 1);
-			
-		} else if (strcmp(key, "loadfile") == 0) {
-
-			lua_getfield(pState, -1, "|this");
-			if (lua_isuserdata(pState, -1)) {
-				lua_pushcclosure(pState, &Service::LoadFile, 1);
-
-				// save require function
-				lua_pushvalue(pState, 2);
-				lua_pushvalue(pState, -2);
-				lua_rawset(pState, 1);
-				return 1;
-			}
-			lua_pop(pState, 1);
-			
-		} else {
-			// search in metatable (contains super, children, path, name, this, clients, ...)
-			lua_getfield(pState, -1, key);
-			if (!lua_isnil(pState, -1)) {
-				lua_replace(pState, -2);
-				// recort to accelerate the access
-				lua_pushvalue(pState, 2);
-				lua_pushvalue(pState, -2);
-				lua_rawset(pState, 1);
-				return 1;
-			}
-			lua_pop(pState, 1);
-		}
-	}
-	
-	// search in parent (inheriting)
-	lua_getfield(pState, -1, "super");
-	lua_replace(pState,-2);
-	if (lua_isnil(pState, -1))
-		return 1; // no parent (returns nil)
-
-	lua_pushvalue(pState, 2);
-	lua_gettable(pState,-2);
-	lua_replace(pState,-2); // replace parent by result
-	return 1;
-}
+} // namespace Mona

@@ -54,7 +54,7 @@ struct Writer : virtual Object {
 	/*!
 	Usefull to detect congestion, on TCP writer, it can redirect to socket.queueing() */
 	virtual UInt64			queueing() const = 0;
-	void					flush() { if (flushable) flushing(); } // allows flush even if closed, few protocol like RTMFP have need to wait end of transmission to garantee reliability
+	bool					flush() { if (!flushable) return false; flushing(); return true; } // allows flush even if closed, few protocol like RTMFP have need to wait end of transmission to garantee reliability
 
 	
 

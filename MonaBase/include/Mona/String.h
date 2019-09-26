@@ -187,16 +187,37 @@ struct String : std::string {
 	static bool IsFalse(const std::string& value) { return IsFalse(value.data(),value.size()); }
 	static bool IsFalse(const char* value, std::size_t size = std::string::npos) { return ICompare(value, size, "0") == 0 || String::ICompare(value, size, "false") == 0 || String::ICompare(value, size, "no") == 0 || String::ICompare(value, size, "off") == 0 || String::ICompare(value, size, "null") == 0; }
 
+
+	typedef std::function<bool(char c, bool wasEncoded)> ForEachDecodedChar;
+	static UInt32 FromURI(const std::string& value, const ForEachDecodedChar& forEach) { return FromURI(value.data(), value.size(), forEach); }
+	static UInt32 FromURI(const char* value, const ForEachDecodedChar& forEach) { return FromURI(value, std::string::npos, forEach); }
+	static UInt32 FromURI(const char* value, std::size_t count, const ForEachDecodedChar& forEach);
+
 	template <typename BufferType>
-	static BufferType& ToHex(const std::string& value, BufferType& buffer) { return ToHex(value.c_str(), buffer); }
+	static BufferType& ToHex(BufferType& buffer, bool append = false) { return ToHex(buffer.data(), buffer.size(), buffer, append); }
 	template <typename BufferType>
-	static BufferType& ToHex(const char* value, BufferType& buffer) {
-		while (*value) {
-			char left = toupper(*value++);
-			char byte = *value ? toupper(*value++) : '0';
-			byte = ((left - (left <= '9' ? '0' : '7')) << 4) | ((byte - (byte <= '9' ? '0' : '7')) & 0x0F);
-			buffer.append(&byte, 1);
+	static BufferType& ToHex(const std::string& value, BufferType& buffer, bool append = false) { return ToHex(value.data(), value.size(), buffer, append); }
+	template <typename BufferType>
+	static BufferType& ToHex(const char* value, std::size_t size, BufferType& buffer, bool append = false) {
+		UInt8* out;
+		UInt32 count = size / 2;
+		if (size & 1)
+			++count;
+		if (append) {
+			buffer.resize(buffer.size() + count);
+			out = BIN buffer.data() + buffer.size() - count;
+		} else {
+			if (count>buffer.size())
+				buffer.resize(count);
+			out = BIN buffer.data();
 		}
+		while (size-->0) {
+			char left = toupper(*value++);
+			char right = size-- ? toupper(*value++) : '0';
+			*out++ = ((left - (left <= '9' ? '0' : '7')) << 4) | ((right - (right <= '9' ? '0' : '7')) & 0x0F);
+		}
+		if(!append)
+			buffer.resize(count);
 		return buffer;
 	}
 
@@ -206,7 +227,6 @@ struct String : std::string {
 		const ValueType&	value;
 		const char*			format;
 	};
-
 	template <typename OutType, typename ...Args>
 	static OutType& Assign(OutType& out, Args&&... args) {
 		out.clear();
@@ -402,6 +422,17 @@ struct String : std::string {
 		return Append<OutType>((OutType&)out.append(buffer,strlen(buffer)), std::forward<Args>(args)...);
 	}
 
+	template<typename OutType>
+	struct Writer : virtual Mona::Object {
+		virtual bool write(OutType& out) = 0;
+	};
+	template <typename OutType, typename Type, typename ...Args>
+	static OutType& Append(OutType& out, Writer<Type>& writer, Args&&... args) {
+		while (writer.write(out));
+		return Append<OutType>(out, std::forward<Args>(args)...);
+	}
+	
+
 	/// \brief A usefull form which use snprintf to format out
 	///
 	/// \param out This is the std::string which to append text
@@ -449,7 +480,7 @@ struct String : std::string {
 		Date(const Mona::Date& date, const char* format) : format(format), _pDate(&date) {}
 		Date(const char* format) : format(format), _pDate(NULL) {}
 		const Mona::Date*	operator->() const { return _pDate; }
-		const char*			format;
+		const char*	const	format ;
 	private:
 		const Mona::Date* _pDate;
 	};
@@ -461,6 +492,27 @@ struct String : std::string {
 		return Append<OutType>((OutType&)Mona::Date().format(date.format, out), std::forward<Args>(args)...);
 	}
 
+	struct URI : virtual Mona::Object {
+		URI(const char* value, std::size_t size = std::string::npos) : value(value), size(size) {}
+		const char* const value;
+		const std::size_t size;
+	};
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, const URI& uri, Args&&... args) {
+		std::size_t size = uri.size;
+		const char* value = uri.value;
+		while (size && (size != std::string::npos || *value)) {
+			char c = *value++;
+			// https://en.wikipedia.org/wiki/Percent-encoding#Types_of_URI_characters
+			if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+				out.append(&c, 1);
+			else
+				String::Append(out, '%', String::Format<UInt8>("%2X", (UInt8)c));
+			if (size != std::string::npos)
+				--size;
+		}
+		return Append<OutType>(out, std::forward<Args>(args)...);
+	}
 
 	struct Hex : virtual Mona::Object {
 		Hex(const UInt8* data, UInt32 size, HEX_OPTIONS options = 0) : data(data), size(size), options(options) {}

@@ -17,101 +17,65 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "LUAIPAddress.h"
-#include "ServerConnection.h"
 
 using namespace std;
 using namespace Mona;
 
-void LUAIPAddress::Init(lua_State* pState, IPAddress& address) {
+static int __tostring(lua_State *pState) {
+	SCRIPT_CALLBACK(IPAddress, host)
+		SCRIPT_WRITE_DATA(host.c_str(), host.length());
+	SCRIPT_CALLBACK_RETURN
+}
+
+template<> void Script::ObjInit(lua_State *pState, IPAddress& host) {
 	Script::AddComparator<IPAddress>(pState);
-	lua_getmetatable(pState, -1);
-	lua_pushcfunction(pState, &LUAIPAddress::Call);
-	lua_setfield(pState, -2, "__call");
-	lua_pop(pState, 1);
-}
 
-int LUAIPAddress::Call(lua_State *pState) {
-	SCRIPT_CALLBACK(IPAddress, address)
-		Script::NewObject<LUAIPAddress>(pState,*new IPAddress(address));
-	SCRIPT_CALLBACK_RETURN
-}
+	SCRIPT_BEGIN(pState);
+		SCRIPT_DEFINE_FUNCTION("__tostring", &__tostring);
 
-int LUAIPAddress::Index(lua_State *pState) {
-	SCRIPT_CALLBACK(IPAddress, address)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		
-		if (name) {
-			if (strcmp(name, "isWildcard") == 0) {
-				SCRIPT_WRITE_BOOL(address.isWildcard())
-			} else if (strcmp(name, "isBroadcast") == 0) {
-				SCRIPT_WRITE_BOOL(address.isBroadcast())
-			} else if (strcmp(name, "isAnyBroadcast") == 0) {
-				SCRIPT_WRITE_BOOL(address.isAnyBroadcast())
-			} else if (strcmp(name, "isLoopback") == 0) {
-				SCRIPT_WRITE_BOOL(address.isLoopback())
-			} else if (strcmp(name, "isMulticast") == 0) {
-				SCRIPT_WRITE_BOOL(address.isMulticast())
-			} else if (strcmp(name, "isUnicast") == 0) {
-				SCRIPT_WRITE_BOOL(address.isUnicast())
-			} else if (strcmp(name, "isLinkLocal") == 0) {
-				SCRIPT_WRITE_BOOL(address.isLinkLocal())
-			} else if (strcmp(name, "isSiteLocal") == 0) {
-				SCRIPT_WRITE_BOOL(address.isSiteLocal())
-			} else if (strcmp(name, "isIPv4Compatible") == 0) {
-				SCRIPT_WRITE_BOOL(address.isIPv4Compatible())
-			} else if (strcmp(name, "isIPv4Mapped") == 0) {
-				SCRIPT_WRITE_BOOL(address.isIPv4Mapped())
-			} else if (strcmp(name, "isWellKnownMC") == 0) {
-				SCRIPT_WRITE_BOOL(address.isWellKnownMC())
-			} else if (strcmp(name, "isNodeLocalMC") == 0) {
-				SCRIPT_WRITE_BOOL(address.isNodeLocalMC())
-			} else if (strcmp(name, "isLinkLocalMC") == 0) {
-				SCRIPT_WRITE_BOOL(address.isLinkLocalMC())
-			} else if (strcmp(name, "isSiteLocalMC") == 0) {
-				SCRIPT_WRITE_BOOL(address.isSiteLocalMC())
-			} else if (strcmp(name, "isOrgLocalMC") == 0) {
-				SCRIPT_WRITE_BOOL(address.isOrgLocalMC())
-			} else if (strcmp(name, "isGlobalMC") == 0) {
-				SCRIPT_WRITE_BOOL(address.isGlobalMC())
-			} else if (strcmp(name, "isLocal") == 0) {
-				SCRIPT_WRITE_BOOL(address.isLocal())
-			} else if(strcmp(name,"isIPv6")==0) {
-				SCRIPT_WRITE_BOOL(address.family()==IPAddress::IPv6)
-			} else if (strcmp(name,"value")==0) {
-				SCRIPT_WRITE_STRING(address.c_str());
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
+		SCRIPT_DEFINE_BOOLEAN("isWildcard", host.isWildcard());
+		SCRIPT_DEFINE_BOOLEAN("isBroadcast", host.isBroadcast());
+		SCRIPT_DEFINE_BOOLEAN("isAnyBroadcast", host.isAnyBroadcast());
+		SCRIPT_DEFINE_BOOLEAN("isLoopback", host.isLoopback());
+		SCRIPT_DEFINE_BOOLEAN("isMulticast", host.isMulticast());
+		SCRIPT_DEFINE_BOOLEAN("isUnicast", host.isUnicast());
+		SCRIPT_DEFINE_BOOLEAN("isLinkLocal", host.isLinkLocal());
+		SCRIPT_DEFINE_BOOLEAN("isSiteLocal", host.isSiteLocal());
+		SCRIPT_DEFINE_BOOLEAN("isIPv4Compatible", host.isIPv4Compatible());
+		SCRIPT_DEFINE_BOOLEAN("isIPv4Mapped", host.isIPv4Mapped());
+		SCRIPT_DEFINE_BOOLEAN("isWellKnownMC", host.isWellKnownMC());
+		SCRIPT_DEFINE_BOOLEAN("isNodeLocalMC", host.isNodeLocalMC());
+		SCRIPT_DEFINE_BOOLEAN("isLinkLocalMC", host.isLinkLocalMC());
+		SCRIPT_DEFINE_BOOLEAN("isSiteLocalMC", host.isSiteLocalMC());
+		SCRIPT_DEFINE_BOOLEAN("isOrgLocalMC", host.isOrgLocalMC());
+		SCRIPT_DEFINE_BOOLEAN("isGlobalMC", host.isGlobalMC());
+		SCRIPT_DEFINE_BOOLEAN("isLocal", host.isLocal());
+		SCRIPT_DEFINE_BOOLEAN("isIPv6", host.family() == IPAddress::IPv6);
+
+	SCRIPT_END;
+}
+template<> void Script::ObjClear(lua_State *pState, IPAddress& host) {
+
 }
 
 
-bool LUAIPAddress::Read(Exception& ex, lua_State *pState, int index, IPAddress& address,bool withDNS) {
-
-	if (lua_type(pState, index)==LUA_TSTRING) // lua_type because can be encapsulated in a lua_next
+bool LUAIPAddress::From(Exception& ex, lua_State *pState, int index, IPAddress& address, bool withDNS) {
+	if (lua_type(pState, index)==LUA_TSTRING) // lua_type because can be encapsulated in a lua_next + a host can't be a simple number!
 		return withDNS ? address.setWithDNS(ex, lua_tostring(pState,index)) : address.set(ex, lua_tostring(pState,index));
 
 	if(lua_istable(pState,index)) {
-		bool isConst;
-
-		IPAddress* pOther = Script::ToObject<IPAddress>(pState, isConst, index);
-		if (pOther) {
-			address.set(*pOther);
-			return true;
-		}
-
-		SocketAddress* pAddress = Script::ToObject<SocketAddress>(pState, isConst, index);
+		// In first SocketAddress because can be also a IPAddress!
+		SocketAddress* pAddress = Script::ToObject<SocketAddress>(pState, index);
 		if (pAddress) {
 			address.set(pAddress->host());
 			return true;
 		}
-
-		ServerConnection* pServer = Script::ToObject<ServerConnection>(pState, isConst, index);
-		if (pServer) {
-			address.set(pServer->address.host());
+		IPAddress* pOther = Script::ToObject<IPAddress>(pState, index);
+		if (pOther) {
+			address.set(*pOther);
 			return true;
 		}
 	}
-
-	ex.set(Exception::NETIP, "No valid IPAddress available to read");
+	ex.set<Ex::Net::Address::Ip>("No valid IPAddress arguments");
 	return false;
 }

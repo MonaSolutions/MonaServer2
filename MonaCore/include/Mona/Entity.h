@@ -47,6 +47,14 @@ struct Entity : virtual Object {
 	bool operator==(const UInt8* id) const { return std::memcmp(this->id, id, SIZE) == 0; }
 	bool operator!=(const Entity& other) const { return std::memcmp(id, other.id, SIZE) != 0; }
 	bool operator!=(const UInt8* id) const { return std::memcmp(this->id, id, SIZE) != 0; }
+	bool operator <  (const Entity& other) const { return std::memcmp(this->id, other.id, SIZE) < 0; }
+	bool operator <  (const UInt8* id) const { return std::memcmp(this->id, id, SIZE) < 0; }
+	bool operator <= (const Entity& other) const { return std::memcmp(this->id, other.id, SIZE) <= 0; }
+	bool operator <= (const UInt8* id) const { return std::memcmp(this->id, id, SIZE) <= 0; }
+	bool operator >  (const Entity& other) const { return std::memcmp(this->id, other.id, SIZE) > 0; }
+	bool operator >  (const UInt8* id) const { return std::memcmp(this->id, id, SIZE) > 0; }
+	bool operator >= (const Entity& other) const { return std::memcmp(this->id, other.id, SIZE) >= 0; }
+	bool operator >= (const UInt8* id) const { return std::memcmp(this->id, id, SIZE) >= 0; }
 
 	const UInt8 id[SIZE];
 	operator const UInt8*() const { return id; }

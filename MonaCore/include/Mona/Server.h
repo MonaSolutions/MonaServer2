@@ -75,11 +75,11 @@ private:
 
 	bool			run(Exception& ex, const volatile bool& requestStop);
 
-	Handler			_handler;
-	Timer			_timer;
-	Protocols		_protocols;
-	Sessions		_sessions;
-	Path			_www;
+	Handler				_handler;
+	Timer				_timer;
+	Protocols			_protocols;
+	Sessions			_sessions;
+	std::string			_www;
 
 	std::map<shared<MediaStream>, unique<Subscription>>			_iniStreams;
 	std::multimap<const char*, Publication*, String::Comparator>	_streamPublications; // contains publications initiated by autoStreams

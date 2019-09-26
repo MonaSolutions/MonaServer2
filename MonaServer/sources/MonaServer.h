@@ -20,79 +20,49 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Server.h"
 #include "Mona/TerminateSignal.h"
-#include "Servers.h"
-#include "Service.h"
 #include "Mona/PersistentData.h"
+#include "Service.h"
 
 
-class MonaServer : public Mona::Server, private ServiceHandler {
-public:
-	MonaServer(const Mona::Parameters& configs, Mona::TerminateSignal& terminateSignal);
+namespace Mona {
+
+struct MonaServer : Server, private Service::Handler {
+
+	MonaServer(const Parameters& configs, TerminateSignal& terminateSignal);
 	~MonaServer();
 
-	Servers					servers;
-
 private:
-	void					onManage();
-
-
-	void					readAddressRedirection(const std::string& protocol, int& index, std::set<Mona::SocketAddress> & addresses);
-
-
-	lua_State*				openService(const Service& service, Mona::Client& client);
-	lua_State*				loadService(const Mona::Client& client) { return (_pState && client.hasCustomData()) ? _pState : NULL; }
-	lua_State*				closeService(const Mona::Client& client, int& reference);
-
-	/// ServiceHandler implementation
-	void					startService(Service& service);
-	void					stopService(Service& service);
-
-	/// Server implementation
-	const std::string&		wwwPath() const { return _wwwPath; }
-
 	//events
 	void					onStart();
+	void					onManage();
 	void					onStop();
 
-	void					onRendezVousUnknown(const std::string& protocol, const Mona::UInt8* id, std::set<Mona::SocketAddress>& addresses);
-	Mona::SocketAddress&	onHandshake(const std::string& protocol, const Mona::SocketAddress& address, const std::string& path, const Mona::Parameters& properties, Mona::UInt32 attempts, Mona::SocketAddress& redirection);
+	SocketAddress& 			onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection);
+	void					onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams);
+	void					onDisconnection(Client& client);
+	void					onAddressChanged(Client& client, const SocketAddress& oldAddress);
+	bool					onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& reader, UInt8 responseType);
+	bool					onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient);
 
-	void					onConnection(Mona::Exception& ex, Mona::Client& client, Mona::DataReader& inParams, Mona::DataWriter& outParams);
-	void					onDisconnection(Mona::Client& client);
-	void					onAddressChanged(Mona::Client& client, const Mona::SocketAddress& oldAddress);
-	bool					onInvocation(Mona::Exception& ex, Mona::Client& client,const std::string& name,Mona::DataReader& reader,Mona::UInt8 responseType);
-	bool					onFileAccess(Mona::Exception& ex, Mona::Client& client, Mona::File::Mode mode, Mona::DataReader& parameters, Mona::File& file, Mona::DataWriter& properties);
+	bool					onPublish(Exception& ex, Publication& publication, Client* pClient);
+	void					onUnpublish(Publication& publication, Client* pClient);
 
-	void					onJoinGroup(Mona::Client& client,Mona::Group& group);
-	void					onUnjoinGroup(Mona::Client& client,Mona::Group& group);
+	bool					onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient);
+	void					onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient);
 
-	bool					onPublish(Mona::Exception& ex, Mona::Publication& publication, Mona::Client* pClient);
-	void					onUnpublish(const Mona::Publication& publication, Mona::Client* pClient);
+	// Application handler
+	void					onUpdate(Service& service);
 
-	bool					onSubscribe(Mona::Exception& ex, Mona::Client& client,const Mona::Listener& listener);
-	void					onUnsubscribe(Mona::Client& client,const Mona::Listener& listener);
+	lua_State*				_pState;
+	TerminateSignal&		_terminateSignal;
+	unique<Service>			_pService;
 
-	Servers::OnConnection::Type		onServerConnection;
-	Servers::OnMessage::Type		onServerMessage;
-	Servers::OnDisconnection::Type	onServerDisconnection;
-
-	Mona::Publication::OnData::Type			onPublicationData;
-	Mona::Publication::OnAudio::Type		onPublicationAudio;
-	Mona::Publication::OnVideo::Type		onPublicationVideo;
-	Mona::Publication::OnFlush::Type		onPublicationFlush;
-	Mona::Publication::OnProperties::Type	onPublicationProperties;
-
-
-	Mona::Parameters::ForEach	setLUAProperty;
-
-	lua_State*					_pState;
-	Mona::TerminateSignal&		_terminateSignal;
-	unique<Service>	_pService;
-
-	std::set<Service*>			_servicesRunning;
-	Mona::PersistentData		_data;
-
-	std::string					_wwwPath;
-	std::string					_dataPath;
+	std::set<Service*>		_servicesRunning;
+	PersistentData			_persistentData;
+	Parameters				_data;
+	Path					_dataPath;
+	bool					_starting;
 };
+
+} // namespace Mona
 

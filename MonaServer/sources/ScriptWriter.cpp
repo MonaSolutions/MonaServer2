@@ -20,7 +20,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
+
+namespace Mona {
 
 
 ScriptWriter::ScriptWriter(lua_State *pState) : _top(lua_gettop(pState)), _pState(pState) {
@@ -43,7 +44,7 @@ void ScriptWriter::clear() {
 }
 
 bool ScriptWriter::repeat(UInt64 reference) {
-	bool pushed(start());
+	bool pushed = begin();
 	lua_rawgeti(_pState, LUA_REGISTRYINDEX,(int)reference);
 	if (lua_isnil(_pState, -1)) {
 		lua_pop(_pState, pushed ? 2 : 1);
@@ -54,7 +55,7 @@ bool ScriptWriter::repeat(UInt64 reference) {
 }
 
 UInt64 ScriptWriter::writeDate(const Date& date) {
-	start();
+	begin();
 
 	lua_newtable(_pState);
 	lua_pushnumber(_pState, (double)date);
@@ -90,7 +91,7 @@ UInt64 ScriptWriter::writeDate(const Date& date) {
 }
 
 UInt64 ScriptWriter::writeBytes(const UInt8* data,UInt32 size) {
-	start();
+	begin();
 	lua_newtable(_pState);
 	lua_pushlstring(_pState,(const char*)data,size);
 	lua_setfield(_pState,-2,"__raw");
@@ -101,7 +102,7 @@ UInt64 ScriptWriter::writeBytes(const UInt8* data,UInt32 size) {
 
 
 UInt64 ScriptWriter::beginObject(const char* type) {
-	start();
+	begin();
 	lua_newtable(_pState);
 	if(type) {
 		lua_pushstring(_pState,type);
@@ -112,26 +113,26 @@ UInt64 ScriptWriter::beginObject(const char* type) {
 }
 
 UInt64 ScriptWriter::beginArray(UInt32 size) {
-	start();
+	begin();
 	lua_newtable(_pState);
 	_layers.push_back(1);
 	return reference();
 }
 
 UInt64 ScriptWriter::beginObjectArray(UInt32 size) {
-	start();
+	begin();
 	lua_newtable(_pState);
 	_layers.push_back(-1);
 	return reference();
 }
 
 UInt64 ScriptWriter::beginMap(Exception& ex, UInt32 size, bool weakKeys) {
-	start();
+	begin();
 	lua_newtable(_pState);
 	lua_pushnumber(_pState,size);
 	lua_setfield(_pState,-2,"__size");
 	if(weakKeys) {
-		lua_newtable(_pState);
+		Script::NewMetatable(_pState);
 		lua_pushliteral(_pState,"k");
 		lua_setfield(_pState,-2,"__mode");
 		lua_setmetatable(_pState,-2);
@@ -148,7 +149,7 @@ UInt64 ScriptWriter::reference() {
 	return (UInt64)reference;
 }
 
-bool ScriptWriter::start() {
+bool ScriptWriter::begin() {
 	if (_layers.empty())
 		return false;
 	int& type = _layers.back();
@@ -172,15 +173,40 @@ void ScriptWriter::end() {
 }
 
 void ScriptWriter::endComplex() {
-	if(_layers.empty()) {
+	if (_layers.empty()) {
 		SCRIPT_BEGIN(_pState)
 			SCRIPT_ERROR("end struct called without begin struct calling");
 		SCRIPT_END
-		return;
+			return;
 	}
-	if (_layers.back()!=-1) {
+
+	/* Allow to create method on typed object!
+	function onTypedObject(type,object)
+		if type=="Cat" then
+			function object:meow()
+				print("meow")
+			end
+		end
+	end*/
+	lua_getfield(_pState, -1, "__type");
+	if (lua_isstring(_pState, -1)) {
+		int top = lua_gettop(_pState);
+		SCRIPT_BEGIN(_pState)
+			SCRIPT_FUNCTION_BEGIN("onTypedObject", LUA_ENVIRONINDEX)
+				lua_pushvalue(_pState, top); // type
+				lua_pushvalue(_pState, top - 1); // object
+				SCRIPT_FUNCTION_CALL
+			SCRIPT_FUNCTION_END
+		SCRIPT_END
+	}
+	lua_pop(_pState, 1);
+
+	if (_layers.back() != -1) {
 		_layers.pop_back();
 		return end();
 	}
-	_layers.back()=1; // mixed object, now we are writing the array part
+	_layers.back() = 1; // mixed object, now we are writing the array part
 }
+
+
+} // namespace Mona

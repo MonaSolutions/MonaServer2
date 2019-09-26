@@ -364,6 +364,16 @@ ADD_TEST(Hex) {
 
 	String::ToHex(buffer.assign(EXPAND("36393CB1428ECC178FE88D37094D0B3D34B95C0E985177E45336997EBEAB58CD")), out.clear());
 	CHECK(out.size() == 32 && memcmp(out.data(), EXPAND("\x36\x39\x3C\xB1\x42\x8E\xCC\x17\x8F\xE8\x8D\x37\x09\x4D\x0B\x3D\x34\xB9\x5C\x0E\x98\x51\x77\xE4\x53\x36\x99\x7E\xBE\xAB\x58\xCD")) == 0)
+
+	String::ToHex(buffer.assign(EXPAND("36393CB1428ECC178FE88D37094D0B3D34B95C0E985177E45336997EBEAB58CD")));
+	CHECK(buffer.size() == 32 && memcmp(buffer.data(), EXPAND("\x36\x39\x3C\xB1\x42\x8E\xCC\x17\x8F\xE8\x8D\x37\x09\x4D\x0B\x3D\x34\xB9\x5C\x0E\x98\x51\x77\xE4\x53\x36\x99\x7E\xBE\xAB\x58\xCD")) == 0)
 }
+
+
+ADD_TEST(URI) {
+	CHECK(String(String::URI(EXPAND("https://127.0.0.1/test/"))) == "https%3A%2F%2F127.0.0.1%2Ftest%2F");
+	CHECK(String(String::URI(EXPAND("sàlùt="))) == "s%E0l%F9t%3D");
+}
+
 
 }

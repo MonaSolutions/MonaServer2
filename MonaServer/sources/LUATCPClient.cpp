@@ -16,148 +16,111 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "LUATCPClient.h"
+#include "Script.h"
+#include "Mona/TCPClient.h"
 #include "LUASocketAddress.h"
-#include "Service.h"
+#include "LUASocket.h"
+
 
 using namespace std;
 using namespace Mona;
 
+Net::Stats&   LUANetStats<TCPClient>::NetStats(TCPClient& client) { return *client; }
+Socket&		  LUASocket<TCPClient>::Socket(TCPClient& client) { return *client; }
 
-LUATCPClient::LUATCPClient(const SocketAddress& peerAddress,SocketFile& file,const SocketManager& manager, lua_State* pState) : _pState(pState), TCPClient(peerAddress, file, manager),
-	_onError([this](const Exception& ex) {
-	if (_ex) // display previous error ? TODO
-		WARN(this->address, " server, ", (_ex = ex));
-	_error = ex;}),
-	_onData([this](PoolBuffer& pBuffer) { return onData(pBuffer);}),
-	_onDisconnection([this](TCPClient& client, const SocketAddress& peerAddress) {onDisconnection(peerAddress); }) {
-
-	OnError::subscribe(_onError);
-	OnDisconnection::subscribe(_onDisconnection);
-	OnData::subscribe(_onData);
-}
-
-LUATCPClient::LUATCPClient(const SocketManager& manager,lua_State* pState) : _pState(pState),TCPClient(manager),
-	_onError([this](const Exception& ex) {
-	if (_ex) // display previous error ? TODO
-		WARN(this->address, " server, ", (_ex = ex)),
-	_onData([this](PoolBuffer& pBuffer) { return onData(pBuffer);}),
-	_onDisconnection([this](TCPClient& client, const SocketAddress& peerAddress) {onDisconnection(peerAddress); }) {
-
-	OnError::subscribe(_onError);
-	OnDisconnection::subscribe(_onDisconnection);
-	OnData::subscribe(_onData);
-}
-
-LUATCPClient::~LUATCPClient() {
-	OnData::unsubscribe(_onData);
-	OnDisconnection::unsubscribe(_onDisconnection);
-	OnError::unsubscribe(_onError);
-}
-
-UInt32 LUATCPClient::onData(PoolBuffer& pBuffer) {
-	UInt32 consumed;
-	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(LUATCPClient,*this,"onData")
-			SCRIPT_WRITE_BINARY(pBuffer->data(), pBuffer->size())
-			SCRIPT_FUNCTION_CALL
-			consumed = SCRIPT_READ_UINT(pBuffer->size()); // by default, consume all
-		SCRIPT_FUNCTION_END
-	SCRIPT_END
-	return consumed;
-}
-
-void LUATCPClient::onDisconnection(const SocketAddress& peerAddress){
-	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(LUATCPClient,*this,"onDisconnection")
-			SCRIPT_WRITE_STRING(peerAddress.c_str())
-			if (!_error.empty())
-				SCRIPT_WRITE_STRING(_error.c_str())
-			SCRIPT_FUNCTION_CALL
-		SCRIPT_FUNCTION_END
-	SCRIPT_END
-	_error.clear();
-	Script::ClearObject<LUATCPClient>(_pState, *this);
-}
-
-void LUATCPClient::Clear(lua_State* pState, LUATCPClient& client) {
-	Script::ClearObject<LUASocketAddress>(pState, client.address());
-	Script::ClearObject<LUASocketAddress>(pState, client.peerAddress());
-}
-
-int	LUATCPClient::Connect(lua_State* pState) {
-	SCRIPT_CALLBACK_TRY(LUATCPClient,client)
-
-		Exception ex;
-		SocketAddress address(IPAddress::Loopback(),0);
-		if (LUASocketAddress::Read(ex, pState, SCRIPT_READ_NEXT(1), address) && client.connect(ex, address)) {
-			if (ex)
-				SCRIPT_WARN(ex)
-			SCRIPT_WRITE_BOOL(true)
-		} else
-			SCRIPT_CALLBACK_THROW(ex)
-
+static int connected(lua_State *pState) {
+	SCRIPT_CALLBACK(TCPClient, client)
+		SCRIPT_WRITE_BOOLEAN(client.connected())
 	SCRIPT_CALLBACK_RETURN
 }
-
-int	LUATCPClient::Disconnect(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPClient,client)
+static int connecting(lua_State *pState) {
+	SCRIPT_CALLBACK(TCPClient, client)
+		SCRIPT_WRITE_BOOLEAN(client.connecting())
+	SCRIPT_CALLBACK_RETURN
+}
+static int connect(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(TCPClient, client)
+		Exception ex;
+		SocketAddress address(IPAddress::Loopback(), 0);
+		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && client.connect(ex, address)) {
+			if (ex)
+				SCRIPT_CALLBACK_THROW(ex);
+			SCRIPT_WRITE_BOOLEAN(true)
+		} else
+			SCRIPT_CALLBACK_THROW(ex)
+	SCRIPT_CALLBACK_RETURN
+}
+static int send(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(TCPClient, client)
+		SCRIPT_READ_PACKET(packet);
+		Exception ex;
+		if (client.send(ex, packet)) {
+			if (ex)
+				SCRIPT_WARN(ex);
+			SCRIPT_WRITE_BOOLEAN(true);
+		} else
+			SCRIPT_CALLBACK_THROW(ex);
+	SCRIPT_CALLBACK_RETURN
+}
+static int disconnect(lua_State *pState) {
+	SCRIPT_CALLBACK(TCPClient, client)
 		client.disconnect();
 	SCRIPT_CALLBACK_RETURN
 }
 
-
-int	LUATCPClient::Send(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPClient,client)
-		SCRIPT_READ_BINARY(data,size)
-		client.send(data, size);
-	SCRIPT_CALLBACK_RETURN
+template<> void Script::ObjInit(lua_State *pState, TCPClient& client) {
+	shared<Exception> pEx;
+	client.onError = [pState, &client](const Exception& ex) {
+		bool gotten = false;
+		SCRIPT_BEGIN(pState)
+			SCRIPT_MEMBER_FUNCTION_BEGIN(client, "onError")
+				gotten = true;
+				SCRIPT_WRITE_STRING(ex)
+				SCRIPT_FUNCTION_CALL
+			SCRIPT_FUNCTION_END
+		SCRIPT_END
+		if (!gotten)
+			WARN(ex);
+	};
+	client.onFlush = [pState, &client]() {
+		SCRIPT_BEGIN(pState)
+			SCRIPT_MEMBER_FUNCTION_BEGIN(client, "onFlush")
+				SCRIPT_FUNCTION_CALL
+			SCRIPT_FUNCTION_END
+		SCRIPT_END
+	};
+	client.onDisconnection = [pState, &client](const SocketAddress& peerAddress) {
+		SCRIPT_BEGIN(pState)
+			SCRIPT_MEMBER_FUNCTION_BEGIN(client, "onDisconnection")
+				Script::NewObject(pState, new SocketAddress(peerAddress));
+				SCRIPT_FUNCTION_CALL
+			SCRIPT_FUNCTION_END
+		SCRIPT_END
+	};
+	client.onData = [pState, &client](Packet& buffer) {
+		UInt32 rest = 0;
+		SCRIPT_BEGIN(pState)
+			SCRIPT_MEMBER_FUNCTION_BEGIN(client, "onData")
+				Script::NewObject(pState, new Packet(buffer));
+				SCRIPT_FUNCTION_CALL
+				if(SCRIPT_NEXT_READABLE)
+					rest = SCRIPT_READ_UINT32(0); // by default, consume all
+			SCRIPT_FUNCTION_END
+		SCRIPT_END
+		return rest;
+	};
+	SCRIPT_BEGIN(pState);
+		SCRIPT_DEFINE_FUNCTION("connected", &connected);
+		SCRIPT_DEFINE_FUNCTION("connecting", &connecting);
+		SCRIPT_DEFINE_FUNCTION("connect", &connect);
+		SCRIPT_DEFINE_FUNCTION("disconnect", &disconnect);
+		SCRIPT_DEFINE_FUNCTION("send", &send);
+		SCRIPT_DEFINE_SOCKET(TCPClient);
+	SCRIPT_END;
 }
-
-int	LUATCPClient::SetMaxMessageSize(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPClient, client)
-		client.maxMessageSize = SCRIPT_READ_UINT(client.maxMessageSize);
-	SCRIPT_CALLBACK_RETURN
-}
-
-
-int LUATCPClient::Index(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPClient,client)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if(name) {
-			if (strcmp(name, "connected") == 0) {
-				SCRIPT_WRITE_BOOL(client.connected())  // change
-			} else if (strcmp(name, "receivedTime") == 0) {
-				SCRIPT_WRITE_NUMBER(client.receivedTime()) // can change
-			} else if (strcmp(name, "sentTime") == 0) {
-				SCRIPT_WRITE_NUMBER(client.sentTime()) // can change
-			} else if (strcmp(name, "bandwidth") == 0) {
-				SCRIPT_WRITE_NUMBER(client.bandwidth()) // can change
-			} else if (strcmp(name, "maxMessageSize") == 0) {
-				SCRIPT_WRITE_NUMBER(client.maxMessageSize) // can change
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-
-int LUATCPClient::IndexConst(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPClient,client)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if(name) {
-			if(strcmp(name,"connect")==0) {
-				SCRIPT_WRITE_FUNCTION(LUATCPClient::Connect)
-			} else if (strcmp(name, "disconnect") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUATCPClient::Disconnect)
-			} else if (strcmp(name, "send") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUATCPClient::Send)
-			} else if (strcmp(name, "address") == 0) {
-				Script::AddObject<LUASocketAddress>(pState, client.address());
-			} else if (strcmp(name, "peerAddress") == 0) {
-				Script::AddObject<LUASocketAddress>(pState, client.peerAddress());
-			} else if (strcmp(name, "SetMaxMessageSize") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUATCPClient::SetMaxMessageSize)
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
+template<> void Script::ObjClear(lua_State *pState, TCPClient& client) {
+	client.onData = nullptr;
+	client.onFlush = nullptr;
+	client.onDisconnection = nullptr;
+	client.onError = nullptr;
 }

@@ -26,33 +26,50 @@ namespace Mona {
 
 
 struct QueryWriter : DataWriter, virtual Object {
-	QueryWriter(Buffer& buffer) : DataWriter(buffer), _query(NULL), _first(true), _isProperty(false),
+	QueryWriter(Buffer& buffer) : DataWriter(buffer), _first(true), _isProperty(false),
+		separator("&"), dateFormat(Date::FORMAT_ISO8601_SHORT), uriChars(true) {}
+	QueryWriter(std::string& buffer) : _pBuffer(&buffer), _first(true), _isProperty(false),
 		separator("&"), dateFormat(Date::FORMAT_ISO8601_SHORT), uriChars(true) {}
 
 	bool  uriChars;
 	const char* dateFormat;
 	const char*	separator;
 
-	const char* query() const;
-
 	void   writePropertyName(const char* value);
 
-	void   writeNumber(double value) { String::Append(write(), value); }
+	void   writeNumber(double value) { write(value); }
 	void   writeString(const char* value, UInt32 size);
-	void   writeBoolean(bool value) { write().write(value ? "true" : "false"); }
-	void   writeNull() { write().write(EXPAND("null")); }
-	UInt64 writeDate(const Date& date) { date.format(dateFormat, write()); return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size) { Util::ToBase64(data, size, write()); return 0; }
+	void   writeBoolean(bool value) { write(value ? "true" : "false"); }
+	void   writeNull() { write("null"); }
+	UInt64 writeDate(const Date& date) { write(String::Date(dateFormat)); return 0; }
+	UInt64 writeBytes(const UInt8* data, UInt32 size);
 
-	void clear() { _isProperty = false; _first = true; _query = NULL;  DataWriter::clear(); }
+	void clear();
 
 
 private:
-	BinaryWriter& write();
+	template <typename ...Args>
+	void write(Args&&... args) {
+		if (_isProperty) {
+			writeBuffer('=');
+			_isProperty = false;
+		} else if (!_first)
+			writeBuffer(separator); // &
+		else
+			_first = false;
+		writeBuffer(std::forward<Args>(args)...);
+	}
+	template <typename ...Args>
+	void writeBuffer(Args&&... args) {
+		if (_pBuffer)
+			String::Assign(*_pBuffer, std::forward<Args>(args)...);
+		else
+			String::Assign(writer, std::forward<Args>(args)...);
+	}
 
 	bool				_isProperty;
 	bool				_first;
-	mutable const char* _query;
+	std::string*		_pBuffer;
 };
 
 

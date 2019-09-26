@@ -19,28 +19,45 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/ReferableReader.h"
-#include "Script.h"
+#include "ScriptWriter.h"
+
+namespace Mona {
 
 
-class ScriptReader : public Mona::ReferableReader {
-public:
-	// Read the count number of lua object in the lua_State stack
-	ScriptReader(lua_State *pState, Mona::UInt32 count);
+struct ScriptReader : ReferableReader, virtual Object {
+	/*!
+	Read LUA stack from the beginning */
+	ScriptReader(lua_State *pState) : _pState(pState), _end(range<UInt32>(lua_gettop(pState))+1), _begin(1), _current(1) {}
+	/*!
+	Read LUA stack from count elements before the end */
+	ScriptReader(lua_State *pState, UInt32 count) : _pState(pState), _end(range<UInt32>(lua_gettop(pState))+1) {
+		_begin = _current = count>_end ? 1 : (_end - count);
+	}
+
+	UInt32	position() const { return _current-_begin; }
+	void	reset() { _current = _begin; }
 
 #if defined(_DEBUG)
-	Mona::UInt32	read(Mona::DataWriter& writer,Mona::UInt32 count=END);
+	UInt32 read(DataWriter& writer, UInt32 count = END) {
+		// DEBUG causes this method is used a lot and dynamic_cast is cpu expensive
+		if (dynamic_cast<ScriptWriter*>(&writer))
+			CRITIC("A ScriptReader is writing to a ScriptWriter, behavior undefined (unsafe)");
+		return ReferableReader::read(writer, count);
+	}
 #endif
 
-	void reset();
-
 private:
-	Mona::UInt8			followingType();
-	bool				readOne(Mona::UInt8 type, Mona::DataWriter& writer);
+	UInt8	followingType();
+	bool	readOne(UInt8 type, DataWriter& writer);
 
-	bool				writeNext(Mona::DataWriter& writer);
+	bool	writeNext(DataWriter& writer);
 
-	lua_State*			_pState;			
-	int					_start;
-	int					_current;
-	int					_end;
+	lua_State*	_pState;	
+	UInt32		_begin;
+	UInt32		_current;
+	UInt32		_end;
+	Packet*		_pPacket;
 };
+
+
+} // namespace Mona

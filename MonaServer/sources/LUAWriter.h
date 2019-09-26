@@ -18,34 +18,68 @@ details (or else see http://www.gnu.org/licenses/).
 
 #pragma once
 
-#include "Mona/Writer.h"
 #include "Script.h"
+#include "Mona/Writer.h"
+#include "ScriptReader.h"
 
-class LUAWriter {
-public:
-	LUAWriter(lua_State* pState,Mona::Writer& parentWriter);
-	Mona::Writer&		writer;
+namespace Mona {
 
-	static void Init(lua_State *pState, Mona::Writer& writer) {}
-	static void Clear(lua_State* pState, Mona::Writer& writer);
-	static void Delete(lua_State* pState, Mona::Writer& writer) { writer.close(); }
+#define SCRIPT_DEFINE_WRITER(TYPE)	SCRIPT_DEFINE_FUNCTION("writeMessage", &LUAWriter<TYPE>::WriteMessage);\
+									SCRIPT_DEFINE_FUNCTION("writeInvocation", &LUAWriter<TYPE>::WriteInvocation);\
+									SCRIPT_DEFINE_FUNCTION("writeRaw", &LUAWriter<TYPE>::WriteRaw);\
+									SCRIPT_DEFINE_FUNCTION("newWriter", &LUAWriter<TYPE>::NewWriter);\
+									SCRIPT_DEFINE_FUNCTION("flush", &LUAWriter<TYPE>::Flush);\
+									SCRIPT_DEFINE_FUNCTION("close", &LUAWriter<TYPE>::Close);
 
-	static int Index(lua_State *pState);
-	static int IndexConst(lua_State *pState);
-
+template<typename Type = Writer>
+struct LUAWriter : virtual Static {
+	static int WriteMessage(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, obj)
+			SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_NEXT_READABLE).read(Writer(obj).writeMessage()));
+		SCRIPT_CALLBACK_RETURN
+	}
+	static int WriteInvocation(lua_State *pState) {
+		SCRIPT_CALLBACK(Type, obj)
+			const char* name = SCRIPT_NEXT_TYPE == LUA_TSTRING ? SCRIPT_READ_STRING(NULL) : NULL;
+			SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_NEXT_READABLE).read(Writer(obj).writeInvocation(name ? name : "onMessage")));
+		SCRIPT_CALLBACK_RETURN
+	}
+	static int WriteRaw(lua_State* pState) {
+		SCRIPT_CALLBACK(Type, obj)
+			const Packet* pPacket = Script::ToObject<Packet>(pState, lua_gettop(pState));
+			if(pPacket)
+				SCRIPT_NEXT_SHRINK(SCRIPT_NEXT_READABLE-1)
+			else
+				pPacket = &Packet::Null();
+			ScriptReader reader(pState, SCRIPT_NEXT_READABLE);
+			Writer(obj).writeRaw(reader, *pPacket);
+		SCRIPT_CALLBACK_RETURN
+	}
+	static int NewWriter(lua_State* pState) {
+		SCRIPT_CALLBACK(Type, obj)
+			Mona::Writer& writer = Writer(obj);
+			Mona::Writer& newWriter(writer.newWriter());
+			if (&newWriter == &writer)
+				lua_pushvalue(pState, 1); // return the same writer
+			else
+				Script::AddObject(pState, newWriter, 1); // manage with garbage collector a new writer
+		SCRIPT_CALLBACK_RETURN
+	}
+	static int Flush(lua_State* pState) {
+		SCRIPT_CALLBACK(Type, obj)
+			SCRIPT_WRITE_BOOLEAN(Writer(obj).flush())
+		SCRIPT_CALLBACK_RETURN
+	}
+	static int Close(lua_State* pState) {
+		SCRIPT_CALLBACK(Type, obj)
+			UInt32 code = SCRIPT_READ_UINT32(0);
+			Writer(obj).close(code, SCRIPT_READ_STRING(NULL));
+		SCRIPT_CALLBACK_RETURN
+	}
 private:
-	static int	Flush(lua_State *pState);
-	static int	WriteMessage(lua_State *pState);
-	static int	WriteInvocation(lua_State *pState);
-	static int  WriteRaw(lua_State* pState);
-	static int	NewWriter(lua_State *pState);
-	static int	Close(lua_State *pState);
-	static int	SetReliable(lua_State *pState);
-	
-
-	Mona::Writer::OnClose::Type onClose;
-
-	lua_State*	_pState;
+	static Mona::Writer& Writer(Type& object);
 };
+
+}
 
 

@@ -27,6 +27,7 @@ namespace Mona {
 
 struct StringReader : DataReader, virtual Object {
 	StringReader(const UInt8* data, UInt32 size) : DataReader(data, size) {}
+	StringReader(const char* data, std::size_t size) : DataReader(BIN data, size) {}
 
 private:
 	UInt8 followingType() { return reader.available() ? STRING : END; }

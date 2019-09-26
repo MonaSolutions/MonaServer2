@@ -18,34 +18,25 @@ details (or else see http://www.gnu.org/licenses/).
 
 #pragma once
 
-
-#include "Mona/PacketWriter.h"
-#include "Mona/MediaContainer.h"
 #include "Script.h"
+#include "Mona/MediaWriter.h"
 
-using namespace Mona;
+namespace Mona {
 
-class LUAMediaWriter : public PacketWriter {
-public:
-	LUAMediaWriter(const PoolBuffers& poolBuffers, const char* mediaType) : PacketWriter(poolBuffers), _first(true) {
-		if(String::ICompare(mediaType, "mp2t")==0)
-			_pMedia.reset(new MPEGTS(poolBuffers));
-		else
-			_pMedia.reset(new FLV(poolBuffers));
-	}
-
-	static int Index(lua_State* pState) { return 0; }
-	static int IndexConst(lua_State* pState);
-
-	static void Init(lua_State *pState, LUAMediaWriter& writer) {}
-	static void	Clear(lua_State* pState, LUAMediaWriter& writer) {}
-	static void	Delete(lua_State* pState, LUAMediaWriter& writer) {}
-
-	virtual ~LUAMediaWriter() {}
-
+struct LUAMediaWriter : MediaWriter, Media::Target {
+	LUASubscription(lua_State *pState) : Subscription((Media::Target&)self), _pState(pState) {}
+	Subscription& operator()() { return self; }
 private:
-	static int	Write(lua_State* pState);
-	
-	unique<MediaContainer>		_pMedia;
-	bool								_first;
+	UInt64	queueing() const;
+	bool	beginMedia(const std::string& name);
+	bool	writeProperties(const Media::Properties& properties);
+	bool	writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
+	bool	writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
+	bool	writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
+	void	endMedia();
+	void	flush();
+
+	lua_State* _pState;
 };
+
+}

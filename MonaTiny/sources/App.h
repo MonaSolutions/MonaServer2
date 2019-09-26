@@ -20,8 +20,8 @@ struct App : virtual Object {
 		virtual bool onPublish(Exception& ex, Publication& publication) { return true; }
 		virtual void onUnpublish(Publication& publication) {}
 
-		virtual bool onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication) { return true; }
-		virtual void onUnsubscribe(const Subscription& subscription, const Publication& publication) {}
+		virtual bool onSubscribe(Exception& ex, Subscription& subscription, Publication& publication) { return true; }
+		virtual void onUnsubscribe(Subscription& subscription, Publication& publication) {}
 
 		Mona::Client& client;
 	};

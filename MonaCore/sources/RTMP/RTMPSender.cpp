@@ -115,7 +115,7 @@ bool RTMPSender::run(Exception&) {
 	if (result < 0)
 		return true;
 
-	if (_packet) {
+	if (_packet.size()) {
 		if (_pEncryptKey) {
 			DUMP_RESPONSE("RTMPE", _packet.data(), _packet.size(), _pSocket->peerAddress());
 			_pBuffer.set(_packet.size());

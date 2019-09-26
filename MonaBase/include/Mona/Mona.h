@@ -45,6 +45,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define LINE_STRING STRINGIFY(__LINE__)
 #define FOURCC(a,b,c,d) uint32_t( ((a)<<24) | ((b)<<16) | ((c)<<8) | (d) )
 
+
 #if defined(_WIN32)
 #define _WINSOCKAPI_    // stops windows.h including winsock.h
 #define NOMINMAX
@@ -279,8 +280,14 @@ inline typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::
 				  max(Type1 value1, Type2 value2, Args&&... args) { return value1 > value2 ? max(value1, args ...) : max(value2, args ...); }
 
 template<typename RangeType, typename Type>
-inline RangeType range(Type value) { return value > std::numeric_limits<RangeType>::max() ? std::numeric_limits<RangeType>::max() : ((std::is_signed<Type>::value && value < std::numeric_limits<RangeType>::lowest()) ? std::numeric_limits<RangeType>::min() : (RangeType)value); }
-
+inline RangeType range(Type value) {
+	RangeType result = static_cast<RangeType>(value);
+	if (static_cast<Type>(result) != value)
+		return result;
+	if (result < 0)
+		return value > 0 ? std::numeric_limits<RangeType>::max() : result; // result signed and value unsigned => result max
+	return value < 0 ? 0 : result; // result unsigned and value signed => 0
+}
 const std::string& typeof(const std::type_info& info);
 template<typename ObjectType>
 inline const std::string& typeof(const ObjectType& object) { return typeof(typeid(object)); }
@@ -330,6 +337,15 @@ class is_container : virtual Static {
 	template<typename C> static char(&I(...))[2];
 public:
 	static bool const value = sizeof(B<Type>(0)) == 1 && sizeof(E<Type>(0)) == 1 && sizeof(I<Type>(0)) == 1;
+};
+
+
+template <typename Type>
+class has_count : virtual Static {
+	template<typename C> static char(&B(typename std::enable_if< std::is_same<decltype(&C::count), UInt32(C::*)() const>::value, void >::type*))[1];
+	template<typename C> static char(&B(...))[2];
+public:
+	static bool const value = sizeof(B<Type>(0)) == 1;
 };
 
 /*!

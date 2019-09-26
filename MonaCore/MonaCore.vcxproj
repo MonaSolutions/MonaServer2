@@ -316,6 +316,7 @@
     <ClCompile Include="sources\ADTSWriter.cpp" />
     <ClCompile Include="sources\AVC.cpp" />
     <ClCompile Include="sources\CCaption.cpp" />
+    <ClCompile Include="sources\Client.cpp" />
     <ClCompile Include="sources\FlashMainStream.cpp" />
     <ClCompile Include="sources\FLVReader.cpp" />
     <ClCompile Include="sources\HEVC.cpp" />

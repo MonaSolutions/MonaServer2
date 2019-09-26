@@ -103,7 +103,7 @@ void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 	if (!_publishing) {
 		_publishing = true;
 		INFO("Publication ", _name, " started");
-		_timeProperties = Media::Properties::timeProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
+		_timeProperties = Media::Properties::timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	}
 	if(pRecorder)
 		startRecording(move(pRecorder), append);
@@ -120,14 +120,8 @@ void Publication::reset() {
 	_datas.clear();
 
 	// Erase track metadata just!
-	auto itProp = begin();
-	while(itProp !=end()) {
-		const string& key = (itProp++)->first;
-		size_t point = key.find('.');
-		if (point != string::npos && String::ToNumber(key.data(), point, point))
-			erase(key);
-	}
-	_timeProperties = Media::Properties::timeProperties(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
+	clearTracks();
+	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 
 	auto it = subscriptions.begin();
 	while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
@@ -138,7 +132,7 @@ void Publication::reset() {
 		pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 	}
 
-	onEnd();
+	// onEnd();
 }
 
 void Publication::stop() {
@@ -167,8 +161,8 @@ void Publication::stop() {
 			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 	}
 
-	onFlush();
-	onEnd();
+	// onFlush();
+	// onEnd();
 }
 
 void Publication::flush(UInt16 ping) {
@@ -204,7 +198,7 @@ void Publication::flush() {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->flush();
 	}
-	onFlush();
+	// onFlush();
 }
 
 
@@ -232,7 +226,7 @@ void Publication::writeAudio(const Media::Audio::Tag& tag, const Packet& packet,
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeAudio(tag, packet, track);
 	}
-	onAudio(track, tag, packet);
+	// onAudio(track, tag, packet);
 	
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
 	if (pAudio && tag.isConfig)
@@ -295,11 +289,11 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		} else
 			pSubscription->writeVideo(tag, packet, track); // with CC
 	}
-	if (offsetCC && onData) {
+	/*if (offsetCC && onData) {
 		if(offsetCC<packet.size())
 			this->onVideo(track, tag, packet + offsetCC); // without CC
 	} else
-		this->onVideo(track, tag, packet); // with CC
+		this->onVideo(track, tag, packet); // with CC*/
 
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
 	if (pVideo && tag.frame == Media::Video::FRAME_CONFIG)
@@ -318,7 +312,7 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 			string handler;
 			// for performance reason read just if type is explicity a STRING (not a convertible string as binary etc...)
 			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
-				return setProperties(type, packet + (*pReader)->position(), track);
+				return addProperties(track, type, packet + (*pReader)->position());
 		}
 	}
 
@@ -344,7 +338,7 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeData(type, packet, track);
 	}
-	onData(track, type, packet);
+	//onData(track, type, packet);
 }
 
 void Publication::onParamChange(const string& key, const string* pValue) {
@@ -371,9 +365,9 @@ void Publication::onParamClear() {
 }
 
 void Publication::flushProperties() {
-	if (_timeProperties >= Media::Properties::timeProperties())
+	if (_timeProperties >= Media::Properties::timeChanged())
 		return;
-	_timeProperties = Media::Properties::timeProperties();
+	_timeProperties = Media::Properties::timeChanged();
 	// Logs before subscription logs!
 	if (self)
 		INFO("Write ", _name, " publication properties ", self)
@@ -383,7 +377,7 @@ void Publication::flushProperties() {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeProperties(self);
 	}
-	onProperties(self);
+	//onProperties(self);
 }
 
 } // namespace Mona

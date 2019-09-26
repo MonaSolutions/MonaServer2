@@ -53,7 +53,7 @@ Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer),
 	_sessionsOptions(session._sessionsOptions), _protocol(protocol), api(protocol.api), died(false), _id(session._id), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
 	// Morphing
 	session._name.clear(); // to fix name!
-	((string&)peer.protocol) = protocol.name;
+	peer.protocol = protocol.name;
 	peer.onParameters = nullptr;
 	DEBUG("Upgrading ", session.name(), " to ", protocol.name, " session");
 	init(session);

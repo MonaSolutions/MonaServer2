@@ -56,8 +56,8 @@ protected:
 	bool onPublish(Exception& ex, Publication& publication, Client* pClient);
 	void onUnpublish(Publication& publication, Client* pClient);
 
-	bool onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication, Client* pClient);
-	void onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient);
+	bool onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient);
+	void onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient);
 
 	TerminateSignal&			_terminateSignal;
 	std::map<std::string,App*>	_applications;

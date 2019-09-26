@@ -63,7 +63,7 @@ UInt32 MonaReader::parse(Packet& buffer, Media::Source& source) {
 				if (track)
 					source.writeData(data, media, track);
 				else // properties have been serialized like data with track=0 (no RPC in media, see MonaWriter) 
-					source.setProperties(data, media);
+					source.addProperties(0, data, media);
 				break;
 			}
 			default:

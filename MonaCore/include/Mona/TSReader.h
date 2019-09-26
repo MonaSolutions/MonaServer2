@@ -32,7 +32,7 @@ struct TSReader : virtual Object, MediaReader {
 	// http://dvbsnoop.sourceforge.net/examples/example-pat.html
 	// http://dvd.sourceforge.net/dvdinfo/pes-hdr.html
 
-	TSReader() : _syncFound(false), _syncError(false), _crcPAT(0), _audioTrack(0), _videoTrack(0), _startTime(-1) {}
+	TSReader() : _syncFound(false), _syncError(false), _crcPAT(0), _audioTrack(0), _videoTrack(0), _startTime(-1), _timeProperties(_properties.timeChanged()) {}
 	
 private:
 
@@ -77,15 +77,16 @@ private:
 
 	void    onFlush(Packet& buffer, Media::Source& source);
 
-	std::map<UInt16, Program>							_programs;
-	std::map<UInt8, std::pair<Time, Media::Properties>> _properties;
-	UInt8												_audioTrack;
-	UInt8												_videoTrack;
-	std::map<UInt16, UInt8>								_pmts;
-	UInt32												_crcPAT;
-	bool												_syncFound;
-	bool												_syncError;
-	double												_startTime;
+	std::map<UInt16, Program>					_programs;
+	Media::Properties							_properties;
+	Time										_timeProperties;
+	UInt8										_audioTrack;
+	UInt8										_videoTrack;
+	std::map<UInt16, UInt8>						_pmts;
+	UInt32										_crcPAT;
+	bool										_syncFound;
+	bool										_syncError;
+	double										_startTime;
 };
 
 

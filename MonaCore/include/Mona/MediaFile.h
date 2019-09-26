@@ -66,7 +66,7 @@ struct MediaFile : virtual Static  {
 			void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { if(!_mediaTimeGotten) _mediaTimeGotten = !tag.isConfig; writeMedia<Media::Audio>(tag, packet, track); }
 			void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { if (!_mediaTimeGotten) _mediaTimeGotten = tag.frame != Media::Video::FRAME_CONFIG; writeMedia<Media::Video>(tag, packet, track); }
 			void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { writeMedia<Media::Data>(type, packet, track); }
-			void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) { writeMedia<Media::Data>(type, packet, track, true); }
+			void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { writeMedia<Media::Data>(type, packet, track, true); }
 			void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { writeMedia<Lost>(type, lost, track); }
 			void flush() { } // do nothing on source flush, to do the flush in end of file reading!
 			void reset() { _pMedias->emplace_back(); }

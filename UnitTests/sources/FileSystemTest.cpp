@@ -146,7 +146,7 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::Resolve(Path1.assign("/")) == "/");
 #if defined(_WIN32)
 	CHECK(FileSystem::Resolve(Path1.assign("C:/")) == "C:/");
-	CHECK(FileSystem::Resolve(Path1.assign("C:/..")) == "C:/.");
+	CHECK(FileSystem::Resolve(Path1.assign("C:/..")) == "C:/."); // hard
 #else
 	CHECK(FileSystem::Resolve(Path1.assign("C:/")) == Path2.assign(Path::CurrentDir()).append("C:/"));
 #endif
@@ -160,13 +160,18 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::Resolve(Path1.assign("./.././.././")) == parent.parent());
 	CHECK(FileSystem::Resolve(Path1.assign("./test/../.")) == FileSystem::MakeFile(Path2.assign(Path::CurrentDir())));
 	CHECK(FileSystem::Resolve(Path1.assign("./test/.././")) == Path::CurrentDir());
-	CHECK(FileSystem::Resolve(Path1.assign("/..")) == "/.");
+	CHECK(FileSystem::Resolve(Path1.assign("/..")) == "/."); // hard
 	CHECK(FileSystem::Resolve(Path1.assign("/../")) == "/");
-	CHECK(FileSystem::Resolve(Path1.assign("/../.")) == "/.");
+	CHECK(FileSystem::Resolve(Path1.assign("/../.")) == "/."); // hard
 	CHECK(FileSystem::Resolve(Path1.assign("/.././")) == "/");
-	CHECK(FileSystem::Resolve(Path1.assign("/test/../../.")) == "/.");
+	CHECK(FileSystem::Resolve(Path1.assign("/test/../../.")) == "/."); // hard
 	CHECK(FileSystem::Resolve(Path1.assign("/test/../.././")) == "/");
 	CHECK(FileSystem::Resolve(Path1.assign("/test/../../hi.txt")) == "/hi.txt");
+	CHECK(FileSystem::Resolve(Path1.assign("/test/../../hi")) == "/hi");
+	CHECK(FileSystem::Resolve(Path1.assign("www")) == Path2.assign(Path::CurrentDir()).append("www"));
+	CHECK(FileSystem::Resolve(Path1.assign("www/")) == Path2.assign(Path::CurrentDir()).append("www/"));
+	CHECK(FileSystem::Resolve(Path1.assign("www/Peer")) == Path2.assign(Path::CurrentDir()).append("www/Peer"));
+	CHECK(FileSystem::Resolve(Path1.assign("../Peer")) == Path2.assign(Path::CurrentDir().parent()).append("Peer"));
 
 	CHECK(FileSystem::IsFolder(""));
 	CHECK(FileSystem::IsFolder("/"));

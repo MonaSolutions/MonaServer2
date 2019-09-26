@@ -16,179 +16,100 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
+#include "Mona/ServerAPI.h"
+#include "Script.h"
+#include "LUAMap.h"
 
-#include "LUAPublication.h"
-#include "Mona/JSONReader.h"
-#include "Mona/AMFReader.h"
-#include "Mona/StringReader.h"
-#include "Mona/XMLRPCReader.h"
-#include "ScriptReader.h"
 
 using namespace std;
 using namespace Mona;
 
+template<typename Type>
+static int count(lua_State *pState) {
+	SCRIPT_CALLBACK(Type, tracks)
+		SCRIPT_WRITE_DOUBLE(tracks.size())
+	SCRIPT_CALLBACK_RETURN
+}
+template<typename Type>
+static int byteRate(lua_State *pState) {
+	SCRIPT_CALLBACK(Type, tracks)
+		SCRIPT_WRITE_DOUBLE(tracks.byteRate())
+	SCRIPT_CALLBACK_RETURN
+}
+template<typename Type>
+static int lostRate(lua_State *pState) {
+	SCRIPT_CALLBACK(Type, tracks)
+		SCRIPT_WRITE_DOUBLE(tracks.lostRate())
+	SCRIPT_CALLBACK_RETURN
+}
+template<typename Type>
+static int lastTime(lua_State *pState) {
+	SCRIPT_CALLBACK(Type, tracks)
+		SCRIPT_WRITE_INT(tracks.lastTime)
+	SCRIPT_CALLBACK_RETURN
+}
+template<typename Type>
+void TracksInit(lua_State *pState, Type& tracks) {
+	SCRIPT_BEGIN(pState)
+		SCRIPT_DEFINE_FUNCTION("count", &count<Type>);
+		SCRIPT_DEFINE_FUNCTION("byteRate", &byteRate<Type>);
+		SCRIPT_DEFINE_FUNCTION("lostRate", &lostRate<Type>);
+	SCRIPT_END
+}
+template<typename Type>
+void MediaTracksInit(lua_State *pState, Type& tracks) {
+	SCRIPT_BEGIN(pState)
+		TracksInit<Type>(pState, tracks);
+		SCRIPT_DEFINE_FUNCTION("lastTime", &lastTime<Type>);
+	SCRIPT_END
+}
+template<> void Script::ObjInit(lua_State *pState, const Publication::Tracks<Publication::DataTrack>& tracks) { TracksInit(pState, tracks); }
+template<> void Script::ObjInit(lua_State *pState, const Publication::MediaTracks<Publication::VideoTrack>& tracks) { MediaTracksInit(pState, tracks); }
+template<> void Script::ObjInit(lua_State *pState, const Publication::MediaTracks<Publication::AudioTrack>& tracks) { MediaTracksInit(pState, tracks); }
+template<> void Script::ObjClear(lua_State *pState, const Publication::Tracks<Publication::DataTrack>& tracks) {}
+template<> void Script::ObjClear(lua_State *pState, const Publication::MediaTracks<Publication::VideoTrack>& tracks) {}
+template<> void Script::ObjClear(lua_State *pState, const Publication::MediaTracks<Publication::AudioTrack>& tracks) {}
 
 
-void LUAPublication::AddListener(lua_State* pState, UInt8 indexPublication, UInt8 indexListener) {
-	// -1 must be the client table!
-	Script::Collection(pState, indexPublication, "listeners");
-	lua_pushvalue(pState, indexListener);
-	lua_pushvalue(pState, -4); // client table
-	Script::FillCollection(pState, 1);
-	lua_pop(pState, 1);
+
+static int latency(lua_State *pState) {
+	SCRIPT_CALLBACK(Publication, publication)
+		SCRIPT_WRITE_INT(publication.latency())
+	SCRIPT_CALLBACK_RETURN
 }
 
-void LUAPublication::RemoveListener(lua_State* pState, const Publication& publication) {
-	// -1 must be the listener table!
-	if (Script::FromObject<Publication>(pState, publication)) {
-		Script::Collection(pState, -1, "listeners");
-		lua_pushvalue(pState, -3); // listener table
-		lua_pushnil(pState);
-		Script::FillCollection(pState, 1);
-		lua_pop(pState, 2);
-	}
-}
-
-void LUAPublication::Clear(lua_State* pState, Publication& publication) {
-	Script::ClearObject<LUAQualityOfService>(pState, publication.dataQOS());
-	Script::ClearObject<LUAQualityOfService>(pState, publication.audioQOS());
-	Script::ClearObject<LUAQualityOfService>(pState, publication.videoQOS());
-}
-
-void LUAPublication::Delete(lua_State* pState, Publication& publication) {
-	if (!publication.running())
-		return;
+template<> void Script::ObjInit(lua_State *pState, Publication& publication) {
+	// properties
+	lua_pushliteral(pState, "properties");
+	AddObject(pState, (Parameters&)publication);
 	lua_getmetatable(pState, -1);
-	lua_getfield(pState, -1, "|invoker");
-	lua_replace(pState, -2);
-	Invoker* pInvoker = (Invoker*)lua_touserdata(pState, -1);
-	if (pInvoker)
-		pInvoker->unpublish(publication.name());
-	lua_pop(pState, 1);
+	lua_setmetatable(pState, -6); // metatable of properties becomes metatable of __index of publication object!
+
+	SCRIPT_BEGIN(pState);
+		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<Parameters>::Call<LUAMap<Parameters>::Mapper<Publication>>);
+		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<Parameters>::Pairs<LUAMap<Parameters>::Mapper<Publication>>);
+		SCRIPT_DEFINE_STRING("name", publication.name())
+		SCRIPT_DEFINE("audios", AddObject(pState, publication.audios));
+		SCRIPT_DEFINE("videos", AddObject(pState, publication.videos));
+		SCRIPT_DEFINE("datas", AddObject(pState, publication.datas));
+		SCRIPT_DEFINE_FUNCTION("latency", &latency);
+		SCRIPT_DEFINE_FUNCTION("byteRate", &byteRate<const Publication>);
+		SCRIPT_DEFINE_FUNCTION("lostRate", &lostRate<const Publication>);
+	SCRIPT_END;
+}
+template<> void Script::ObjClear(lua_State *pState, Publication& publication) {
+	RemoveObject(pState, (Parameters&)publication);
+	RemoveObject(pState, publication.audios);
+	RemoveObject(pState, publication.videos);
+	RemoveObject(pState, publication.datas);
+	lua_getmetatable(pState, -1);
+	lua_pushliteral(pState, "|api");
+	lua_rawget(pState, -2);
+	if (lua_islightuserdata(pState, -1)) {
+		ServerAPI* pAPI = (ServerAPI*)lua_touserdata(pState, -1);
+		if (pAPI)
+			pAPI->unpublish(publication);
+	}
+	lua_pop(pState, 2);
 }
 
-int LUAPublication::Close(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		lua_getmetatable(pState, 1);
-		lua_getfield(pState, -1, "|invoker");
-		lua_replace(pState, -2);
-
-		Script::DetachDestructor(pState,1);
-
-		Invoker* pInvoker = (Invoker*)lua_touserdata(pState, -1);
-		if (!pInvoker) {
-			SCRIPT_BEGIN(pState)
-				SCRIPT_ERROR("You have not the handle on publication ", publication.name(), ", you can't close it")
-			SCRIPT_END
-		} else if (publication.running())
-			pInvoker->unpublish(publication.name()); // call LUAPublication::Clear (because no destructor)
-
-		lua_pop(pState, 1);
-	SCRIPT_CALLBACK_RETURN
-}
-
-
-int	LUAPublication::PushAudio(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		UInt32 time = SCRIPT_READ_UINT(0);
-		SCRIPT_READ_BINARY(pData, size);
-		if (pData) {
-			PacketReader packet(pData, size);
-			UInt16 ping(SCRIPT_READ_UINT(0));
-			publication.pushAudio(time,packet, ping, UInt64(SCRIPT_READ_DOUBLE(0)));
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-int	LUAPublication::PushVideo(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		UInt32 time = SCRIPT_READ_UINT(0);
-		SCRIPT_READ_BINARY(pData, size);
-		if (pData) {
-			PacketReader packet(pData, size);
-			UInt16 ping(SCRIPT_READ_UINT(0));
-			publication.pushVideo(time,packet, ping,UInt64(SCRIPT_READ_DOUBLE(0)));
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-int	LUAPublication::Flush(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		publication.flush();
-	SCRIPT_CALLBACK_RETURN
-}
-
-int LUAPublication::WriteProperties(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		ScriptReader reader(pState, SCRIPT_READ_AVAILABLE);
-		publication.writeProperties(reader);
-		Script::Collection(pState, 1, "properties");
-	SCRIPT_CALLBACK_RETURN
-}
-
-int LUAPublication::ClearProperties(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		publication.clearProperties();
-	SCRIPT_CALLBACK_RETURN
-}
-
-int LUAPublication::Index(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if(name) {
-			if(strcmp(name,"running")==0) {
-				SCRIPT_WRITE_BOOL(publication.running())
-			} else if(strcmp(name,"lastTime")==0) {
-				SCRIPT_WRITE_NUMBER(publication.lastTime()) // can change
-			} else if(strcmp(name,"byteRate")==0) {
-				SCRIPT_WRITE_NUMBER(publication.byteRate()) // can change
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
-}
-
-
-int LUAPublication::IndexConst(lua_State *pState) {
-	SCRIPT_CALLBACK(Publication, publication)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if(name) {
-			if(strcmp(name,"name")==0) {
-				SCRIPT_WRITE_STRING(publication.name().c_str())
-			} else if(strcmp(name,"listeners")==0) {
-				Script::Collection(pState, 1, "listeners");
-			} else if(strcmp(name,"audioQOS")==0) {
-				Script::AddObject<LUAQualityOfService>(pState, publication.audioQOS());
-			} else if(strcmp(name,"videoQOS")==0) {
-				Script::AddObject<LUAQualityOfService>(pState, publication.videoQOS());
-			} else if(strcmp(name,"dataQOS")==0) {
-				Script::AddObject<LUAQualityOfService>(pState, publication.dataQOS());
-			} else if(strcmp(name,"close")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::Close)
-			} else if(strcmp(name,"pushAudio")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::PushAudio)
-			} else if(strcmp(name,"flush")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::Flush)
-			} else if(strcmp(name,"pushVideo")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::PushVideo)
-			} else if(strcmp(name,"pushAMFData")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::PushData<Mona::AMFReader>)
-			} else if(strcmp(name,"pushXMLRPCData")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::PushDataWithBuffers<Mona::XMLRPCReader>)
-			} else if(strcmp(name,"pushJSONData")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::PushDataWithBuffers<Mona::JSONReader>)
-			} else if(strcmp(name,"pushData")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::PushData<Mona::StringReader>)
-			} else if (strcmp(name,"writeProperties")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::WriteProperties)
-			} else if (strcmp(name,"clearProperties")==0) {
-				SCRIPT_WRITE_FUNCTION(LUAPublication::ClearProperties)
-			} else if (strcmp(name,"properties")==0) {
-				// if no properties, returns nothing
-				Script::GetCollection(pState, 1, "properties");
-			} else if(Script::GetCollection(pState, 1, "properties")) {
-				lua_getfield(pState, -1, name);
-				lua_replace(pState, -2);
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
-}

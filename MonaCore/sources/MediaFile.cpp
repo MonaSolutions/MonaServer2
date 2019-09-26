@@ -87,8 +87,7 @@ MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaR
 						if (delta<20) // 20 ms for timer performance reason (to limit timer raising), not more otherwise not progressive (and player load data by wave)
 							continue;
 						source.flush();
-						this->timer.set(_onTimer, delta);
-						return 0; // pause!
+						return delta;
 					}
 					source.reportLost(pMedia->type, (Lost&)(*pMedia), pMedia->track);
 				} else if(!_pReader.unique()) // else reset will be done on stop!
@@ -110,7 +109,7 @@ MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaR
 bool MediaFile::Reader::starting(const Parameters& parameters) {
 	_realTime =	0; // reset realTime
 	Decoder* pDecoder = new Decoder(io.handler, _pReader, path, source.name(), _pMedias);
-	pDecoder->onFlush = _onFlush = [this]() { _onTimer(); };
+	pDecoder->onFlush = _onFlush = [this]() { timer.set(_onTimer, _onTimer()); };
 	_pFile.set(path, File::MODE_READ);
 	io.subscribe(_pFile, pDecoder, nullptr, _onFileError);
 	io.read(_pFile);
@@ -204,8 +203,8 @@ bool MediaFile::Writer::beginMedia(const string& name) {
 }
 
 bool MediaFile::Writer::writeProperties(const Media::Properties& properties) {
-	Media::Data::Type type;
-	const Packet& packet(properties(type));
+	Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
+	const Packet& packet(properties.data(type));
 	return write<MediaWrite<Media::Data>>(type, packet, 0, true);
 }
 

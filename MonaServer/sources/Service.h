@@ -21,55 +21,47 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Client.h"
 #include "Script.h"
 #include "Mona/FileWatcher.h"
+#include "Mona/Path.h"
 
 
-class Service;
-class ServiceHandler {
-public:
-	virtual void startService(Service& service){}
-	virtual void stopService(Service& service){}
-};
+namespace Mona {
 
-
-class Service : private Mona::FileWatcher {
-public:
-	Service(lua_State* pState, const std::string& wwwPath, ServiceHandler& handler);
+struct Service : private FileWatcher {
+	struct Handler {
+		virtual void onUpdate(Service& service) {}
+	};
+	Service(lua_State* pState, const std::string& wwwPath, Handler& handler);
 	virtual ~Service();
 
 	int					reference() const { return _reference; }
 
-	Service*			open(Mona::Exception& ex);
-	Service*			open(Mona::Exception& ex, const std::string& path);
+	Service*			open(Exception& ex);
+	Service*			open(Exception& ex, const std::string& path);
 
-	static int	Item(lua_State *pState);
 
-	const std::string   name;
-	const std::string	path;
+	const std::string				name;
+	const std::string				path;
 
 private:
-	Service(lua_State* pState,  const std::string& wwwPath, Service& parent, const std::string& name, ServiceHandler& handler);
+	Service(lua_State* pState,  const std::string& wwwPath, Service& parent, const std::string& name);
 
-	static int  LoadFile(lua_State *pState);
-	static int	ExecuteFile(lua_State *pState);
+	void		init();
 
-	bool		open(bool create);
-	void		setReference(int reference);
-	void		close(bool full);
-
+	// FileWatcher implementation
 	void		loadFile();
-	void		clearFile() { close(false); }
-	void		clearEnvironment();
+	void		clearFile();
+	
 
-	static int	Index(lua_State* pState);
-
-	Mona::Exception				_ex;
-	int							_reference;
-	Service*					_pParent;
-	lua_State*					_pState;
-	Mona::Time					_lastCheck;
+	Exception				_ex;
+	int						_reference;
+	Service*				_pParent;
+	lua_State*				_pState;
+	Time					_lastCheck;
 
 
 	std::map<std::string,Service*>	_services;
 	const std::string&				_wwwPath;
-	ServiceHandler&					_handler;
+	Handler&						_handler;
 };
+
+} // namespace Mona

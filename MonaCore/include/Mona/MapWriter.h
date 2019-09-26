@@ -29,16 +29,16 @@ struct MapWriter : DataWriter, virtual Object {
 
 	MapWriter(MapType& map) : _layers({{0,0}}), _map(map), _isProperty(false) {}
 
-	UInt64 beginObject(const char* type = NULL) { return beginComplex(0); }
+	UInt64 beginObject(const char* type = NULL) { return beginComplex(); }
 	void   writePropertyName(const char* value) { _property = value; _isProperty = true; }
 	void   endObject() { endComplex(); }
 
 	void  clear() { _isProperty = false; _property.clear(); _key.clear(); _layers.assign({ {0,0} }); _map.clear(); }
 
-	UInt64 beginArray(UInt32 size) { return beginComplex(size); }
+	UInt64 beginArray(UInt32 size) { return beginComplex(String(size)); }
 	void   endArray() { endComplex();  }
 
-	UInt64 beginObjectArray(UInt32 size) { beginComplex(size); _layers.emplace_back(_key.size(), 0); return 0; }
+	UInt64 beginObjectArray(UInt32 size) { beginComplex(String(size)); _layers.emplace_back(_key.size(), 0); return 0; }
 
 	void writeString(const char* value, UInt32 size) { set(value, size); }
 	void writeNumber(double value) { set(String(value)); }
@@ -48,15 +48,17 @@ struct MapWriter : DataWriter, virtual Object {
 	UInt64 writeBytes(const UInt8* data, UInt32 size) { set(STR data, size); return 0; }
 	
 private:
-	UInt64 beginComplex(UInt32 count) {
+	UInt64 beginComplex(std::string&& count=std::string()) {
 		_layers.emplace_back(_key.size(), 0);
 		if (_layers.size()<3)
 			return 0;
 		if (_isProperty) {
-			_map.emplace(_key.append(_property), String(count)); // count
+			_key.append(_property);
 			_isProperty = false;
 		} else
-			_map.emplace(String::Append(_key, (++_layers.rbegin())->second++), String(count)); // count
+			String::Append(_key, (++_layers.rbegin())->second++);
+		if(!count.empty())
+			_map.emplace(_key, std::move(count)); // count of array!
 		_key += '.';
 		return 0;
 	}
@@ -74,7 +76,7 @@ private:
 	void set(Args&&... args) {
 		if (!_isProperty) {
 			if (_layers.size() < 2) {
-				_map.emplace(std::string(std::forward<Args>(args)...), String::Empty());
+				_map.emplace(std::string(std::forward<Args>(args)...), std::string());
 				return;
 			}
 			String::Assign(_property, _layers.back().second++);

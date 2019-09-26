@@ -67,7 +67,7 @@ bool Segments::Writer::newSegment(const OnWrite& onWrite) {
 	// Rewrite properties + configs to make segment readable individualy
 	// properties
 	if (_pProperties)
-		_pWriter->writeProperties(Media::Properties(*_pProperties), onWrite);
+		_pWriter->writeProperties(Media::Properties(_pProperties->track, _pProperties->tag, *_pProperties), onWrite);
 	// send config audio + video!
 	for (auto& it : _videoConfigs) {
 		// fix DTS, can provoke warning in VLC if next frame has compositionOffset (picture too late),
@@ -97,8 +97,8 @@ void Segments::Writer::endMedia(const OnWrite& onWrite) {
 		onSegment(_lastTime - _segTime); // last segment, doesn't matter if not the exact duration
 }
 void Segments::Writer::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
-	Media::Data::Type type;
-	const Packet& packet(properties(type));
+	Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
+	const Packet& packet(properties.data(type));
 	_pProperties.set<Media::Data>(type, packet);
 	_pWriter->writeProperties(properties, onWrite);
 }

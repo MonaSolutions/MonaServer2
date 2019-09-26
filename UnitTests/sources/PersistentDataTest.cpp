@@ -27,10 +27,10 @@ namespace PersistentDataTest {
 
 static PersistentData	_Data;
 static string			_Path;
-static PersistentData::ForEach	_ForEach([](const string& path, const UInt8* value, UInt32 size) {
-	CHECK((strlen(path.c_str()) == 0 && size == 5 && memcmp("salut", value, size) == 0) ||
-		(path.compare("/Test") == 0 && size == 8 && memcmp("aur\0voir", value, size) == 0) ||
-		(path.compare("/Sub") == 0 && size == 3 && memcmp("val", value, size) == 0));
+static PersistentData::ForEach	_ForEach([](const string& path, const Packet& packet) {
+	CHECK((strlen(STR packet.data()) == 0 && packet.size() == 5 && memcmp(packet.data(), EXPAND("salut")) == 0) ||
+		(path.compare("/Test") == 0 && packet.size() == 8 && memcmp(packet.data(), EXPAND("aur\0voir")) == 0) ||
+		(path.compare("/Sub") == 0 && packet.size() == 3 && memcmp(packet.data(), EXPAND("val")) == 0));
 });
 
 

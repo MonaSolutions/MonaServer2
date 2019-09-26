@@ -52,7 +52,7 @@ struct Publish : Media::Source, virtual Object {
 	void writeData(Media::Data::Type type, const Packet& packet, UInt8 track=0) { queue<Write<Media::Data>>(type, packet, track); }
 	/*!
 	Set metadata to the stream */
-	void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track=1) { queue<Write<Media::Data>>(type, packet, track, true); }
+	void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { queue<Write<Media::Data>>(type, packet, track, true); }
 	/*!
 	Report lost detection, allow to displays stats and repair the stream in waiting next key frame when happen */
 	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { queue<Lost>(type, lost, track); }

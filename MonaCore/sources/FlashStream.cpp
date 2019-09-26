@@ -138,7 +138,7 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 		Exception ex;
 		_pSubscription = new Subscription(writer);
 		
-		if (!api.subscribe(ex, _name, peer, *_pSubscription)) {
+		if (!api.subscribe(ex, peer, _name, *_pSubscription)) {
 			if(ex.cast<Ex::Unfound>())
 				writer.writeAMFStatus("NetStream.Play.StreamNotFound", "error", ex);
 			else
@@ -359,7 +359,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 				reader.next(); // @setDataFrame
 				if (reader.nextType() == DataReader::STRING)
 					reader.next(); // remove onMetaData
-				_pPublication->setProperties(Media::Data::TYPE_AMF, packet + reader->position(), _dataTrack);
+				_pPublication->addProperties(_dataTrack, Media::Data::TYPE_AMF, packet + reader->position());
 				return;
 			}
 		}

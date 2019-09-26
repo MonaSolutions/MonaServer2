@@ -16,87 +16,86 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "LUATCPServer.h"
-#include "LUATCPClient.h"
+#include "Script.h"
+#include "Mona/TCPServer.h"
+#include "Mona/TCPClient.h"
 #include "LUASocketAddress.h"
-#include "Service.h"
+#include "LUASocket.h"
+
 
 using namespace std;
 using namespace Mona;
 
-LUATCPServer::LUATCPServer(const SocketManager& manager,lua_State* pState) : _pState(pState),TCPServer(manager) {
-	onError = [this](const Exception& ex) {
-		WARN("LUATCPServer, ", ex);
-	};
+Net::Stats&   LUANetStats<TCPServer>::NetStats(TCPServer& server) { return *server; }
+Socket&		  LUASocket<TCPServer>::Socket(TCPServer& server) { return *server; }
 
-	onConnection = [this](Exception& ex,const SocketAddress& peerAddress,SocketFile& file) {
-		SCRIPT_BEGIN(_pState)
-			SCRIPT_MEMBER_FUNCTION_BEGIN(LUATCPServer, *this, "onConnection")
-				LUATCPClient* pClient = new LUATCPClient(peerAddress, file, this->manager(), _pState);
-				Script::AddObject<LUATCPClient>(_pState,*pClient);
-				Script::AttachDestructor<LUATCPClient>(_pState,*pClient); // add a destructor
-				SCRIPT_FUNCTION_CALL
-			SCRIPT_FUNCTION_END
-		SCRIPT_END
-	};
-
-	OnError::subscribe(onError);
-	OnConnection::subscribe(onConnection);
+static bool OnError(lua_State *pState, TCPServer& server, const string& error) {
+	bool gotten = false;
+	SCRIPT_BEGIN(pState)
+		SCRIPT_MEMBER_FUNCTION_BEGIN(server, "onError")
+			gotten = true;
+			SCRIPT_WRITE_STRING(error)
+			SCRIPT_FUNCTION_CALL
+		SCRIPT_FUNCTION_END
+	SCRIPT_END
+	return gotten;
 }
 
-LUATCPServer::~LUATCPServer() {
-	OnConnection::unsubscribe(onConnection);
-	OnError::unsubscribe(onError);
-}
-
-
-void LUATCPServer::Clear(lua_State* pState, LUATCPServer& server) {
-	Script::ClearObject<LUASocketAddress>(pState, server.address());
-}
-
-int	LUATCPServer::Start(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPServer,server)
-		Exception ex;
-		SocketAddress address;
-		if (LUASocketAddress::Read(ex, pState, SCRIPT_READ_NEXT(1), address) && server.start(ex, address)) {
-			if (ex)
-				SCRIPT_WARN(ex)
-			SCRIPT_WRITE_BOOL(true)
-		} else {
-			SCRIPT_ERROR(ex)
-			SCRIPT_WRITE_BOOL(false)
-		}
+static int running(lua_State *pState) {
+	SCRIPT_CALLBACK(TCPServer, server)
+		SCRIPT_WRITE_BOOLEAN(server.running())
 	SCRIPT_CALLBACK_RETURN
 }
-
-int	LUATCPServer::Stop(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPServer,server)
+static int start(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(TCPServer, server)
+		Exception ex;
+		SocketAddress address;
+		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && server.start(ex, address)) {
+			if (ex)
+				SCRIPT_CALLBACK_THROW(ex);
+			SCRIPT_WRITE_BOOLEAN(true)
+		} else
+			SCRIPT_CALLBACK_THROW(ex);
+	SCRIPT_CALLBACK_RETURN
+}
+static int stop(lua_State *pState) {
+	SCRIPT_CALLBACK(TCPServer, server)
 		server.stop();
 	SCRIPT_CALLBACK_RETURN
 }
 
-int LUATCPServer::Index(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPServer,server)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if(name) {
-			if(strcmp(name,"running")==0) {
-				SCRIPT_WRITE_BOOL(server.running())  // change
-			}
+template<> void Script::ObjInit(lua_State *pState, TCPServer& server) {
+	server.onError = [pState, &server](const Exception& ex) {
+		if(!OnError(pState, server, ex))
+			WARN(ex);
+	};
+	server.onConnection = [pState, &server](const shared<Socket>& pSocket) {
+		unique<TCPClient> pClient(SET, server.io);
+		Exception ex;
+		if (pClient->connect(ex, pSocket)) {
+			if (ex)
+				WARN("LUATCPServer ", pSocket->peerAddress(), " connection, ", ex);
+			SCRIPT_BEGIN(pState)
+				SCRIPT_MEMBER_FUNCTION_BEGIN(server, "onConnection")
+					NewObject(pState, pClient.release());
+					SCRIPT_FUNCTION_CALL
+				SCRIPT_FUNCTION_END
+			SCRIPT_END
+		} else {
+			String error(pSocket->peerAddress(), " connection, ", ex);
+			if (!OnError(pState, server, error))
+				ERROR(error);
 		}
-	SCRIPT_CALLBACK_RETURN
-}
 
-int LUATCPServer::IndexConst(lua_State* pState) {
-	SCRIPT_CALLBACK(LUATCPServer,server)
-		const char* name = SCRIPT_READ_STRING(NULL);
-		if(name) {
-			if(strcmp(name,"start")==0) {
-				SCRIPT_WRITE_FUNCTION(LUATCPServer::Start)
-			} else if (strcmp(name, "stop") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUATCPServer::Stop)
-			} else if (strcmp(name, "address") == 0) {
-				Script::AddObject<LUASocketAddress>(pState, server.address());
-			}
-		}
-	SCRIPT_CALLBACK_RETURN
+	};
+	SCRIPT_BEGIN(pState);
+		SCRIPT_DEFINE_FUNCTION("start", &start);
+		SCRIPT_DEFINE_FUNCTION("stop", &stop);
+		SCRIPT_DEFINE_FUNCTION("running", &running);
+		SCRIPT_DEFINE_SOCKET(TCPServer);
+	SCRIPT_END;
+}
+template<> void Script::ObjClear(lua_State *pState, TCPServer& server) {
+	server.onConnection = nullptr;
+	server.onError = nullptr;
 }

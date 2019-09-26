@@ -26,7 +26,7 @@ using namespace std;
 namespace Mona {
 
 
-Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_publications, _www, _handler, _protocols, _timer, cores), _protocols(*this), _handler(wakeUp) {
+Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_www, _publications, _handler, _protocols, _timer, cores), _protocols(*this), _handler(wakeUp) {
 	DEBUG(threadPool.threads(), " threads in server threadPool");
 }
  
@@ -40,18 +40,16 @@ void Server::start(const Parameters& parameters) {
 
 	// copy and load parametes
 	for (auto& it : parameters) {
-		if (!_www && String::ICompare(it.first, "www.dir") == 0)
-			_www.set(it.second);
-		setString(it.first, it.second);
+		if (_www.empty() && String::ICompare(it.first, "www.dir") == 0)
+			_www = it.second;
+		setParameter(it.first, it.second);
 	}
-
-	if(!_www)
-		_www.set("www/");
-
+	if (_www.empty())
+		_www.assign(EXPAND("www/"));
 	Exception ex;
 	AUTO_ERROR(FileSystem::CreateDirectory(ex, _www), "Application directory creation");
 
-	Thread::start();
+	Thread::start(); // start
 }
 
 Publish* Server::publish(const char* name) {
@@ -87,9 +85,8 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	
 		UInt32 countClient(0);
 		Sessions sessions;
-		_protocols.start(*this, sessions);
-		// TODO? ((RelayServer&)relayer).start(exWarn)
-
+		_protocols.start(self, sessions);
+	
 		onStart();
 
 		// Start streams after onStart to get onPublish/onSubscribe permissions!
@@ -126,6 +123,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 			return 2000;
 		}); // manage every 2 seconds!
 		_timer.set(onManage, 2000);
+
 		while (!requestStop) {
 			if (wakeUp.wait(_timer.raise()))
 				_handler.flush();
@@ -189,8 +187,8 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	INFO("Server memory release...");
 	Buffer::Allocator::Set();
 
+	_www.clear();
 	NOTE("Server stopped");
-	_www.reset();
 	return true;
 }
 

@@ -36,6 +36,7 @@ struct ByteRate : virtual Object {
 	/*!
 	Returns byte rate */
 	operator UInt64() const { compute();  return UInt64(_rate); }
+	UInt64 operator()() const { return this->operator UInt64(); }
 	double   exact() const { compute(); return double(_rate); }
 
 private:

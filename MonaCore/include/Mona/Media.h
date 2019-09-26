@@ -35,7 +35,7 @@ namespace Mona {
 
 
 struct Media : virtual Static {
-	enum Type {
+	enum Type : UInt8 { // Keep UInt8 to allow easly a compression + String::ToNumber usage!
 		TYPE_NONE=0,
 		TYPE_DATA = 1,
 		TYPE_AUDIO = 2, // => 10, to have the first bit to 1 and be compatible with Media::Pack
@@ -44,6 +44,8 @@ struct Media : virtual Static {
 	};
 	static const char* TypeToString(Type type) {
 		static const char* Strings[] = { "none", "data", "audio", "video"};
+		if (type >= (sizeof(Strings) / sizeof(Strings[0])))
+			return "undefined";
 		return Strings[UInt8(type)];
 	}
 
@@ -63,7 +65,7 @@ struct Media : virtual Static {
 
 	struct Properties;
 	struct Data : Base, virtual Object {
-		enum Type {
+		enum Type : UInt8 {  // Keep UInt8 to allow easly a compression + String::ToNumber usage!
 			TYPE_UNKNOWN = 0,
 			TYPE_AMF = 1,
 			TYPE_AMF0 = 2,
@@ -75,12 +77,16 @@ struct Media : virtual Static {
 		};
 		typedef Type Tag;
 		static const char* TypeToString(Type type) {
-			static const char* Strings[] = { "Unknown", "AMF", "AMF0", "JSON", "XMLRPC", "QUERY", "Text", "Media" };
-			return Strings[UInt8(type)];
+			static const char* Strings[] = { "Unknown", "AMF", "AMF0", "JSON", "XMLRPC", "QUERY", "Text" };
+			if (type >= (sizeof(Strings) / sizeof(Strings[0])))
+				return "Unknown";
+			return Strings[type];
 		}
 		static const char* TypeToSubMime(Type type) {
-			static const char* SubMimes[] = { "octet-stream", "x-amf", "x-amf", "json", "xml", "x-www-form-urlencoded","text", "octet-stream" };
-			return SubMimes[UInt8(type)];
+			static const char* SubMimes[] = { "octet-stream", "x-amf", "x-amf", "json", "xml", "x-www-form-urlencoded","text" };
+			if (type >= (sizeof(SubMimes) / sizeof(SubMimes[0])))
+				return "octet-stream";
+			return SubMimes[type];
 		}
 
 		template<typename DataType>
@@ -102,7 +108,8 @@ struct Media : virtual Static {
 	};
 
 	struct Video : Base, virtual Object {
-		enum Codec { // Aligned values with FLV codec value
+		enum Codec : UInt8 {  // Keep UInt8 to allow easly a compression + String::ToNumber usage!
+			// Aligned values with FLV codec value
 			CODEC_RAW = 0,
 			CODEC_JPEG = 1,
 			CODEC_SORENSON = 2,
@@ -117,11 +124,14 @@ struct Media : virtual Static {
 			// FFmpeg fork with hevc support in flv : https://github.com/ksvc/FFmpeg/wiki
 		};
 		static const char* CodecToString(Codec codec) {
-			static const char* Strings[] = { "RAW", "JPEG", "SORENSON", "SCREEN1", "VP6", "VP6_ALPHA", "SCREEN2", "H264", "H263", "MPEG4_2", "", "", "HEVC" };
-			return Strings[UInt8(codec)];
+			static const char* Strings[] = { "RAW", "JPEG", "SORENSON", "SCREEN1", "VP6", "VP6_ALPHA", "SCREEN2", "H264", "H263", "MPEG4_2", "UNKNOWN", "UNKNOWN", "HEVC" };
+			if (codec >= (sizeof(Strings) / sizeof(Strings[0])))
+				return "UNKNOWN";
+			return Strings[codec];
 		}
 		
-		enum Frame { // Aligned values with FLV frame type value, and ignore FRAME_GENERATED_KEYFRAME which is redundant with FRAME_KEY for a "key frame" test condition
+		enum Frame : UInt8 {  // Keep UInt8 to allow easly a compression + String::ToNumber usage!
+			// Aligned values with FLV frame type value, and ignore FRAME_GENERATED_KEYFRAME which is redundant with FRAME_KEY for a "key frame" test condition
 			FRAME_UNSPECIFIED = 0,
 			FRAME_KEY = 1,
 			FRAME_INTER = 2, // Used too by H264 for Config sequence
@@ -140,6 +150,11 @@ struct Media : virtual Static {
 				time = other.time;
 				compositionOffset = other.compositionOffset;
 				return self;
+			}
+			void reset() {
+				frame = FRAME_UNSPECIFIED;
+				compositionOffset = 0;
+				time = 0;
 			}
 
 			UInt32				 time;
@@ -171,7 +186,8 @@ struct Media : virtual Static {
 	static const char* CodecToString(Media::Video::Codec codec) { return Video::CodecToString(codec); }
 
 	struct Audio : Base, virtual Object {
-		enum Codec { // Aligned values with FLV codec value
+		enum Codec : UInt8 { // Keep UInt8 to allow easly a compression + String::ToNumber usage!
+			// Aligned values with FLV codec value
 			CODEC_RAW = 0,
 			CODEC_ADPCM = 1,
 			CODEC_MP3 = 2,
@@ -187,11 +203,13 @@ struct Media : virtual Static {
 		};
 		static const char* CodecToString(Codec codec) {
 			static const char* Strings[] = { "RAW", "ADPCM", "MP3", "PCM_LITTLE", "NELLYMOSER_16K", "NELLYMOSER_8K", "NELLYMOSER", "G711A", "G711U", "UNKNOWN", "AAC", "SPEEX", "UNKNOWN", "UNKNOWN", "MPEG4_2" };
-			return Strings[UInt8(codec)];
+			if (codec >= (sizeof(Strings) / sizeof(Strings[0])))
+				return "UNKNOWN";
+			return Strings[codec];
 		}
 		struct Tag : virtual Object {
-			explicit Tag() : rate(0), channels(0), isConfig(false) {}
-			explicit Tag(Media::Audio::Codec codec) : codec(codec), rate(0), channels(0), isConfig(false) {}
+			explicit Tag() : rate(0), channels(0), isConfig(false), time(0) {}
+			explicit Tag(Media::Audio::Codec codec) : codec(codec), rate(0), channels(0), isConfig(false), time(0) {}
 			explicit Tag(const Tag& other) { set(other); }
 	
 			Tag& set(const Tag& other) {
@@ -201,6 +219,11 @@ struct Media : virtual Static {
 				channels = other.channels;
 				rate = other.rate;
 				return self;
+			}
+			void reset() {
+				time = rate = 0;
+				channels = 0;
+				isConfig = false;
 			}
 
 			UInt32				time;
@@ -265,24 +288,27 @@ struct Media : virtual Static {
 	static Media::Type TagType(const Video::Tag& tag) { return TYPE_VIDEO; }
 
 	struct Properties : Parameters, virtual Object {
-		Properties() : _timeProperties(0) {}
-		Properties(const Media::Data& data);
+		Properties() {}
+		Properties(UInt8 track, Media::Data::Type type, const Packet& packet) { addProperties(track, type, packet); }
+	
+		const Packet& data(Media::Data::Type& type) const;
 
-		const Packet& operator[](Media::Data::Type type) const;
-		const Packet& operator()(Media::Data::Type& type) const;
+		/*!
+		Add properties but without overloading of existing, alone way to clear properties is a explicit "clear" (done by publication/source reset) */
+		UInt32		addProperties(UInt8 track, DataReader& reader);
+		void		addProperties(UInt8 track, Media::Data::Type type, const Packet& packet);
 
-		const Time& timeProperties() const { return _timeProperties; }
-
-		void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1);
-
+		void    clearTracks();
+		void	clear(UInt8 track);
+		void	clear() { Parameters::clear(); }
 	protected:
-
+		void onParamInit();
 		virtual void onParamChange(const std::string& key, const std::string* pValue);
 		virtual void onParamClear();
 
 	private:
 		mutable std::deque<Packet>	_packets;
-		Time						_timeProperties;
+		UInt8						_track;
 	};
 
 
@@ -294,15 +320,16 @@ struct Media : virtual Static {
 		virtual void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;
 		virtual void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;
 		virtual void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) = 0;
-		virtual void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track = 1) = 0;
+		virtual void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) = 0;
 		virtual void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) = 0;
 		virtual void flush() = 0;
 		virtual void reset() = 0;
 
-		void setProperties(const Media::Properties& properties, UInt8 track = 1);
-		void setProperties(DataReader& reader, UInt8 track = 1);
+		
 		void reportLost(UInt32 lost) { reportLost(Media::TYPE_NONE, lost); }
-
+		/*!
+		Add Properties from one map prefilled, no signature with a "track" or "DataReader" argument to minimize call to addProperties (often used between thread, prefer fill a Media::Properties before!)*/
+		void addProperties(const Media::Properties& properties);
 		void writeMedia(const Media::Base& media);
 		void writeMedia(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) { writeAudio(tag, packet, track); }
 		void writeMedia(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) { writeVideo(tag, packet, track); }

@@ -31,12 +31,9 @@ struct Peer : Client, virtual Object {
 	typedef Event<void(Int32 error, const char* reason)> ON(Close);
 
 	Peer(ServerAPI& api, const char* protocol);
-	virtual ~Peer();
+	~Peer();
 
-	Writer&						writer() { return _pWriter ? *_pWriter : Writer::Null(); }
-
-	const Parameters&			properties() const { return _properties; }
-	Parameters&					properties() { return _properties; }
+	Parameters&					properties() { return (Parameters&)Client::properties(); }
 
 	void						setAddress(const SocketAddress& address);
 	/*!
@@ -46,20 +43,8 @@ struct Peer : Client, virtual Object {
 	void						setPath(const std::string& value) { ((std::string&)Client::path).assign(value); }
 	void						setQuery(const std::string& value) { ((std::string&)Client::query).assign(value); }
 	
-	UInt16						setPing(UInt64 value);
-	UInt16						ping() const { return _ping; }
+	UInt16						setPing(UInt64 value) { pingTime.update(); return Client::setPing(value); }
 	Time						pingTime;
-	UInt32						rto() const { return _rto; }
-
-	Time						recvTime() const { if (_pNetStats) return _pNetStats->recvTime(); return 0; }
-	UInt64						recvByteRate() const { return _pNetStats ? _pNetStats->recvByteRate() : 0; }
-	double						recvLostRate() const { return _pNetStats ? _pNetStats->recvLostRate() : 0; }
-
-	Time						sendTime() const { if (_pNetStats) return _pNetStats->sendTime(); return 0; }
-	UInt64						sendByteRate() const { return _pNetStats ? _pNetStats->sendByteRate() : 0; }
-	double						sendLostRate() const { return _pNetStats ? _pNetStats->sendLostRate() : 0; }
-
-	UInt64						queueing() const { return _pNetStats ? _pNetStats->queueing() : 0; }
 
 	// events
 	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters) { onConnection(ex, writer, netStats, parameters, DataWriter::Null()); }
@@ -80,15 +65,7 @@ struct Peer : Client, virtual Object {
 private:
 	bool onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties);
 
-	ServerAPI&						_api;
-	Parameters						_properties;
-
-	Net::Stats*						_pNetStats;
-	Writer*							_pWriter;
-
-	UInt16							_ping;
-	UInt32							_rto;
-	double							_rttvar;
+	ServerAPI& _api;
 };
 
 } // namespace Mona

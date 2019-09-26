@@ -114,6 +114,8 @@ const char* HTTP::ErrorToCode(Int32 error) {
 	if (!error)
 		return NULL;
 	switch (error) {
+		case Session::ERROR_UPDATE:
+			return HTTP_CODE_205;
 		case Session::ERROR_UNAVAILABLE:
 		case Session::ERROR_SERVER:
 			return HTTP_CODE_503; // Service unavailable

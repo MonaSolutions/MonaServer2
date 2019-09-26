@@ -180,18 +180,28 @@ void HTTPWriter::flushing() {
 		_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front()));
 }
 
-void HTTPWriter::writeSetCookie(const char* key, const string& value, DataReader& params) {
+void HTTPWriter::writeSetCookie(const string& key, DataReader& reader) {
 	if (!_pSetCookie)
 		_pSetCookie.set();
-	QueryWriter writer(*_pSetCookie);
+
+	String::Append(*_pSetCookie, "\r\nSet-Cookie: ", key, '=');
+	StringWriter<> value(*_pSetCookie);
+	reader.read(value, 1);
+	_pSetCookie->append(EXPAND("; path="));
+	// write path parameters
+	if (_session.peer.path.empty())
+		_pSetCookie->append(EXPAND("/"));
+	else
+		_pSetCookie->append(_session.peer.path.data(), _session.peer.path.size());
+	// write other params
+	if (!reader.available())
+		return;
+	QueryWriter writer(_pSetCookie ? *_pSetCookie : _pSetCookie.set());
 	writer.separator = "; ";
 	writer.dateFormat = Date::FORMAT_RFC1123;
 	writer.uriChars = false;
-
-	writer->write(EXPAND("\r\nSet-Cookie: "));
-	writer.writePropertyName(key);
-	writer.writeString(value.data(), value.size());
-	params.read(writer);
+	writer->write(EXPAND("; "));
+	reader.read(writer);
 }
 
 void HTTPWriter::writeFile(const Path& file, Parameters& properties) {

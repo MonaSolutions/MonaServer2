@@ -542,22 +542,27 @@ string& FileSystem::Resolve(string& path) {
 				if (type == TYPE_FILE)
 					MakeFile(newPath);
 			} else {
-				newPath.insert(0, file, size).insert(0, dirs[--parentPos]);
-				if (type == TYPE_FOLDER)
+				if (!newPath.empty())
+					++size; // file contains necessary a "/" in the end to add
+				else if (type == TYPE_FOLDER)
 					newPath += '/';
+				newPath.insert(0, file, size).insert(0, dirs[--parentPos]);
 			}
 			return path = move(newPath);
 		}
-		newPath.insert(0, "/").insert(0, file, size);
+		if (size) {
+			if(!newPath.empty())
+				newPath.insert(0, "/");
+			newPath.insert(0, file, size);
+		}
 		path.resize(parentPos);
 	} while (size);
-	if (type == TYPE_FILE) {
-		if (newPath.size()==1) // = '/'
-			newPath += '.';
-		else
-			newPath.pop_back();
-	}
-	path.pop_back(); // can not be empty here
+
+	if (!newPath.empty()) {
+		if (type == TYPE_FOLDER)
+			newPath += '/';
+	} else if(type == TYPE_FILE)
+		newPath += '.';
 	return path = move(newPath.insert(0, path));
 }
 

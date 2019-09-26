@@ -24,12 +24,13 @@ namespace Mona {
 struct Parameters : String::Object<Parameters> {
 	typedef Event<void(const std::string& key, const std::string* pValue)> ON(Change);
 	typedef Event<void()>												   ON(Clear);
-	typedef Event<const std::string*(const std::string& key)>				ON(Unfound);
+	typedef Event<const std::string*(const std::string& key)>			   ON(Unfound);
 	
 	typedef std::map<std::string, std::string, String::IComparator>::const_iterator const_iterator;
+	typedef std::map<std::string, std::string, String::IComparator>::key_compare key_compare;
+
 	struct ForEach {
-		ForEach() : _begin(Null().end()), _end(Null().end()) {}
-		ForEach(const_iterator begin, const_iterator end) : _begin(begin), _end(end) {}
+		ForEach(const const_iterator& begin, const const_iterator& end) : _begin(begin), _end(end) {}
 		const_iterator		begin() const { return _begin; }
 		const_iterator		end() const { return _end; }
 	private:
@@ -43,11 +44,16 @@ struct Parameters : String::Object<Parameters> {
 
 	const Parameters& parameters() const { return self; }
 
-	const_iterator	begin() const { return _pMap ? _pMap->begin() : Null().begin(); }
-	const_iterator	end() const { return _pMap ? _pMap->end() : Null().end(); }
-	ForEach			from(const std::string& prefix) const { return _pMap ? ForEach(_pMap->lower_bound(prefix), _pMap->end()) : ForEach(); }
+	const_iterator	begin() const { return params().begin(); }
+	const_iterator	end() const { return params().end(); }
+	const_iterator  lower_bound(const std::string& key) const { return params().lower_bound(key); }
+	ForEach			from(const std::string& prefix) const { return ForEach(params().lower_bound(prefix), params().end()); }
 	ForEach			range(const std::string& prefix) const;
-	UInt32			count() const { return _pMap ? _pMap->size() : 0; }
+	UInt32			count() const { return params().size(); }
+
+
+	const Time&		timeChanged() const { return _timeChanged; }
+
 
 	Parameters&		clear(const std::string& prefix = String::Empty());
 
@@ -77,6 +83,7 @@ struct Parameters : String::Object<Parameters> {
 	bool hasKey(const std::string& key) const { return getParameter(key) != NULL; }
 
 	bool erase(const std::string& key);
+	const_iterator erase(const_iterator first, const_iterator last);
 
 	const std::string& setString(const std::string& key, const std::string& value) { return setParameter(key, value); }
 	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) {
@@ -91,7 +98,11 @@ struct Parameters : String::Object<Parameters> {
 
 	const std::string* getParameter(const std::string& key) const;
 	template<typename ValueType>
-	const std::string& setParameter(const std::string& key, ValueType&& value) {
+	const std::string& setParameter(const std::string& key, ValueType&& value) { return emplace(key, std::forward<ValueType>(value)).first->second; }
+	/*!
+	Just to match STD container (see MapWriter) */
+	template<typename ValueType>
+	std::pair<const_iterator, bool> emplace(const std::string& key, ValueType&& value) {
 		if (!_pMap)
 			_pMap.set();
 		const auto& it = _pMap->emplace(key, std::string());
@@ -99,12 +110,9 @@ struct Parameters : String::Object<Parameters> {
 			it.first->second = std::forward<ValueType>(value);
 			onParamChange(it.first->first, &it.first->second);
 		}
-		return it.first->second;
+		return it;
 	}
-	/*!
-	Just to match STD container (see MapWriter) */
-	template<typename ValueType>
-	const std::string& emplace(const std::string& key, ValueType&& value) { return setParameter(key, std::forward<ValueType>(value)); }
+
 
 	static const Parameters& Null() { static Parameters Null(nullptr); return Null; }
 
@@ -112,13 +120,19 @@ protected:
 	Parameters(const Parameters& other) { setParams(other); }
 	Parameters& setParams(const Parameters& other);
 
-	virtual void onParamChange(const std::string& key, const std::string* pValue) { onChange(key, pValue); }
-	virtual void onParamClear() { onClear(); }
+	virtual void onParamChange(const std::string& key, const std::string* pValue) { _timeChanged.update(); onChange(key, pValue); }
+	virtual void onParamClear() { _timeChanged.update(); onClear(); }
 
 private:
 	virtual const std::string* onParamUnfound(const std::string& key) const { return onUnfound(key); }
+	virtual void onParamInit() {}
+
+	const std::map<std::string, std::string, String::IComparator>& params() const { if (!_pMap) ((Parameters&)self).onParamInit(); return _pMap ? *_pMap : *Null()._pMap; }
+
 
 	Parameters(std::nullptr_t) : _pMap(SET) {} // Null()
+
+	Time _timeChanged;
 
 	// shared because a lot more faster than using st::map move constructor!
 	// Also build _pMap just if required, and then not erase it but clear it (more faster that reset the shared)

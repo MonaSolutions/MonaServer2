@@ -112,8 +112,8 @@ void MediaWriter::writeMedia(const Media::Base& media, const OnWrite& onWrite) {
 		case Media::TYPE_DATA: {
 			const Media::Data& data = (const Media::Data&)media;
 			if (data.isProperties)
-				return writeProperties(Media::Properties((const Media::Data&)media), onWrite);
-			return writeData(media.track, ((const Media::Data&)media).tag, media, onWrite);
+				return writeProperties(Media::Properties(media.track, data.tag, media), onWrite);
+			return writeData(media.track, data.tag, media, onWrite);
 		}
 		default:
 			WARN(typeof(self), " write a unknown media");

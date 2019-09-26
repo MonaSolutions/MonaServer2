@@ -31,6 +31,24 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct ServerAPI : virtual Object, Parameters {
+	// invocations
+
+	const std::string&			www;
+	const Handler&				handler;
+	const Timer&				timer;
+
+	const Protocols&			protocols;
+	const Entity::Map<Client>	clients;
+	
+	const std::map<std::string, Publication>&	publications() { return _publications; }
+
+	ThreadPool 				threadPool; // keep in first (must be build before ioSocket and ioFile)
+	IOSocket				ioSocket;
+	IOFile					ioFile;
+
+	shared<TLS>				pTLSClient;
+	shared<TLS>				pTLSServer;
+
 	template<typename RunnerType>
 	bool queue(RunnerType&& pRunner) {
 		if (running()) {
@@ -42,25 +60,6 @@ struct ServerAPI : virtual Object, Parameters {
 	}
 	template <typename RunnerType, typename ...Args>
 	void queue(Args&&... args) { queue(shared<RunnerType>(SET, std::forward<Args>(args)...)); }
-
-	// invocations
-	const Handler&			handler;
-	const Timer&			timer;
-
-	const Path&				www;
-
-	const Protocols&			protocols;
-	const Entity::Map<Client>	clients;
-	
-	const std::map<std::string, Publication>&	publications() { return _publications; }
-
-	ThreadPool 				threadPool; // keep in first (must be build before ioSocket and ioFile)
-	IOSocket				ioSocket;
-	IOFile					ioFile;
-	
-
-	shared<TLS>	pTLSClient;
-	shared<TLS>	pTLSServer;
 
 	/*!
 	Publish a publication
@@ -80,8 +79,8 @@ struct ServerAPI : virtual Object, Parameters {
 	If one other subscription exists already, switch publication in a smooth way (MBR)  */
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription) { return subscribe(ex, stream, subscription, NULL); }
 	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream, subscription, query, NULL); }
-	bool					subscribe(Exception& ex, std::string& stream, Client& client, Subscription& subscription) { return subscribe(ex, stream, subscription, &client); }
-	bool					subscribe(Exception& ex, const std::string& stream, Client& client, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream, subscription, query, &client); }
+	bool					subscribe(Exception& ex, Client& client, std::string& stream, Subscription& subscription) { return subscribe(ex, stream, subscription, &client); }
+	bool					subscribe(Exception& ex, Client& client, const std::string& stream, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream, subscription, query, &client); }
 
 	void					unsubscribe(Subscription& subscription) { unsubscribe(subscription, NULL); }
 	void					unsubscribe(Client& client, Subscription& subscription) { unsubscribe(subscription, &client); }
@@ -99,11 +98,11 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual bool			onPublish(Exception& ex, Publication& publication, Client* pClient){return true;}
 	virtual void			onUnpublish(Publication& publication, Client* pClient){}
 
-	virtual bool			onSubscribe(Exception& ex, const Subscription& subscription, const Publication& publication, Client* pClient){return true;}
-	virtual void			onUnsubscribe(const Subscription& subscription, const Publication& publication, Client* pClient){}
+	virtual bool			onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient){return true;}
+	virtual void			onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient){}
 
 protected:
-	ServerAPI(std::map<std::string, Publication>& publications, const Path& www, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
+	ServerAPI(std::string& www, std::map<std::string, Publication>& publications, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores=0);
 
 private:
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription, Client* pClient);
@@ -115,7 +114,6 @@ private:
 	Publication*			publish(Exception& ex, std::string& stream, Client* pClient);
 	Publication*			publish(Exception& ex, const std::string& stream, const char* ext, const char* query, Client* pClient);
 	void					unpublish(Publication& publication, Client* pClient);
-
 
 	std::map<std::string, Publication>&	_publications;
 };

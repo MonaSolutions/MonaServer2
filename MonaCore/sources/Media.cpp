@@ -29,6 +29,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/StringWriter.h"
 #include "Mona/MapReader.h"
 #include "Mona/MapWriter.h"
+#include "Mona/SplitWriter.h"
 
 #include "Mona/MediaSocket.h"
 #include "Mona/MediaFile.h"
@@ -216,75 +217,91 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 	return Media::TYPE_DATA;
 }
 
-Media::Properties::Properties(const Media::Data& data) : _packets(1, move(data)), _timeProperties(0) {
-	unique<DataReader> pReader(Data::NewReader(data.tag, data, Media::Data::TYPE_TEXT));
-	MapWriter<Parameters> writer(self);
-	pReader->read(writer);
+void Media::Properties::onParamInit() {
+	Media::Data::Type type = Media::Data::Type(_packets.size());
+	if (type) // else no packets
+		addProperties(_track, type, _packets.back());
 }
-
 void Media::Properties::onParamChange(const std::string& key, const std::string* pValue) {
 	_packets.clear();
-	_timeProperties.update();
 	Parameters::onParamChange(key, pValue);
 }
 void Media::Properties::onParamClear() {
 	_packets.clear();
-	_timeProperties.update();
 	Parameters::onParamClear();
 }
-
-const Packet& Media::Properties::operator[](Media::Data::Type type) const {
-	if (!type)
-		return this->operator()(type);
-	// not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
-	_packets.resize(type);
-	Packet& packet(_packets[type - 1]);
-	if (packet)
-		return packet;
-	// Serialize in the format requested!
-	shared<Buffer> pBuffer(SET);
-	unique<DataWriter> pWriter(Media::Data::NewWriter(type, *pBuffer));
-	MapReader<Parameters> reader(self);
-	reader.read(*pWriter);
-	return packet.set(pBuffer);
-}
-const Packet& Media::Properties::operator()(Media::Data::Type& type) const {
-	// give the first available serialization or serialize to JSON by default
-	UInt32 i = 0;
-	for (const Packet& packet : _packets) {
-		++i;
-		if (packet) {
-			type = (Media::Data::Type)i;
-			return packet;
+const Packet& Media::Properties::data(Media::Data::Type& type) const {
+	if(!type) {
+		// JSON in priority if available!
+		if (_packets.size() >= Media::Data::TYPE_JSON && _packets[Media::Data::TYPE_JSON - 1])
+			return _packets[(type=Media::Data::TYPE_JSON) - 1];
+		// Or give the first available serialization
+		for (UInt32 i = 0; i < _packets.size(); ++i) {
+			if (_packets[i]) {
+				type = Media::Data::Type(i + 1);
+				return _packets[i];
+			}
 		}
+		// Else serialize to JSON
+		type = Media::Data::TYPE_JSON;
 	}
-	return this->operator[](type=Media::Data::TYPE_JSON);
+	// not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
+	UInt32 oldSize = _packets.size();
+	if(type>oldSize)
+		_packets.resize(type);
+	Packet& packet = _packets[type - 1];
+	if (!packet) {
+		// Serialize in the format requested!
+		shared<Buffer> pBuffer(SET);
+		unique<DataWriter> pWriter(Media::Data::NewWriter(type, *pBuffer));
+		if (!pWriter) {
+			_packets.resize(oldSize);
+			WARN("Properties type ", Data::TypeToString(type), " unsupported");
+			return data(type = Data::TYPE_JSON);
+		}
+		MapReader<Parameters>(self).read(*pWriter);
+		packet.set(pBuffer);
+	}
+	return packet;
 }
-
-
-void Media::Properties::setProperties(Media::Data::Type type, const Packet& packet, UInt8 track) {
-	if (!track)
-		track = 1; // by default use track=1 to never override all properties (let's it to final user in using Media::Properties directly)
-
-	unique<DataReader> pReader(Media::Data::NewReader(type, packet, Media::Data::TYPE_TEXT));
-
-	// clear in first this track properties!
-	String prefix(track, '.');
-	clear(prefix);
-	prefix.pop_back();
-
-	// write new properties
+UInt32 Media::Properties::addProperties(UInt8 track, DataReader& reader) {
+	// add new properties
 	MapWriter<Parameters> writer(self);
+	if(!track)
+		return reader.read(writer, 1); // just one argument!
 	writer.beginObject();
-	writer.writePropertyName(prefix.c_str());
-	pReader->read(writer);
-	writer.endObject();
-
-	// Save packet formatted!
-	_packets.resize(type);
-	_packets[type - 1].set(move(packet));
+	writer.writePropertyName(String(track, '.').c_str());
+	UInt32 count = reader.read(writer, 1); // just one argument!
+	writer.endObject(); // impossible to save packet, not represent all metadata!
+	return count;
+}
+void Media::Properties::addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {
+	// keep _packets.empty condition BEFORE count() condition to avoid a overflow call while onParamInit (count() can call onParamInit)
+	if (type && _packets.empty() && !count()) { 
+		_packets.resize(type - 1);
+		_track = track;
+		return;
+	}
+	std::deque<Packet> packets = move(_packets); // to avoid _packets clear of onParamChange/Clear while onParamInit!
+	unique<DataReader> pReader(Media::Data::NewReader(type, packet));
+	if (pReader)
+		addProperties(track, *pReader);
+	else
+		WARN("Properties type ", Data::TypeToString(type), " unsupported");
+	if (!packets.empty() && &packet == &packets.back())
+		_packets = move(packets); // was onParamInit!
 }
 
+static const string _TrackMaxPrefix("256/"); // "256", '.' + 1
+void Media::Properties::clearTracks() {
+	erase(begin(), lower_bound(_TrackMaxPrefix));
+}
+void Media::Properties::clear(UInt8 track) {
+	if(track)
+		erase(lower_bound(String(track, '.')), lower_bound(String(track, '.'+1)));
+	else
+		erase(lower_bound(_TrackMaxPrefix), end());
+}
 
 Media::Data::Type Media::Data::ToType(const type_info& info) {
 	static const map<size_t, Media::Data::Type> Types({
@@ -307,7 +324,7 @@ Media::Data::Type Media::Data::ToType(const char* subMime) {
 		return TYPE_XMLRPC;
 	if (String::ICompare(subMime, EXPAND("amf")) == 0 || String::ICompare(subMime, EXPAND("x-amf")) == 0)
 		return TYPE_AMF;
-	if (String::ICompare(subMime, EXPAND("x-www-form-urlencoded")) == 0)
+	if (String::ICompare(subMime, EXPAND("query")) == 0 || String::ICompare(subMime, EXPAND("x-www-form-urlencoded")) == 0)
 		return TYPE_QUERY;
 	return TYPE_UNKNOWN;
 }
@@ -361,21 +378,11 @@ unique<DataWriter> Media::Data::NewWriter(Type type, Buffer& buffer, Type altern
 	return alternateType ? NewWriter(alternateType, buffer) : nullptr;
 }
 
-
-void Media::Source::setProperties(const Media::Properties& properties, UInt8 track) {
-	MapReader<Parameters> reader(properties);
-	Media::Data::Type type;
-	const Packet& packet = properties(type);
-	setProperties(type, packet, track);
+void Media::Source::addProperties(const Media::Properties& properties) {
+	Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
+	const Packet& packet = properties.data(type);
+	addProperties(0, type, packet);
 }
-void Media::Source::setProperties(DataReader& reader, UInt8 track) {
-	shared<Buffer> pBuffer(SET);
-	JSONWriter writer(*pBuffer);
-	reader.read(writer);
-	setProperties(Media::Data::TYPE_JSON, Packet(pBuffer), track);
-}
-
-
 void Media::Source::writeMedia(const Media::Base& media) {
 	switch (media.type) {
 		case Media::TYPE_AUDIO:
@@ -385,7 +392,7 @@ void Media::Source::writeMedia(const Media::Base& media) {
 		case Media::TYPE_DATA: {
 			const Media::Data& data = (const Media::Data&)media;
 			if (data.isProperties)
-				return setProperties(data.tag, media, media.track);
+				return addProperties(media.track, data.tag, media);
 			return writeData(data.tag, media, media.track);
 		}
 		default:
@@ -398,7 +405,7 @@ Media::Source& Media::Source::Null() {
 		void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track=1) {}
 		void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track=1) {}
 		void writeData(Media::Data::Type type, const Packet& packet, UInt8 track=0) {}
-		void setProperties(Media::Data::Type type, const Packet& packet, UInt8 track=1) {}
+		void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {}
 		void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) {}
 		void flush() {}
 		void reset() {}

@@ -92,7 +92,8 @@ bool WSWriter::writeData(Media::Data::Type type, const Packet& packet, bool reli
 
 bool WSWriter::writeProperties(const Media::Properties& properties) {
 	// Necessary TEXT(JSON) transfer (to match data publication)
-	writeJSON(properties[Media::Data::TYPE_JSON]).writeString(EXPAND("@properties"));
+	Media::Data::Type type(Media::Data::TYPE_JSON);
+	writeJSON(properties.data(type)).writeString(EXPAND("@properties"));
 	return true;
 }
 

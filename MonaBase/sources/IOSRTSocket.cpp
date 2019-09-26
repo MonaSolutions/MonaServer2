@@ -43,7 +43,7 @@ bool IOSRTSocket::subscribe(Exception& ex, const shared<Socket>& pSocket) {
 		return false;
 	}
 
-	int modes = SRT_EPOLL_IN | SRT_EPOLL_OUT | SRT_EPOLL_ERR;
+	int modes = SRT_EPOLL_IN | SRT_EPOLL_OUT | SRT_EPOLL_ERR | SRT_EPOLL_ET;
 	lock_guard<mutex> lockSockets(_mutexSockets); // must protected _sockets
 	if (::srt_epoll_add_usock(_epoll, pSocket->id(), &modes) < 0) {
 		ex.set<Ex::Net::System>(::srt_getlasterror_str(), ", ", name(), " can't manage socket ", *pSocket);
@@ -91,7 +91,7 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 
 	int result(0);
 	for (;;) {
-		result = ::srt_epoll_uwait(_epoll, events, MAXEVENTS, -1, true);
+		result = ::srt_epoll_uwait(_epoll, events, MAXEVENTS, -1);
 
 		if (!_subscribers) {
 			lock_guard<mutex> lock(_mutex);

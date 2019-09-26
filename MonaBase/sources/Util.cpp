@@ -134,7 +134,7 @@ size_t Util::UnpackUrl(const char* url, string& address, string& path, string& q
 	// level > 1 => path => . after /
 	UInt8 level(1); 
 
-	ForEachDecodedChar forEach([&level,&slashs,&path,&query](char c,bool wasEncoded){
+	String::ForEachDecodedChar forEach([&level,&slashs,&path,&query](char c,bool wasEncoded){
 
 		if (c == '?')
 			return false;
@@ -174,7 +174,7 @@ size_t Util::UnpackUrl(const char* url, string& address, string& path, string& q
 		return true;
 	});
 
-	url += DecodeURI(url,forEach);
+	url += String::FromURI(url,forEach);
 
 	// get QUERY
 	if (*url)
@@ -202,7 +202,7 @@ UInt32 Util::UnpackQuery(const char* query, size_t count, const ForEachParameter
 	string name,value;
 	bool isName(true);
 
-	ForEachDecodedChar forEachDecoded([&isName, &countPairs, &name, &value, &forEach](char c, bool wasEncoded) {
+	String::ForEachDecodedChar forEachDecoded([&isName, &countPairs, &name, &value, &forEach](char c, bool wasEncoded) {
 
 		if (!wasEncoded) {
 			if (c == '&') {
@@ -231,73 +231,13 @@ UInt32 Util::UnpackQuery(const char* query, size_t count, const ForEachParameter
 		return true;
 	});
 
-	if (DecodeURI(query, count, forEachDecoded) && countPairs>=0) {
+	if (String::FromURI(query, count, forEachDecoded) && countPairs>=0) {
 		// for the last pairs just if there was some decoded bytes
 		++countPairs;
 		forEach(name, isName ? NULL : value.c_str());
 	}
 
 	return abs(countPairs);
-}
-
-UInt32 Util::DecodeURI(const char* value, std::size_t count, const ForEachDecodedChar& forEach) {
-
-	const char* begin(value);
-
-	while (count && (count!=string::npos || *value)) {
-
-		if (*value == '%') {
-			// %
-			++value;
-			if(count!=string::npos)
-				--count;
-			if (!count || (count==string::npos && !*value)) {
-				 // syntax error
-				if (!forEach('%', false))
-					--value;
-				return value-begin;
-			}
-			
-			char hi = toupper(*value);
-			++value;
-			if(count!=string::npos)
-				--count;
-			if (!count || (count==string::npos && !*value)) {
-				// syntax error
-				if (forEach('%', false)) {
-					if (!forEach(hi, false))
-						--value;
-				} else
-					value-=2;
-				return value-begin;
-			}
-			char lo = toupper(*value++);
-			if (count != string::npos)
-				--count;
-			if (!isxdigit(lo) || !isxdigit(hi)) {
-				// syntax error
-				if (forEach('%', false)) {
-					if (forEach(hi, false)) {
-						if (forEach(lo, false))
-							continue;
-					} else
-						--value;
-				} else
-					value -= 2;
-				return value - begin;
-			}
-			if (forEach(char((hi - (hi <= '9' ? '0' : '7')) << 4) | ((lo - (lo <= '9' ? '0' : '7')) & 0x0F), true))
-				continue;
-			return value - 3 - begin;
-		}
-		if (!forEach(*value, false))
-			break;
-		++value;
-		if (count != string::npos)
-			--count;
-	}
-
-	return value - begin;
 }
 
 void Util::Dump(const UInt8* data, UInt32 size, Buffer& buffer) {

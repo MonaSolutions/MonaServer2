@@ -26,7 +26,7 @@ struct Binary : virtual Object {
 	virtual const UInt8*	data() const = 0;
 	virtual UInt32			size() const = 0;
 
-	explicit operator bool() const { return data() && size(); }
+	explicit operator bool() const { return size() ? true : false; }
 
 	template<typename ValueType>
 	static UInt8 Get7BitSize(typename std::common_type<ValueType>::type value, UInt8 bytes = sizeof(ValueType) + 1) {

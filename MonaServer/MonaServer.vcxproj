@@ -91,7 +91,7 @@
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;..;./External/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -105,9 +105,9 @@
       <StringPooling>false</StringPooling>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>lua51.lib;MonaCored.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
-      <AdditionalLibraryDirectories>../External/lib;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>./External/lib;../External/lib;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <GenerateDebugInformation>Debug</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
@@ -116,14 +116,15 @@
       <Profile>false</Profile>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(ProjectDir)..\hooks" (copy /Y "$(ProjectDir)..\hooks\pre-commit" "$(ProjectDir)..\.git\hooks\pre-commit")</Command>
+      <Command>if exist "$(ProjectDir)..\hooks" (copy /Y "$(ProjectDir)..\hooks\pre-commit" "$(ProjectDir)..\.git\hooks\pre-commit");
+copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include64;../MonaBase/include;../MonaCore/include;./External/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -158,7 +159,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\External\include;..\MonaCore\include;..\MonaBase\include;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\External\include;..\MonaCore\include;..\MonaBase\include;..;./External/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -175,7 +176,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>lua51.lib;MonaCore.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../External/lib;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>./External/lib;../External/lib;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -185,7 +186,8 @@
       <GenerateMapFile>false</GenerateMapFile>
     </Link>
     <PostBuildEvent>
-      <Command>if exist "$(ProjectDir)..\hooks" (copy /Y "$(ProjectDir)..\hooks\pre-commit" "$(ProjectDir)..\.git\hooks\pre-commit")</Command>
+      <Command>if exist "$(ProjectDir)..\hooks" (copy /Y "$(ProjectDir)..\hooks\pre-commit" "$(ProjectDir)..\.git\hooks\pre-commit");
+copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
@@ -196,7 +198,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\External\include;..\MonaCore\include;..\MonaBase\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\External\include64;..\MonaCore\include;..\MonaBase\include;./External/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -230,64 +232,92 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="sources\LUAFile.h" />
-    <ClInclude Include="sources\LUAIPAddress.h" />
-    <ClInclude Include="sources\LUAMediaWriter.h" />
-    <ClInclude Include="sources\LUANetStats.h" />
-    <ClInclude Include="sources\LUAPersistentTable.h" />
-    <ClInclude Include="sources\LUASocketAddress.h" />
-    <ClInclude Include="sources\LUAXML.h" />
+    <ClInclude Include="sources\LUAIPAddress.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="sources\LUAMap.h" />
+    <ClInclude Include="sources\LUAMedia.h" />
+    <ClInclude Include="sources\LUANetStats.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="sources\LUASocket.h" />
+    <ClInclude Include="sources\LUASocketAddress.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="sources\LUASubscription.h" />
+    <ClInclude Include="sources\LUATimer.h" />
+    <ClInclude Include="sources\LUAVector.h" />
+    <ClInclude Include="sources\LUAWriter.h" />
+    <ClInclude Include="sources\LUAXML.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="sources\MonaServer.h" />
     <ClInclude Include="sources\Script.h" />
     <ClInclude Include="sources\ScriptReader.h" />
     <ClInclude Include="sources\ScriptWriter.h" />
     <ClInclude Include="sources\Service.h" />
-    <ClInclude Include="sources\LUABroadcaster.h" />
-    <ClInclude Include="sources\LUAClient.h" />
-    <ClInclude Include="sources\LUAGroup.h" />
-    <ClInclude Include="sources\LUAInvoker.h" />
-    <ClInclude Include="sources\LUAListener.h" />
-    <ClInclude Include="sources\LUAMember.h" />
-    <ClInclude Include="sources\LUAPublication.h" />
-    <ClInclude Include="sources\LUAQualityOfService.h" />
-    <ClInclude Include="sources\LUAServer.h" />
-    <ClInclude Include="sources\LUATCPClient.h" />
-    <ClInclude Include="sources\LUATCPServer.h" />
-    <ClInclude Include="sources\LUAUDPSocket.h" />
-    <ClInclude Include="sources\LUAWriter.h" />
-    <ClInclude Include="sources\Broadcaster.h" />
-    <ClInclude Include="sources\ServerConnection.h" />
-    <ClInclude Include="sources\Servers.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="sources\LUAFile.cpp" />
-    <ClCompile Include="sources\LUAIPAddress.cpp" />
+    <ClCompile Include="sources\LUAIPAddress.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUAMap.cpp" />
+    <ClCompile Include="sources\LUAMedia.cpp" />
+    <ClCompile Include="sources\LUAMediaReader.cpp" />
     <ClCompile Include="sources\LUAMediaWriter.cpp" />
-    <ClCompile Include="sources\LUANetStats.cpp" />
-    <ClCompile Include="sources\LUAPersistentTable.cpp" />
-    <ClCompile Include="sources\LUASocketAddress.cpp" />
-    <ClCompile Include="sources\LUAXML.cpp" />
+    <ClCompile Include="sources\LUAMona.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUAPacket.cpp" />
+    <ClCompile Include="sources\LUAParameters.cpp" />
+    <ClCompile Include="sources\LUAPath.cpp" />
+    <ClCompile Include="sources\LUAPublications.cpp" />
+    <ClCompile Include="sources\LUASocketAddress.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUASubscription.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUATimer.cpp" />
+    <ClCompile Include="sources\LUAXML.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="sources\main.cpp" />
     <ClCompile Include="sources\MonaServer.cpp" />
     <ClCompile Include="sources\Script.cpp" />
     <ClCompile Include="sources\ScriptReader.cpp" />
     <ClCompile Include="sources\ScriptWriter.cpp" />
     <ClCompile Include="sources\Service.cpp" />
-    <ClCompile Include="sources\LUABroadcaster.cpp" />
-    <ClCompile Include="sources\LUAClient.cpp" />
-    <ClCompile Include="sources\LUAGroup.cpp" />
-    <ClCompile Include="sources\LUAInvoker.cpp" />
-    <ClCompile Include="sources\LUAListener.cpp" />
-    <ClCompile Include="sources\LUAMember.cpp" />
-    <ClCompile Include="sources\LUAPublication.cpp" />
-    <ClCompile Include="sources\LUAQualityOfService.cpp" />
-    <ClCompile Include="sources\LUAServer.cpp" />
-    <ClCompile Include="sources\LUATCPClient.cpp" />
-    <ClCompile Include="sources\LUATCPServer.cpp" />
-    <ClCompile Include="sources\LUAUDPSocket.cpp" />
-    <ClCompile Include="sources\LUAWriter.cpp" />
-    <ClCompile Include="sources\ServerConnection.cpp" />
-    <ClCompile Include="sources\Servers.cpp" />
+    <ClCompile Include="sources\LUAClient.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUAPublication.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUATCPClient.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUATCPServer.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUAUDPSocket.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="sources\LUAWriter.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MonaBase\MonaBase.vcxproj">

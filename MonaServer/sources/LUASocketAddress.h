@@ -18,18 +18,13 @@ details (or else see http://www.gnu.org/licenses/).
 
 #pragma once
 
-#include "Mona/SocketAddress.h"
 #include "Script.h"
+#include "Mona/SocketAddress.h"
 
-class LUASocketAddress {
-public:
-	static void Init(lua_State *pState, Mona::SocketAddress& address);
-	static void	Clear(lua_State* pState, Mona::SocketAddress& address);
-	static void	Delete(lua_State* pState, Mona::SocketAddress& address) { delete &address; }
-	static int	Index(lua_State *pState);
-	static int	IndexConst(lua_State *pState);
+namespace Mona {
 
-	static bool Read(Mona::Exception& ex, lua_State *pState, int index, Mona::SocketAddress& address,bool withDNS=false);
-private:
-	static int	Call(lua_State *pState);
+struct LUASocketAddress : virtual Static {
+	static bool From(Exception& ex, lua_State *pState, int index, SocketAddress& address, bool withDNS = false);
 };
+
+}
