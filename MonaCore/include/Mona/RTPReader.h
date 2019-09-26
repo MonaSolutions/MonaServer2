@@ -48,7 +48,7 @@ private:
 		if (byte & 0x20) // padding, last byte is the padding size
 			 padding = buffer.data()[buffer.size()-1];
 
-		bool extension = byte & 0x10;
+		bool extension = (byte & 0x10) != 0;
 		UInt8 csrcCount = byte & 0x0F; // TODO onLost!!
 
 		byte = reader.read8();

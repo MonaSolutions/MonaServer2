@@ -1,4 +1,8 @@
 /*
+This code is in part based on code from the POCO C++ Libraries,
+licensed under the Boost software license :
+https://www.boost.org/LICENSE_1_0.txt
+
 This file is a part of MonaSolutions Copyright 2017
 mathieu.poux[a]gmail.com
 jammetthomas[a]gmail.com
@@ -42,7 +46,7 @@ TerminateSignal			ServerApplication::_TerminateSignal;
 static SERVICE_STATUS			_ServiceStatus;
 static SERVICE_STATUS_HANDLE	_ServiceStatusHandle(0);
 
-void  ServerApplication::ServiceControlHandler(unsigned long control) {
+void  ServerApplication::ServiceControlHandler(DWORD control) {
 	switch (control) {
 	case SERVICE_CONTROL_STOP:
 	case SERVICE_CONTROL_SHUTDOWN:
@@ -57,7 +61,7 @@ void  ServerApplication::ServiceControlHandler(unsigned long control) {
 }
 
 
-BOOL ServerApplication::ConsoleCtrlHandler(unsigned long ctrlType) {
+BOOL ServerApplication::ConsoleCtrlHandler(DWORD ctrlType) {
 	switch (ctrlType) {
 	case CTRL_C_EVENT:
 	case CTRL_CLOSE_EVENT:
@@ -69,7 +73,7 @@ BOOL ServerApplication::ConsoleCtrlHandler(unsigned long ctrlType) {
 	}
 }
 
-void ServerApplication::ServiceMain(unsigned long argc, char** argv) {
+void ServerApplication::ServiceMain(DWORD argc, char** argv) {
 	_PThis->setBoolean("application.runAsService", true);
 	_PThis->_isInteractive = false;
 

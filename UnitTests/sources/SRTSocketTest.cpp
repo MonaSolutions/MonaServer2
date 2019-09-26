@@ -308,7 +308,7 @@ ADD_TEST(TestLoad) {
 	});
 	server.onError = onError;
 
-	const UInt32 messages(5000);
+	const UInt32 messages(8191); // it seems this is the limit before getting the log "No room to store incoming packet"
 	atomic<UInt32> received(0);
 	server.onConnection = [&](const shared<Socket>& pSocket) {
 		CHECK(pSocket && pSocket->peerAddress());
@@ -342,7 +342,6 @@ ADD_TEST(TestLoad) {
 	address = server->address();
 
 	SRTEchoClient client(io);
-
 	CHECK(client->setPktDrop(ex, false) && !ex); // /!\we want reliable here
 	SocketAddress target(IPAddress::Loopback(), address.port());
 	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
@@ -463,6 +462,24 @@ ADD_TEST(TestOptions) {
 
 	CHECK(pClient->getMSS(ex, value) && !ex && value == 750);
 	CHECK(pClient->getMaxBW(ex, val64) && !ex && val64 == 50000000);
+}
+
+ADD_TEST(ListenCallback) {
+	unique<SRT::Socket> pClient(SET);
+	unique<Server> pServer(SET);
+
+	Exception ex;
+	const char* streamId("#!::r=stream");
+	pClient->setStreamId(ex, streamId, strlen(streamId));
+
+	// Connect client
+	SocketAddress source(IPAddress::Wildcard(), 0);
+	source.setPort(pServer->bind(source).port());
+	SocketAddress target(IPAddress::Loopback(), source.port());
+	pServer->accept();
+	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
+	const Mona::Socket& socket(pServer->connection());
+	CHECK(((SRT::Socket&)socket).stream == streamId);
 }
 
 }
