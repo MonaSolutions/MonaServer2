@@ -27,7 +27,12 @@ struct SRTSession : Session, virtual Object {
 	SRTSession(Protocol& protocol, const shared<Socket>& pSocket);
 	~SRTSession() { disengage(); }
 
-	void init(Subscription* pSubscription, Publication* pPublication, shared<MediaSocket::Reader>& pReader, shared<MediaSocket::Writer>& pWriter);
+	/*!
+	Start the session by calling Peer.onConnection()
+	\return true if the connection is accepted, false otherwise */
+	bool	init();
+
+	void	subscribe(Subscription* pSubscription, Publication* pPublication, unique<MediaSocket::Reader>&& pReader, unique<MediaSocket::Writer>&& pWriter);
 	void	disengage();
 
 	UInt64	queueing() const { return _pSocket->queueing(); }
@@ -48,8 +53,8 @@ private:
 	SRTWriter					_writer;
 	Subscription*				_pSubscription;
 	Publication*				_pPublication;
-	shared<MediaSocket::Reader>	_pReader;
-	shared<MediaSocket::Writer>	_pWriter;
+	unique<MediaSocket::Reader>	_pReader;
+	unique<MediaSocket::Writer>	_pWriter;
 };
 
 } // namespace Mona

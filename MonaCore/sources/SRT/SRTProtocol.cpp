@@ -35,6 +35,7 @@ private:
 		if (!reader.available())
 			return false;
 
+		// TODO: Handle nested keys? => #!:{...}
 		if (_header) {
 			string value;
 			if (reader.available() < 4 || String::ICompare(reader.read(4, value), "#!::") != 0) {
@@ -97,18 +98,22 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 
 		// Create the Session & the Peer
 		SRTSession& session = this->sessions.create<SRTSession>(*this, pSocket);
+		if (!session.init())
+			return;
 
 		// Start Play / Publish
 		Exception ex;
 		Subscription* pSubscription(NULL);
 		Publication* pPublication(NULL);
-		shared<MediaSocket::Reader> pReader;
-		shared<MediaSocket::Writer> pWriter;
+		unique<MediaSocket::Reader> pReader;
+		unique<MediaSocket::Writer> pWriter;
 		auto itMode = streamParameters.find("m");
 		// Note: Bidirectional is not supported for now as a socket cannot be subcribed twice
 		if (itMode == streamParameters.end() || String::ICompare(itMode->second, "request") == 0 /*|| String::ICompare(itMode->second, "bidirectional") == 0*/) {
 			pWriter.set(MediaStream::TYPE_SRT, path, MediaWriter::New("ts"), pSocket, api.ioSocket);
 			if (!api.subscribe(ex, session.peer, path.baseName(), *(pSubscription = new Subscription(*pWriter)))) {
+				delete pSubscription;
+				pSubscription = NULL;
 				session.kill();
 				return;
 			}
@@ -128,7 +133,7 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 		}
 		
 		// Start the session
-		session.init(pSubscription, pPublication, pReader, pWriter);
+		session.subscribe(pSubscription, pPublication, move(pReader), move(pWriter));
 	};
 	_server.onError = [this](const Exception& ex) {
 		WARN("Protocol ", this->name, ", ", ex); // onError by default!
