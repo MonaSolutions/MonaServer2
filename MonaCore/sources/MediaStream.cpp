@@ -30,6 +30,13 @@ MediaStream::MediaStream(Type type, const Path& path, Media::Source& source) : _
 	_starting(false), _running(false), targets(_targets), _startCount(0),
 	type(type), path(path), source(source) {
 }
+
+MediaStream::~MediaStream() {
+	onDelete();
+	if (_running || _starting)
+		CRITIC("MediaStream deleting without be stopped before by child class");
+}
+
 void MediaStream::start(const Parameters& parameters) {
 	ex = nullptr; // reset lastEx on pullse start!
 	if (_running && !_starting)

@@ -79,7 +79,7 @@ struct MediaStream : virtual Object {
 	void stop();
 
 
-	~MediaStream() { onDelete(); }
+	~MediaStream();
 protected:
 	MediaStream(Type type, const Path& path, Media::Source& source = Media::Source::Null());
 
