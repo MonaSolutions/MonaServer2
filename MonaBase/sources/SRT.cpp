@@ -187,7 +187,7 @@ bool SRT::Socket::close(Socket::ShutdownType type) {
 	if (!type)
 		return _shutdownRecv = true;
 	bool success = ::srt_close(_id) == 0;
-	_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
+	//_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
 	_ex.set<Ex::Net::Socket>(Net::ErrorToMessage(NET_ESHUTDOWN)).code = NET_ESHUTDOWN; // to forbid access to _id now in this class!
 	return success;
 }

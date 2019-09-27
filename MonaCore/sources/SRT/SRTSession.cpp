@@ -23,15 +23,23 @@ namespace Mona {
 
 SRTSession::SRTSession(Protocol& protocol, const shared<Socket>& pSocket) :
 	Session(protocol, pSocket->peerAddress()), _pSocket(pSocket), _pSubscription(NULL), _pPublication(NULL), _writer(*this) {
-	// Initialize the Peer
-	Exception ex;
-	peer.onConnection(ex, _writer, *pSocket, DataReader::Null());
+	
 }
 
-void SRTSession::init(Subscription* pSubscription, Publication* pPublication, shared<MediaSocket::Reader>& pReader, shared<MediaSocket::Writer>& pWriter) {
+bool SRTSession::init() {
+	// Initialize the Peer
+	Exception ex;
+	peer.onConnection(ex, _writer, *_pSocket, DataReader::Null());
+	if (ex) 
+		kill(ToError(ex), ex.c_str());
+	return !ex;
+}
+
+void SRTSession::subscribe(Subscription* pSubscription, Publication* pPublication, unique<MediaSocket::Reader>&& pReader, unique<MediaSocket::Writer>&& pWriter) {
 	_pSubscription = pSubscription;
 	_pPublication = pPublication;
-	if (_pReader = move(pReader)) {
+	if (pReader) {
+		_pReader = move(pReader);
 		_pReader->onStop = [&]() {
 			// Unpublish before killing the session
 			if (_pPublication) {
@@ -42,7 +50,8 @@ void SRTSession::init(Subscription* pSubscription, Publication* pPublication, sh
 		};
 		_pReader->start();
 	}
-	if (_pWriter = move(pWriter)) {
+	if (pWriter) {
+		_pWriter = move(pWriter);
 		_pWriter->onStop = [&]() {
 			// Unsubscribe before killing the session
 			if (_pSubscription)
