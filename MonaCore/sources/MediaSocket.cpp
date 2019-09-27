@@ -215,29 +215,30 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 
 MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	MediaStream(type, path), io(io), _pTLS(pTLS), address(address.host() ? address.host() : IPAddress::Loopback(), address.port()), _sendTrack(0), 
-	_pWriter(move(pWriter)), _httpAnswer(false) {
+	_pWriter(move(pWriter)), _httpAnswer(false), _subscribed(false) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
 	_onSocketError = [this](const Exception& ex) { stop(starting() ? LOG_DEBUG : LOG_WARN, ex); };
 }
 MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io) : _pSocket(pSocket),
-	MediaStream(type, path), io(io), address(pSocket->peerAddress()), _sendTrack(0), _pWriter(move(pWriter)), _httpAnswer(true) {
+	MediaStream(type, path), io(io), address(pSocket->peerAddress()), _sendTrack(0),
+	_pWriter(move(pWriter)), _httpAnswer(true), _subscribed(false) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
 	_onSocketError = [this](const Exception& ex) { stop(starting() ? LOG_DEBUG : LOG_WARN, ex); };
-	newSocket();
 }
 
-bool MediaSocket::Writer::newSocket(const Parameters& parameters) {
+bool MediaSocket::Writer::initSocket(const Parameters& parameters) {
+	if (_subscribed)
+		return true;
 	if (!_pSocket)
 		_pSocket = MediaStream::newSocket(parameters, _pTLS);
-	bool success;
-	AUTO_ERROR(success = io.subscribe(ex, _pSocket, nullptr, nullptr, _onSocketError, _onSocketDisconnection), description());
-	if (!success)
+	AUTO_ERROR(_subscribed = io.subscribe(ex, _pSocket, nullptr, nullptr, _onSocketError, _onSocketDisconnection), description());
+	if (!_subscribed)
 		_pSocket.reset();
-	return success;
+	return _subscribed;
 }
 
 bool MediaSocket::Writer::starting(const Parameters& parameters) {
-	if (!_pSocket && !newSocket(parameters)) {
+	if (!initSocket(parameters)) {
 		stop();
 		return true;
 	}
@@ -289,6 +290,7 @@ void MediaSocket::Writer::stopping() {
 	_pName.reset();
 	if(_pSocket)
 		io.unsubscribe(_pSocket);
+	_subscribed = false;
 }
 
 

@@ -107,7 +107,7 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 		auto itMode = streamParameters.find("m");
 		// Note: Bidirectional is not supported for now as a socket cannot be subcribed twice
 		if (itMode == streamParameters.end() || String::ICompare(itMode->second, "request") == 0 /*|| String::ICompare(itMode->second, "bidirectional") == 0*/) {
-			pWriter = new MediaSocket::Writer(MediaStream::TYPE_SRT, path, MediaWriter::New("ts"), pSocket, api.ioSocket);
+			pWriter.set(MediaStream::TYPE_SRT, path, MediaWriter::New("ts"), pSocket, api.ioSocket);
 			if (!api.subscribe(ex, session.peer, path.baseName(), *(pSubscription = new Subscription(*pWriter)))) {
 				session.kill();
 				return;
@@ -118,7 +118,7 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 				session.kill();
 				return;
 			}
-			pReader = new MediaSocket::Reader(MediaStream::TYPE_SRT, path, *pPublication, MediaReader::New("ts"), pSocket, api.ioSocket);
+			pReader.set(MediaStream::TYPE_SRT, path, *pPublication, MediaReader::New("ts"), pSocket, api.ioSocket);
 		}
 		
 		if (!pSubscription && !pPublication) {

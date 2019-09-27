@@ -105,7 +105,7 @@ struct MediaSocket : virtual Static {
 		void stopping();
 	
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', String::Upper(_pWriter->format())); }
-		bool newSocket(const Parameters& parameters = Parameters::Null());
+		bool initSocket(const Parameters& parameters = Parameters::Null());
 		
 		template<typename SendType, typename ...Args>
 		bool send(UInt8 track, Args&&... args) {
@@ -145,6 +145,7 @@ struct MediaSocket : virtual Static {
 		Socket::OnDisconnection			_onSocketDisconnection;
 		Socket::OnError					_onSocketError;
 
+		bool							_subscribed;
 		shared<Socket>					_pSocket;
 		shared<TLS>						_pTLS;
 		shared<MediaWriter>				_pWriter;
