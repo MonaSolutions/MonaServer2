@@ -19,7 +19,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "LUAIPAddress.h"
 
 using namespace std;
-using namespace Mona;
+
+namespace Mona {
 
 static int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(IPAddress, host)
@@ -78,4 +79,6 @@ bool LUAIPAddress::From(Exception& ex, lua_State *pState, int index, IPAddress& 
 	}
 	ex.set<Ex::Net::Address::Ip>("No valid IPAddress arguments");
 	return false;
+}
+
 }

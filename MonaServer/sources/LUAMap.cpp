@@ -20,7 +20,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
+
+namespace Mona {
 
 template<> void Script::ObjInit(lua_State *pState, const map<string,string>& values) {
 	SCRIPT_BEGIN(pState)
@@ -41,3 +42,6 @@ template<> void Script::ObjInit(lua_State *pState, map<string, string>& values) 
 }
 template<> void Script::ObjClear(lua_State *pState, map<string, string>& values) {
 }
+
+}
+

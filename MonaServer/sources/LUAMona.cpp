@@ -30,8 +30,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
 
+namespace Mona {
 
 static int time(lua_State *pState) {
 	SCRIPT_CALLBACK(ServerAPI, api)
@@ -391,3 +391,5 @@ int LUAInvoker::IndexConst(lua_State *pState) {
 	SCRIPT_CALLBACK_RETURN
 }
 */
+
+}

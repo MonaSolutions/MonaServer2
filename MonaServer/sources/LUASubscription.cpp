@@ -24,7 +24,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
+
+namespace Mona {
 
 template<typename Type>
 static int count(lua_State *pState) {
@@ -248,4 +249,6 @@ void LUASubscription::flush() {
 			SCRIPT_FUNCTION_CALL
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
+}
+
 }

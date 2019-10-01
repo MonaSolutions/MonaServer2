@@ -20,8 +20,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Packet.h"
 
 using namespace std;
-using namespace Mona;
 
+namespace Mona {
 
 static int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(Packet, packet)
@@ -80,4 +80,6 @@ template<> void Script::ObjInit(lua_State *pState, Packet& packet) {
 }
 template<> void Script::ObjClear(lua_State *pState, Packet& packet) {
 	
+}
+
 }

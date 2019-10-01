@@ -19,8 +19,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "LUASocketAddress.h"
 
 using namespace std;
-using namespace Mona;
 
+namespace Mona {
 
 int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(SocketAddress, address)
@@ -82,4 +82,6 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int index, SocketA
 
 	ex.set<Ex::Net::Address>("No valid SocketAddress arguments");
 	return false;
+}
+
 }

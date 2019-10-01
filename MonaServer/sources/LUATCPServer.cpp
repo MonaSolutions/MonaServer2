@@ -24,10 +24,11 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
 
-Net::Stats&   LUANetStats<TCPServer>::NetStats(TCPServer& server) { return *server; }
-Socket&		  LUASocket<TCPServer>::Socket(TCPServer& server) { return *server; }
+namespace Mona {
+
+template<> Net::Stats&    LUANetStats<TCPServer>::NetStats(TCPServer& server) { return *server; }
+template<> Socket&		  LUASocket<TCPServer>::Socket(TCPServer& server) { return *server; }
 
 static bool OnError(lua_State *pState, TCPServer& server, const string& error) {
 	bool gotten = false;
@@ -98,4 +99,6 @@ template<> void Script::ObjInit(lua_State *pState, TCPServer& server) {
 template<> void Script::ObjClear(lua_State *pState, TCPServer& server) {
 	server.onConnection = nullptr;
 	server.onError = nullptr;
+}
+
 }

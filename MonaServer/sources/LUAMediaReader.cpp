@@ -22,8 +22,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
 
+namespace Mona {
 
 static int flush(lua_State *pState) {
 	SCRIPT_CALLBACK(MediaReader, reader)
@@ -54,3 +54,5 @@ template<> void Script::ObjInit(lua_State *pState, MediaReader& reader) {
 	SCRIPT_END
 }
 template<> void Script::ObjClear(lua_State *pState, MediaReader& reader) {}
+
+}

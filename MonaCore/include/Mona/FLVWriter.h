@@ -35,7 +35,7 @@ struct FLVWriter : MediaWriter, virtual Object {
 	FLVWriter() {}
 
 	void		beginMedia(const OnWrite& onWrite);
-	void		writeProperties(const Media::Properties& properties, const OnWrite& onWrite) { Media::Data::Type type(Media::Data::TYPE_AMF);  (0, AMF::TYPE_EMPTY, 0, false, 0, 0, properties.data(type), onWrite); }
+	void		writeProperties(const Media::Properties& properties, const OnWrite& onWrite) { Media::Data::Type type(Media::Data::TYPE_AMF);  write(0, AMF::TYPE_EMPTY, 0, false, 0, 0, properties.data(type), onWrite); }
 	void		writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_AUDIO, ToCodecs(tag), tag.isConfig, tag.time, 0, packet, onWrite); }
 	void		writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_VIDEO, ToCodecs(tag), tag.frame == Media::Video::FRAME_CONFIG, tag.time, tag.compositionOffset, packet, onWrite); }
 	void		writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { write(track, AMF::TYPE_DATA, 0, false, 0, 0, packet, onWrite); }

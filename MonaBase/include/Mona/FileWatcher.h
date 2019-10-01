@@ -28,11 +28,11 @@ namespace Mona {
 Wath update files
 If path is a file or folder in MODE_LOW, it's watching simply this fileor folder.
 If path is a file or folder in MODE_HEAVY, it's watching file and folder with this name in all directory and sub directory
-If path has the form /directory/*, it's watching all files/folder in directory (and sub directory in MODE_HEAVY)
-If path has the form /directory/*.*, it's watching all files in directory (and sub directory in MODE_HEAVY)
-If path has the form /directory/*.ext, it's watching all files with ext in directory (and sub directory in MODE_HEAVY)
-If path has the form /directory/name.*, it's watching all files with name in directory (and sub directory in MODE_HEAVY)
-If path has the form /directory/* /, it's watching all folders in directory (and sub drectory in MODE_HEAVY) */
+If path has the form \directory\*, it's watching all files/folder in directory (and sub directory in MODE_HEAVY)
+If path has the form \directory\*.*, it's watching all files in directory (and sub directory in MODE_HEAVY)
+If path has the form \directory\*.ext, it's watching all files with ext in directory (and sub directory in MODE_HEAVY)
+If path has the form \directory\name.*, it's watching all files with name in directory (and sub directory in MODE_HEAVY)
+If path has the form \directory\* /, it's watching all folders in directory (and sub drectory in MODE_HEAVY) */
 struct FileWatcher : virtual Object {
 	typedef Event<void(const Path& file, bool firstWatch)>	OnUpdate;
 

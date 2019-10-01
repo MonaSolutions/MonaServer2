@@ -108,7 +108,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	/*!
 	Set properties, prefer the direct publication object access to change properties when done by final user */
 	void							addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::addProperties(track, type, packet); }
-	UInt32							addProperties(UInt8 track, DataReader& reader) { Properties::addProperties(track, reader); }
+	UInt32							addProperties(UInt8 track, DataReader& reader) { return Properties::addProperties(track, reader); }
 
 	void							flush();
 	void							flush(UInt16 ping);

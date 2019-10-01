@@ -20,7 +20,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Publication.h"
 
 using namespace std;
-using namespace Mona;
+
+namespace Mona {
 
 template<> void Script::ObjInit(lua_State *pState, const map<string, Publication>& publications) {
 	struct Mapper : LUAMap<const map<string, Publication>>::Mapper<>, virtual Object {
@@ -37,3 +38,4 @@ template<> void Script::ObjInit(lua_State *pState, const map<string, Publication
 template<> void Script::ObjClear(lua_State *pState, const map<string, Publication>& parameters) {
 }
 
+}

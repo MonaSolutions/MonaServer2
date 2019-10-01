@@ -23,10 +23,11 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
 
-Net::Stats&   LUANetStats<UDPSocket>::NetStats(UDPSocket& socket) { return *socket; }
-Socket&		  LUASocket<UDPSocket>::Socket(UDPSocket& socket) { return *socket; }
+namespace Mona {
+
+template<> Net::Stats&    LUANetStats<UDPSocket>::NetStats(UDPSocket& socket) { return *socket; }
+template<> Socket&		  LUASocket<UDPSocket>::Socket(UDPSocket& socket) { return *socket; }
 
 static int connected(lua_State *pState) {
 	SCRIPT_CALLBACK(UDPSocket, socket)
@@ -130,4 +131,6 @@ template<> void Script::ObjClear(lua_State *pState, UDPSocket& socket) {
 	socket.onPacket = nullptr;
 	socket.onFlush = nullptr;
 	socket.onError = nullptr;
+}
+
 }

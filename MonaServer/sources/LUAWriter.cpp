@@ -19,9 +19,10 @@ details (or else see http://www.gnu.org/licenses/).
 #include "LUAWriter.h"
 
 using namespace std;
-using namespace Mona;
 
-Mona::Writer& LUAWriter<Mona::Writer>::Writer(Mona::Writer& writer) { return writer; }
+namespace Mona {
+
+template<> Mona::Writer& LUAWriter<Mona::Writer>::Writer(Mona::Writer& writer) { return writer; }
 
 static int reliable(lua_State *pState) {
 	SCRIPT_CALLBACK(Writer, writer)
@@ -55,3 +56,4 @@ template<> void Script::ObjInit(lua_State *pState, Writer& writer) {
 template<> void Script::ObjClear(lua_State *pState, Writer& writer) {
 }
 
+}

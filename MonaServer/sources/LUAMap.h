@@ -42,7 +42,7 @@ struct LUAMap : virtual Static {
 		typename MapType::const_iterator	begin() const { return map.begin(); }
 		typename MapType::const_iterator	end() const { return map.end(); }
 		typename MapType::const_iterator	lower_bound(const std::string& key) const { return map.lower_bound(key); }
-		void								pushValue(typename const MapType::const_iterator& it) { Script::PushValue(pState, it->second.data(), it->second.size()); }
+		void								pushValue(const typename MapType::const_iterator& it) { Script::PushValue(pState, it->second.data(), it->second.size()); }
 
 		template<typename T = MapType, typename std::enable_if<has_count<T>::value, int>::type = 0>
 		UInt32								size() const { return map.count(); }
@@ -50,9 +50,9 @@ struct LUAMap : virtual Static {
 		UInt32								size() const { return map.size(); }
 
 		template<typename T = MapType, typename std::enable_if<std::is_const<T>::value, int>::type = 0>
-		typename bool						erase(typename const MapType::const_iterator& first, typename const MapType::const_iterator& last) { return false; }
+		bool							erase(const typename MapType::const_iterator& first, const typename MapType::const_iterator& last) { return false; }
 		template<typename T = MapType, typename std::enable_if<!std::is_const<T>::value, int>::type = 0>
-		typename bool						erase(typename const MapType::const_iterator& first, typename const MapType::const_iterator& last) { map.erase(first, last); return true; }
+		bool							erase(const typename MapType::const_iterator& first, const typename MapType::const_iterator& last) { map.erase(first, last); return true; }
 		/*!
 		Assign the property key with value, must return end() if not settable */
 		template<typename T = MapType, typename std::enable_if<std::is_const<T>::value, int>::type = 0>
@@ -65,9 +65,9 @@ struct LUAMap : virtual Static {
 
 	template<typename M = Mapper<MapType>>
 	static int Pairs(lua_State *pState) {
-		SCRIPT_CALLBACK(M::ObjType, obj);
+		SCRIPT_CALLBACK(typename M::ObjType, obj);
 			M m(obj, pState);
-			string prefix;
+			std::string prefix;
 			if (ToKey(pState, 1, prefix)) {
 				auto it = m.lower_bound(prefix);
 				prefix.back() += 1;
@@ -90,7 +90,9 @@ struct LUAMap : virtual Static {
 
 	template<typename M = Mapper<MapType>>
 	static int Call(lua_State *pState) {
-		SCRIPT_CALLBACK(M::ObjType, obj)
+		static typename MapType::key_compare Less;
+
+		SCRIPT_CALLBACK(typename M::ObjType, obj)
 			M m(obj, pState);
 			// skip this if is the second argument (call with :)
 			int hasThis = 0;
@@ -112,7 +114,7 @@ struct LUAMap : virtual Static {
 			lua_pop(pState, 2);
 
 			int available = SCRIPT_NEXT_READABLE;
-			string key;
+			std::string key;
 			bool keying = ToKey(pState, 1, key);
 			if (available > 0) {
 				// SETTERS
@@ -120,13 +122,11 @@ struct LUAMap : virtual Static {
 				ScriptReader reader(pState, UInt32(available));
 				ScriptReader parameters(pState, UInt32(available-1));
 
-				bool failed = false;
 				if (reader.readNull()) {
 					// erase value
 					/// primitive object, erase just the related value!
 					if(keying) {
 						const auto& it = m.lower_bound(key);
-						static MapType::key_compare Less;
 						if (it != m.end() && !Less(key, it->first)) {
 							auto itNext = it;
 							m.pushValue(it); // push old value!
@@ -134,23 +134,23 @@ struct LUAMap : virtual Static {
 								lua_pop(pState, 1);
 								SCRIPT_WRITE_NIL
 							} else
-								SCRIPT_ERROR("Impossible to erase ", key, " of ", typeof<M::ObjType>());	
+								SCRIPT_ERROR("Impossible to erase ", key, " of ", typeof<typename M::ObjType>());
 						} else
 							SCRIPT_WRITE_NIL
 					} else {
-						SCRIPT_ERROR("Miss property name to erase of ", typeof<M::ObjType>());
+						SCRIPT_ERROR("Miss property name to erase of ", typeof<typename M::ObjType>());
 						SCRIPT_WRITE_NIL
 					}
 				} else if (reader.nextType() >= ScriptReader::OTHER) {
 					// complex type, add properties!
 					struct Writer : MapWriter<Writer> {
 						Writer(M& m, DataReader& parameters) : _parameters(parameters), MapWriter<Writer>(self), _m(m) {}
-						void emplace(const string& key, string&& value) {
+						void emplace(const std::string& key, std::string&& value) {
 							_parameters.reset();
 							const auto& it = _m.set(key, move(value), _parameters);
 							if (it == _m.end()) { // call _m.end() after _m.set because can create a incompatible iterator exception
 								SCRIPT_BEGIN(_m.pState)
-									SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<M::ObjType>())
+									SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<typename M::ObjType>())
 								SCRIPT_END
 							}
 						}
@@ -169,17 +169,17 @@ struct LUAMap : virtual Static {
 					lua_pushvalue(pState, 1); /// myself = complex value!
 				} else if(keying) {
 					// primitive type, convert it to string!
-					string value;
+					std::string value;
 					StringWriter<std::string> writer(value);
 					reader.read(writer, 1);
 					const auto& it = m.set(key, std::move(value), parameters);
 					if (it == m.end()) {
-						SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<M::ObjType>())
+						SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<typename M::ObjType>())
 						SCRIPT_WRITE_NIL
 					} else
 						m.pushValue(it);
 				} else {
-					SCRIPT_ERROR("Miss property name to add value in ", typeof<M::ObjType>());
+					SCRIPT_ERROR("Miss property name to add value in ", typeof<typename M::ObjType>());
 					SCRIPT_WRITE_NIL
 				}
 				SCRIPT_READ_NEXT(reader.position() + parameters.position());
@@ -203,12 +203,12 @@ struct LUAMap : virtual Static {
 						UInt32 count = m.size();
 						if (ToKey(pState, 2, key)) {
 							if (!m.erase(m.lower_bound(key), m.lower_bound(String(String::Data(key.data(), key.size() - 1), char(key.back() + 1))))) {
-								SCRIPT_ERROR("Impossible to erase ", key, " of ", typeof<M::ObjType>());
+								SCRIPT_ERROR("Impossible to erase ", key, " of ", typeof<typename M::ObjType>());
 								SCRIPT_WRITE_NIL // to detect error (=== NIL)
 							} else
 								SCRIPT_WRITE_INT(count - m.size());
 						} else if (!m.erase(m.begin(), m.end())) {
-							SCRIPT_ERROR("Impossible to clear ", typeof<M::ObjType>());
+							SCRIPT_ERROR("Impossible to clear ", typeof<typename M::ObjType>());
 							SCRIPT_WRITE_NIL // to detect error (=== NIL)
 						} else
 							SCRIPT_WRITE_INT(count - m.size())	
@@ -217,7 +217,6 @@ struct LUAMap : virtual Static {
 
 				if (keying) {
 					const auto& it = m.lower_bound(key);
-					static MapType::key_compare Less;
 					if (it == m.end() || Less(key, it->first)) {
 						SCRIPT_WRITE_NIL
 						SCRIPT_ERROR("attempt to index a nil value");
@@ -241,7 +240,7 @@ struct LUAMap : virtual Static {
 			SCRIPT_TABLE_END
 			return 1;
 		}
-		SCRIPT_CALLBACK(M::ObjType, obj)
+		SCRIPT_CALLBACK(typename M::ObjType, obj)
 			SCRIPT_READ_DATA(name, size);
 
 			std::string key;
@@ -266,7 +265,7 @@ private:
 	static bool ToKey(lua_State *pState, int index, std::string& key) {
 		// Key is in {[2] = KEY}
 		lua_rawgeti(pState, index, 2);
-		size_t size;
+		std::size_t size;
 		const char* prefix = lua_tolstring(pState, -1, &size);
 		lua_pop(pState, 1);
 		if (!prefix)
@@ -277,13 +276,13 @@ private:
 
 	template<typename M>
 	static int Next(lua_State* pState) {
-		SCRIPT_CALLBACK(M::ObjType, obj);
+		SCRIPT_CALLBACK(typename M::ObjType, obj);
 			M m(obj, pState);
 			SCRIPT_READ_DATA(key, keySize);
-			size_t endSize;
+			std::size_t endSize;
 			const char* end = lua_tolstring(pState, lua_upvalueindex(1), &endSize);
 			if (!end || !key || endSize!=keySize || memcmp(key, end, endSize) != 0) {
-				MapType::const_iterator it;
+				typename MapType::const_iterator it;
 				if (key) {
 					it = m.lower_bound(STR key);
 					if (it != m.end())

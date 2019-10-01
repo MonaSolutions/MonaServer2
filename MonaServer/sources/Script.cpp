@@ -17,9 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Script.h"
-extern "C" {
-	#include "luajit/lualib.h"
-}
 
 using namespace std;
 

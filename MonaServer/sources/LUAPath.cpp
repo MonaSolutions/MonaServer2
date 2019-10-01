@@ -21,8 +21,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
 
+namespace Mona {
 
 static int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(Path, path)
@@ -83,3 +83,6 @@ template<> void Script::ObjInit(lua_State *pState, const Path& path) {
 template<> void Script::ObjClear(lua_State *pState, const Path& path) {
 
 }
+
+}
+

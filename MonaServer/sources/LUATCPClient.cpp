@@ -23,10 +23,11 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
 
-Net::Stats&   LUANetStats<TCPClient>::NetStats(TCPClient& client) { return *client; }
-Socket&		  LUASocket<TCPClient>::Socket(TCPClient& client) { return *client; }
+namespace Mona {
+
+template<> Net::Stats&   LUANetStats<TCPClient>::NetStats(TCPClient& client) { return *client; }
+template<> Socket&		 LUASocket<TCPClient>::Socket(TCPClient& client) { return *client; }
 
 static int connected(lua_State *pState) {
 	SCRIPT_CALLBACK(TCPClient, client)
@@ -123,4 +124,6 @@ template<> void Script::ObjClear(lua_State *pState, TCPClient& client) {
 	client.onFlush = nullptr;
 	client.onDisconnection = nullptr;
 	client.onError = nullptr;
+}
+
 }

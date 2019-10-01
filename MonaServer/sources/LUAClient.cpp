@@ -23,11 +23,11 @@ details (or else see http://www.gnu.org/licenses/).
 
 
 using namespace std;
-using namespace Mona;
 
+namespace Mona {
 
-Net::Stats&   LUANetStats<Client>::NetStats(Client& client) { return client; }
-Writer&		  LUAWriter<Client>::Writer(Client& client) { return client.writer(); }
+template<> Net::Stats&    LUANetStats<Client>::NetStats(Client& client) { return client; }
+template<> Writer&		  LUAWriter<Client>::Writer(Client& client) { return client.writer(); }
 
 static int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(Client, client);
@@ -90,4 +90,6 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 template<> void Script::ObjClear(lua_State *pState, Mona::Client& client) {
 	RemoveObject(pState, client.properties());
 	RemoveObject(pState, client.writer());
+}
+
 }

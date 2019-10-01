@@ -28,8 +28,22 @@ details (or else see http://www.gnu.org/licenses/).
 #endif
 
 extern "C" {
-	#include "luajit/lua.h"
-	#include "luajit/lauxlib.h"
+#if defined(_WIN32)
+#include "luajit/lua.h"
+#include "luajit/lauxlib.h"
+#include "luajit/lualib.h"
+#else
+// take in priority luajit-2.1 if available!
+#if __has_include("luajit-2.0/lua.h") && !__has_include("luajit-2.1/lua.h")
+#include "luajit-2.0/lua.h"
+#include "luajit-2.0/lauxlib.h"
+#include "luajit-2.0/lualib.h"
+#else
+#include "luajit-2.1/lua.h"
+#include "luajit-2.1/lauxlib.h"
+#include "luajit-2.1/lualib.h"
+#endif
+#endif
 }
 
 #define SCRIPT_LOG(LEVEL, DISPLAYSCALLER, ...)	 { if (Logs::GetLevel() >= LEVEL)  { Script::Log(__pState, LEVEL, __FILE__, __LINE__, DISPLAYSCALLER, __VA_ARGS__); } }
@@ -48,12 +62,12 @@ extern "C" {
 #define SCRIPT_AUTO_ERROR(FUNCTION) { if((FUNCTION)) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_ERROR(ex) } }
 #define SCRIPT_AUTO_WARN(FUNCTION) { if((FUNCTION)) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_WARN(ex) } }
 
-#define SCRIPT_CALLBACK(TYPE,OBJ)								{int __arg=1;lua_State* __pState = pState; TYPE* pObj = Script::ToObject<TYPE>(__pState,1,true); if(!pObj) return 0; TYPE& OBJ = *pObj; int __lastArg=lua_gettop(__pState);
+#define SCRIPT_CALLBACK(TYPE,OBJ)								{int __arg=1;lua_State* __pState = pState; TYPE* __pObj = Script::ToObject<TYPE>(__pState,1,true); if(!__pObj) return 0; TYPE& OBJ = *__pObj; int __lastArg=lua_gettop(__pState); (void)OBJ; /* void cast allow to remove warning "unused variable"*/
 #define SCRIPT_CALLBACK_TRY(TYPE,OBJ)							SCRIPT_CALLBACK(TYPE,OBJ) bool __canRaise(SCRIPT_NEXT_TYPE == LUA_TFUNCTION); if(__canRaise) ++__arg;
 
 #define SCRIPT_CALLBACK_THROW(...)								if (__canRaise) { lua_pushvalue(__pState,2); Script::PushString(__pState, __VA_ARGS__);  lua_call(pState, 1, 0); }
 
-#define SCRIPT_CALLBACK_RETURN									__lastArg= lua_gettop(__pState)-__lastArg; return (__lastArg>0 ? __lastArg : 0);}
+#define SCRIPT_CALLBACK_RETURN									__arg = __arg; __lastArg= lua_gettop(__pState)-__lastArg; return (__lastArg>0 ? __lastArg : 0);}
 #define SCRIPT_FIX_RESULT										{ lua_pushvalue(__pState,2); lua_pushvalue(__pState, -2); lua_rawset(__pState, 1);}
 
 #define SCRIPT_BEGIN(STATE)										if(lua_State* __pState = STATE) {
@@ -93,7 +107,7 @@ extern "C" {
 #define SCRIPT_NEXT_TYPE										(lua_type(__pState,__arg+1))
 #define SCRIPT_NEXT_SHRINK(COUNT)								{ int __count=COUNT; while((__lastArg-__arg) > __count--) { lua_remove(__pState, __lastArg--); }}
 
-#define SCRIPT_READ_NEXT(COUNT)									( __arg += COUNT, __arg >__lastArg ? 0 : __arg )
+#define SCRIPT_READ_NEXT(COUNT)									( (__arg += COUNT) >__lastArg ? 0 : __arg)
 #define SCRIPT_READ_NIL											{ ++__arg; }
 #define SCRIPT_READ_BOOLEAN(DEFAULT)							((__lastArg-__arg++)>0 ? lua_toboolean(__pState,__arg)==1 : DEFAULT)
 #define SCRIPT_READ_STRING(DEFAULT)								((__lastArg-__arg++)>0 && lua_isstring(__pState,__arg) ? lua_tostring(__pState,__arg) : DEFAULT)
@@ -124,15 +138,15 @@ struct Script : virtual Static {
 		int		_count;
 		lua_State*	_pState;
 	};
-	static Client&		Client() { static Mona::Client LUAClient("LUA"); return LUAClient; }
+	static Mona::Client& Client() { static Mona::Client LUAClient("LUA"); return LUAClient; }
 
-	static const char*	LastError(lua_State *pState);
-	static void			Test(lua_State *pState);
+	static const char*	 LastError(lua_State *pState);
+	static void			 Test(lua_State *pState);
 
-	static void			CloseState(lua_State* pState);
-	static lua_State*	CreateState();
+	static void			 CloseState(lua_State* pState);
+	static lua_State*	 CreateState();
 
-	static void			NewMetatable(lua_State* pState);
+	static void			 NewMetatable(lua_State* pState);
 
 	static bool Resolve(lua_State *pState, const char* value, std::string& file, bool withExtension = true);
 
@@ -227,7 +241,7 @@ struct Script : virtual Static {
 	Get the table from object, returns 0 if fails, +1 if it's a persistent object, or +2 if it's a volatile object */
 	template<typename Type>
 	static bool FromObject(lua_State* pState, Type& object) {
-		lua_rawgeti(pState, LUA_REGISTRYINDEX, TypeRef<std::remove_cv<Type>::type>(pState));
+		lua_rawgeti(pState, LUA_REGISTRYINDEX, TypeRef<typename std::remove_cv<Type>::type>(pState));
 		// get Types[1] (all)
 		lua_rawgeti(pState, -1, 1);
 		if (lua_istable(pState, -1)) {
@@ -262,12 +276,12 @@ struct Script : virtual Static {
 			return NULL;
 		}
 
-		lua_rawgeti(pState, -1, TypeRef<std::remove_cv<Type>::type>(pState));
+		lua_rawgeti(pState, -1, TypeRef<typename  std::remove_cv<Type>::type>(pState));
 		if (!lua_islightuserdata(pState, -1)) {
 			lua_pop(pState, 2); // remove this + metatable
 			if (withLogs) {
 				SCRIPT_BEGIN(pState)
-					SCRIPT_ERROR(typeof<std::remove_cv<Type>::type>(), " argument invalid, call method with ':' colon operator")
+					SCRIPT_ERROR(typeof<typename std::remove_cv<Type>::type>(), " argument invalid, call method with ':' colon operator")
 				SCRIPT_END
 			}
 			return NULL;
@@ -278,7 +292,7 @@ struct Script : virtual Static {
 			return pThis;
 		if (withLogs) {
 			SCRIPT_BEGIN(pState)
-				SCRIPT_ERROR(typeof<std::remove_cv<Type>::type>(), " object deleted")
+				SCRIPT_ERROR(typeof<typename std::remove_cv<Type>::type>(), " object deleted")
 			SCRIPT_END
 		}
 		return NULL;
@@ -290,7 +304,7 @@ struct Script : virtual Static {
 			int top = lua_gettop(pState);
 			if (top > 1) { // with argument = setter
 				SCRIPT_BEGIN(pState)
-					SCRIPT_ERROR("No setter for ", typeof<std::remove_cv<Type>::type>());
+					SCRIPT_ERROR("No setter for ", typeof<typename std::remove_cv<Type>::type>());
 				SCRIPT_END
 				return 0;
 			}
@@ -362,7 +376,7 @@ private:
 		// -2 metatable
 		// -1 object
 
-		int iType = TypeRef<std::remove_cv<Type>::type>(pState);
+		int iType = TypeRef<typename std::remove_cv<Type>::type>(pState);
 
 		// record type in metatable
 		lua_pushlightuserdata(pState, (void*)&object);
@@ -430,7 +444,7 @@ private:
 		// -1 object
 		// Erase object of registry in first to avoid a recursive call => example a gc deletion call an ServerAPI event which remove also the object with a explicitly call!
 		/// get Types table
-		int iType = TypeRef<std::remove_cv<Type>::type>(pState);
+		int iType = TypeRef<typename std::remove_cv<Type>::type>(pState);
 		lua_rawgeti(pState, LUA_REGISTRYINDEX, iType);
 		/// remove from Types[1] (all)
 		lua_rawgeti(pState, -1, 1);
@@ -462,7 +476,7 @@ private:
 
 	template<typename Type>
 	static int ToString(lua_State* pState) {
-		String str(typeof<std::remove_cv<Type>::type>(), '_', lua_topointer(pState, 1));
+		String str(typeof<typename std::remove_cv<Type>::type>(), '_', lua_topointer(pState, 1));
 		lua_pushlstring(pState, str.data(), str.size());
 		return 1;
 	}
