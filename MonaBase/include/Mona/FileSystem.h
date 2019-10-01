@@ -63,8 +63,10 @@ struct FileSystem : virtual Static {
 		Attributes& reset() { lastAccess = 0;  lastChange = 0; size = 0; return *this; }
 	};
 
-
-	typedef std::function<void(const std::string& file, UInt16 level)> ForEach; /// FileSystem::ListDir function type handler
+	/*!
+	File iteration, level is the deep sub directory level (when mode = MODE_HEAVY)
+	If returns false it stops current directory iteration (but continue in sub directory if mode = MODE_HEAVY) */
+	typedef std::function<bool(const std::string& file, UInt16 level)> ForEach;
 
 	/// Iterate over files under directory path
 	static int		ListFiles(Exception& ex, const std::string& path, const ForEach& forEach, Mode mode= MODE_LOW) { return ListFiles(ex, path.c_str(), forEach, mode); }

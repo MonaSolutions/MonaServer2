@@ -46,6 +46,9 @@ void Server::start(const Parameters& parameters) {
 	}
 	if (_www.empty())
 		_www.assign(EXPAND("www/"));
+	else
+		FileSystem::MakeFolder(_www);
+	setString("www.dir", _www);
 	Exception ex;
 	AUTO_ERROR(FileSystem::CreateDirectory(ex, _www), "Application directory creation");
 

@@ -62,11 +62,14 @@ void FileLogger::manage(UInt32 written) {
 	UInt32 maxNum(0);
 	Exception ex;
 	FileSystem::ForEach forEach([this, &ex, &name, &maxNum](const string& path, UInt16 level) {
-		UInt16 num = String::ToNumber<UInt16, 0>(FileSystem::GetBaseName(path, name));
+		UInt16 num;
+		if (!String::ToNumber(FileSystem::GetBaseName(path, name), num))
+			return true;
 		if (_rotation && num >= (_rotation - 1))
 			FileSystem::Delete(ex, String(_pFile->parent(), num, ".log"));
 		else if (num > maxNum)
 			maxNum = num;
+		return true;
 	});
 	FileSystem::ListFiles(ex, _pFile->parent(), forEach);
 	// rename log files

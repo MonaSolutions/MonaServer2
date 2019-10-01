@@ -266,6 +266,7 @@ bool FileSystem::Delete(Exception& ex, const char* path, size_t size, Mode mode)
 		if (mode==MODE_HEAVY) {
 			FileSystem::ForEach forEach([&ex](const string& path, UInt16 level) {
 				Delete(ex, path, MODE_HEAVY);
+				return true;
 			});
 			Exception ignore;
 			ListFiles(ignore, path, forEach);
@@ -306,6 +307,7 @@ int FileSystem::ListFiles(Exception& ex, const char* path, const ForEach& forEac
 	MakeFolder(directory);
 	UInt32 count(0);
 	string file;
+	bool iterate = true;
 
 #if defined(_WIN32)
 	wchar_t wDirectory[PATH_MAX+2];
@@ -328,7 +330,8 @@ int FileSystem::ListFiles(Exception& ex, const char* path, const ForEach& forEac
 				if (mode)
 					count += ListFiles(ex, file, forEach, Mode(mode+1));
 			}
-			forEach(file,mode ? (UInt16(mode)-1) : 0);
+			if (iterate && !forEach(file, mode ? (UInt16(mode) - 1) : 0))
+				iterate = false;
 		}
 	} while (FindNextFileW(fileHandle, &fileData) != 0);
 	FindClose(fileHandle);
@@ -358,7 +361,8 @@ int FileSystem::ListFiles(Exception& ex, const char* path, const ForEach& forEac
 				if (mode)
 					count += ListFiles(ex, file, forEach, Mode(mode+1));
 			}
-			forEach(file,mode ? (UInt16(mode)-1) : 0);
+			if (iterate && !forEach(file, mode ? (UInt16(mode) - 1) : 0))
+				iterate = false;
 		}
 	}
 	closedir(pDirectory);

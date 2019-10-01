@@ -20,6 +20,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/File.h"
 #include "Mona/ThreadPool.h"
 #include "Mona/Packet.h"
+#include "Mona/FileWatcher.h"
+
 
 namespace Mona {
 
@@ -28,7 +30,7 @@ IOFile performs asynchrone writing and reading operation,
 It uses a Thread::ProcessorCount() threads with low priority to load/read/write files
 Indeed even if SSD drive allows parallel reading and writing operation every operation sollicate too the CPU,
 so it's useless to try to exceeds number of CPU core (Thread::ProcessorCount() has been tested and approved with file load) */
-struct IOFile : virtual Object {
+struct IOFile : virtual Object, Thread { // Thread is for file watching!
 
 	IOFile(const Handler& handler, const ThreadPool& threadPool, UInt16 cores=0);
 	~IOFile();
@@ -79,14 +81,22 @@ struct IOFile : virtual Object {
 	/*!
 	Async file/folder creation */
 	void create(const shared<File>& pFile) { write(pFile, Packet::Null()); }
+	/*!
+	Async file watcher, watch until pFileWatcher becomes unique */
+	void watch(const shared<const FileWatcher>& pFileWatcher, const FileWatcher::OnUpdate& onUpdate);
 
 	void join();
 private:
+	bool run(Exception& ex, const volatile bool& requestStop);
+
 	struct Action;
 	struct WAction;
 	struct SAction;
 
-	ThreadPool	_threadPool;
+
+	ThreadPool								_threadPool; // Pool of threads for writing/reading disk operation
+	std::vector<shared<const FileWatcher>>	_watchers;
+	std::mutex								_mutexWatchers;
 };
 
 

@@ -18,25 +18,47 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Path.h"
+#include "Mona/Event.h"
+#include "Mona/FileSystem.h"
+
 
 namespace Mona {
 
+/*!
+Wath update files
+If path is a file or folder in MODE_LOW, it's watching simply this fileor folder.
+If path is a file or folder in MODE_HEAVY, it's watching file and folder with this name in all directory and sub directory
+If path has the form /directory/*, it's watching all files/folder in directory (and sub directory in MODE_HEAVY)
+If path has the form /directory/*.*, it's watching all files in directory (and sub directory in MODE_HEAVY)
+If path has the form /directory/*.ext, it's watching all files with ext in directory (and sub directory in MODE_HEAVY)
+If path has the form /directory/name.*, it's watching all files with name in directory (and sub directory in MODE_HEAVY)
+If path has the form /directory/* /, it's watching all folders in directory (and sub drectory in MODE_HEAVY) */
 struct FileWatcher : virtual Object {
-	template <typename ...Args>
-	FileWatcher(Args&&... args) : file(std::forward<Args>(args)...), _lastChange(0) {}
-	
+	typedef Event<void(const Path& file, bool firstWatch)>	OnUpdate;
 
-	/// look if the file has changed, call clearFile if doesn't exist anymore, or call clearFile and loadFile if file has change
-	/// return true if file exists
-	bool		watchFile();
+	FileWatcher(const Path& path, FileSystem::Mode mode = FileSystem::MODE_LOW);
 
-	const Path	file;
+	const FileSystem::Mode	mode;
+	const Path				path;
+
+	/*!
+	Check file updates in path, path  */
+	int		watch(Exception& ex, const OnUpdate& onUpdate);
+
 
 private:
-	virtual void loadFile() = 0;
-	virtual void clearFile() = 0;
+	void	watchFile(std::map<Path, std::pair<Time, bool>, String::IComparator>& lastChanges, const Path& file, const OnUpdate& onUpdate);
 
-	Time		_lastChange;
+	std::map<Path, std::pair<Time, bool>, String::IComparator> _lastChanges;
+	bool													   _firstWatch;
+
+	const char* _ext;
+	const char* _baseName;
+	bool		_justFolder;
+
+	//// Used by IOFile /////////////////////
+	OnUpdate    onUpdate;
+	friend struct IOFile;
 };
 
 } // namespace Mona

@@ -26,42 +26,51 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct Service : private FileWatcher {
+struct Service {
 	struct Handler {
-		virtual void onUpdate(Service& service) {}
+		virtual void onUnload(Service& service) {}
 	};
-	Service(lua_State* pState, const std::string& wwwPath, Handler& handler);
+	Service(lua_State* pState, const std::string& wwwPath, Handler& handler, IOFile& ioFile);
+	Service(lua_State* pState, const std::string& wwwPath, Service& parent, const char* name);
 	virtual ~Service();
 
 	int					reference() const { return _reference; }
 
-	Service*			open(Exception& ex);
-	Service*			open(Exception& ex, const std::string& path);
+	const std::string	name;
+	const std::string	path;
+	const Path			file;
 
+	Service*			get(Exception& ex, const std::string& path) { return get(ex, path.c_str()); }
+	Service*			get(Exception& ex, const char* path);
 
-	const std::string				name;
-	const std::string				path;
-
-private:
-	Service(lua_State* pState,  const std::string& wwwPath, Service& parent, const std::string& name);
-
-	void		init();
-
-	// FileWatcher implementation
-	void		loadFile();
-	void		clearFile();
 	
 
-	Exception				_ex;
+private:
+	void		init();
+
+	Service&	open(const char* path);
+	Service*	close(const char* path);
+
+	void		update();
+
+	void		start();
+	void		stop();
+
+	
+	
+	FileWatcher::OnUpdate	_onUpdate;
+
+	Exception				_ex; // is set if application has not a valid main.lua started!
 	int						_reference;
 	Service*				_pParent;
 	lua_State*				_pState;
 	Time					_lastCheck;
 
 
-	std::map<std::string,Service*>	_services;
+	std::map<std::string, Service>	_services;
 	const std::string&				_wwwPath;
 	Handler&						_handler;
+	shared<const FileWatcher>		_pWatcher;
 };
 
 } // namespace Mona

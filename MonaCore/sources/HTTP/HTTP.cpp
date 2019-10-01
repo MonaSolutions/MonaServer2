@@ -230,6 +230,7 @@ bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const stri
 	vector<Path*> paths;
 	FileSystem::ForEach forEach([&paths](const string& path, UInt16 level){
 		paths.emplace_back(new Path(path));
+		return true;
 	});
 	if(FileSystem::ListFiles(ex, fullPath, forEach)<0)
 		return false;

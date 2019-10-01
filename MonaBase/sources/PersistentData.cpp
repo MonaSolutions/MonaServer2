@@ -105,17 +105,18 @@ void PersistentData::processEntry(Exception& ex,Entry& entry) {
 		// Delete just hex file
 		if (FileSystem::IsFolder(path) || FileSystem::GetName(path, file).size() != 32 || file == name) {
 			hasData = true;
-			return;
+			return true;
 		}
 		// is MD5?
 		for (char c : file) {
 			if (!isxdigit(c) || (c > '9' && isupper(c))) {
 				hasData = true;
-				return;
+				return true;
 			}
 		}
 		if (!FileSystem::Delete(ex, path))
 			hasData = true;
+		return true;
 	});
 	Exception ignore;
 	// if directory doesn't exists it's already deleted so ignore ListFiles exception
@@ -138,22 +139,22 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 		if (FileSystem::IsFolder(file)) {
 			if (loadDirectory(ex, file, String::Assign(value, path, '/', name), forEach))
 				hasData = true;
-			return;
+			return true;
 		}
 	
 		/// file
 		if (name.size() != 32) {// ignore this file (not create by Database)
 			hasData = true;
-			return;
+			return true;
 		}
 
 		// read the file
 		File reader(file, File::MODE_READ);
 		if (!reader.load(ex))
-			return;
+			return true;
 		shared<Buffer> pBuffer(SET, range<UInt32>(reader.size()));
 		if (pBuffer->size() > 0 && reader.read(ex, pBuffer->data(), pBuffer->size()) < 0)
-			return;
+			return true;
 
 		// compute md5
 		UInt8 result[16];
@@ -166,16 +167,17 @@ bool PersistentData::loadDirectory(Exception& ex, const string& directory, const
 			for (char c : name) {
 				if (!isxdigit(c) || (c > '9' && isupper(c))) {
 					hasData = true;
-					return;
+					return true;
 				}
 			}
 			if(!FileSystem::Delete(ex, file))
 				hasData = true;
-			return;
+			return true;
 		}
 
 		hasData = true;
 		forEach(path, Packet(pBuffer));
+		return true;
 	});
 
 	Exception ignore;

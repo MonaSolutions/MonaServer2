@@ -188,8 +188,6 @@ bool SRT::Socket::close(Socket::ShutdownType type) {
 	if (!type)
 		return _shutdownRecv = true;
 	return ::srt_close(_id) == 0;
-	// Forbidden! not thread safe (_ex must never changed), let the socket raise an error on usage!
-	// _ex.set<Ex::Net::Socket>(Net::ErrorToMessage(NET_ESHUTDOWN)).code = NET_ESHUTDOWN; // to forbid access to _id now in this class!
 }
 
 UInt32 SRT::Socket::available() const {

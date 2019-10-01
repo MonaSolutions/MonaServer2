@@ -15,6 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/IOFile.h"
+#include <list>
 
 using namespace std;
 
@@ -87,11 +88,12 @@ private:
 };
 
 IOFile::IOFile(const Handler& handler, const ThreadPool& threadPool, UInt16 cores) :
-	handler(handler), threadPool(threadPool), _threadPool(Thread::PRIORITY_LOW, cores*2) { // 2*CPU => because disk speed can be at maximum 2x more than memory, and Low priority to not impact main thread pool
+	handler(handler), threadPool(threadPool), _threadPool(Thread::PRIORITY_LOW, cores*2), Thread("FileWatching") { // 2*CPU => because disk speed can be at maximum 2x more than memory, and Low priority to not impact main thread pool
 }
 
 IOFile::~IOFile() {
 	join();
+	stop(); // file watchers!
 }
 
 void IOFile::join() {
@@ -230,5 +232,56 @@ void IOFile::erase(const shared<File>& pFile) {
 	_threadPool.queue<EraseFile>(pFile->_ioTrack, handler, pFile);
 }
 
+
+void IOFile::watch(const shared<const FileWatcher>& pFileWatcher, const FileWatcher::OnUpdate& onUpdate) {
+	lock_guard<mutex> lock(_mutexWatchers);
+	_watchers.emplace_back(pFileWatcher);
+	struct OnUpdate : Runner, virtual Object {
+		OnUpdate(const FileWatcher::OnUpdate& onUpdate, const Path& file, bool firstWatch) : _onUpdate(onUpdate), _file(file), _firstWatch(firstWatch), Runner("WatchUpdating") {}
+		bool run(Exception& ex) { _onUpdate(_file, _firstWatch); return true; }
+	private:
+		FileWatcher::OnUpdate	_onUpdate;
+		bool					_firstWatch;
+		Path					_file;
+	};
+	((FileWatcher&)*_watchers.back()).onUpdate = [this, onUpdate](const Path& file, bool firstWatch) { handler.queue<OnUpdate>(onUpdate, file, firstWatch); };
+	start(Thread::PRIORITY_LOWEST);
+}
+
+bool IOFile::run(Exception& ex, const volatile bool& requestStop) {
+	list<shared<const FileWatcher>> watchers;
+	while(!requestStop) {
+		Time time;
+		{
+			lock_guard<mutex> lock(_mutexWatchers);
+			watchers.insert(watchers.end(), _watchers.begin(), _watchers.end());
+			_watchers.clear();
+			if (watchers.empty()) {
+				stop(); // to set _stop immediatly!
+				break;
+			}
+		}
+		auto it = watchers.begin();
+		while (it != watchers.end()) {
+			if (it->unique()) {
+				it = watchers.erase(it);
+				continue;
+			}
+			const shared<const FileWatcher> pWatcher = *it++;
+			AUTO_ERROR(((FileWatcher&)*pWatcher).watch(ex, pWatcher->onUpdate)>=0, "File watching");
+			ex = nullptr;
+		}
+		if (wakeUp.wait((UInt32)max(1000 - time.elapsed(), 1)))
+			break;// wait()==true means requestStop=true because there is no other wakeUp.set elsewhere
+	}
+
+	for (const shared<const FileWatcher>& pWatcher : watchers) {
+		if (!pWatcher.unique()) {
+			ex.set<Ex::Intern>("Some file watcher are still active while IOFile is deleting");
+			return false;
+		}
+	}
+	return true;
+}
 
 } // namespace Mona

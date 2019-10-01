@@ -42,7 +42,7 @@ void MonaServer::onStart() {
 	_pState = Script::CreateState();
 
 	// init root server application
-	_pService.set(_pState, www, (Service::Handler&)self);
+	_pService.set(_pState, www, (Service::Handler&)self, ioFile);
 
 	// Init few global variable
 	Script::AddObject(_pState, api());
@@ -75,15 +75,10 @@ void MonaServer::onStart() {
 
 	Script::AddObject(_pState, _data);
 	lua_setglobal(_pState, "data");
-	
-	// start the application (if exists)
-	_pService->open(ex = nullptr);
 }
 
 void MonaServer::onStop() {
-	// delete service before servers.stop() to avoid a crash bug
-	if(_pService)
-		_pService.reset();
+	_pService.reset();
 	Script::CloseState(_pState);
 	_data.onChange = nullptr;
 	_data.onClear = nullptr;
@@ -99,9 +94,6 @@ void MonaServer::onManage() {
 	// control script size to debug!
 	if (lua_gettop(_pState) != 0)
 		CRITIC("LUA stack corrupted, contains ",lua_gettop(_pState)," irregular values");
-
-	Exception ex;
-	_pService->open(ex); // TODO remove when FilesWatching implemented!
 }
 
 void MonaServer::onUpdate(Service& service) {
@@ -115,14 +107,16 @@ void MonaServer::onUpdate(Service& service) {
 		if (String::ICompare(service.path, client.path, minSize) != 0)
 			continue;
 		const string& maxPath = client.path.size()>minSize ? client.path : service.path;
-		if(!maxPath[minSize] || maxPath[minSize] == '/')
+		if (!maxPath[minSize] || maxPath[minSize] == '/') {
 			client.close(Session::ERROR_UPDATE);
+			client.setCustomData<Service>(nullptr); // after the close to allow on close to call onDisconnection when possible!
+		}
 	}
 }
 
 SocketAddress& MonaServer::onHandshake(const string& path, const string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) {
 	Exception ex;
-	Service* pService(_pService->open(ex, path));
+	Service* pService = _pService->get(ex, path);
 	if (!pService)
 		return redirection;
 	SCRIPT_BEGIN(_pState)
@@ -142,7 +136,7 @@ SocketAddress& MonaServer::onHandshake(const string& path, const string& protoco
 
 //// CLIENT_HANDLER /////
 void MonaServer::onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams) {
-	Service* pService = _pService->open(ex,client.path);
+	Service* pService = _pService->get(ex, client.path);
 	if (!pService) {
 		if (ex)
 			ERROR(ex)
@@ -172,6 +166,8 @@ void MonaServer::onConnection(Exception& ex, Client& client, DataReader& inParam
 
 void MonaServer::onDisconnection(Client& client) {
 	Service* pService = client.getCustomData<Service>();
+	if (!pService)
+		return;
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_FUNCTION_BEGIN("onDisconnection", pService->reference())
 			Script::FromObject(_pState, client);

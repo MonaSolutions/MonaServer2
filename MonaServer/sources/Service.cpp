@@ -25,26 +25,103 @@ namespace Mona {
 
 
 
-Service::Service(lua_State* pState, const string& wwwPath, Handler& handler) : _handler(handler), _wwwPath(wwwPath), _lastCheck(0), _reference(LUA_REFNIL), _pParent(NULL), _pState(pState), FileWatcher(wwwPath, "/main.lua") {
+Service::Service(lua_State* pState, const string& wwwPath, Handler& handler, IOFile& ioFile) :
+	_handler(handler), _wwwPath(wwwPath), _reference(LUA_REFNIL), _pParent(NULL), _pState(pState),
+	_pWatcher(SET, Path(wwwPath, "*"), FileSystem::MODE_HEAVY), file(wwwPath, "/main.lua"),
+	_onUpdate([this](const Path& file, bool firstWatch) {
+		if(!file.isFolder() && file.name() != "main.lua")
+			return;
+		// file path is a concatenation of _wwwPath given to ListFiles in FileWatcher and file name, so we can get relative file name!
+		const char* path = (file.isFolder() ? file.c_str() : file.parent().c_str()) + _wwwPath.size();
+		Service* pService;
+		if (file.exists()) {
+			DEBUG("Application ", file, " update");
+			pService = &open(path);
+			if (file.isFolder())
+				pService = NULL; // no children update required here!
+			else
+				pService->start();
+		} else {
+			DEBUG("Application ", file, " deletion");
+			if (!file.isFolder()) {
+				Exception ex;
+				pService = get(ex, path);
+				if (pService)
+					pService->stop();
+			} else
+				pService = close(path);
+		}
+		// contamine reload to children application!
+		if (pService && !firstWatch) {
+			for (auto& it : pService->_services)
+				it.second.update();
+		}
+	}) {
+	ioFile.watch(_pWatcher, _onUpdate);
 	init();
 }
 
-Service::Service(lua_State* pState, const string& wwwPath, Service& parent, const string& name) : _handler(parent._handler), _wwwPath(wwwPath), name(name), _lastCheck(0), _reference(LUA_REFNIL), _pParent(&parent), _pState(pState), FileWatcher(wwwPath,parent.path,'/',name,"/main.lua") {
-	String::Assign((string&)path,parent.path,'/',name);
+Service::Service(lua_State* pState, const string& wwwPath, Service& parent, const char* name) :
+	_handler(parent._handler), _wwwPath(wwwPath), _reference(LUA_REFNIL), _pParent(&parent), _pState(pState),
+	name(name), file(parent.file.parent(), name, "/main.lua") {
+	String::Assign((string&)path, parent.path,'/',name);
 	init();
 }
 
 Service::~Service() {
-	// clean children
-	for (auto& it : _services)
-		delete it.second;
 	// clean environnment
-	clearFile();
+	stop();
 	// release reference
 	luaL_unref(_pState, LUA_REGISTRYINDEX, _reference);
 }
 
+Service* Service::get(Exception& ex, const char* path) {
+	if (*path == '/')
+		++path; // remove first '/'
+	if (!*path)
+		return (_ex = ex) ? NULL : this;
+	const char* subPath = strchr(path, '/');
+	string name(path, subPath ? (subPath - path) : strlen(path));
+	const auto& it = _services.find(name);
+	if (it != _services.end())
+		return it->second.get(ex, subPath ? subPath : "");
+	ex.set<Ex::Application::Unfound>("Application ", this->path, '/', name, " doesn't exist");
+	return NULL;
+}
+Service& Service::open(const char* path) {
+	if (!*path)
+		return self;
+	const char* subPath = strchr(path, '/');
+	if (!subPath)
+		return _services.emplace(SET, forward_as_tuple(path), forward_as_tuple(_pState, _wwwPath, self, path)).first->second;
+	String::Scoped scoped(subPath);
+	return _services.emplace(SET, forward_as_tuple(path), forward_as_tuple(_pState, _wwwPath, self, path)).first->second.open(subPath + 1);
+}
+Service* Service::close(const char* path) {
+	if (*path == '/')
+		++path; // remove first '/'
+	if (!*path)
+		return _services.empty() ? NULL : this;
+	const char* subPath = strchr(path, '/');
+	const auto& it = _services.find(string(path, subPath ? (subPath - path) : strlen(path)));
+	if (it == _services.end())
+		return NULL;
+	Service* pService = it->second.close(subPath ? subPath : "");
+	if(!pService)
+		_services.erase(it);
+	return pService;
+}
+
+void Service::update() {
+	if(!_ex)
+		start(); // restart!
+	for (auto& it : _services)
+		it.second.update();
+}
+
+
 void Service::init() {
+	_ex.set<Ex::Unavailable>(); // not loaded!
 	//// create environment
 
 	// table environment
@@ -95,60 +172,15 @@ void Service::init() {
 	_reference = luaL_ref(_pState, LUA_REGISTRYINDEX);
 }
 
-Service* Service::open(Exception& ex) {
-	if (_lastCheck.isElapsed(2000)) { // already checked there is less of 2 sec!
-		_lastCheck.update();
-		if (!watchFile() && !path.empty() && !FileSystem::Exists(file.parent())) // no path/main.lua file, no main service, no path folder
-			_ex.set<Ex::Application::Unfound>("Application ", path, " doesn't exist");
-	}
-	if (!_ex)
-		return this;
-	ex = _ex;
-	return NULL;
-}
+void Service::start() {
+	stop();
 
-Service* Service::open(Exception& ex, const string& path) {
-	// remove first '/'
-	string name;
-	if(!path.empty())
-		name.assign(path[0] == '/' ? &path.c_str()[1] : path.c_str());
-
-	// substr first "service"
-	size_t pos = name.find('/');
-	string nextPath;
-	if (pos != string::npos) {
-		nextPath = &name.c_str()[pos];
-		name.resize(pos);
-	}
-
-	Service* pSubService(this);
-	auto it = _services.end();
-	if (!name.empty()) {
-		it = _services.emplace(name, new Service(_pState, _wwwPath, self, name)).first;
-		pSubService = it->second;
-	}
-
-	// if file or folder exists, return the service (or sub service)
-	if (pSubService->open(ex)) {
-		if (nextPath.empty())
-			return pSubService;	
-		return pSubService->open(ex, nextPath);
-	}
-
-	// service doesn't exist (and no children possible here!)
-	if (it != _services.end() && ex.cast<Ex::Application::Unfound>()) {
-		delete it->second;
-		_services.erase(it);
-	}
-	return NULL;
-}
-
-void Service::loadFile() {
 	_ex = nullptr;
 
 	SCRIPT_BEGIN(_pState)
 		lua_rawgeti(_pState, LUA_REGISTRYINDEX, _reference);
-		if(luaL_loadfile(_pState,file.c_str())==0) {
+		int error = luaL_loadfile(_pState, file.c_str());
+		if(!error) {
 			lua_pushvalue(_pState, -2);
 			lua_setfenv(_pState, -2);
 			if (lua_pcall(_pState, 0, 0, 0) == 0) {
@@ -159,15 +191,17 @@ void Service::loadFile() {
 				SCRIPT_INFO("Application www", path, " loaded")
 			} else
 				SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)));
-		} else
-			SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)))
+		} else if (error==LUA_ERRFILE) // can happen on update when a parent directory is deleted!
+			_ex.set<Ex::Application::Unfound>(Script::LastError(_pState));
+		else
+			SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)));
 		lua_pop(_pState, 1); // remove environment
 		if(_ex)
-			clearFile();
+			stop();
 	SCRIPT_END
 }
 
-void Service::clearFile() {
+void Service::stop() {
 
 	if (!_ex) { // loaded!
 		SCRIPT_BEGIN(_pState)
@@ -176,13 +210,13 @@ void Service::clearFile() {
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
-	} else
-		_ex = nullptr;
 
-	// update signal, after onStop because will disconnects clients
-	_handler.onUpdate(self);
+		// update signal, after onStop because will disconnects clients
+		_handler.onUnload(self);
+		_ex.set<Ex::Unavailable>(); // not loaded!
+	}
 
-	// Clear environment
+	// Clear environment (always do, super can assign value on this app even if empty)
 	/// clear environment table
 	lua_rawgeti(_pState, LUA_REGISTRYINDEX, _reference);
 	lua_pushnil(_pState);  // first key 
