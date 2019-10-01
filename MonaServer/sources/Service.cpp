@@ -188,7 +188,7 @@ void Service::start() {
 					SCRIPT_WRITE_DATA(path.data(), path.size())
 					SCRIPT_FUNCTION_CALL
 				SCRIPT_FUNCTION_END
-				SCRIPT_INFO("Application www", path, " loaded")
+				INFO("Application www", path, " started")
 			} else
 				SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)));
 		} else if (error==LUA_ERRFILE) // can happen on update when a parent directory is deleted!
@@ -210,6 +210,7 @@ void Service::stop() {
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
+		INFO("Application www", path, " stopped");
 
 		// update signal, after onStop because will disconnects clients
 		_handler.onUnload(self);

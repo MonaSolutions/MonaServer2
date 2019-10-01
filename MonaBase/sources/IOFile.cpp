@@ -244,7 +244,9 @@ void IOFile::watch(const shared<const FileWatcher>& pFileWatcher, const FileWatc
 		bool					_firstWatch;
 		Path					_file;
 	};
-	((FileWatcher&)*_watchers.back()).onUpdate = [this, onUpdate](const Path& file, bool firstWatch) { handler.queue<OnUpdate>(onUpdate, file, firstWatch); };
+	((FileWatcher&)*_watchers.back()).onUpdate = [this, onUpdate](const Path& file, bool firstWatch) {
+		handler.queue<OnUpdate>(onUpdate, file, firstWatch);
+	};
 	start(Thread::PRIORITY_LOWEST);
 }
 

@@ -243,13 +243,14 @@ struct String : std::string {
 	const char* */
 	template <typename OutType, typename STRType, typename ...Args>
 	static typename std::enable_if<std::is_convertible<STRType, const char*>::value, OutType>::type&
-		Append(OutType& out, STRType value, Args&&... args) {
+	Append(OutType& out, STRType value, Args&&... args) {
 		return Append<OutType>((OutType&)out.append(value, strlen(value)), std::forward<Args>(args)...);
 	}
 	/*!
 	String litteral (very fast, without strlen call) */
-	template <typename OutType, std::size_t size, typename ...Args>
-	static OutType& Append(OutType& out, const char(&value)[size], Args&&... args) {
+	template <typename OutType, typename CharType, std::size_t size, typename ...Args>
+	static typename std::enable_if<std::is_same<CharType, const char>::value, OutType>::type&
+	Append(OutType& out, CharType(&value)[size], Args&&... args) {
 		return Append<OutType>((OutType&)out.append(value, size -1), std::forward<Args>(args)...);
 	}
 
