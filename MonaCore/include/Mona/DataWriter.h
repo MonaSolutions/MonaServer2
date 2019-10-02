@@ -27,6 +27,7 @@ namespace Mona {
 
 struct DataWriter : virtual Object {
 	NULLABLE
+
 ////  TO DEFINE ////	
 	virtual void   writePropertyName(const char* value)=0;
 
@@ -56,6 +57,9 @@ struct DataWriter : virtual Object {
 	virtual bool   repeat(UInt64 reference) { return false; }
 
 ////////////////////
+	void		   writeValue(const char* value, UInt32 size);
+	void		   writeValue(UInt8 type, const char* value, UInt32 size, double number);
+	void		   writeProperty(const char* name, const char* value, UInt32 size) { writePropertyName(name); writeValue(value, size); }
 
 	void		   writeNullProperty(const char* name) { writePropertyName(name); writeNull(); }
 	void		   writeDateProperty(const char* name, const Date& date) { writePropertyName(name); writeDate(date); }
@@ -75,6 +79,8 @@ struct DataWriter : virtual Object {
 protected:
 	DataWriter(Buffer& buffer): writer(buffer, Byte::ORDER_NETWORK) {}
 	DataWriter() : writer(Buffer::Null()) {}
+
+
 
 	BinaryWriter   writer;
 };

@@ -125,10 +125,10 @@ int SRT::LastError() {
 	return error; // not found
 }
 
-int SrtListenCallback(void* opaq, SRTSOCKET ns, int hsversion, const struct sockaddr* peeraddr, const char* streamid) {
+int SRT::Socket::ListenCallback(void* opaq, SRTSOCKET ns, int hsversion, const struct sockaddr* peeraddr, const char* streamid) {
 	if (streamid) {
 		SRT::Socket* pSRT = (SRT::Socket*)opaq;
-		pSRT->stream = streamid; // streamid for next accept
+		pSRT->_stream = streamid; // streamid for next accept
 	}
 	return 0; // always accept the connection
 };
@@ -141,7 +141,7 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 		return;
 	}
 	init();
-	::srt_listen_callback(_id, &SrtListenCallback, this);
+	::srt_listen_callback(_id, &ListenCallback, this);
 }
 
 SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) {
@@ -272,14 +272,12 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 	int sclen = sizeof scl;
 	::SRTSOCKET sockfd = ::srt_accept(_id, (sockaddr*)&scl, &sclen);
 	if (sockfd == SRT_INVALID_SOCK) {
+		_stream.clear();
 		SetException(ex);
 		return false;
 	}
 	SRT::Socket* pSRTSocket = new SRT::Socket(sockfd, (sockaddr&)scl);
-	if (stream.length()) {
-		pSRTSocket->stream = stream.c_str();
-		stream.clear();
-	}
+	pSRTSocket->_stream = move(_stream);
 	pSocket = pSRTSocket;
 	return true;
 }

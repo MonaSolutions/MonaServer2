@@ -88,11 +88,19 @@ struct String : std::string {
 	/!\ Can't work on a literal C++ declaration!
 	/!\ When using by "data+size" way, address must be in data capacity! ( */
 	struct Scoped {
-		Scoped(const char* end) : _c((char&)*end), _cValue(*end) { _c = 0; }
-		~Scoped() { _c = _cValue; }
+		Scoped(const char* end) : _end(end) {
+			if (end) {
+				_c = *end;
+				*(char*)end = 0;
+			}
+		}
+		~Scoped() {
+			if(_end)
+				*(char*)_end = _c;
+		}
 	private:
-		char& _c;
-		char  _cValue;
+		const char* _end;
+		char		_c;
 	};
 
 	/*!

@@ -15,9 +15,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 #include "Mona/SRT/SRTProtocol.h"
 #include "Mona/SRT/SRTSession.h"
-#include "Mona/DataReader.h"
-#include "Mona/MapWriter.h"
-#include "Mona/MediaSocket.h"
 
 using namespace std;
 
@@ -25,115 +22,69 @@ using namespace std;
 
 namespace Mona {
 
-struct SRTIdReader : DataReader, virtual Object {
-	SRTIdReader(const UInt8* data, UInt32 size) : DataReader(data, size), _header(true) {}
+DataReader& SRTProtocol::Params::operator()() {
+	DataReader::reset();
+	return self;
+}
 
-private:
-	UInt8 followingType() { return reader.available() ? STRING : END; }
+bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
+	// TODO: Handle nested keys? => #!:{...}
 
-	bool readOne(UInt8 type, DataWriter& writer) {
-		if (!reader.available())
-			return false;
-
-		// TODO: Handle nested keys? => #!:{...}
-		if (_header) {
-			string value;
-			if (reader.available() < 4 || String::ICompare(reader.read(4, value), "#!::") != 0) {
-				DEBUG("Unexpected header for the SRT streamid : ", value);
-				return false;
-			}
-			_header = false;
-		}
-
-		// Read one pair key=value
-		char* cur = STR reader.current();
-		const char* end = cur + reader.available();
-
-		const char* key = cur;
-		while (*cur != '=') {
-			if (cur++ == end)
-				return false; // line without value
-		}
-		const char* separator = cur++;
-		const char* value = cur;
-
-		while (*cur != ',') {
-			if (cur == end)
-				break;
-			++cur;
-		}
-
-		String::Scoped scoped(separator);
-		writer.writeStringProperty(key, value, cur - value);
-
-		// read/write all
-		reader.next(cur - STR reader.current() + (*cur == ','));
-		return true;
+	if (reader.available() < 4 || String::ICompare(STR reader.current(), EXPAND("#!::")) != 0) {
+		DEBUG("Unexpected header for the SRT streamid : ", String::Data(reader.current(), 4));
+		return false;
 	}
+	reader.next(4);
 
-	bool _header;
-};
+	writer.beginObject();
+	// Read pair key=value
+	const char* key = NULL;
+	const char* value = NULL;
+	do {
+		const char* cur = STR reader.current();
+		if (!reader.available() || *cur == ',') {
+			if (!key)
+				break; // nothing to read!
+			String::Scoped scoped(value);
+			write(writer, key, value+1, value ? (cur-value+1) : 0);
+			key = value = NULL;
+		} else if (!value && *cur == '=')
+			value = cur;
+		if (!key)
+			key = cur;
+	} while (reader.next());
+	writer.endObject();
+	return true;
+}
+
+void SRTProtocol::Params::write(DataWriter& writer, const char* key, const char* value, UInt32 size) {
+	if (String::ICompare(key, "m") == 0) {
+		if(String::ICompare(value, size, "request") == 0)
+			_subscribe = true;
+		else if (String::ICompare(value, size, "publish") == 0)
+			_publish = true;
+		// Note: Bidirectional is not supported for now as a socket cannot be subcribed twice
+		// else if (String::ICompare(value, size, "bidirectional") == 0)
+		//  publish = subscribe = true;
+	} else if (String::ICompare(key, "r") == 0)
+		_path.set(string(value, size));
+	writer.writeProperty(key, value, size);
+}
+
 
 SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) : _server(api.ioSocket), Protocol(name, api, sessions) {
 	setNumber("port", 9710);
 	setNumber("timeout", 60); // 60 seconds
 
-	_server.onConnection = [&](const shared<Socket>& pSocket) {
-
+	_server.onConnection = [this](const shared<Socket>& pSocket) {
 		// Try to read the parameter "streamid"
-		string stream = ((SRT::Socket*)pSocket.get())->stream.c_str();
-		if (stream.empty()) {
-			WARN("SRT Connection without streamid, refused");
-			return;
-		}
+		const string& stream = ((SRT::Socket*)pSocket.get())->stream();
+		Params params(BIN stream.data(), stream.size());
+		if (params)
+			this->sessions.create<SRTSession>(self, pSocket).init(params);
+		else
+			WARN("SRT connection without a valid streamid, use ini configuration rather to configure statically SRT input and output");
 
-		SRTIdReader reader(BIN stream.data(), stream.size());
-		map<string, string> streamParameters;
-		MapWriter<map<string, string>> mapWriter(streamParameters);
-		reader.read(mapWriter);
-
-		// Extract the application path and stream name
-		auto it = streamParameters.find("r");
-		Path path(it == streamParameters.end()? stream : it->second); // If no Resource Name we consider the whole SRT streamid as the stream name
-
-		// Create the Session & the Peer
-		SRTSession& session = this->sessions.create<SRTSession>(*this, pSocket);
-		if (!session.init())
-			return;
-
-		// Start Play / Publish
-		Exception ex;
-		Subscription* pSubscription(NULL);
-		Publication* pPublication(NULL);
-		unique<MediaSocket::Reader> pReader;
-		unique<MediaSocket::Writer> pWriter;
-		auto itMode = streamParameters.find("m");
-		// Note: Bidirectional is not supported for now as a socket cannot be subcribed twice
-		if (itMode == streamParameters.end() || String::ICompare(itMode->second, "request") == 0 /*|| String::ICompare(itMode->second, "bidirectional") == 0*/) {
-			pWriter.set(MediaStream::TYPE_SRT, path, MediaWriter::New("ts"), pSocket, api.ioSocket);
-			if (!api.subscribe(ex, session.peer, path.baseName(), *(pSubscription = new Subscription(*pWriter)))) {
-				delete pSubscription;
-				pSubscription = NULL;
-				session.kill();
-				return;
-			}
-		}
-		if (itMode != streamParameters.end() && (String::ICompare(itMode->second, "publish") == 0 /*|| String::ICompare(itMode->second, "bidirectional") == 0*/)) {
-			if ((pPublication = api.publish(ex, session.peer, path.baseName())) == NULL) {
-				session.kill();
-				return;
-			}
-			pReader.set(MediaStream::TYPE_SRT, path, *pPublication, MediaReader::New("ts"), pSocket, api.ioSocket);
-		}
-		
-		if (!pSubscription && !pPublication) {
-			WARN("Unhandled SRT mode : ", itMode->second);
-			session.kill();
-			return;
-		}
-		
-		// Start the session
-		session.subscribe(pSubscription, pPublication, move(pReader), move(pWriter));
 	};
 	_server.onError = [this](const Exception& ex) {
 		WARN("Protocol ", this->name, ", ", ex); // onError by default!

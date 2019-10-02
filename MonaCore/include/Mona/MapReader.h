@@ -60,26 +60,7 @@ private:
 				continue;
 			}
 	
-			writer.writePropertyName(key + prefix.size());
-
-			if (String::ICompare(_it->second, "true") == 0)
-				writer.writeBoolean(true);
-			else if (String::ICompare(_it->second, "false") == 0)
-				writer.writeBoolean(false);
-			else if (String::ICompare(_it->second, "null") == 0)
-				writer.writeNull();
-			else {
-				double number;
-				if (String::ToNumber(_it->second, number))
-					writer.writeNumber(number);
-				else {
-					Exception ex;
-					if (_date.update(ex, _it->second))
-						writer.writeDate(_date);
-					else
-						writer.writeString(_it->second.data(),_it->second.size());
-				}
-			}
+			writer.writeProperty(key + prefix.size(), _it->second.data(), _it->second.size());
 			++_it;
 		}
 		writer.endObject();

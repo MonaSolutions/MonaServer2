@@ -18,15 +18,41 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/SRT.h"
 #include "Mona/Protocol.h"
+#include "Mona/DataReader.h"
 
 #if defined(SRT_API)
 namespace Mona {
 
-struct SRTProtocol : public Protocol, public virtual Object {
+struct SRTProtocol : Protocol, virtual Object {
 	SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions);
 	virtual ~SRTProtocol() {}
 
 	bool load(Exception& ex);
+
+	struct Params : private DataReader, virtual Object {
+		NULLABLE
+		Params(const UInt8* data, UInt32 size) : DataReader(data, size), _publish(false), _subscribe(false) {
+			read(DataWriter::Null()); // fill parameters!
+		}
+		operator bool() const { return _publish || _subscribe; }
+
+		const std::string&	stream() const { return _path.name(); }
+		const std::string&	path() const { return _path.parent(); }
+		bool				publish() const { return _publish; }
+		bool				subscribe() const { return _subscribe; }
+
+		DataReader& operator()();
+
+	private:
+		UInt8 followingType() { return OTHER; }
+
+		bool readOne(UInt8 type, DataWriter& writer);
+		void write(DataWriter& writer, const char* key, const char* value, UInt32 size);
+
+		Path	_path;
+		bool	_publish;
+		bool	_subscribe;
+	};
 
 protected:
 	SRT::Server	_server;

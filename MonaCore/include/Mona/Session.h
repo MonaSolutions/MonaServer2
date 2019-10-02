@@ -22,6 +22,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
+#define TO_ERROR(EX) Session::ToError(EX), EX.c_str()
+
 class Session : public virtual Object {
 	shared<Peer> _pPeer; // build it in first to initialize peer&!
 public:
@@ -46,7 +48,7 @@ public:
 
 	static Int32 ToError(const Exception& ex);
 
-	virtual	~Session();
+	~Session();
 
 	/*!
 	If id>0 => managed by _sessions! */
@@ -54,6 +56,8 @@ public:
 	const std::string&	name()	const;
 	const UInt32		timeout;
 
+	/*!
+	Always implements kill and release resource here rather destructor */
 	virtual void		kill(Int32 error = 0, const char* reason = NULL);
 
 	template<typename ProtocolType = Protocol>
@@ -81,7 +85,8 @@ protected:
 	Session morphing */
 	Session(Protocol& protocol, Session& session);
 	
-	void close(Int32 error = 0, const char* reason = NULL) { peer.onClose(error, reason); } // to fix morphing issue with kill intern call!
+	// to fix morphing issue with kill intern call!
+	void close(Int32 error = 0, const char* reason = NULL) { peer.onClose(error, reason); } 
 private:
 	void init(Session& session);
 

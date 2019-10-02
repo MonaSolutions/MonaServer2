@@ -24,28 +24,36 @@ using namespace std;
 
 namespace Mona {
 
-DataWriter& DataWriter::Null() {
-	static struct DataWriterNull : DataWriter, virtual Object {
-		DataWriterNull() {}
-		
-		void writePropertyName(const char* value) {}
-
-		void   writeNumber(double value) {}
-		void   writeString(const char* value, UInt32 size) {}
-		void   writeBoolean(bool value) {}
-		void   writeNull() {}
-		UInt64 writeDate(const Date& date) { return 0; }
-		UInt64 writeBytes(const UInt8* data, UInt32 size) { return 0; }
-	} Null;
-	return Null;
-}
-
 DataReader& DataReader::Null() {
 	static struct DataReaderNull : DataReader, virtual Object {
 		bool	readOne(UInt8 type, DataWriter& writer) { return false; }
 		UInt8	followingType() { return END; }
 	} Null;
 	return Null;
+}
+
+UInt8 DataReader::ParseValue(const char* value, UInt32 size, double& number) {
+	if (String::ICompare(value, size, "null") == 0)
+		return NIL;
+	if (String::ICompare(value, size, "false") == 0) {
+		number = 0;
+		return BOOLEAN;
+	}
+	if (String::ICompare(value, size, "true") == 0) {
+		number = 1;
+		return BOOLEAN;
+	}
+	Exception ex;
+	thread_local Date date;
+	if (date.update(ex, value, size)) {
+		number = (double)date;
+		if (ex)
+			WARN("Parse date, ", ex);
+		return DATE;
+	}
+	if (String::ToNumber(value, number))
+		return NUMBER;
+	return STRING;
 }
 
 bool DataReader::readNext(DataWriter& writer) {

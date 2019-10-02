@@ -43,7 +43,6 @@ private:
 	void		unpublish();
 
 	void		kill(Int32 error = 0, const char* reason = NULL);
-	void		close(Int32 error = 0, const char* reason = NULL) { Session::close(error, reason); }
 
 	/// \brief Read message and call method if needed
 	/// \param packet Content message to read

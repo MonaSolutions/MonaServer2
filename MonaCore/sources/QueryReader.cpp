@@ -46,7 +46,7 @@ UInt8 QueryReader::followingType() {
 	if (hasProperty)
 		_type = OBJECT;
 	else
-		_type = valueType();
+		_type = ParseValue(_value.data(), _value.size(), _number);
 	
 	return _type;
 }
@@ -62,8 +62,7 @@ bool QueryReader::readOne(UInt8 type, DataWriter& writer) {
 		writer.beginObject();
 		do {
 			cur = reader.current();
-			writer.writePropertyName(_property.c_str());
-			writeValue(valueType(), writer);
+			writer.writeProperty(_property.c_str(), _value.data(), _value.size());
 
 			// next!
 			while (cur<end && *cur != '&')
@@ -76,7 +75,7 @@ bool QueryReader::readOne(UInt8 type, DataWriter& writer) {
 		return true;
 	}
 
-	writeValue(type, writer);
+	writer.writeValue(type, _value.data(), _value.size(), _number);
 
 	// next!
 	while (cur<end && *cur != '&')
@@ -84,59 +83,6 @@ bool QueryReader::readOne(UInt8 type, DataWriter& writer) {
 	reader.next(cur-reader.current() + (*cur=='&'));
 	_type = END;
 	return true;
-}
-
-UInt8 QueryReader::valueType() {
-
-	if (String::ICompare(_value, "null") == 0)
-		return NIL;
-
-	if (String::ICompare(_value, "false") == 0) {
-		_number = 0;
-		return BOOLEAN;
-	}
-
-	if (String::ICompare(_value, "true") == 0) {
-		_number = 1;
-		return BOOLEAN;
-	}
-
-	Exception ex;
-	if (_date.update(ex, _value)) {
-		if (ex)
-			WARN("QueryReader date, ", ex);
-		return DATE;
-	}
-
-	if (String::ToNumber(_value, _number))
-		return NUMBER;
-
-	return STRING;
-}
-
-void QueryReader::writeValue(UInt8 type, DataWriter& writer) {
-	switch (type) {
-
-		case STRING:
-			writer.writeString(_value.data(),_value.size());
-			break;
-
-		case NUMBER:
-			writer.writeNumber(_number);
-			break;
-
-		case BOOLEAN:
-			writer.writeBoolean(_number != 0);
-			break;
-
-		case DATE:
-			writer.writeDate(_date);
-			break;
-
-		default:
-			writer.writeNull();
-			break;
-	}
 }
 
 

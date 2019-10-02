@@ -23,9 +23,11 @@ using namespace std;
 namespace Mona {
 
 Int32 Session::ToError(const Exception& ex) {
+	if (!ex)
+		return 0; // normal!
 	if (ex.cast<Ex::Application::Error>() || ex.cast<Ex::Permission>())
 		return ERROR_REJECTED;
-	if (ex.cast<Ex::Application>() || ex.cast<Ex::Protocol>())
+	if (ex.cast<Ex::Application>() || ex.cast<Ex::Protocol>() || ex.cast<Ex::Format>())
 		return ERROR_PROTOCOL;
 	if (ex.cast<Ex::Unsupported>())
 		return ERROR_UNSUPPORTED;

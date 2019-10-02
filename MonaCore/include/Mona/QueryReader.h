@@ -39,12 +39,8 @@ private:
 	UInt8	followingType();
 	bool	readOne(UInt8 type, DataWriter& writer);
 
-	void	writeValue(UInt8 type, DataWriter& writer);
-	UInt8   valueType();
-
 	std::string _property;
 	std::string _value;
-	Date		_date;
 	double		_number;
 	UInt8		_type;
 };

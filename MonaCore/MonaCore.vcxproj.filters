@@ -630,5 +630,8 @@
     <ClCompile Include="sources\SRT\SRTSession.cpp">
       <Filter>Protocols\SRT</Filter>
     </ClCompile>
+    <ClCompile Include="sources\DataWriter.cpp">
+      <Filter>Serializers\Patterns</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

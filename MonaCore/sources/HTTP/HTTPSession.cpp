@@ -40,7 +40,7 @@ HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscript
 		// Invalid packet, answer with the appropriate response and useless to keep the session opened!
 		// Do it after beginRequest/endRequest to get permission to write error response
 		if (request.ex)
-			return kill(ToError(request.ex), request.ex.c_str());
+			return kill(TO_ERROR(request.ex));
 
 		if (request) { // else progressive! => PUT or POST media!
 

@@ -79,6 +79,8 @@ struct SRT : virtual Object {
 
 		UInt32  available() const;
 
+		const std::string& stream() const { return _stream; }
+
 		virtual bool accept(Exception& ex, shared<Mona::Socket>& pSocket);
 
 		virtual bool connect(Exception& ex, const SocketAddress& address, UInt16 timeout = 0);
@@ -133,7 +135,6 @@ struct SRT : virtual Object {
 
 		bool getStats(Exception& ex, SRT::Stats& stats) const;
 
-		std::string	stream;
 
 	private:
 		Socket(SRTSOCKET id, const sockaddr& addr);
@@ -177,8 +178,11 @@ struct SRT : virtual Object {
 			return false;
 		}
 
-		Exception					_ex;
-		volatile bool				_shutdownRecv;
+		static int ListenCallback(void* opaq, SRTSOCKET ns, int hsversion, const struct sockaddr* peeraddr, const char* streamid);
+
+		Exception				_ex;
+		volatile bool			_shutdownRecv;
+		std::string				_stream;
 	};
 
 	struct Client : TCPClient {

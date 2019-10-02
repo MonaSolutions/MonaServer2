@@ -14,6 +14,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 */
 #include "Mona/SRT/SRTSession.h"
+#include "Mona/TSReader.h"
+#include "Mona/TSWriter.h"
 
 using namespace std;
 
@@ -21,60 +23,60 @@ using namespace std;
 
 namespace Mona {
 
-SRTSession::SRTSession(Protocol& protocol, const shared<Socket>& pSocket) :
-	Session(protocol, pSocket->peerAddress()), _pSocket(pSocket), _pSubscription(NULL), _pPublication(NULL), _writer(*this) {
+SRTSession::SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket) :
+	Session(protocol, pSocket->peerAddress()), _pSocket(pSocket), _pSubscription(NULL), _pPublication(NULL), _writer(self) {
 	
 }
 
-bool SRTSession::init() {
-	// Initialize the Peer
+void SRTSession::init(SRTProtocol::Params& params) {
+	peer.setPath(params.path());
+	// Connect the Peer
 	Exception ex;
-	peer.onConnection(ex, _writer, *_pSocket, DataReader::Null());
-	if (ex) 
-		kill(ToError(ex), ex.c_str());
-	return !ex;
-}
+	peer.onConnection(ex, _writer, *_pSocket, params());
+	if (ex)
+		return kill(TO_ERROR(ex));
 
-void SRTSession::subscribe(Subscription* pSubscription, Publication* pPublication, unique<MediaSocket::Reader>&& pReader, unique<MediaSocket::Writer>&& pWriter) {
-	_pSubscription = pSubscription;
-	_pPublication = pPublication;
-	if (pReader) {
-		_pReader = move(pReader);
-		_pReader->onStop = [&]() {
+	// Start Play / Publish
+	if (params.subscribe()) {
+		_pWriter.set(MediaStream::TYPE_SRT, params.path(), new TSWriter(), _pSocket, api.ioSocket);
+		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter)))) {
+			delete _pSubscription;
+			_pSubscription = NULL;
+			return kill(TO_ERROR(ex));
+		}
+		_pWriter->onStop = [&]() {
+			// Unsubscribe before killing the session
+			if (_pSubscription)
+				api.unsubscribe(peer, *_pSubscription); // /!\ do not delete the subscription until the writer exists
+			kill(TO_ERROR(_pWriter->ex));
+		};
+		_pWriter->start();
+	}
+	if (params.publish()) {
+		if ((_pPublication = api.publish(ex, peer, params.stream())) == NULL)
+			return kill(TO_ERROR(ex));
+		_pReader.set(MediaStream::TYPE_SRT, params.path(), *_pPublication, new TSReader(), _pSocket, api.ioSocket).onStop = [&]() {
 			// Unpublish before killing the session
 			if (_pPublication) {
 				api.unpublish(*_pPublication, peer);
 				_pPublication = NULL;
 			}
-			kill(_pReader->ex ? ToError(_pReader->ex) : 0, _pReader->ex.c_str());
+			kill(TO_ERROR(_pReader->ex));
 		};
 		_pReader->start();
 	}
-	if (pWriter) {
-		_pWriter = move(pWriter);
-		_pWriter->onStop = [&]() {
-			// Unsubscribe before killing the session
-			if (_pSubscription)
-				api.unsubscribe(peer, *_pSubscription); // /!\ do not delete the subscription until the writer exists
-			kill(_pWriter->ex ? ToError(_pWriter->ex) : 0, _pWriter->ex.c_str());
-		};
-		_pWriter->start();
-	}
 }
 
-void SRTSession::disengage() {
+void SRTSession::kill(Int32 error, const char* reason) {
 	// Stop the current  job
 	if (_pWriter) {
 		_pWriter->onStop = nullptr;
-		_pWriter->stop();
-		_pWriter.reset();
+		_pWriter.reset(); // call stop
 	}
 	if (_pReader) {
 		_pReader->onStop = nullptr;
-		_pReader->stop();
-		_pReader.reset();
+		_pReader.reset(); // call stop
 	}
-
 	if (_pPublication) {
 		api.unpublish(*_pPublication, peer);
 		_pPublication = NULL;
@@ -84,6 +86,7 @@ void SRTSession::disengage() {
 		delete _pSubscription;
 		_pSubscription = NULL;
 	}
+	Session::kill(error, reason);
 }
 
 } // namespace Mona

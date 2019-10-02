@@ -93,7 +93,7 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> 
 
 		// Close the session on exception beause nothing is expected in WebSocket to send an error excepting in "close" message (has a code and a string)
 		if (ex)
-			return close(ToError(ex), ex.c_str());
+			return close(TO_ERROR(ex));
 
 		if (request.flush)
 			flush();

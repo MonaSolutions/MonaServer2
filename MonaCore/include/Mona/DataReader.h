@@ -38,6 +38,8 @@ struct DataReader : virtual Object {
 		OTHER
 	};
 
+	static UInt8	ParseValue(const char* value, UInt32 size, double& number);
+
 	void			next(UInt32 count=1) { read(DataWriter::Null(), count); }
 	UInt8			nextType() { if (!_nextType) _nextType = followingType(); return _nextType; }
 
@@ -77,7 +79,7 @@ protected:
 	BinaryReader	reader;
 
 	bool			readNext(DataWriter& writer);
-
+	
 private:
 	
 ////  TO DEFINE ////
