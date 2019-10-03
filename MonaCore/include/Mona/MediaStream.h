@@ -63,7 +63,7 @@ struct MediaStream : virtual Object {
 
 	const Type			type;
 	const Path			path;
-	const Parameters&	params() { return _params; }
+	const Parameters&	params() { _params.onUnfound = nullptr; return _params; }
 	bool				isSource() const { return &source == &Media::Source::Null(); }
 	const std::string&	description() const { return _description.empty() ? ((MediaStream*)this)->buildDescription(_description) : _description; }
 

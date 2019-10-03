@@ -49,7 +49,7 @@ bool MediaStream::start(const Parameters& parameters) {
 		if (pTarget)
 			onNewTarget(_pTarget = shared<Media::Target>(make_shared<Media::Target>(), pTarget)); // aliasing	
 	}
-	_params.onUnfound = nullptr;
+	_params.onUnfound = nullptr; // If starting() has returned false, state is always STOPPED and we have not been able to reset onUnfound (this been maybe deleted)
 	_params.onUnfound = [this, &parameters](const string& key)->const string* {
 		const string* pValue = parameters.getParameter(key);
 		if (!pValue)
@@ -58,9 +58,9 @@ bool MediaStream::start(const Parameters& parameters) {
 		return pValue;
 	};
 	// first call _state is on STOPPED
-	if (!starting(_params)) // if returns false stop has maybe been called and this can be deleted!
+	if (!starting(_params)) // if returns false stop has maybe been called and this can be deleted, state stays STOPPED!
 		return false;
-	if (_state != STATE_RUNNING) // if has called finalizeStart state is already in RUNNING
+	if (!_state) // if run() has been called state is RUNNING
 		_state = STATE_STARTING;
 	return true;
 }
@@ -77,8 +77,9 @@ bool MediaStream::run() {
 	return true;
 }
 void MediaStream::stop() {
-	if (!_state)
+	if (!_state && !_params.onUnfound) // if _params.onUnfound we are inside start(), stop() is possible!
 		return;
+	_params.onUnfound = nullptr; // to avoid a "run()" which works whereas we are stopped and not inside starting()!
 	stopping();
 	for (const auto& it : _targets)
 		(MediaStream::OnStop&)it->onStop = nullptr; // unsuscribe because children pTarget can continue to live alone!
