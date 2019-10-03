@@ -40,7 +40,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		BinaryReader reader(handshake.data(), handshake.size());
 
 		// Fill peer infos
-		shared<Peer> pPeer(SET, this->api, "RTMFP");
+		shared<Peer> pPeer(SET, this->api, "RTMFP", handshake.address);
 		string serverAddress;
 		{
 			const char* url = STR reader.current();
@@ -48,7 +48,6 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 			String::Scoped scoped(STR reader.current());
 			Util::UnpackUrl(url, serverAddress, (string&)pPeer->path, (string&)pPeer->query);
 		}
-		pPeer->setAddress(handshake.address);
 		pPeer->setServerAddress(serverAddress);
 		Util::UnpackQuery(pPeer->query, pPeer->properties());
 

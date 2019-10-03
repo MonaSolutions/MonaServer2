@@ -45,9 +45,8 @@ Session::Session(Protocol& protocol, shared<Peer>& pPeer, const char* name) : _p
 	init(self);
 }
 	
-Session::Session(Protocol& protocol, const SocketAddress& address, const char* name) : peer(_pPeer.set(protocol.api, protocol.name)),
+Session::Session(Protocol& protocol, const SocketAddress& address, const char* name) : peer(_pPeer.set(protocol.api, protocol.name, address)),
 	_protocol(protocol),_name(name ? name : ""), api(protocol.api), died(false), _id(0), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
-	peer.setAddress(address);
 	init(self);
 }
 

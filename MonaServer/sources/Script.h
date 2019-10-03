@@ -138,7 +138,7 @@ struct Script : virtual Static {
 		int		_count;
 		lua_State*	_pState;
 	};
-	static Mona::Client& Client() { static Mona::Client LUAClient("LUA"); return LUAClient; }
+	static Mona::Client& Client() { static Mona::Client LUAClient("LUA", SocketAddress::Wildcard()); return LUAClient; }
 
 	static const char*	 LastError(lua_State *pState);
 	static void			 Test(lua_State *pState);

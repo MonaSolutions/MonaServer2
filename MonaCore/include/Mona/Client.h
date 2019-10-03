@@ -32,7 +32,7 @@ struct Client : Entity, virtual Object, Net::Stats {
 	typedef Event<bool(const std::string& key, DataReader& reader)>	ON(SetProperty);
 	NULLABLE
 
-	Client(const char* protocol);
+	Client(const char* protocol, const SocketAddress& address);
 
 	const SocketAddress			address;
 	const SocketAddress			serverAddress;
@@ -87,8 +87,7 @@ struct Client : Entity, virtual Object, Net::Stats {
 	void						close(Int32 error = 0, const char* reason = NULL) { writer().close(error, reason); }
 
 protected:
-	Client(); // class children has to assign "protocol" field itself!
-
+	
 	void setWriter(Writer& writer = Writer::Null(), Net::Stats& netStats = Net::Stats::Null()) { _pWriter = &writer; _pNetStats = &netStats; }
 
 	UInt16		setPing(UInt64 value);

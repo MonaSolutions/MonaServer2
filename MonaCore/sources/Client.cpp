@@ -24,15 +24,12 @@ using namespace std;
 
 namespace Mona {
 
-Client::Client(const char* protocol) :
-	protocol(protocol), _pData(NULL), connection(Time::Now()),
-	disconnection(0), _pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()),
-	_rttvar(0), _rto(Net::RTO_INIT), _ping(0) {
-}
-Client::Client() : // class children has to assign "protocol" field itself!
-	_pData(NULL), connection(0),
-	disconnection(Time::Now()), _pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()),
-	_rttvar(0), _rto(Net::RTO_INIT), _ping(0) {
+Client::Client(const char* protocol, const SocketAddress& address) : 
+	protocol(protocol), _pData(NULL), connection(address ? 0 : Time::Now()), // if no address we are on a dummy client, so emulate connection (see Script::Client())!
+	disconnection(address ? Time::Now() : 0), _pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()),
+	_rttvar(0), _rto(Net::RTO_INIT), _ping(0), address(address) {
+	if(address.host().isLoopback())
+		((IPAddress&)serverAddress.host()).set(address.host());
 }
 
 Parameters::const_iterator Client::setProperty(const string& key, string&& value, DataReader& parameters) {

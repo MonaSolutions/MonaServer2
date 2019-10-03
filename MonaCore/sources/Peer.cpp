@@ -28,8 +28,8 @@ using namespace std;
 
 namespace Mona {
 
-Peer::Peer(ServerAPI& api, const char* protocol) : _api(api), pingTime(0) { // pingTime to 0 in beginning to force ping on session beginning for protocols requiring a writePing to compute it
-	Client::protocol = protocol;
+Peer::Peer(ServerAPI& api, const char* protocol, const SocketAddress& address) : _api(api), pingTime(0), // pingTime to 0 in beginning to force ping on session beginning for protocols requiring a writePing to compute it
+	Client(protocol, address) {
 }
 
 Peer::~Peer() {

@@ -30,7 +30,7 @@ struct Peer : Client, virtual Object {
 	typedef Event<void(const SocketAddress& oldAddress)> ON(AddressChanged);
 	typedef Event<void(Int32 error, const char* reason)> ON(Close);
 
-	Peer(ServerAPI& api, const char* protocol);
+	Peer(ServerAPI& api, const char* protocol, const SocketAddress& address);
 	~Peer();
 
 	Parameters&					properties() { return (Parameters&)Client::properties(); }

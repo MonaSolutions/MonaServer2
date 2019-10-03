@@ -109,8 +109,7 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 
 	_server.onConnection = [this](const shared<Socket>& pSocket) {
 		// Try to read the parameter "streamid"
-		shared<Peer> pPeer(SET, this->api, this->name);
-		pPeer->setAddress(pSocket->peerAddress());
+		shared<Peer> pPeer(SET, this->api, this->name, pSocket->peerAddress());
 		Params params(((SRT::Socket&)*pSocket).stream(), *pPeer);
 		if (params) {
 			if(params.stream().empty()) // raise just in the case where streamid=#!:: (without any resource)
