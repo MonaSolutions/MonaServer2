@@ -45,12 +45,26 @@ bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
 		if (!reader.available() || *cur == ',') {
 			if (!key)
 				break; // nothing to read!
-			String::Scoped scoped(value);
-			write(writer, key, value+1, value ? (cur-value+1) : 0);
+			if (!value)
+				value = cur;
+			const char* end = value;
+			while (end > key && isblank(*(end - 1)))
+				--end;
+			String::Scoped scoped(end);
+			// trim left the value
+			while (isblank(*++value));
+			// trim right the value
+			end = cur;
+			while (end > value && isblank(*(end - 1)))
+				--end;
+			write(writer, key, value, end - value);
 			key = value = NULL;
-		} else if (!value && *cur == '=')
-			value = cur;
-		if (!key)
+		} else if (*cur == '=') {
+			if (!key)
+				key = ""; // empty key!
+			if(!value)
+				value = cur;
+		} else if (!key && !isblank(*cur))
 			key = cur;
 	} while (reader.next());
 	writer.endObject();
@@ -80,7 +94,7 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 
 	_server.onConnection = [this](const shared<Socket>& pSocket) {
 		// Try to read the parameter "streamid"
-		Params params((SRT::Socket&)*pSocket);
+		Params params(((SRT::Socket&)*pSocket).stream());
 		if (params)
 			this->sessions.create<SRTSession>(self, pSocket).init(params);
 		else
