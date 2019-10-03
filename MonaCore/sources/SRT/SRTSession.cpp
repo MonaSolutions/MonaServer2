@@ -36,21 +36,6 @@ void SRTSession::init(SRTProtocol::Params& params) {
 		return kill(TO_ERROR(ex));
 
 	// Start Play / Publish
-	if (params.subscribe()) {
-		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), _pSocket, api.ioSocket);
-		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter)))) {
-			delete _pSubscription;
-			_pSubscription = NULL;
-			return kill(TO_ERROR(ex));
-		}
-		_pWriter->onStop = [&]() {
-			// Unsubscribe before killing the session
-			if (_pSubscription)
-				api.unsubscribe(peer, *_pSubscription); // /!\ do not delete the subscription until the writer exists
-			kill(TO_ERROR(_pWriter->ex));
-		};
-		_pWriter->start();
-	}
 	if (params.publish()) {
 		if ((_pPublication = api.publish(ex, peer, params.stream())) == NULL)
 			return kill(TO_ERROR(ex));
@@ -64,6 +49,21 @@ void SRTSession::init(SRTProtocol::Params& params) {
 		};
 		_pReader->start();
 	}
+	else if (params.subscribe()) {
+		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), _pSocket, api.ioSocket);
+		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter)))) {
+			delete _pSubscription;
+			_pSubscription = NULL;
+			return kill(TO_ERROR(ex));
+		}
+		_pWriter->onStop = [&]() {
+			// Unsubscribe before killing the session
+			if (_pSubscription)
+				api.unsubscribe(peer, *_pSubscription); // /!\ do not delete the subscription until the writer exists
+			kill(TO_ERROR(_pWriter->ex));
+		};
+		_pWriter->start();
+	}	
 }
 
 void SRTSession::kill(Int32 error, const char* reason) {

@@ -78,7 +78,6 @@ private:
 	Handler				_handler;
 	Timer				_timer;
 	Protocols			_protocols;
-	Sessions			_sessions;
 	std::string			_www;
 
 	std::map<shared<MediaStream>, unique<Subscription>>			_iniStreams;
