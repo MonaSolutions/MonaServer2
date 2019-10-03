@@ -99,9 +99,9 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 		// Try to read the parameter "streamid"
 		Params params(((SRT::Socket&)*pSocket).stream());
 		if (params) {
-		//	if(params.stream().empty()) // raise just in the case where streamid=#!:: (without any resource)
-		//		ERROR("SRT connection with streamid has to specify a valid resource (r parameter)")
-		//	else
+			if(params.stream().empty()) // raise just in the case where streamid=#!:: (without any resource)
+				ERROR("SRT connection with streamid has to specify a valid resource (r parameter)")
+			else
 				this->sessions.create<SRTSession>(self, pSocket).init(params);
 		} else
 			ERROR("SRT connection without a valid streamid, use ini configuration rather to configure statically SRT input and output");
