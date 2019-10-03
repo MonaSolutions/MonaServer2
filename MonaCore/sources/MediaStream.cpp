@@ -69,10 +69,6 @@ bool MediaStream::finalizeStart() {
 		return false;
 	if (!_running) // called while starting!
 		_running = true;
-	if (onStart && !onStart()) {
-		stop();
-		return false;
-	}
 	_starting = false;
 	++_startCount;
 	INFO(description(), " starts");
@@ -88,9 +84,8 @@ void MediaStream::stop() {
 	_targets.clear(); // to invalid targets!
 	if (_starting) {
 		_starting = false;
-		return;
+		INFO(description(), " stops");
 	}
-	INFO(description(), " stops");
 	onStop(); // in last to allow possibily a delete this (beware impossible with Subscription usage!)
 }
 shared<const Socket> MediaStream::socket() const {

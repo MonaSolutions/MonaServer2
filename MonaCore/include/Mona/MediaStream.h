@@ -30,7 +30,6 @@ Its behavior must support an automatic mode to (re)start the stream as long time
 Implementation have to call protected stop(...) to log and callback an error if the user prefer delete stream on error
 /!\ start() can be used to pulse the stream (connect attempt) */
 struct MediaStream : virtual Object {
-	typedef Event<bool()>								ON(Start);
 	typedef Event<void()>								ON(Stop);
 	typedef Event<void()>								ON(Delete);
 	typedef Event<void(const shared<Media::Target>&)>	ON(NewTarget); // valid until pTarget.unique()!
