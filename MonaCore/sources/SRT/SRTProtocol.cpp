@@ -29,9 +29,12 @@ DataReader& SRTProtocol::Params::operator()() {
 
 bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
 	// TODO: Handle nested keys? => #!:{...}
-
-	if (reader.available() < 4 || String::ICompare(STR reader.current(), EXPAND("#!::")) != 0) {
-		DEBUG("Unexpected header for the SRT streamid : ", String::Data(reader.current(), 4));
+	bool hasHeader = reader.available() >= 4 && String::ICompare(STR reader.current(), EXPAND("#!::")) == 0;
+	if (!hasHeader) {
+		// direct resource!
+		if (_path.set(string(STR reader.current(), reader.available())))
+			return true;
+		DEBUG("Invalid SRT streamid ", String::Data(reader.current(), 4));
 		return false;
 	}
 	reader.next(4);
