@@ -31,10 +31,10 @@ struct SRTProtocol : Protocol, virtual Object {
 
 	struct Params : private DataReader, virtual Object {
 		NULLABLE
-		Params(const std::string& stream) : DataReader(BIN stream.data(), stream.size()), _publish(false), _done(false), _subscribe(false) {
+		Params(const std::string& stream) : DataReader(BIN stream.data(), stream.size()), _publish(false), _done(false), _subscribe(true) {
 			read(DataWriter::Null()); // fill parameters!
 		}
-		operator bool() const { return _publish || _subscribe; }
+		operator bool() const { return _done; }
 
 		const std::string&	stream() const { return _path.name(); }
 		const std::string&	path() const { return _path.parent(); }
