@@ -29,8 +29,7 @@ DataReader& SRTProtocol::Params::operator()() {
 
 bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
 	// TODO: Handle nested keys? => #!:{...}
-	bool hasHeader = reader.available() >= 4 && String::ICompare(STR reader.current(), EXPAND("#!::")) == 0;
-	if (!hasHeader) {
+	if (reader.available() < 4 || String::ICompare(STR reader.current(), EXPAND("#!::")) != 0) {
 		// direct resource!
 		if (_path.set(string(STR reader.current(), reader.available())))
 			return true;
