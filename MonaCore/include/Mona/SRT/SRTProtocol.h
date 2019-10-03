@@ -18,7 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/SRT.h"
 #include "Mona/Protocol.h"
-#include "Mona/DataReader.h"
+#include "Mona/Peer.h"
 
 #if defined(SRT_API)
 namespace Mona {
@@ -31,28 +31,31 @@ struct SRTProtocol : Protocol, virtual Object {
 
 	struct Params : private DataReader, virtual Object {
 		NULLABLE
-		Params(const std::string& stream) : DataReader(BIN stream.data(), stream.size()), _publish(false), _done(false), _subscribe(true) {
+		Params(const std::string& stream, Peer& peer) : DataReader(BIN stream.data(), stream.size()), _peer(peer), _publish(false), _type(OTHER), _done(false), _subscribe(true) {
 			read(DataWriter::Null()); // fill parameters!
 		}
 		operator bool() const { return _done; }
 
-		const std::string&	stream() const { return _path.name(); }
-		const std::string&	path() const { return _path.parent(); }
+		const std::string&	stream() const { return _stream; }
 		bool				publish() const { return _publish; }
 		bool				subscribe() const { return _subscribe; }
 
 		DataReader& operator()();
 
 	private:
-		UInt8 followingType() { return _done ? END : OTHER; }
+		UInt8 followingType() { return _type; }
 
 		bool readOne(UInt8 type, DataWriter& writer);
 		void write(DataWriter& writer, const char* key, const char* value, UInt32 size);
 
-		Path	_path;
-		bool	_publish;
-		bool	_subscribe;
-		bool	_done;
+		bool setResource(const char* value, UInt32 size);
+
+		std::string	_stream;
+		Peer&		_peer;
+		bool		_publish;
+		bool		_subscribe;
+		bool		_done;
+		UInt8		_type;
 	};
 
 protected:

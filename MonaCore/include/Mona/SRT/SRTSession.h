@@ -24,7 +24,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct SRTSession : Session, virtual Object {
-	SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket);
+	SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
 
 	/*!
 	Start the session by calling Peer.onConnection()

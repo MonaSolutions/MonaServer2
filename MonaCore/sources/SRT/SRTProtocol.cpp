@@ -23,18 +23,31 @@ using namespace std;
 namespace Mona {
 
 DataReader& SRTProtocol::Params::operator()() {
+	_type = OTHER;
 	DataReader::reset();
 	return self;
 }
 
+bool SRTProtocol::Params::setResource(const char* value, UInt32 size) {
+	if (_stream.assign(value, size).empty())
+		return false;
+	Util::UnpackUrl(_stream, (string&)_peer.path, (string&)_peer.query);
+	size_t found = _peer.path.find_last_of("\\/");
+	if (found != string::npos) {
+		_stream.assign(_peer.path.data()+found+1, _peer.path.size()-found-1);
+		((string&)_peer.path).resize(found);
+	}
+	return true;
+}
+
 bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
+	_type = END;
 	// TODO: Handle nested keys? => #!:{...}
 	if (reader.available() < 4 || String::ICompare(STR reader.current(), EXPAND("#!::")) != 0) {
 		// direct resource!
-		if (_path.set(string(STR reader.current(), reader.available())))
-			return true;
-		DEBUG("Invalid SRT streamid ", String::Data(reader.current(), 4));
-		return false;
+		if (!setResource(STR reader.current(), reader.available()))
+			DEBUG("Invalid SRT streamid ", String::Data(reader.current(), 4));
+		return _done = true;
 	}
 	reader.next(4);
 
@@ -86,7 +99,7 @@ void SRTProtocol::Params::write(DataWriter& writer, const char* key, const char*
 		// else if (String::ICompare(value, size, "bidirectional") == 0)
 		//  publish = subscribe = true;
 	} else if (String::ICompare(key, "r") == 0)
-		_path.set(string(value, size));
+		setResource(value, size);
 }
 
 
@@ -96,12 +109,14 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 
 	_server.onConnection = [this](const shared<Socket>& pSocket) {
 		// Try to read the parameter "streamid"
-		Params params(((SRT::Socket&)*pSocket).stream());
+		shared<Peer> pPeer(SET, this->api, self);
+		pPeer->setAddress(pSocket->peerAddress());
+		Params params(((SRT::Socket&)*pSocket).stream(), *pPeer);
 		if (params) {
 			if(params.stream().empty()) // raise just in the case where streamid=#!:: (without any resource)
 				ERROR("SRT connection with streamid has to specify a valid resource (r parameter)")
 			else
-				this->sessions.create<SRTSession>(self, pSocket).init(params);
+				this->sessions.create<SRTSession>(self, pSocket, pPeer).init(params);
 		} else
 			ERROR("SRT connection without a valid streamid, use ini configuration rather to configure statically SRT input and output");
 

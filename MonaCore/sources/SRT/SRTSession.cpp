@@ -23,13 +23,12 @@ using namespace std;
 
 namespace Mona {
 
-SRTSession::SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket) :
-	Session(protocol, pSocket->peerAddress()), _pSocket(pSocket), _pSubscription(NULL), _pPublication(NULL), _writer(self) {
+SRTSession::SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer) :
+	Session(protocol, pPeer), _pSocket(pSocket), _pSubscription(NULL), _pPublication(NULL), _writer(self) {
 	
 }
 
 void SRTSession::init(SRTProtocol::Params& params) {
-	peer.setPath(params.path());
 	// Connect the Peer
 	Exception ex;
 	peer.onConnection(ex, _writer, *_pSocket, params());
@@ -38,7 +37,7 @@ void SRTSession::init(SRTProtocol::Params& params) {
 
 	// Start Play / Publish
 	if (params.subscribe()) {
-		_pWriter.set(MediaStream::TYPE_SRT, params.path(), new TSWriter(), _pSocket, api.ioSocket);
+		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), _pSocket, api.ioSocket);
 		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter)))) {
 			delete _pSubscription;
 			_pSubscription = NULL;
@@ -55,7 +54,7 @@ void SRTSession::init(SRTProtocol::Params& params) {
 	if (params.publish()) {
 		if ((_pPublication = api.publish(ex, peer, params.stream())) == NULL)
 			return kill(TO_ERROR(ex));
-		_pReader.set(MediaStream::TYPE_SRT, params.path(), *_pPublication, new TSReader(), _pSocket, api.ioSocket).onStop = [&]() {
+		_pReader.set(MediaStream::TYPE_SRT, peer.path, *_pPublication, new TSReader(), _pSocket, api.ioSocket).onStop = [&]() {
 			// Unpublish before killing the session
 			if (_pPublication) {
 				api.unpublish(*_pPublication, peer);
