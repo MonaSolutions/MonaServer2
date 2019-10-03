@@ -33,7 +33,7 @@ public:
 
 		onConnection = [this](const shared<Socket>& pSocket) {
 			// Create session
-			this->sessions.create<RTMPSession>(*this).connect(pSocket);
+			this->sessions.create<RTMPSession>(self).connect(pSocket);
 		};
 	}
 	~RTMProtocol() { onConnection = nullptr; }

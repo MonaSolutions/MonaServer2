@@ -24,9 +24,9 @@ using namespace std;
 
 namespace Mona {
 
-Client::Client(const char* protocol, const SocketAddress& address) : 
-	protocol(protocol), _pData(NULL), connection(address ? 0 : Time::Now()), // if no address we are on a dummy client, so emulate connection (see Script::Client())!
-	disconnection(address ? Time::Now() : 0), _pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()),
+Client::Client(const char* protocol, const SocketAddress& address) : // if broadcast address we are on a dummy client, so emulate connection (see Script::Client())!
+	protocol(protocol), _pData(NULL), connection(!address.port() && address.host().isBroadcast() ? Time::Now() : 0),
+	disconnection(!address.port() && address.host().isBroadcast() ? 0 : Time::Now()), _pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()),
 	_rttvar(0), _rto(Net::RTO_INIT), _ping(0), address(address) {
 	if(address.host().isLoopback())
 		((IPAddress&)serverAddress.host()).set(address.host());

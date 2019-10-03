@@ -35,7 +35,7 @@ struct HTTProtocol : TCProtocol, virtual Object {
 
 		onConnection = [this](const shared<Socket>& pSocket) {
 			// Create session
-			this->sessions.create<HTTPSession>(*this).connect(pSocket);
+			this->sessions.create<HTTPSession>(self).connect(pSocket);
 		};
 	}
 	~HTTProtocol() { onConnection = nullptr; }
