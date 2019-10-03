@@ -28,6 +28,11 @@ SRTSession::SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, sha
 	
 }
 
+SRTSession::~SRTSession() {
+	if (_pSubscription)
+		delete _pSubscription;
+}
+
 void SRTSession::init(SRTProtocol::Params& params) {
 	// Connect the Peer
 	Exception ex;
@@ -39,52 +44,35 @@ void SRTSession::init(SRTProtocol::Params& params) {
 	if (params.publish()) {
 		if ((_pPublication = api.publish(ex, peer, params.stream())) == NULL)
 			return kill(TO_ERROR(ex));
-		_pReader.set(MediaStream::TYPE_SRT, peer.path, *_pPublication, new TSReader(), _pSocket, api.ioSocket).onStop = [&]() {
-			// Unpublish before killing the session
-			if (_pPublication) {
-				api.unpublish(*_pPublication, peer);
-				_pPublication = NULL;
-			}
-			kill(TO_ERROR(_pReader->ex));
-		};
+		_pReader.set(MediaStream::TYPE_SRT, peer.path, *_pPublication, new TSReader(), _pSocket, api.ioSocket);
+		_pReader->onStop = [this]() { kill(TO_ERROR(_pReader->ex)); };
 		_pReader->start();
 	}
 	else if (params.subscribe()) {
 		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), _pSocket, api.ioSocket);
-		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter)))) {
-			delete _pSubscription;
-			_pSubscription = NULL;
+		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter))))
 			return kill(TO_ERROR(ex));
-		}
-		_pWriter->onStop = [&]() {
-			// Unsubscribe before killing the session
-			if (_pSubscription)
-				api.unsubscribe(peer, *_pSubscription); // /!\ do not delete the subscription until the writer exists
-			kill(TO_ERROR(_pWriter->ex));
-		};
+		_pWriter->onStop = [this]() { kill(TO_ERROR(_pWriter->ex)); };
 		_pWriter->start();
 	}	
 }
 
 void SRTSession::kill(Int32 error, const char* reason) {
+	if (died)
+		return;
 	// Stop the current  job
 	if (_pWriter) {
 		_pWriter->onStop = nullptr;
-		_pWriter.reset(); // call stop
+		_pWriter.reset(); // release resource + call stop
 	}
 	if (_pReader) {
 		_pReader->onStop = nullptr;
-		_pReader.reset(); // call stop
+		_pReader.reset(); // release resource + call stop
 	}
-	if (_pPublication) {
+	if (_pPublication)
 		api.unpublish(*_pPublication, peer);
-		_pPublication = NULL;
-	}
-	if (_pSubscription) {
+	if (_pSubscription) // delete subscription on SRTSession destruction to avoid a crash if this kill is called by subscription itself!
 		api.unsubscribe(peer, *_pSubscription);
-		delete _pSubscription;
-		_pSubscription = NULL;
-	}
 	Session::kill(error, reason);
 }
 

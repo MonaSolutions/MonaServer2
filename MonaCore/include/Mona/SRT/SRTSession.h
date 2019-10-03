@@ -25,6 +25,7 @@ namespace Mona {
 
 struct SRTSession : Session, virtual Object {
 	SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
+	~SRTSession();
 
 	/*!
 	Start the session by calling Peer.onConnection()
