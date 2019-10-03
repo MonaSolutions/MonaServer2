@@ -54,10 +54,13 @@ bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
 			key = cur;
 	} while (reader.next());
 	writer.endObject();
-	return true;
+	return _done = true;
 }
 
 void SRTProtocol::Params::write(DataWriter& writer, const char* key, const char* value, UInt32 size) {
+	writer.writeProperty(key, value, size);
+	if (_done)
+		return; // else already done!
 	if (String::ICompare(key, "m") == 0) {
 		if(String::ICompare(value, size, "request") == 0)
 			_subscribe = true;
@@ -68,7 +71,6 @@ void SRTProtocol::Params::write(DataWriter& writer, const char* key, const char*
 		//  publish = subscribe = true;
 	} else if (String::ICompare(key, "r") == 0)
 		_path.set(string(value, size));
-	writer.writeProperty(key, value, size);
 }
 
 
@@ -78,8 +80,7 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 
 	_server.onConnection = [this](const shared<Socket>& pSocket) {
 		// Try to read the parameter "streamid"
-		const string& stream = ((SRT::Socket*)pSocket.get())->stream();
-		Params params(BIN stream.data(), stream.size());
+		Params params((SRT::Socket&)*pSocket);
 		if (params)
 			this->sessions.create<SRTSession>(self, pSocket).init(params);
 		else

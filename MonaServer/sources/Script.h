@@ -67,7 +67,7 @@ extern "C" {
 
 #define SCRIPT_CALLBACK_THROW(...)								if (__canRaise) { lua_pushvalue(__pState,2); Script::PushString(__pState, __VA_ARGS__);  lua_call(pState, 1, 0); }
 
-#define SCRIPT_CALLBACK_RETURN									__arg = __arg; __lastArg= lua_gettop(__pState)-__lastArg; return (__lastArg>0 ? __lastArg : 0);}
+#define SCRIPT_CALLBACK_RETURN									__arg = __lastArg -__arg; if(__arg>0) SCRIPT_WARN(__arg," useless argument") else if(__arg<0) SCRIPT_WARN(-__arg," missing argument"); __lastArg = lua_gettop(__pState)-__lastArg; return (__lastArg>0 ? __lastArg : 0);}
 #define SCRIPT_FIX_RESULT										{ lua_pushvalue(__pState,2); lua_pushvalue(__pState, -2); lua_rawset(__pState, 1);}
 
 #define SCRIPT_BEGIN(STATE)										if(lua_State* __pState = STATE) {
@@ -78,7 +78,7 @@ extern "C" {
 #define SCRIPT_FUNCTION_CALL									const char* __err=NULL; if(lua_pcall(__pState,lua_gettop(__pState)-__top,LUA_MULTRET,0)) SCRIPT_ERROR(__err = Script::LastError(__pState)); int __lastArg=lua_gettop(__pState); int __arg=--__top; 
 #define SCRIPT_FUNCTION_NULL_CALL								lua_pop(__pState,lua_gettop(__pState)-__top+1); int __lastArg=lua_gettop(__pState);int __arg=--__top;
 #define SCRIPT_FUNCTION_ERROR									__err
-#define SCRIPT_FUNCTION_END										lua_pop(__pState,__lastArg-__top); __arg = __lastArg-__arg; if(__arg>0) SCRIPT_WARN(__arg," arguments not required on ",__type, (__type.empty() ? "" : "."), __name," results") else if(__arg<0) SCRIPT_WARN(-__arg," missing arguments on ", __type, __name," results") } lua_pop(__pState,1); }
+#define SCRIPT_FUNCTION_END										lua_pop(__pState,__lastArg-__top); __arg = __lastArg-__arg; if(__arg>0) SCRIPT_WARN(__arg," useless argument on ",__type, (__type.empty() ? "" : "."), __name," result") else if(__arg<0) SCRIPT_WARN(-__arg," missing argument on ", __type, __name," result") } lua_pop(__pState,1); }
 #define SCRIPT_FUNCTION_NAME									__name
 
 #define SCRIPT_WRITE_VALUE(...)									Script::PushValue(__pState, __VA_ARGS__);

@@ -31,7 +31,7 @@ struct SRTProtocol : Protocol, virtual Object {
 
 	struct Params : private DataReader, virtual Object {
 		NULLABLE
-		Params(const UInt8* data, UInt32 size) : DataReader(data, size), _publish(false), _subscribe(false) {
+		Params(const SRT::Socket& socket) : DataReader(BIN socket.stream().data(), socket.stream().size()), _publish(false), _done(false), _subscribe(false) {
 			read(DataWriter::Null()); // fill parameters!
 		}
 		operator bool() const { return _publish || _subscribe; }
@@ -44,7 +44,7 @@ struct SRTProtocol : Protocol, virtual Object {
 		DataReader& operator()();
 
 	private:
-		UInt8 followingType() { return OTHER; }
+		UInt8 followingType() { return _done ? END : OTHER; }
 
 		bool readOne(UInt8 type, DataWriter& writer);
 		void write(DataWriter& writer, const char* key, const char* value, UInt32 size);
@@ -52,6 +52,7 @@ struct SRTProtocol : Protocol, virtual Object {
 		Path	_path;
 		bool	_publish;
 		bool	_subscribe;
+		bool	_done;
 	};
 
 protected:
