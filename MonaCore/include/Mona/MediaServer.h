@@ -43,7 +43,6 @@ struct MediaServer : virtual Static {
 
 		const SocketAddress		address;
 		IOSocket&				io;
-		bool					starting() const { return MediaStream::starting(); }
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
 	private:
@@ -71,7 +70,6 @@ struct MediaServer : virtual Static {
 
 		const SocketAddress		address;
 		IOSocket&				io;
-		bool					starting() const { return MediaStream::starting(); }
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
 	private:

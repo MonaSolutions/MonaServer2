@@ -52,9 +52,10 @@ bool MediaServer::Reader::starting(const Parameters& parameters) {
 	Exception ex;
 	AUTO_ERROR(success = _pSocket->bind(ex, address) && _pSocket->listen(ex) && 
 		io.subscribe(ex = nullptr, _pSocket, _onConnnection, _onError), description());
-	if (!success)
-		stop();
-	return true;
+	if (success)
+		return run();
+	stop();
+	return false;
 }
 
 void MediaServer::Reader::stopping() {
@@ -85,9 +86,10 @@ bool MediaServer::Writer::starting(const Parameters& parameters) {
 	_pSocket = newSocket(parameters, _pTLS);
 	bool success;
 	AUTO_ERROR(success = (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, _onConnnection, _onError)), description());
-	if (!success)
-		stop();
-	return true;
+	if (success)
+		return run();
+	stop();
+	return false;
 }
 
 void MediaServer::Writer::stopping() {

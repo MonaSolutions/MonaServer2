@@ -113,7 +113,7 @@ bool MediaFile::Reader::starting(const Parameters& parameters) {
 	_pFile.set(path, File::MODE_READ);
 	io.subscribe(_pFile, pDecoder, nullptr, _onFileError);
 	io.read(_pFile);
-	return true;
+	return run();
 }
 
 void MediaFile::Reader::stopping() {
@@ -187,7 +187,7 @@ bool MediaFile::Writer::starting(const Parameters& parameters) {
 		else if (_pFile)
 			write<ChangeSequences>(_sequences);
 	}
-	return false;
+	return true;
 }
 
 bool MediaFile::Writer::beginMedia(const string& name) {
@@ -195,7 +195,7 @@ bool MediaFile::Writer::beginMedia(const string& name) {
 	if (_pFile)
 		return true; // already running (MBR switch)
 	start(); // begin media, we can try to start here (just on beginMedia!)
-	if (!finalizeStart())
+	if (!run())
 		return false;
 	_pFile.set(name, path, _pWriter, _pPlaylist, _sequences, io).onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	write<Begin>(_append);

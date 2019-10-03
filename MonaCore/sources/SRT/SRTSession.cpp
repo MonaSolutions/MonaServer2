@@ -46,14 +46,14 @@ void SRTSession::init(SRTProtocol::Params& params) {
 			return kill(TO_ERROR(ex));
 		_pReader.set(MediaStream::TYPE_SRT, peer.path, *_pPublication, new TSReader(), _pSocket, api.ioSocket);
 		_pReader->onStop = [this]() { kill(TO_ERROR(_pReader->ex)); };
-		_pReader->start();
+		_pReader->start(); // no pulse required, socket already ready
 	}
 	else if (params.subscribe()) {
 		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), _pSocket, api.ioSocket);
 		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter))))
 			return kill(TO_ERROR(ex));
 		_pWriter->onStop = [this]() { kill(TO_ERROR(_pWriter->ex)); };
-		_pWriter->start();
+		_pWriter->start(); // no pulse required, socket already ready
 	}	
 }
 

@@ -25,10 +25,10 @@ namespace Mona {
 bool MediaLogs::starting(const Parameters& parameters) {
 	_pPublish.set(_api, source);
 	if (Logs::AddLogger<Publish::Logger>(path.c_str(), *_pPublish))
-		return true;
+		return run();
 	_pPublish.reset();
 	stop<Ex::Intern>(LOG_ERROR, "Duplicated logger ", path);
-	return true;
+	return false;
 }
 
 void MediaLogs::stopping() {

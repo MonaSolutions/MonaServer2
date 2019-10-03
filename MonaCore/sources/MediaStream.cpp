@@ -27,20 +27,20 @@ using namespace std;
 namespace Mona {
 
 MediaStream::MediaStream(Type type, const Path& path, Media::Source& source) : _firstStart(true),
-	_starting(false), _running(false), targets(_targets), _startCount(0),
+	_state(STATE_STOPPED), targets(_targets), _runCount(0),
 	type(type), path(path), source(source) {
 }
 
 MediaStream::~MediaStream() {
-	onDelete();
-	if (_running || _starting)
+	if (_state)
 		CRITIC("MediaStream deleting without be stopped before by child class");
+	onDelete();
 }
 
-void MediaStream::start(const Parameters& parameters) {
+bool MediaStream::start(const Parameters& parameters) {
 	ex = nullptr; // reset lastEx on pullse start!
-	if (_running && !_starting)
-		return; // nothing todo, starting already done!
+	if (_state==STATE_RUNNING)
+		return true; // nothing todo
 	if (_firstStart) {
 		_firstStart = false;
 		// This is a target, with beginMedia it can be start, so create a _pTarget and keep it alive all the life-time of this Stream
@@ -49,43 +49,43 @@ void MediaStream::start(const Parameters& parameters) {
 		if (pTarget)
 			onNewTarget(_pTarget = shared<Media::Target>(make_shared<Media::Target>(), pTarget)); // aliasing	
 	}
-	_starting = true;
-	params.onUnfound = [this, &parameters](const string& key)->const string* {
+	_params.onUnfound = nullptr;
+	_params.onUnfound = [this, &parameters](const string& key)->const string* {
 		const string* pValue = parameters.getParameter(key);
 		if (!pValue)
 			return NULL;
-		params.setParameter(key, *pValue); // set value in params!
+		_params.setParameter(key, *pValue); // set value in params!
 		return pValue;
 	};
-	if (starting(params))
-		finalizeStart();
-	params.onUnfound = NULL;
-	if (_starting) // _starting can switch to false if finalizeStart (then _running is already set to true) and on stop (then _running must stay on false)
-		_running = true;
+	// first call _state is on STOPPED
+	if (!starting(_params)) // if returns false stop has maybe been called and this can be deleted!
+		return false;
+	if (_state != STATE_RUNNING) // if has called finalizeStart state is already in RUNNING
+		_state = STATE_STARTING;
+	return true;
 }
 
-bool MediaStream::finalizeStart() {
-	if (!_starting)
-		return false;
-	if (!_running) // called while starting!
-		_running = true;
-	_starting = false;
-	++_startCount;
-	INFO(description(), " starts");
+bool MediaStream::run() {
+	if (_state == STATE_RUNNING)
+		return true;
+	if (!_state && !_params.onUnfound)
+		return false; // is not called inside starting()!
+	_state = STATE_RUNNING;
+	++_runCount;
+	INFO(description(), " started");
+	onRunning();
 	return true;
 }
 void MediaStream::stop() {
-	if (!_running && !_starting)
+	if (!_state)
 		return;
 	stopping();
-	_running = false;
 	for (const auto& it : _targets)
 		(MediaStream::OnStop&)it->onStop = nullptr; // unsuscribe because children pTarget can continue to live alone!
 	_targets.clear(); // to invalid targets!
-	if (_starting) {
-		_starting = false;
-		INFO(description(), " stops");
-	}
+	if (_state == STATE_RUNNING)
+		INFO(description(), " stopped");
+	_state = STATE_STOPPED;
 	onStop(); // in last to allow possibily a delete this (beware impossible with Subscription usage!)
 }
 shared<const Socket> MediaStream::socket() const {
@@ -321,7 +321,7 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 		ex.set<Ex::Unsupported>(isTarget ? "Target stream " : "Source stream ", TypeToString(type), " format ", format, " not supported");
 		return nullptr;
 	}
-	pStream->params.setParams(move(params));
+	pStream->_params.setParams(move(params));
 	return pStream;
 }
 

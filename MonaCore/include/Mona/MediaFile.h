@@ -40,8 +40,6 @@ struct MediaFile : virtual Static  {
 		IOFile&			io;
 		const Timer&	timer;
 
-		bool starting() const { return MediaStream::starting(); }
-
 	private:
 		bool starting(const Parameters& parameters);
 		void stopping();
@@ -109,7 +107,6 @@ struct MediaFile : virtual Static  {
 		virtual ~Writer() { stop(); }
 
 		IOFile&		io;
-		bool		starting() const { return MediaStream::starting(); }
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 
 		bool beginMedia(const std::string& name);

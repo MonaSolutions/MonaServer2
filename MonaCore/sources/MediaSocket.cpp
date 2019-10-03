@@ -76,15 +76,15 @@ MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, 
 	MediaStream(type, path, source), _streaming(false), io(io), _pTLS(pTLS), _pReader(move(pReader)), _httpAnswer(false),
 	address((!address.host() && type != TYPE_UDP) ? IPAddress::Loopback() : address.host(), address.port()) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
-	_onSocketFlush = [this]() { finalizeStart(); };
-	_onSocketError = [this](const Exception& ex) { stop(starting() ? LOG_DEBUG : LOG_WARN, ex); };
+	_onSocketFlush = [this]() { run(); };
+	_onSocketError = [this](const Exception& ex) { stop(state()==STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
 
 MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const shared<Socket>& pSocket, IOSocket& io) :
 	MediaStream(type, path, source), _streaming(false), io(io), _pReader(move(pReader)), _pSocket(pSocket), address(pSocket->peerAddress()), _httpAnswer(true) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
-	_onSocketFlush = [this]() { finalizeStart(); };
-	_onSocketError = [this](const Exception& ex) { stop(starting() ? LOG_DEBUG : LOG_WARN, ex); };
+	_onSocketFlush = [this]() { run(); };
+	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 	newSocket();
 }
 
@@ -150,26 +150,27 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 bool MediaSocket::Reader::starting(const Parameters& parameters) {
 	if (!_pSocket && !newSocket(parameters)) {
 		stop();
-		return true;
+		return false;
 	}
 	if (type == TYPE_UDP)
-		return true;
+		return run();
+
 	// Pulse connect if TCP/SRT
 	if (!_pSocket->connect(ex = nullptr, address)) { // not use AUTO_ERROR because on WOULD_BLOCK it will display a wrong WARN
 		stop(LOG_ERROR, ex);
-		return true;
+		return false;
 	}
 	if (ex && ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 		WARN(description(), ", ", ex);
 
-	if (!running() && type == TYPE_HTTP && !_httpAnswer) { // HTTP + first time!
+	if (state()==STATE_STOPPED && type == TYPE_HTTP && !_httpAnswer) { // HTTP + first time!
 		// send HTTP Header request!
 		if (!SendHTTPHeader(HTTP::TYPE_GET, _pSocket, path, MIME::TYPE_UNKNOWN, nullptr, source.name().c_str(), description())) {
 			stop();
-			return true;
+			return false;
 		}
 	}
-	return false; // wait onSocketFlush to finalize start!
+	return true; // wait onSocketFlush before to call run
 }
 
 void MediaSocket::Reader::stopping() {
@@ -217,13 +218,13 @@ MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& p
 	MediaStream(type, path), io(io), _pTLS(pTLS), address(address.host() ? address.host() : IPAddress::Loopback(), address.port()), _sendTrack(0), 
 	_pWriter(move(pWriter)), _httpAnswer(false), _subscribed(false) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
-	_onSocketError = [this](const Exception& ex) { stop(starting() ? LOG_DEBUG : LOG_WARN, ex); };
+	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
 MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io) : _pSocket(pSocket),
 	MediaStream(type, path), io(io), address(pSocket->peerAddress()), _sendTrack(0),
 	_pWriter(move(pWriter)), _httpAnswer(true), _subscribed(false) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
-	_onSocketError = [this](const Exception& ex) { stop(starting() ? LOG_DEBUG : LOG_WARN, ex); };
+	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
 
 bool MediaSocket::Writer::initSocket(const Parameters& parameters) {
@@ -240,18 +241,18 @@ bool MediaSocket::Writer::initSocket(const Parameters& parameters) {
 bool MediaSocket::Writer::starting(const Parameters& parameters) {
 	if (!initSocket(parameters)) {
 		stop();
-		return true;
+		return false;
 	}
 	if (!_pName)  // Do nothing if not media beginning
-		return false; // wait beginMedia
+		return true; // wait beginMedia before to run
 	// beginMedia+not writable => Pulse connect
 	if (!_pSocket->connect(ex, address)) { // not use AUTO_ERROR because on WOULD_BLOCK it will display a wrong WARN
 		stop();
-		return true;
+		return false;
 	}
 	if (ex && ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 		WARN(description(), ", ", ex);
-	return false; // wait onSocketFlush + first Media data
+	return true; // wait first Media before to run
 }
 
 bool MediaSocket::Writer::beginMedia(const string& name) {
@@ -259,10 +260,9 @@ bool MediaSocket::Writer::beginMedia(const string& name) {
 	_pName.set(name);
 	if (streaming)
 		return true; // MBR switch!
-	start();
-	if (!running())
+	if (!start())
 		return false;
-	if (type == TYPE_HTTP) { // first time + HTTP
+	if (type == TYPE_HTTP) { // HTTP
 		// send HTTP Header request!
 		if (!SendHTTPHeader(_httpAnswer? HTTP::TYPE_UNKNOWN : HTTP::TYPE_POST, _pSocket, path, _pWriter->mime(), _pWriter->subMime(), source.name().c_str(), description())) {
 			stop();
@@ -285,7 +285,7 @@ void MediaSocket::Writer::endMedia() {
 
 void MediaSocket::Writer::stopping() {
 	// Close socket to signal the end of media
-	if (!starting()) // else not beginMedia or useless (was connecting!)
+	if (state()==STATE_STARTING) // else not beginMedia or useless (was connecting!)
 		send<EndSend>(); // _pWriter->endMedia()!
 	_pName.reset();
 	if(_pSocket)

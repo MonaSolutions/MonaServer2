@@ -198,9 +198,8 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 			_dataTrack = 0;
 			if (_pPublication->recording()) {
 				MediaStream* pRecorder = _pPublication->recorder();
-				pRecorder->onStart = [this, &writer]() {
+				pRecorder->onRunning = [this, &writer]() {
 					writer.writeAMFStatus("NetStream.Record.Start", _name + " recording started");
-					return true;
 				};
 				pRecorder->onStop = [this, &writer, pRecorder]() {
 					if(pRecorder->ex)

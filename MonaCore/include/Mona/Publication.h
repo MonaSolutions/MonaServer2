@@ -88,7 +88,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	void							stop();
 
 	MediaFile::Writer*				recorder();
-	bool							recording() const { return _pRecording && _pRecording->target<MediaFile::Writer>().running(); }
+	bool							recording() const { return _pRecording && _pRecording->target<MediaFile::Writer>().state()>0; }
 
 	void							reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 

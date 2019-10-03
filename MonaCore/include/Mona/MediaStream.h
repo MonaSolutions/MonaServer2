@@ -30,6 +30,7 @@ Its behavior must support an automatic mode to (re)start the stream as long time
 Implementation have to call protected stop(...) to log and callback an error if the user prefer delete stream on error
 /!\ start() can be used to pulse the stream (connect attempt) */
 struct MediaStream : virtual Object {
+	typedef Event<void()>								ON(Running);
 	typedef Event<void()>								ON(Stop);
 	typedef Event<void()>								ON(Delete);
 	typedef Event<void(const shared<Media::Target>&)>	ON(NewTarget); // valid until pTarget.unique()!
@@ -41,6 +42,11 @@ struct MediaStream : virtual Object {
 		TYPE_SRT = 2, // to match MediaServer::Type
 		TYPE_UDP = 3,
 		TYPE_HTTP = 4
+	};
+	enum State {
+		STATE_STOPPED = 0,
+		STATE_STARTING,
+		STATE_RUNNING
 	};
 	static const char* TypeToString(Type type) { static const char* Strings[] = { "logs", "file", "tcp", "srt", "udp", "http" }; return Strings[UInt8(type) + 1]; }
 	/*!
@@ -57,13 +63,12 @@ struct MediaStream : virtual Object {
 
 	const Type			type;
 	const Path			path;
-	Parameters			params;
+	const Parameters&	params() { return _params; }
 	bool				isSource() const { return &source == &Media::Source::Null(); }
 	const std::string&	description() const { return _description.empty() ? ((MediaStream*)this)->buildDescription(_description) : _description; }
 
-	UInt32	startCount() const { return _startCount; };
-	bool	running() const { return _running; }
-	bool	starting() const { return _starting; }
+	UInt32	runCount() const { return _runCount; };
+	State	state() const { return _state; }
 
 	Exception			ex;
 
@@ -74,7 +79,7 @@ struct MediaStream : virtual Object {
 	Children targets */
 	const std::set<shared<const MediaStream>>& targets;
 
-	void start(const Parameters& parameters = Parameters::Null());
+	bool start(const Parameters& parameters = Parameters::Null());
 	void stop();
 
 
@@ -84,7 +89,9 @@ protected:
 
 	Media::Source& source;
 
-	bool finalizeStart();
+	/*!
+	Pass from state "starting" to "running" */
+	bool run();
 	void stop(LOG_LEVEL level, const Exception& exc) {
 		LOG(level, description(), ", ", ex = exc);
 		stop();
@@ -99,8 +106,8 @@ protected:
 
 	template <typename StreamType, typename ...Args>
 	StreamType* addTarget(Args&&... args) {
-		if (!_running) {
-			ERROR(description(), ", child stream target authorized only on running");
+		if (!_state) {
+			ERROR(description(), ", child stream target authorized when start");
 			return NULL;
 		}
 		STATIC_ASSERT(std::is_base_of<Media::Target, StreamType>::value);
@@ -108,8 +115,8 @@ protected:
 		auto it = _targets.lower_bound(pTarget);
 		if (it != _targets.end() && it->unique())
 			it = _targets.erase(it); // target useless!
-		pTarget->start(params); // give same parameters than parent!
-		if (!pTarget->running())
+		pTarget->start(_params); // give same parameters than parent!
+		if (!pTarget->state())
 			return NULL;
 		onNewTarget(pTarget);
 		if (pTarget.unique())
@@ -129,21 +136,21 @@ protected:
 
 private:
 	/*!
-	Have to call stop() if fail, and return true is starting finished (else have to call finalizeStart() more later to finish starting)
-	On first call running() = false
-	/!\ Call be repeated until return is true or finalizeStart call! */
+	Call run() inside to finish starting (or call run() more later to finish starting) and returns true, finally stop() to cancel starting and returns false
+	On first call state() = STATE_STOPPED
+	/!\ Call be repeated until run() call! */
 	virtual bool starting(const Parameters& parameters) = 0;
 	virtual void stopping() = 0;
 
 	virtual std::string& buildDescription(std::string& description) = 0;
 
 	mutable std::string					_description;
-	UInt32								_startCount;
+	UInt32								_runCount;
 	std::set<shared<const MediaStream>>	_targets;
 	shared<Media::Target>				_pTarget;
 	bool								_firstStart;
-	bool								_running;
-	bool								_starting;
+	State								_state;
+	Parameters							_params;
 };
 
 

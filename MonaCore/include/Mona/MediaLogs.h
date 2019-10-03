@@ -30,8 +30,6 @@ struct MediaLogs : MediaStream, virtual Object {
 	MediaLogs(std::string&& name, Media::Source& source, ServerAPI& api) : _api(api), MediaStream(MediaStream::TYPE_LOGS, name, source) {}
 	virtual ~MediaLogs() { stop(); }
 
-	bool starting() const { return MediaStream::starting(); }
-
 private:
 	bool starting(const Parameters& parameters);
 	void stopping();

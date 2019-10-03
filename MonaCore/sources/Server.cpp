@@ -236,7 +236,7 @@ void Server::loadIniStreams() {
 		if (!pStream)
 			continue;
 		pStream->start(self);
-		if (pStream->type == MediaStream::TYPE_LOGS && !pStream->running())
+		if (pStream->type == MediaStream::TYPE_LOGS && !pStream->state())
 			continue; // useless, can't work!
 		// move stream target from _streamSubscriptions to _iniStreams to avoid double iteration on onManage!
 		const auto& itTarget = _streamSubscriptions.find(dynamic_pointer_cast<Media::Target>(pStream));
@@ -274,7 +274,7 @@ shared<MediaStream> Server::stream(const string& publication, const string& desc
 		_streamPublications.emplace_hint(it, pPublication->name().c_str(), pPublication);
 	} else if (!(pStream = stream(description))) // is Target
 		return nullptr;
-	pStream->onNewTarget = [this, publication, &params = pStream->params](const shared<Media::Target>& pTarget) {
+	pStream->onNewTarget = [this, publication, &params = pStream->params()](const shared<Media::Target>& pTarget) {
 		const auto& it = _streamSubscriptions.emplace(pTarget, new Subscription(*pTarget)).first;
 		for (const auto& itParam : params)
 			it->second->setParameter(itParam.first, itParam.second);

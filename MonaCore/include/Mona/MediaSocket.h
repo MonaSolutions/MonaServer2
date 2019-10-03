@@ -39,7 +39,6 @@ struct MediaSocket : virtual Static {
 
 		const SocketAddress			address;
 		IOSocket&					io;
-		bool						starting() const { return MediaStream::starting(); }
 		shared<const Socket>		socket() const { return _pSocket ? _pSocket : nullptr; }
 	
 	private:
@@ -89,7 +88,6 @@ struct MediaSocket : virtual Static {
 
 		const SocketAddress		address;
 		IOSocket&				io;
-		bool					starting() const { return MediaStream::starting(); }
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 		
@@ -111,8 +109,8 @@ struct MediaSocket : virtual Static {
 		bool send(UInt8 track, Args&&... args) {
 			if (!_pName)
 				return false; // media not begin! ejected! (_pSocket can be true here, like if it's a MediaSocket already connected from MediaServer)
-			if (starting() && _pSocket->sendTime() && !finalizeStart())
-				return false; // Stream not started!
+			if (state() == STATE_STARTING && _pSocket->sendTime() && !run())
+				return false; // not starting!
 			io.threadPool.queue<SendType>(_sendTrack, type, _pName, _pSocket, _pWriter, track,  std::forward<Args>(args)...);
 			return true;
 		}

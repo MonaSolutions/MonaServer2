@@ -26,18 +26,14 @@ namespace Mona {
 struct SRTSession : Session, virtual Object {
 	SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
 	~SRTSession();
-
-	/*!
-	Start the session by calling Peer.onConnection()
-	\return true if the connection is accepted, false otherwise */
 	void	init(SRTProtocol::Params& params);
 
+private:
 	void	kill(Int32 error = 0, const char* reason = NULL);
 
 	UInt64	queueing() const { return _pSocket->queueing(); }
 	void	flush() { if (_pWriter) _pWriter->flush(); }
 
-private:
 	struct SRTWriter : Writer, virtual Object {
 		SRTWriter(SRTSession& session) : _session(session) {}
 		UInt64			queueing() const { return _session.queueing(); }
