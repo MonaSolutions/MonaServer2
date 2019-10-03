@@ -40,7 +40,7 @@ Int32 Session::ToError(const Exception& ex) {
 	return ERROR_UNEXPECTED;
 }
 
-Session::Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name) : _pPeer(pPeer), peer(*pPeer),
+Session::Session(Protocol& protocol, shared<Peer>& pPeer, const char* name) : _pPeer(move(pPeer)), peer(*_pPeer),
 	_protocol(protocol), _name(name ? name : ""), api(protocol.api), died(false), _id(0), timeout(protocol.getNumber<UInt32>("timeout") * 1000) {
 	init(self);
 }

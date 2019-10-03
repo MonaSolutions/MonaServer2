@@ -80,7 +80,7 @@ protected:
 	const bool			died; // keep it protected because just Sessions can check if session is died to delete it!
 
 	Session(Protocol& protocol, const SocketAddress& address, const char* name=NULL);
-	Session(Protocol& protocol, const shared<Peer>& pPeer, const char* name = NULL);
+	Session(Protocol& protocol, shared<Peer>& pPeer, const char* name = NULL);
 	/*!
 	Session morphing */
 	Session(Protocol& protocol, Session& session);

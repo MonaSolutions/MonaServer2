@@ -42,7 +42,7 @@ void RTMFPSession::Flow::unjoin() {
 	_pGroup = NULL;
 }
 
-RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer) : 
+RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, shared<Peer>& pPeer) : 
 		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, *pPeer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(0), _timesKeepalive(0) {
 
 	_mainStream.onStart = [this](UInt16 id, FlashWriter& writer) {

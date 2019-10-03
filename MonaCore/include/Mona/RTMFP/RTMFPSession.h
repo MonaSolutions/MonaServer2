@@ -28,7 +28,7 @@ namespace Mona {
 
 struct RTMFProtocol;
 struct RTMFPSession : RTMFP::Output, Session, Net::Stats, virtual Object {
-	RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, const shared<Peer>& pPeer);
+	RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, shared<Peer>& pPeer);
 
 	void init(const shared<RTMFP::Session>& pSession);
 
