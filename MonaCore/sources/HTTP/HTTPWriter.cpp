@@ -256,9 +256,11 @@ bool HTTPWriter::beginMedia(const string& name) {
 	return false;
 }
 
-void HTTPWriter::endMedia() {
-	if (_pMediaWriter)
-		newSender<HTTPMediaSender>(_pMediaWriter); // End media => Close socket
+bool HTTPWriter::endMedia() {
+	if (!_pMediaWriter)
+		return true;
+	newSender<HTTPMediaSender>(_pMediaWriter); // End media => Close socket
+	return false;
 }
 
 } // namespace Mona

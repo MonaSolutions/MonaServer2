@@ -345,13 +345,16 @@ struct Media : virtual Static {
 		If Target is sending queueable (bufferize), returns queueing size to allow to detect congestion */
 		virtual UInt64 queueing() const { return 0; }
 		/*!
+		beginMedia, returns false if target fails
 		/!\ can be called multiple times (without one call to endMedia) when media change (MBR switch for example) */
 		virtual bool beginMedia(const std::string& name);
 		virtual bool writeProperties(const Media::Properties& properties) { return true; }
 		virtual bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
 		virtual bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
 		virtual bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
-		virtual void endMedia() {}
+		/*!
+		endMedia, tolerates a this deletion (and subscription deletion), should returns flase in this case (else execute a target.flush) */
+		virtual bool endMedia() { return true; }
 	
 		/*!
 		Overload just if target bufferizes data before to send it*/

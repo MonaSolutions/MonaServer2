@@ -127,7 +127,7 @@ bool FlashWriter::beginMedia(const string& name) {
 	_pPublicationName = &name;
 	writeAMFStatus("NetStream.Play.PublishNotify", name + " is now published");
 	_firstAV = true;
-	return true;
+	return !closed();
 }
 
 bool FlashWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
@@ -135,11 +135,11 @@ bool FlashWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet,
 	_firstAV = false;
 	BinaryWriter& writer(*write(AMF::TYPE_AUDIO, _time, Media::Data::TYPE_AMF, packet, reliable));
 	if (!packet)
-		return true; // "end audio signal" => detected by FP and works just if no packet content!
+		return !closed(); // "end audio signal" => detected by FP and works just if no packet content!
 	writer.write8(FLVWriter::ToCodecs(tag));
 	if (tag.codec == Media::Audio::CODEC_AAC)
 		writer.write8(tag.isConfig ? 0 : 1);
-	return true;
+	return !closed();
 }
 
 bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
@@ -153,7 +153,7 @@ bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 	BinaryWriter& writer(*write(AMF::TYPE_VIDEO, _time, Media::Data::TYPE_AMF, isAVCConfig ? Packet::Null() : packet, reliable));
 	writer.write8(FLVWriter::ToCodecs(tag));
 	if (tag.codec != Media::Video::CODEC_H264 && tag.codec != Media::Video::CODEC_HEVC)
-		return true;
+		return !closed();
 	if (isAVCConfig) {
 		if (tag.codec == Media::Video::CODEC_HEVC)
 			HEVC::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _vps, _sps, _pps);
@@ -161,7 +161,7 @@ bool FlashWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 			AVC::WriteVideoConfig(writer.write8(0).write24(tag.compositionOffset), _sps, _pps);
 	} else
 		writer.write8(1).write24(tag.compositionOffset);
-	return true;
+	return !closed();
 }
 
 bool FlashWriter::writeData(Media::Data::Type type, const Packet& packet, bool reliable) {
@@ -181,7 +181,7 @@ bool FlashWriter::writeData(Media::Data::Type type, const Packet& packet, bool r
 			writer.writeString(EXPAND("onData")); // onData(data as ByteArray)
 	}
 	writer.amf0 = amf0;
-	return true;
+	return !closed();
 }
 
 bool FlashWriter::writeProperties(const Media::Properties& properties) {
@@ -192,12 +192,13 @@ bool FlashWriter::writeProperties(const Media::Properties& properties) {
 	writer.amf0 = true;
 	writer.writeString(EXPAND("onMetaData"));
 	writer.amf0 = amf0;
-	return true;
+	return !closed();
 }
 
-void FlashWriter::endMedia() {
+bool FlashWriter::endMedia() {
 	_lastTime = _time;
 	writeAMFStatus("NetStream.Play.UnpublishNotify", *_pPublicationName + " is now unpublished");
+	return !closed();
 }
 
 

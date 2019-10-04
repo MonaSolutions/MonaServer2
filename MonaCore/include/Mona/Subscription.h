@@ -238,7 +238,7 @@ private:
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) {
 			return _nextSize ? writeMedia<Media::Data>(type, packet, track) : true;  // ignore data packet as first to get a timestamp explicit on _nextSize
 		}
-		void endMedia() { if(_nextSize) writeMedia<Media::Base>(); }
+		bool endMedia() { return _nextSize ? writeMedia<Media::Base>() : true; }
 		// bool writeProperties(const Media::Properties& properties); ignore properties (metadata) during MBR switch, will be write on end of switch!
 		template<typename MediaType, typename ...Args>
 		bool writeMedia(Args&&... args) {

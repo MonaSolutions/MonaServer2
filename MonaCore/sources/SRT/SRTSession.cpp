@@ -28,10 +28,6 @@ SRTSession::SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, sha
 	
 }
 
-SRTSession::~SRTSession() {
-	if (_pSubscription)
-		delete _pSubscription;
-}
 
 void SRTSession::init(SRTProtocol::Params& params) {
 	// Connect the Peer
@@ -71,8 +67,10 @@ void SRTSession::kill(Int32 error, const char* reason) {
 	}
 	if (_pPublication)
 		api.unpublish(*_pPublication, peer);
-	if (_pSubscription) // delete subscription on SRTSession destruction to avoid a crash if this kill is called by subscription itself!
+	if (_pSubscription) {
 		api.unsubscribe(peer, *_pSubscription);
+		delete _pSubscription;
+	}
 	Session::kill(error, reason);
 }
 

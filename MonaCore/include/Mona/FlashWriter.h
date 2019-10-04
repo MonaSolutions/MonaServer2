@@ -52,7 +52,7 @@ struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 	virtual bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable);
 	virtual bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable);
 	virtual bool			writeProperties(const Media::Properties& properties);
-	virtual void			endMedia();
+	virtual bool			endMedia();
 
 	void					flush() { Writer::flush(); }
 

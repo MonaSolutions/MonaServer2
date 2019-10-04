@@ -208,8 +208,9 @@ bool MediaFile::Writer::writeProperties(const Media::Properties& properties) {
 	return write<MediaWrite<Media::Data>>(type, packet, 0, true);
 }
 
-void MediaFile::Writer::endMedia() {
+bool MediaFile::Writer::endMedia() {
 	stop();
+	return false;
 }
 
 void MediaFile::Writer::stopping() {

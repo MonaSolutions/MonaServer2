@@ -114,7 +114,7 @@ struct MediaFile : virtual Static  {
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Audio>>(tag, packet, track); }
 		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Video>>(tag, packet, track); }
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) { return write<MediaWrite<Media::Data>>(type, packet, track); }
-		void endMedia();
+		bool endMedia();
 
 	private:
 		bool starting(const Parameters& parameters);

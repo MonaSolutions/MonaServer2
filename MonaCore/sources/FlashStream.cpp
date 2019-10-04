@@ -214,8 +214,10 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 				else
 					writer.writeAMFStatus("NetStream.Record.NoAccess", "error", ex);
 			}
-		} else
+		} else {
 			writer.writeAMFStatus("NetStream.Publish.BadName", "error", ex);
+			writer.close();
+		}
 		return;
 	}
 	

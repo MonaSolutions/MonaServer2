@@ -33,7 +33,7 @@ private:
 	bool	writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
 	bool	writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
 	bool	writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
-	void	endMedia();
+	bool	endMedia();
 	void	flush();
 
 	lua_State* _pState;

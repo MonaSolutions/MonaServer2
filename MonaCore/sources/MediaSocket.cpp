@@ -279,8 +279,9 @@ bool MediaSocket::Writer::writeProperties(const Media::Properties& properties) {
 	return send<MediaSend<Media::Data>>(0, type, packet);
 }
 
-void MediaSocket::Writer::endMedia() {
+bool MediaSocket::Writer::endMedia() {
 	stop();
+	return false;
 }
 
 void MediaSocket::Writer::stopping() {

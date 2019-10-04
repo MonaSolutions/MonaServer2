@@ -259,16 +259,16 @@ void Subscription::reset() {
 		next(); // useless to wait sync on reset, next publication now!
 		return;
 	}
-	if (_pMediaWriter) {
-		_pMediaWriter->endMedia(_onMediaWrite);
-		_onMediaWrite = nullptr; // to call _pMediaWriter->begin just after reset (and not on MBR switch!)
-	}
-	_target.endMedia();
-	_target.flush();
 	_firstTime = true;
 	_lastTime = 0;
 	_timeoutMBRUP = 10000; // reset timeout MBRUP just when endMedia, to stay valid on MBR switch! (10 sec = max key frame interval possible)
 	stop();
+	if (_pMediaWriter) {
+		_pMediaWriter->endMedia(_onMediaWrite);
+		_onMediaWrite = nullptr; // to call _pMediaWriter->begin just after reset (and not on MBR switch!)
+	}
+	if(_target.endMedia()) // keep in last to tolerate a this deletion, no need to eject here we are on a new media, can solve the target possible issue!
+		_target.flush();
 }
 
 void Subscription::clear() {

@@ -59,17 +59,17 @@ bool WSWriter::beginMedia(const string& name) {
 	DataWriter& writer = writeJSON();
 	writer.writeString(EXPAND("@media"));
 	writer.writeString(name.data(), name.size());
-	return true;
+	return !closed();
 }
 
 bool WSWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
 	Media::Pack(*write(WS::TYPE_BINARY, packet), tag);
-	return true;
+	return !closed();
 }
 
 bool WSWriter::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
 	Media::Pack(*write(WS::TYPE_BINARY, packet), tag);
-	return true;
+	return !closed();
 }
 
 bool WSWriter::writeData(Media::Data::Type type, const Packet& packet, bool reliable) {
@@ -79,7 +79,7 @@ bool WSWriter::writeData(Media::Data::Type type, const Packet& packet, bool reli
 	if (type == Media::Data::TYPE_MEDIA) {
 		// binary => means "format" option choosen by the client (client doesn't get more of writeAudio or writeVideo)
 		newSender(WS::TYPE_BINARY, packet);
-		return true;
+		return !closed();
 	}
 	DataWriter& writer(writeJSON(type, packet));
 	// @ => Come from publication (to avoid confusion with message from server write by user)
@@ -87,18 +87,19 @@ bool WSWriter::writeData(Media::Data::Type type, const Packet& packet, bool reli
 		writer.writeString(EXPAND("@text"));
 	else
 		writer.writeString(EXPAND("@"));
-	return true;
+	return !closed();
 }
 
 bool WSWriter::writeProperties(const Media::Properties& properties) {
 	// Necessary TEXT(JSON) transfer (to match data publication)
 	Media::Data::Type type(Media::Data::TYPE_JSON);
 	writeJSON(properties.data(type)).writeString(EXPAND("@properties"));
-	return true;
+	return !closed();
 }
 
-void WSWriter::endMedia() {
+bool WSWriter::endMedia() {
 	writeJSON().writeString(EXPAND("@end"));
+	return !closed();
 }
 
 
