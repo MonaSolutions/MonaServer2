@@ -39,7 +39,7 @@ void QueryWriter::writeString(const char* value, UInt32 size) {
 	if (uriChars)
 		write(String::URI(value, size));
 	else
-		write(value, size);
+		write(value);
 }
 
 UInt64 QueryWriter::writeBytes(const UInt8* data, UInt32 size) {

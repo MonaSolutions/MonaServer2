@@ -26,7 +26,7 @@ namespace Mona {
 
 
 struct QueryWriter : DataWriter, virtual Object {
-	QueryWriter(Buffer& buffer) : DataWriter(buffer), _first(true), _isProperty(false),
+	QueryWriter(Buffer& buffer) : DataWriter(buffer), _pBuffer(NULL), _first(true), _isProperty(false),
 		separator("&"), dateFormat(Date::FORMAT_ISO8601_SHORT), uriChars(true) {}
 	QueryWriter(std::string& buffer) : _pBuffer(&buffer), _first(true), _isProperty(false),
 		separator("&"), dateFormat(Date::FORMAT_ISO8601_SHORT), uriChars(true) {}
@@ -41,7 +41,7 @@ struct QueryWriter : DataWriter, virtual Object {
 	void   writeString(const char* value, UInt32 size);
 	void   writeBoolean(bool value) { write(value ? "true" : "false"); }
 	void   writeNull() { write("null"); }
-	UInt64 writeDate(const Date& date) { write(String::Date(dateFormat)); return 0; }
+	UInt64 writeDate(const Date& date) { write(String::Date(date, dateFormat)); return 0; }
 	UInt64 writeBytes(const UInt8* data, UInt32 size);
 
 	void clear();
@@ -62,9 +62,9 @@ private:
 	template <typename ...Args>
 	void writeBuffer(Args&&... args) {
 		if (_pBuffer)
-			String::Assign(*_pBuffer, std::forward<Args>(args)...);
+			String::Append(*_pBuffer, std::forward<Args>(args)...);
 		else
-			String::Assign(writer, std::forward<Args>(args)...);
+			String::Append(writer, std::forward<Args>(args)...);
 	}
 
 	bool				_isProperty;
