@@ -235,16 +235,17 @@ bool LUASubscription::writeData(UInt8 track, Media::Data::Type type, const Packe
 	return result;
 }
 bool LUASubscription::endMedia() {
-	bool result = false; // no flush if no return, to avoid a crash if LUASubscription is deleted!
+	bool result = true; // true by default because no risks even with a garbagecollect called to erase LUASubscription object because "self" argument protect its deletion immediate
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onEnd", "onMedia")
 			if(strcmp(SCRIPT_FUNCTION_NAME, "onMedia")==0)
 				SCRIPT_WRITE_NIL;
 			SCRIPT_FUNCTION_CALL
-			if (SCRIPT_NEXT_READABLE) // if return something, considerate the object always alive => true by default to execute the flush!
+			if (SCRIPT_NEXT_READABLE)
 				result = SCRIPT_READ_BOOLEAN(true);
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
+	return result;
 }
 void LUASubscription::flush() {
 	SCRIPT_BEGIN(_pState)
