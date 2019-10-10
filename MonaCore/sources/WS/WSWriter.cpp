@@ -34,7 +34,7 @@ void WSWriter::closing(Int32 error, const char* reason) {
 
 void WSWriter::flushing() {
 	for (auto& pSender : _senders)
-		_session.send(pSender);
+		_client.io.threadPool.queue(_sendingTrack, pSender);
 	_senders.clear();
 }
 

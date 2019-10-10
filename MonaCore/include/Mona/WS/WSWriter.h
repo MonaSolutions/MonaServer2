@@ -20,16 +20,16 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/Writer.h"
-#include "Mona/TCPSession.h"
+#include "Mona/TCPClient.h"
 #include "Mona/WS/WSSender.h"
 
 namespace Mona {
 
 
 struct WSWriter : Writer, Media::TrackTarget, virtual Object {
-	WSWriter(TCPSession& session) : _session(session) {}
+	WSWriter(TCPClient& client) : _client(client), _sendingTrack(0) {}
 	
-	UInt64			queueing() const { return _session->queueing(); }
+	UInt64			queueing() const { return _client->queueing(); }
 
 	void			clear() { _senders.clear(); }
 
@@ -38,7 +38,7 @@ struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	DataWriter&		writeResponse(UInt8 type=0) { return write(WS::Type(type)); } // if type==0 will write a JSON message
 	void			writeRaw(DataReader& arguments, const Packet& packet = Packet::Null());
 
-	void			writePing() { write(WS::TYPE_PING)->write32(UInt32(_session.peer.connection.elapsed())); }
+	void			writePing(UInt32 connectionTime) { write(WS::TYPE_PING)->write32(connectionTime); }
 	void			writePong(const Packet& packet) { newSender(WS::TYPE_PONG, packet); }
 
 	bool			beginMedia(const std::string& name);
@@ -62,11 +62,12 @@ private:
 		if (closed())
 			return NULL;
 		_senders.emplace_back();
-		return &_senders.back().set<SenderType>(_session, std::forward<Args>(args)...);
+		return &_senders.back().set<SenderType>(_client.socket(), std::forward<Args>(args)...);
 	}
 
-	TCPSession&						_session;
+	TCPClient&						_client;
 	std::vector<shared<WSSender>>	_senders;
+	UInt16							_sendingTrack;
 };
 
 

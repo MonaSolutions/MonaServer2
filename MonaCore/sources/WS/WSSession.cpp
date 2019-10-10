@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder) : Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
+WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder) : Session(protocol, session), writer((TCPClient&)session), _pSubscription(NULL), _pPublication(NULL),
 	_onRequest([this](WS::Request& request) {
 		Exception ex;
 
@@ -226,7 +226,7 @@ bool WSSession::manage() {
 	if (!Session::manage())
 		return false;
 	if (peer && peer.pingTime.isElapsed(timeout/2)) {
-		writer.writePing();
+		writer.writePing((UInt32)peer.connection.elapsed());
 		peer.pingTime.update();
 	}
 	// check subscription

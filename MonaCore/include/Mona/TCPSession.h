@@ -24,7 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct TCPSession : Session, private TCPClient, virtual Object {
+struct TCPSession : Session, protected TCPClient, virtual Object {
 	void connect(const shared<Socket>& pSocket);
 
 	operator const shared<Socket>&() { return TCPClient::socket(); }
