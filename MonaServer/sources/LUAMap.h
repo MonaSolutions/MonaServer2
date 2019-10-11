@@ -134,11 +134,11 @@ struct LUAMap : virtual Static {
 								lua_pop(pState, 1);
 								SCRIPT_WRITE_NIL
 							} else
-								SCRIPT_ERROR("Impossible to erase ", key, " of ", typeof<typename M::ObjType>());
+								SCRIPT_ERROR("Impossible to erase ", key, " of ", Mona::typeof<typename M::ObjType>());
 						} else
 							SCRIPT_WRITE_NIL
 					} else {
-						SCRIPT_ERROR("Miss property name to erase of ", typeof<typename M::ObjType>());
+						SCRIPT_ERROR("Miss property name to erase of ", Mona::typeof<typename M::ObjType>());
 						SCRIPT_WRITE_NIL
 					}
 				} else if (reader.nextType() >= ScriptReader::OTHER) {
@@ -150,7 +150,7 @@ struct LUAMap : virtual Static {
 							const auto& it = _m.set(key, move(value), _parameters);
 							if (it == _m.end()) { // call _m.end() after _m.set because can create a incompatible iterator exception
 								SCRIPT_BEGIN(_m.pState)
-									SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<typename M::ObjType>())
+									SCRIPT_ERROR("Impossible to set ", key, " of ", Mona::typeof<typename M::ObjType>())
 								SCRIPT_END
 							}
 						}
@@ -174,12 +174,12 @@ struct LUAMap : virtual Static {
 					reader.read(writer, 1);
 					const auto& it = m.set(key, std::move(value), parameters);
 					if (it == m.end()) {
-						SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<typename M::ObjType>())
+						SCRIPT_ERROR("Impossible to set ", key, " of ", Mona::typeof<typename M::ObjType>())
 						SCRIPT_WRITE_NIL
 					} else
 						m.pushValue(it);
 				} else {
-					SCRIPT_ERROR("Miss property name to add value in ", typeof<typename M::ObjType>());
+					SCRIPT_ERROR("Miss property name to add value in ", Mona::typeof<typename M::ObjType>());
 					SCRIPT_WRITE_NIL
 				}
 				SCRIPT_READ_NEXT(reader.position() + parameters.position());
@@ -203,12 +203,12 @@ struct LUAMap : virtual Static {
 						UInt32 count = m.size();
 						if (ToKey(pState, 2, key)) {
 							if (!m.erase(m.lower_bound(key), m.lower_bound(String(String::Data(key.data(), key.size() - 1), char(key.back() + 1))))) {
-								SCRIPT_ERROR("Impossible to erase ", key, " of ", typeof<typename M::ObjType>());
+								SCRIPT_ERROR("Impossible to erase ", key, " of ", Mona::typeof<typename M::ObjType>());
 								SCRIPT_WRITE_NIL // to detect error (=== NIL)
 							} else
 								SCRIPT_WRITE_INT(count - m.size());
 						} else if (!m.erase(m.begin(), m.end())) {
-							SCRIPT_ERROR("Impossible to clear ", typeof<typename M::ObjType>());
+							SCRIPT_ERROR("Impossible to clear ", Mona::typeof<typename M::ObjType>());
 							SCRIPT_WRITE_NIL // to detect error (=== NIL)
 						} else
 							SCRIPT_WRITE_INT(count - m.size())	

@@ -119,7 +119,7 @@ extern "C" {
 #define SCRIPT_READ_INT32(DEFAULT)								((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)
 #define SCRIPT_READ_DOUBLE(DEFAULT)								((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tonumber(__pState,__arg) : DEFAULT)
 #define SCRIPT_READ_PACKET(VALUE)								Packet VALUE; if((__lastArg - __arg++) > 0) { if (const Packet* pPacket = Script::ToObject<Packet>(pState, __arg)) { VALUE.set(*pPacket); } else { size_t size; if (const char* data = lua_tolstring(pState, __arg, &size)) VALUE.set(data, size); } }
-#define SCRIPT_READ_DATA(VALUE,SIZE)							UInt32 SIZE = 0; const UInt8* VALUE = NULL; if((__lastArg-__arg++)>0 && lua_isstring(__pState,__arg)) { VALUE = (const UInt8*)lua_tolstring(__pState,__arg, &SIZE);}
+#define SCRIPT_READ_DATA(VALUE,SIZE)							std::size_t SIZE = 0; const UInt8* VALUE = NULL; if((__lastArg-__arg++)>0 && lua_isstring(__pState,__arg)) { VALUE = (const UInt8*)lua_tolstring(__pState,__arg, &SIZE);}
 #define SCRIPT_READ_PTR(TYPE)									((__lastArg-__arg++)>0 && lua_islightuserdata(__pState,__arg) ? (TYPE*)lua_touserdata(__pState,__arg) : NULL)
 
 #define SCRIPT_END												}
