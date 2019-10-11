@@ -26,10 +26,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/WS/WSProtocol.h"
 #include "Mona/STUN/STUNProtocol.h"
 //#include "Mona/RTSP/RTSProtocol.h"
-#include "Mona/SRT.h"
-#if defined(SRT_API)
-	#include "Mona/SRT/SRTProtocol.h"
-#endif
+#include "Mona/SRT/SRTProtocol.h"
 
 using namespace std;
 
