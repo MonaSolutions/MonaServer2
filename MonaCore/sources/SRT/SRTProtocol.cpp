@@ -45,9 +45,9 @@ bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
 	// TODO: Handle nested keys? => #!:{...}
 	if (reader.available() < 4 || String::ICompare(STR reader.current(), EXPAND("#!::")) != 0) {
 		// direct resource!
-		if (!setResource(STR reader.current(), reader.available()))
+		if (!(_ok=setResource(STR reader.current(), reader.available())))
 			DEBUG("Invalid SRT streamid ", String::Data(reader.current(), 4));
-		return _done = true;
+		return _ok;
 	}
 	reader.next(4);
 
@@ -83,21 +83,20 @@ bool SRTProtocol::Params::readOne(UInt8 type, DataWriter& writer) {
 			key = cur;
 	} while (reader.next());
 	writer.endObject();
-	return _done = true;
+	return _ok = true;
 }
 
 void SRTProtocol::Params::write(DataWriter& writer, const char* key, const char* value, UInt32 size) {
 	writer.writeProperty(key, value, size);
-	if (_done)
+	if (_ok)
 		return; // else already done!
 	if (String::ICompare(key, "m") == 0) {
 		if(String::ICompare(value, size, "request") == 0)
 			_subscribe = true;
 		else if (String::ICompare(value, size, "publish") == 0)
 			_publish = true;
-		// Note: Bidirectional is not supported for now as a socket cannot be subcribed twice
-		// else if (String::ICompare(value, size, "bidirectional") == 0)
-		//  publish = subscribe = true;
+		else if (String::ICompare(value, size, "bidirectional") == 0)
+			_publish = _subscribe = true;
 	} else if (String::ICompare(key, "r") == 0)
 		setResource(value, size);
 }

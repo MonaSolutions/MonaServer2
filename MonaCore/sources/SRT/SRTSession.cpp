@@ -42,13 +42,14 @@ void SRTSession::init(SRTProtocol::Params& params) {
 
 	// Start Play / Publish
 	if (params.publish()) {
+		if (params.subscribe()) // Note: Bidirectional is not supported for now as a socket cannot be subcribed twice
+			WARN(name(), " unsupport Bidirectional mode, just publication is processing");
 		if ((_pPublication = api.publish(ex, peer, params.stream())) == NULL)
 			return kill(TO_ERROR(ex));
 		_pReader.set(MediaStream::TYPE_SRT, peer.path, *_pPublication, new TSReader(), socket(), api.ioSocket);
 		_pReader->onStop = [this]() { kill(TO_ERROR(_pReader->ex)); };
 		_pReader->start(); // no pulse required, socket already ready
-	}
-	else if (params.subscribe()) {
+	} else { // by default "subscribe"!
 		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), socket(), api.ioSocket);
 		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter))))
 			return kill(TO_ERROR(ex));
