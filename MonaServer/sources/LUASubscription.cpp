@@ -77,7 +77,7 @@ template<> void Script::ObjClear(lua_State *pState, const Subscription::Tracks<S
 
 static int ejected(lua_State *pState) {
 	SCRIPT_CALLBACK(Subscription, subscription)
-		switch (subscription.ejected()) {
+		switch (subscription.ejected()) {  // no default to get warning on gcc compilation if one day a new EJECTED state is added
 			case Subscription::EJECTED_BANDWITDH:
 				SCRIPT_WRITE_STRING("bandwidth");
 				break;
@@ -103,6 +103,8 @@ static int target(lua_State *pState) {
 
 
 template<> void Script::ObjInit(lua_State *pState, Subscription& subscription) {
+	AddType<Media::Source>(pState, subscription);
+
 	// parameters
 	lua_pushliteral(pState, "parameters");
 	AddObject(pState, (Parameters&)subscription);
@@ -123,6 +125,8 @@ template<> void Script::ObjInit(lua_State *pState, Subscription& subscription) {
 	SCRIPT_END;
 }
 template<> void Script::ObjClear(lua_State *pState, Subscription& subscription) {
+	RemoveType<Media::Source>(pState, subscription);
+
 	RemoveObject(pState, (Parameters&)subscription);
 	RemoveObject(pState, subscription.audios);
 	RemoveObject(pState, subscription.videos);

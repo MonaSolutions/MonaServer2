@@ -28,7 +28,7 @@ using namespace std;
 namespace Mona {
 
 
-RTMPSession::RTMPSession(Protocol& protocol) : _first(true), _controller(2, *this, _pEncryptKey), _mainStream(api,peer), TCPSession(protocol),
+RTMPSession::RTMPSession(Protocol& protocol, const shared<Socket>& pSocket) : _first(true), _controller(2, *this, _pEncryptKey), _mainStream(api,peer), TCPSession(protocol, pSocket),
 	_onRequest([this](RTMP::Request& request) {
 		RTMPWriter& writer(request.channelId == 2 ? _controller : _writers.emplace(SET, forward_as_tuple(request.channelId), forward_as_tuple(request.channelId, *this, _pEncryptKey)).first->second);
 		writer.streamId = request.streamId;
@@ -132,7 +132,7 @@ bool RTMPSession::manage() {
 	if (!TCPSession::manage())
 		return false;
 	if (peer && peer.pingTime.isElapsed(timeout/2)) {
-		_controller.writePing();
+		_controller.writePing(peer.connection);
 		peer.pingTime.update();
 	}
 	return true;

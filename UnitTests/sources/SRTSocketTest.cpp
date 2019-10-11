@@ -373,14 +373,14 @@ ADD_TEST(TestOptions) {
 	unique<SRT::Socket> pClient(SET);
 	unique<Server> pServer(SET);
 
-	int value;
+	UInt32 uint32;
 	Exception ex;
 	CHECK(pClient->setRecvBufferSize(ex, 0xFFFF));
-	CHECK(pClient->getRecvBufferSize(ex, value) && value == 0xFFFF);
+	CHECK(pClient->getRecvBufferSize(ex, uint32) && uint32 == 0xFFFF);
 	CHECK(pClient->setSendBufferSize(ex, 0xFFFF));
-	CHECK(pClient->getSendBufferSize(ex, value) && value == 0xFFFF);
+	CHECK(pClient->getSendBufferSize(ex, uint32) && uint32 == 0xFFFF);
 
-	CHECK(pClient->setRecvLatency(ex, 500));
+	CHECK(pClient->setLatency(ex, 500));
 	CHECK(pClient->setPeerLatency(ex, 600));
 	CHECK(pClient->setMSS(ex, 900) && !ex);
 	CHECK(pClient->setOverheadBW(ex, 50) && !ex);
@@ -388,10 +388,10 @@ ADD_TEST(TestOptions) {
 
 	// Encryption
 	SRT_KM_STATE state;
-	CHECK(pClient->getEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_UNSECURED);
-	CHECK(pClient->getPeerDecryptionState(ex, state) && !ex && state == ::SRT_KM_S_UNSECURED);
-	CHECK(pClient->setEncryptionType(ex, 24) && !ex);
-	CHECK(pClient->getEncryptionType(ex, value) && !ex && value == 24);
+	CHECK(pClient->getRecvEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_UNSECURED);
+	CHECK(pClient->getSendEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_UNSECURED);
+	CHECK(pClient->setEncryptionSize(ex, 24) && !ex);
+	CHECK(pClient->getEncryptionSize(ex, uint32) && !ex && uint32 == 24);
 	CHECK(pClient->setPassphrase(ex, EXPAND("passphrase")) && !ex);
 	CHECK(pServer->setPassphrase(ex, EXPAND("passphrase")) && !ex);
 
@@ -405,24 +405,24 @@ ADD_TEST(TestOptions) {
 	// It's impossible to set options after connexion with SRT
 	CHECK(!pClient->setRecvBufferSize(ex, 2000) && ex.cast<Ex::Net::Socket>().code == NET_EISCONN);
 	ex = NULL;
-	CHECK(pClient->getRecvBufferSize(ex, value) && !ex && value == 0xFFFF);
+	CHECK(pClient->getRecvBufferSize(ex, uint32) && !ex && uint32 == 0xFFFF);
 
 	// 1 byte packet to mean "end of data" (SHUTDOWN_SEND is not possible now)
 	CHECK(pClient->send(ex, EXPAND("\0")));
 
 	// Some options can only work after connection
 	const SRT::Socket& connection = (SRT::Socket&)pServer->connection();
-	CHECK(pClient->getEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_SECURED);
-	CHECK(connection.getPeerDecryptionState(ex, state) && !ex && state == ::SRT_KM_S_SECURED);
+	CHECK(pClient->getRecvEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_SECURED);
+	CHECK(connection.getSendEncryptionState(ex, state) && !ex && state == ::SRT_KM_S_SECURED);
 
-	CHECK(pClient->getRecvLatency(ex, value) && !ex && value == 500);
-	CHECK(pClient->getPeerLatency(ex, value) && !ex && value == 600);
-	CHECK(connection.getPeerLatency(ex, value) && !ex && value == 500);
-	CHECK(connection.getRecvLatency(ex, value) && !ex && value == 600);
+	CHECK(pClient->getLatency(ex, uint32) && !ex && uint32 == 500);
+	CHECK(pClient->getPeerLatency(ex, uint32) && !ex && uint32 == 600);
+	CHECK(connection.getPeerLatency(ex, uint32) && !ex && uint32 == 500);
+	CHECK(connection.getLatency(ex, uint32) && !ex && uint32 == 600);
 
-	CHECK(pClient->getMSS(ex, value) && !ex && value == 900);
-	Int64 val64;
-	CHECK(pClient->getMaxBW(ex, val64) && !ex && val64 == 2000);
+	CHECK(pClient->getMSS(ex, uint32) && !ex && uint32 == 900);
+	Int64 int64;
+	CHECK(pClient->getMaxBW(ex, int64) && !ex && int64 == 2000);
 
 	SRT::Stats stats;
 	CHECK(pClient->getStats(ex, stats) && !ex && stats.recvLostCount() == 0 && (stats->pktSent == 1 || stats->pktSndBuf == 1)); // Can be sent or bufferised now
@@ -437,13 +437,14 @@ ADD_TEST(TestOptions) {
 	params.setNumber("encryption", 16);
 	params.setString("passphrase", "This is a pass");
 	params.setNumber("latency", 2000);
+	params.setNumber("peerLatency", 2000);
 	params.setNumber("mss", 750);
 	params.setNumber("overheadbw", 60);
 	params.setNumber("maxbw", 50000000);
 	CHECK(pClient->processParams(ex, params) && !ex);
 
 	// Connect
-	CHECK(pServer->setEncryptionType(ex, 16));
+	CHECK(pServer->setEncryptionSize(ex, 16));
 	CHECK(pServer->setPassphrase(ex, EXPAND("This is a pass")) && !ex);
 	CHECK(pServer->bind(source));
 	pServer->accept();
@@ -454,14 +455,14 @@ ADD_TEST(TestOptions) {
 	bool bValue;
 	CHECK(pClient->getPktDrop(ex, bValue) && !ex && bValue == false);
 
-	CHECK(pClient->getSendBufferSize(ex, value) && !ex && value == 50000);
-	CHECK(pClient->getRecvBufferSize(ex, value) && !ex && value == 50000);
+	CHECK(pClient->getSendBufferSize(ex, uint32) && !ex && uint32 == 50000);
+	CHECK(pClient->getRecvBufferSize(ex, uint32) && !ex && uint32 == 50000);
 
-	CHECK(pClient->getLatency(ex, value) && !ex && value == 2000);
-	CHECK(pClient->getPeerLatency(ex, value) && !ex && value == 2000);
+	CHECK(pClient->getLatency(ex, uint32) && !ex && uint32 == 2000);
+	CHECK(pClient->getPeerLatency(ex, uint32) && !ex && uint32 == 2000);
 
-	CHECK(pClient->getMSS(ex, value) && !ex && value == 750);
-	CHECK(pClient->getMaxBW(ex, val64) && !ex && val64 == 50000000);
+	CHECK(pClient->getMSS(ex, uint32) && !ex && uint32 == 750);
+	CHECK(pClient->getMaxBW(ex, int64) && !ex && int64 == 50000000);
 }
 
 ADD_TEST(ListenCallback) {
@@ -478,8 +479,8 @@ ADD_TEST(ListenCallback) {
 	SocketAddress target(IPAddress::Loopback(), source.port());
 	pServer->accept();
 	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
-	const Mona::Socket& socket(pServer->connection());
-	CHECK(((SRT::Socket&)socket).stream == streamId);
+	const SRT::Socket& socket((SRT::Socket&)pServer->connection());
+	CHECK(socket.streamId() == streamId);
 }
 
 }

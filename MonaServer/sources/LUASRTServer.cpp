@@ -16,29 +16,23 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#pragma once
+#include "Script.h"
+#include "Mona/SRT.h"
 
-#include "Mona/Mona.h"
-#include "Mona/TCProtocol.h"
-#include "Mona/RTMP/RTMPSession.h"
+
+using namespace std;
 
 namespace Mona {
 
-class RTMProtocol : public TCProtocol, public virtual Object {
-public:
-	RTMProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS=nullptr) : TCProtocol(name, api, sessions, pTLS) {
+#if defined(SRT_API)
+template<> void Script::ObjInit(lua_State *pState, SRT::Server& server) {
+	AddType<SRT::Socket>(pState, *server);
+	AddType<TCPServer>(pState, server);
+}
+template<> void Script::ObjClear(lua_State *pState, SRT::Server& server) {
+	RemoveType<SRT::Socket>(pState, *server);
+	RemoveType<TCPServer>(pState, server);
+}
+#endif
 
-		setNumber("port", pTLS ? 8443 : 1935);
-		setNumber("timeout", 60); // 60 seconds
-
-		onConnection = [this](const shared<Socket>& pSocket) {
-			// Create session
-			this->sessions.create<RTMPSession>(self, pSocket).connect();
-		};
-	}
-	~RTMProtocol() { onConnection = nullptr; }
-
-};
-
-
-} // namespace Mona
+}

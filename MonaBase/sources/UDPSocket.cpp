@@ -25,6 +25,7 @@ namespace Mona {
 
 const shared<Socket>& UDPSocket::socket() {
 	if (!_pSocket) {
+		_sendingTrack = 0;
 		_pSocket.set(Socket::TYPE_DATAGRAM);
 		Exception ex;
 		_subscribed = io.subscribe(ex, _pSocket, newDecoder(), onPacket, onFlush, onError);

@@ -105,12 +105,14 @@ void SRTProtocol::Params::write(DataWriter& writer, const char* key, const char*
 
 SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) : _server(api.ioSocket), Protocol(name, api, sessions) {
 	setNumber("port", 9710);
-	setNumber("timeout", 60); // 60 seconds
+	// SRT has no need of timeout by default even if it can open multiple socket, 
+	// indeed we can trust in SRT lib which checks already zombie socket:
+	// there is an intern ping, we can see it with SRT::Socket::getStats recvTime/sendTime
 
 	_server.onConnection = [this](const shared<Socket>& pSocket) {
 		// Try to read the parameter "streamid"
 		shared<Peer> pPeer(SET, this->api, this->name, pSocket->peerAddress());
-		Params params(((SRT::Socket&)*pSocket).stream(), *pPeer);
+		Params params(((SRT::Socket&)*pSocket).streamId(), *pPeer);
 		if (params) {
 			if(params.stream().empty()) // raise just in the case where streamid=#!:: (without any resource)
 				ERROR("SRT connection with streamid has to specify a valid resource (r parameter)")

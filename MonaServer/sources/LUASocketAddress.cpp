@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "LUASocketAddress.h"
+#include "LUAIPAddress.h"
 
 using namespace std;
 
@@ -36,7 +37,7 @@ template<> void Script::ObjInit(lua_State *pState, SocketAddress& address) {
 
 		SCRIPT_DEFINE_INT("port", address.port());
 		SCRIPT_DEFINE_BOOLEAN("isIPv6", address.family() == IPAddress::IPv6);
-		SCRIPT_DEFINE("host", NewObject(pState, new IPAddress(address.host())));
+		SCRIPT_DEFINE("host", SCRIPT_WRITE_IP(address.host()));
 		
 	SCRIPT_END
 }
@@ -44,21 +45,25 @@ template<> void Script::ObjClear(lua_State *pState, SocketAddress& address) {
 
 }
 
-bool LUASocketAddress::From(Exception& ex, lua_State *pState, int index, SocketAddress& address, bool withDNS) {
+bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, SocketAddress& address) {
 
-	if (lua_isnumber(pState, index)) {
+	int isNum;
+	UInt16 port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
+	if (isNum) {
 		// just port?
-		address.setPort(UInt16(lua_tonumber(pState, index)));
+		address.setPort(port);
 		return true;
 	}
 
 	if (lua_type(pState, index)==LUA_TSTRING) { // lua_type because can be encapsulated in a lua_next
 		const char* value = lua_tostring(pState,index);
-		if (lua_type(pState, ++index)==LUA_TSTRING)
-			return withDNS ? address.setWithDNS(ex, value, lua_tostring(pState,index)) : address.set(ex, value, lua_tostring(pState,index));
-		if (lua_isnumber(pState,index))
-			return withDNS ? address.setWithDNS(ex, value, (UInt16)lua_tonumber(pState,index)) : address.set(ex, value, (UInt16)lua_tonumber(pState,index));
-		return withDNS ? address.setWithDNS(ex, value) : address.set(ex, value);
+		if (lua_type(pState, ++index) == LUA_TSTRING)
+			return *value == '@' ? address.setWithDNS(ex, value + 1, lua_tostring(pState, index)) : address.set(ex, value, lua_tostring(pState, index));
+		port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
+		if (isNum)
+			return *value == '@' ? address.setWithDNS(ex, value + 1, port) : address.set(ex, value, port);
+		--index;
+		return *value == '@' ? address.setWithDNS(ex, value + 1) : address.set(ex, value);
 	}
 	
 	if(lua_istable(pState,index)) {
@@ -72,16 +77,19 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int index, SocketA
 		if (pHost) {
 			if (lua_type(pState, ++index)==LUA_TSTRING)
 				return address.set(ex, *pHost, lua_tostring(pState, index));
-			if (lua_isnumber(pState, index)) {
-				address.set(*pHost, (UInt16)lua_tonumber(pState, index));
+			port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
+			if (isNum) {
+				address.set(*pHost, port);
 				return true;
 			}
-			return address.set(ex, *pHost, 0);
+			--index;
+			ex.set<Ex::Net::Address::Port>("Missing port number in ", *pHost);
+			return 0;
 		}
 	}
 
 	ex.set<Ex::Net::Address>("No valid SocketAddress arguments");
-	return false;
+	return 0;
 }
 
 }

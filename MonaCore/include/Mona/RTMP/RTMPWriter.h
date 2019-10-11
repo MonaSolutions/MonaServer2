@@ -20,22 +20,22 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/FlashWriter.h"
-#include "Mona/TCPSession.h"
+#include "Mona/TCPClient.h"
 #include "Mona/RTMP/RTMPSender.h"
 
 namespace Mona {
 
 
 struct RTMPWriter : FlashWriter, virtual Object {
-	RTMPWriter(UInt32 channelId, TCPSession& session, const shared<RC4_KEY>& pEncryptKey);
+	RTMPWriter(UInt32 channelId, TCPClient& client, const shared<RC4_KEY>& pEncryptKey);
 
-	UInt64			queueing() const { return _session->queueing(); }
+	UInt64			queueing() const { return _client->queueing(); }
 
 	UInt32			streamId;
 
 	void			clear() { _senders.clear(); FlashWriter::clear(); }
 
-	void			writePing() { write(AMF::TYPE_RAW)->write16(0x0006).write32(UInt32(_session.peer.connection.elapsed())); }
+	void			writePing(const Time& connectionTime) { write(AMF::TYPE_RAW)->write16(0x0006).write32(range<UInt32>(connectionTime.elapsed())); }
 
 	void			writeAck(UInt32 count) { write(AMF::TYPE_ACK)->write32(count); }
 	void			writeWinAckSize(UInt32 value) { write(AMF::TYPE_WIN_ACKSIZE)->write32(value); }
@@ -46,7 +46,7 @@ private:
 	void			flushing();
 	
 	shared<RTMP::Channel>			_pChannel; // Output channel
-	TCPSession&						_session;
+	TCPClient&						_client;
 	const shared<RC4_KEY>&			_pEncryptKey;
 
 	std::deque<shared<RTMPSender>>	_senders;

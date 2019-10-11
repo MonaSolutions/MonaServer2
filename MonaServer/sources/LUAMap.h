@@ -233,11 +233,13 @@ struct LUAMap : virtual Static {
 	template<typename M = Mapper<MapType>>
 	static int Index(lua_State *pState) {
 		if (!lua_gettop(pState)) {
-			SCRIPT_TABLE_BEGIN(pState)
-				SCRIPT_DEFINE_STRING("len", "length()");
-				if(!std::is_const<MapType>::value)
-					SCRIPT_DEFINE_STRING("clear", "clear()")
-			SCRIPT_TABLE_END
+			SCRIPT_BEGIN(pState)
+				SCRIPT_TABLE_BEGIN
+					SCRIPT_DEFINE_STRING("len", "length()");
+					if(!std::is_const<MapType>::value)
+						SCRIPT_DEFINE_STRING("clear", "clear()")
+				SCRIPT_TABLE_END
+			SCRIPT_END
 			return 1;
 		}
 		SCRIPT_CALLBACK(typename M::ObjType, obj)

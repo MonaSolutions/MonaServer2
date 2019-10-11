@@ -16,30 +16,22 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#pragma once
-
-#include "Mona/TCPServer.h"
 #include "Script.h"
+#include "Mona/SRT.h"
 
+using namespace std;
 
-class LUATCPServer : private Mona::TCPServer {
-public:
-	LUATCPServer(const Mona::SocketManager& manager,lua_State* pState);
+namespace Mona {
 
-	static int Index(lua_State* pState);
-	static int IndexConst(lua_State* pState);
+#if defined(SRT_API)
+template<> void Script::ObjInit(lua_State *pState, SRT::Client& client) {
+	AddType<SRT::Socket>(pState, *client);
+	AddType<TCPClient>(pState, client);
+}
+template<> void Script::ObjClear(lua_State *pState, SRT::Client& client) {
+	RemoveType<SRT::Socket>(pState, *client);
+	RemoveType<TCPClient>(pState, client);
+}
+#endif
 
-	static void Init(lua_State *pState, LUATCPServer& server) {}
-	static void	Clear(lua_State* pState, LUATCPServer& server);
-	static void	Delete(lua_State* pState, LUATCPServer& server) { delete &server; }
-private:
-	virtual ~LUATCPServer();
-
-	OnError::Type		onError;
-	OnConnection::Type	onConnection;
-
-	static int	Start(lua_State* pState);
-	static int  Stop(lua_State* pState);
-
-	lua_State*			_pState;
-};
+}

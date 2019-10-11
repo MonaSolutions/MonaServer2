@@ -57,15 +57,15 @@ extern "C" {
 #define SCRIPT_DEBUG(...)	SCRIPT_LOG(LOG_DEBUG, true, __VA_ARGS__)
 #define SCRIPT_TRACE(...)	SCRIPT_LOG(LOG_TRACE, true, __VA_ARGS__)
 
-#define SCRIPT_AUTO_FATAL(FUNCTION, ...) { if((FUNCTION)) { if(ex)  SCRIPT_WARN(ex); } else { FATAL_ERROR( __VA_ARGS__,", ", ex) } }
-#define SCRIPT_AUTO_CRITIC(FUNCTION) { if((FUNCTION)) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_CRITIC(ex) } }
-#define SCRIPT_AUTO_ERROR(FUNCTION) { if((FUNCTION)) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_ERROR(ex) } }
-#define SCRIPT_AUTO_WARN(FUNCTION) { if((FUNCTION)) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_WARN(ex) } }
+#define SCRIPT_AUTO_FATAL(FUNCTION, ...) { if(FUNCTION) { if(ex)  SCRIPT_WARN(ex); } else { FATAL_ERROR( __VA_ARGS__,", ", ex) } }
+#define SCRIPT_AUTO_CRITIC(FUNCTION) { if(FUNCTION) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_CRITIC(ex) } }
+#define SCRIPT_AUTO_ERROR(FUNCTION) { if(FUNCTION) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_ERROR(ex) } }
+#define SCRIPT_AUTO_WARN(FUNCTION) { if(FUNCTION) { if(ex)  SCRIPT_WARN(ex); } else { SCRIPT_WARN(ex) } }
 
 #define SCRIPT_CALLBACK(TYPE,OBJ)								{int __arg=1;lua_State* __pState = pState; TYPE* __pObj = Script::ToObject<TYPE>(__pState,1,true); if(!__pObj) return 0; TYPE& OBJ = *__pObj; int __lastArg=lua_gettop(__pState); (void)OBJ; /* void cast allow to remove warning "unused variable"*/
 #define SCRIPT_CALLBACK_TRY(TYPE,OBJ)							SCRIPT_CALLBACK(TYPE,OBJ) bool __canRaise(SCRIPT_NEXT_TYPE == LUA_TFUNCTION); if(__canRaise) ++__arg;
 
-#define SCRIPT_CALLBACK_THROW(...)								if (__canRaise) { lua_pushvalue(__pState,2); Script::PushString(__pState, __VA_ARGS__);  lua_call(pState, 1, 0); }
+#define SCRIPT_CALLBACK_THROW(...)								if (__canRaise) { lua_pushvalue(__pState,2); Script::PushString(__pState, __VA_ARGS__); if(lua_pcall(__pState, 1, 0, 0)) SCRIPT_ERROR(Script::LastError(__pState)); }
 
 #define SCRIPT_CALLBACK_RETURN									__arg = __lastArg -__arg; if(__arg>0) SCRIPT_WARN(__arg," useless argument") else if(__arg<0) SCRIPT_WARN(-__arg," missing argument"); __lastArg = lua_gettop(__pState)-__lastArg; return (__lastArg>0 ? __lastArg : 0);}
 #define SCRIPT_FIX_RESULT										{ lua_pushvalue(__pState,2); lua_pushvalue(__pState, -2); lua_rawset(__pState, 1);}
@@ -92,7 +92,7 @@ extern "C" {
 #define SCRIPT_WRITE_PTR(VALUE)									lua_pushlightuserdata(__pState,VALUE);
 #define SCRIPT_WRITE_PACKET(PACKET)								Script::NewObject(__pState,new Packet(PACKET));
 
-#define SCRIPT_TABLE_BEGIN(STATE)								if(lua_State* __pState = STATE) { lua_newtable(__pState); int __top = lua_gettop(__pState);
+#define SCRIPT_TABLE_BEGIN										{ lua_newtable(__pState); int __top = lua_gettop(__pState);
 #define SCRIPT_TABLE_END										while(lua_gettop(__pState)>__top) { if((lua_gettop(__pState)-1)==__top) lua_rawseti(__pState, __top, lua_objlen(__pState, __top)+1); else lua_rawset(__pState, __top);} }				
 
 #define SCRIPT_DEFINE(NAME, ...)								{ lua_pushliteral(__pState, NAME); __VA_ARGS__; }
@@ -107,7 +107,7 @@ extern "C" {
 #define SCRIPT_NEXT_TYPE										(lua_type(__pState,__arg+1))
 #define SCRIPT_NEXT_SHRINK(COUNT)								{ int __count=COUNT; while((__lastArg-__arg) > __count--) { lua_remove(__pState, __lastArg--); }}
 
-#define SCRIPT_READ_NEXT(COUNT)									( (__arg += COUNT) >__lastArg ? 0 : __arg)
+#define SCRIPT_READ_NEXT(COUNT)									( (__arg += COUNT) > __lastArg ? 0 : __arg)
 #define SCRIPT_READ_NIL											{ ++__arg; }
 #define SCRIPT_READ_BOOLEAN(DEFAULT)							((__lastArg-__arg++)>0 ? lua_toboolean(__pState,__arg)==1 : DEFAULT)
 #define SCRIPT_READ_STRING(DEFAULT)								((__lastArg-__arg++)>0 && lua_isstring(__pState,__arg) ? lua_tostring(__pState,__arg) : DEFAULT)
@@ -129,6 +129,8 @@ namespace Mona {
 
 struct Script : virtual Static {
 	struct Pop : virtual Object {
+		template<typename T>
+		Pop(lua_State* pState, T&& t) : _count(1), _pState(pState) {}
 		Pop(lua_State* pState) : _count(0), _pState(pState) {}
 		~Pop() { lua_pop(_pState, _count); }
 		template<typename T>
@@ -162,16 +164,15 @@ struct Script : virtual Static {
 	template <std::size_t size>
 	static void PushString(lua_State* pState, const char(&data)[size]) { lua_pushlstring(pState, data, size); }
 
-	template <typename Type, typename ...Args>
+	template <typename Type>
 	static Type& NewObject(lua_State *pState, Type* pType) {
 		DEBUG_ASSERT(pType != NULL);
-		return AddObject<Type, Args...>(pState, *pType, -1);
+		return AddObject<Type>(pState, *pType, -1);
 	}
 
-	template<typename Type, typename ...Args>
+	template<typename Type>
 	static Type& AddObject(lua_State *pState, Type& object, Int8 autoRemove=0) {
 		//NOTE("add ", typeof<Type>(), " ", &object);
-		DEBUG_ASSERT(!FromObject(pState, object));
 
 		// __index table
 		lua_newtable(pState);
@@ -211,30 +212,45 @@ struct Script : virtual Static {
 		// attach destructor
 		if (autoRemove) {
 			lua_pushliteral(pState, "__gc");
-			lua_pushvalue(pState, -2); // table object in upvalue 1
-			lua_pushlightuserdata(pState, autoRemove < 0 ? (void*)&object : NULL); // is new in upvalue 2
+			lua_pushlightuserdata(pState, (void*)&object); // table object in upvalue 1
+			lua_pushboolean(pState, autoRemove < 0); // is new in upvalue 2 (must call delete)
 			lua_newuserdata(pState, 0); // userdata in upvalue 3 (to keep it alive)
 			lua_pushvalue(pState, -6); // metatable
 			lua_setmetatable(pState, -2); // metatable of user data, as metatable as object
-			lua_pushcclosure(pState, &DeleteObject<Type, Args...>, 3);
+			lua_pushcclosure(pState, &DeleteObject<Type>, 3);
 			lua_rawset(pState, -4); // function in metatable
-
-			RegisterObject<Type, Args...>(pState, object, false);
-		} else
-			RegisterObject<Type, Args...>(pState, object, true);
+			Util::Scoped<int> scopedTop(_AddTop, lua_gettop(pState));
+			AddType<Type>(pState, object);
+		} else {
+			Util::Scoped<int> scopedTop(_AddTop, -lua_gettop(pState)); // persistent!
+			AddType<Type>(pState, object);
+		}
 
 		lua_replace(pState, -2); // remove metatable!
 		lua_replace(pState, -2); // remove index table!
 		return object;
 	}
 
-	template<typename Type, typename ...Args>
+	template<typename Type>
 	static void RemoveObject(lua_State *pState, Type& object) {
 		//NOTE("remove ", typeof<Type>(), " " , &object);
-		if (!FromObject<Type>(pState, object))
+		if (!FromObject<Type>(pState, object)) //
 			return;// already removed!
-		UnregisterObject<Type, Args...>(pState, object);
-		lua_pop(pState, 1);
+		Util::Scoped<UInt32> scopedTop(_RemoveTop, lua_gettop(pState));
+		RemoveType<Type>(pState, object);
+#if defined(_DEBUG)
+		// check in debug than all the AddType have been removed by a RemoveType!
+		lua_getmetatable(pState, -1);
+		lua_pushnil(pState);  // first key 
+		while (lua_next(pState, -2)) {
+			// uses 'key' (at index -2) and 'value' (at index -1) 
+			if (lua_type(pState, -2) == LUA_TNUMBER)
+				DEBUG_ASSERT(lua_touserdata(pState, -1)==NULL);
+			lua_pop(pState, 1);
+		}
+		lua_pop(pState, 1); // remove metatable
+#endif
+		lua_pop(pState, 1); // remove object
 	}
 
 	/*!
@@ -370,8 +386,18 @@ private:
 	-1 => object */
 	template<typename Type> static void ObjClear(lua_State *pState, Type& object);
 
-	template<typename Type, typename ...Args>
-	static void RegisterObject(lua_State* pState, Type& object, bool isPersistent) {
+
+	template<typename Type>
+	static void AddType(lua_State* pState, Type& object) {
+		DEBUG_ASSERT(!FromObject(pState, object));
+		DEBUG_ASSERT(_AddTop != 0); // else is a call in a bad location (not encapsulated in AddObject)
+		int top = abs(_AddTop);
+		if(lua_gettop(pState)>top) {
+			lua_pushvalue(pState, top - 2); // index
+			lua_pushvalue(pState, top - 1); // metatable
+			lua_pushvalue(pState, top); // object
+		}
+		Util::Scoped<int> scopedTop(_AddTop, _AddTop<0 ? -lua_gettop(pState) : lua_gettop(pState)); // negative if persistent!
 		// -3 index
 		// -2 metatable
 		// -1 object
@@ -386,7 +412,7 @@ private:
 		/// get Types table
 		lua_rawgeti(pState, LUA_REGISTRYINDEX, iType);
 		/// record in Types[2] if persistent
-		if (isPersistent) {
+		if (_AddTop<0) { // is persistent!
 			lua_rawgeti(pState, -1, 2);
 			if (!lua_istable(pState, -1)) {
 				lua_pop(pState, 1);
@@ -419,28 +445,26 @@ private:
 		lua_rawset(pState, -3);
 		lua_pop(pState, 2); // remove Types[1] + Types
 
-		int top = lua_gettop(pState);
+		top = lua_gettop(pState);
 		ObjInit(pState, object);
 		int newTop = lua_gettop(pState);
 		while (newTop-- > top) {
 			if (--newTop < top)
 				lua_pushnil(pState);
 			const char* key = lua_tostring(pState, -2);
-			if (key && memcmp(key, EXPAND("__")) == 0) { // NULL if not a string!
-				if (strcmp(key, "__index") == 0) {
-					lua_pushvalue(pState, -1);
-					lua_replace(pState, top - 2); // replace __index
-				}
+			if (key && memcmp(key, EXPAND("__")) == 0) // NULL if not a string!
 				lua_rawset(pState, top - 1); // set in metatable!
-			} else
+			else
 				lua_rawset(pState, top - 2); // set in index!
 		}
-		if (sizeof...(Args))
-			return RegisterObject<Args...>(pState, object, isPersistent);
 	}
 
-	template<typename Type, typename ...Args>
-	static void UnregisterObject(lua_State* pState, Type& object) {
+	template<typename Type>
+	static void RemoveType(lua_State* pState, Type& object) {
+		DEBUG_ASSERT(_RemoveTop != 0); // else is a call in a bad location (not encapsulated in RemoveObject pr DeleteObject)
+		if (UInt32(lua_gettop(pState))>_RemoveTop)
+			lua_pushvalue(pState, _RemoveTop); // object
+		Util::Scoped<UInt32> scopedTop(_RemoveTop, lua_gettop(pState)); // negative if persistent!
 		// -1 object
 		// Erase object of registry in first to avoid a recursive call => example a gc deletion call an ServerAPI event which remove also the object with a explicitly call!
 		/// get Types table
@@ -460,6 +484,7 @@ private:
 		}
 		lua_pop(pState, 3); // remove Types[1] + Types[2] + Types
 
+
 		// -1 is object
 		ObjClear(pState, object);
 
@@ -467,10 +492,7 @@ private:
 		lua_getmetatable(pState, -1);
 		lua_pushlightuserdata(pState, NULL);
 		lua_rawseti(pState, -2, iType);
-		lua_pop(pState, 1);
-
-		if(sizeof...(Args))
-			return UnregisterObject<Args...>(pState, object);
+		lua_pop(pState, 1); // remove metatable
 	}
 
 
@@ -498,17 +520,11 @@ private:
 		return Ref;
 	}
 
-	template<typename Type, typename ...Args>
+	template<typename Type>
 	static int DeleteObject(lua_State *pState) {
-		// call by GC!
-		Type* pObject = ToObject<Type>(pState, lua_upvalueindex(1));
-		if (pObject) {
-			lua_pushvalue(pState, lua_upvalueindex(1));
-			UnregisterObject<Type, Args...>(pState, *pObject);
-			lua_pop(pState, 1);
-		}
-		pObject = (Type*)lua_touserdata(pState, lua_upvalueindex(2));
-		if (pObject)
+		Type* pObject = (Type*)lua_touserdata(pState, lua_upvalueindex(1));
+		RemoveObject(pState, *pObject);
+		if (lua_toboolean(pState, lua_upvalueindex(2)))
 			delete pObject;
 		return 0;
 	}
@@ -550,6 +566,9 @@ private:
 				SCRIPT_ERROR("Comparison impossible between one ", typeof<Type>()," and one ",lua_typename(pState,lua_type(pState,2)))
 		SCRIPT_CALLBACK_RETURN
 	}
+
+	static thread_local int		_AddTop; // negative if persistent
+	static thread_local UInt32	_RemoveTop;
 
 };
 

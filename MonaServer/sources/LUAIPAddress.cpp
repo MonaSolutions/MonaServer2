@@ -60,9 +60,11 @@ template<> void Script::ObjClear(lua_State *pState, IPAddress& host) {
 }
 
 
-bool LUAIPAddress::From(Exception& ex, lua_State *pState, int index, IPAddress& address, bool withDNS) {
-	if (lua_type(pState, index)==LUA_TSTRING) // lua_type because can be encapsulated in a lua_next + a host can't be a simple number!
-		return withDNS ? address.setWithDNS(ex, lua_tostring(pState,index)) : address.set(ex, lua_tostring(pState,index));
+bool LUAIPAddress::From(Exception& ex, lua_State *pState, int index, IPAddress& address) {
+	if (lua_type(pState, index) == LUA_TSTRING) { // lua_type because can be encapsulated in a lua_next + a host can't be a simple number!
+		const char* value = lua_tostring(pState, index);
+		return *value == '@' ? address.setWithDNS(ex, value+1) : address.set(ex, value);
+	}
 
 	if(lua_istable(pState,index)) {
 		// In first SocketAddress because can be also a IPAddress!

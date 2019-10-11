@@ -32,7 +32,7 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol) : TCPSession(protocol), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(SET, self), _fileWriter(protocol.api.ioFile),
+HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TCPSession(protocol, pSocket), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(SET, self), _fileWriter(protocol.api.ioFile),
 	_onResponse([this](HTTP::Response& response) {
 		kill(ERROR_PROTOCOL, "A HTTP response has been received instead of request");
 	}),
@@ -237,11 +237,13 @@ bool HTTPSession::manage() {
 			kill(ERROR_IDLE);
 			return false;
 		}
-		if(_pSubscription->ejected()) {
-			if (_pSubscription->ejected() == Subscription::EJECTED_BANDWITDH)
+		switch (_pSubscription->ejected()) {
+			case Subscription::EJECTED_NONE:
+				break;
+			case Subscription::EJECTED_BANDWITDH:
 				_pWriter->writeError(HTTP_CODE_509, "Insufficient bandwidth to play ", _pSubscription->name());
-			// else HTTPWriter error, error already written!
-			unsubscribe();
+			case Subscription::EJECTED_ERROR: //  HTTPWriter error, error already written!
+				unsubscribe();
 		}
 	}
 
@@ -460,12 +462,10 @@ bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& par
 		name = method.c_str();
 	}
 
-	bool result = peer.onInvocation(ex, name, *pReader);
+	bool found = peer.onInvocation(ex, name, *pReader);
 	if (hasContent)
 		delete pReader;
-	if (!result && !ex)
-		ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path);
-	return result;
+	return found;
 }
 
 

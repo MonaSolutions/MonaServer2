@@ -258,6 +258,7 @@
     <ClInclude Include="include\Mona\Segments.h" />
     <ClInclude Include="include\Mona\Server.h" />
     <ClInclude Include="include\Mona\ServerAPI.h" />
+    <ClInclude Include="include\Mona\SocketSession.h" />
     <ClInclude Include="include\Mona\SplitReader.h" />
     <ClInclude Include="include\Mona\SplitWriter.h" />
     <ClInclude Include="include\Mona\SRTWriter.h" />
@@ -355,6 +356,7 @@
     <ClCompile Include="sources\RTP_MPEG.cpp" />
     <ClCompile Include="sources\MediaSocket.cpp" />
     <ClCompile Include="sources\Segments.cpp" />
+    <ClCompile Include="sources\SocketSession.cpp" />
     <ClCompile Include="sources\SRTWriter.cpp" />
     <ClCompile Include="sources\SRT\SRTProtocol.cpp" />
     <ClCompile Include="sources\SRT\SRTSession.cpp" />

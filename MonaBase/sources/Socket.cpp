@@ -140,13 +140,13 @@ bool Socket::setNonBlockingMode(Exception& ex, bool value) {
 	return false;
 }
 
-bool Socket::setRecvBufferSize(Exception& ex, int size) { 
+bool Socket::setRecvBufferSize(Exception& ex, UInt32 size) {
 	if (!setOption(ex, SOL_SOCKET, SO_RCVBUF, size))
 		return false;
 	_recvBufferSize = size;
 	return true;
 }
-bool Socket::setSendBufferSize(Exception& ex, int size) {
+bool Socket::setSendBufferSize(Exception& ex, UInt32 size) {
 	if (!setOption(ex, SOL_SOCKET, SO_SNDBUF, size))
 		return false;
 	_sendBufferSize = size;

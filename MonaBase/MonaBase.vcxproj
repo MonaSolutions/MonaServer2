@@ -225,7 +225,6 @@
     <ClCompile Include="sources\BitReader.cpp" />
     <ClCompile Include="sources\Buffer.cpp" />
     <ClCompile Include="sources\BufferPool.cpp" />
-    <ClCompile Include="sources\Cache.cpp" />
     <ClCompile Include="sources\Congestion.cpp" />
     <ClCompile Include="sources\ConsoleLogger.cpp" />
     <ClCompile Include="sources\Crypto.cpp" />
@@ -283,7 +282,6 @@
     <ClInclude Include="include\Mona\Buffer.h" />
     <ClInclude Include="include\Mona\BufferPool.h" />
     <ClInclude Include="include\Mona\Byte.h" />
-    <ClInclude Include="include\Mona\Cache.h" />
     <ClInclude Include="include\Mona\Congestion.h" />
     <ClInclude Include="include\Mona\ConsoleLogger.h" />
     <ClInclude Include="include\Mona\Crypto.h" />

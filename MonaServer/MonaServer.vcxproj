@@ -234,26 +234,20 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="sources\LUAIPAddress.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="sources\LUAMap.h" />
     <ClInclude Include="sources\LUAMedia.h" />
-    <ClInclude Include="sources\LUANetStats.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="sources\LUASocket.h" />
     <ClInclude Include="sources\LUASocketAddress.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="sources\LUASubscription.h" />
     <ClInclude Include="sources\LUATimer.h" />
     <ClInclude Include="sources\LUAVector.h" />
-    <ClInclude Include="sources\LUAWriter.h" />
     <ClInclude Include="sources\LUAXML.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="sources\MonaServer.h" />
     <ClInclude Include="sources\Script.h" />
@@ -264,7 +258,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClCompile Include="sources\LUAIPAddress.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\LUAMap.cpp" />
     <ClCompile Include="sources\LUAMedia.cpp" />
@@ -273,21 +267,26 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     <ClCompile Include="sources\LUAMona.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="sources\LUANetStats.cpp" />
     <ClCompile Include="sources\LUAPacket.cpp" />
     <ClCompile Include="sources\LUAParameters.cpp" />
     <ClCompile Include="sources\LUAPath.cpp" />
     <ClCompile Include="sources\LUAPublications.cpp" />
+    <ClCompile Include="sources\LUASocket.cpp" />
     <ClCompile Include="sources\LUASocketAddress.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="sources\LUASRTClient.cpp" />
+    <ClCompile Include="sources\LUASRTServer.cpp" />
+    <ClCompile Include="sources\LUASRTSocket.cpp" />
     <ClCompile Include="sources\LUASubscription.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\LUATimer.cpp" />
     <ClCompile Include="sources\LUAXML.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\main.cpp" />
     <ClCompile Include="sources\MonaServer.cpp" />
@@ -300,23 +299,23 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     </ClCompile>
     <ClCompile Include="sources\LUAPublication.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\LUATCPClient.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\LUATCPServer.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\LUAUDPSocket.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="sources\LUAWriter.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

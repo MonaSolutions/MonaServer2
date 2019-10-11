@@ -23,36 +23,21 @@ using namespace std;
 
 namespace Mona {
 
-TCPSession::TCPSession(Protocol& protocol) : TCPClient(api.ioSocket), onData(TCPClient::onData), _sendingTrack(0), Session(protocol, SocketAddress::Wildcard()) {}
+TCPSession::TCPSession(Protocol& protocol, const shared<Socket>& pSocket) : TCPClient(api.ioSocket), onData(TCPClient::onData), SocketSession(protocol, pSocket) {}
+TCPSession::TCPSession(Protocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer) : TCPClient(api.ioSocket), onData(TCPClient::onData), SocketSession(protocol, pSocket, pPeer) {}
 
-void TCPSession::connect(const shared<Socket>& pSocket) {
-	if(!peer.serverAddress.host()) // use TCP client bind to determine server address if need (can have been assigned already by a protocol publicHost, not override in this case)
-		peer.setServerAddress(SocketAddress(pSocket->address().host(), 0));
-	peer.setAddress(pSocket->peerAddress());
+
+void TCPSession::connect() {
 	// don't SetSocketParameters here, wait peer connection to allow it!
-
 	onError = [this](const Exception& ex) { WARN(name(), ", ", ex); };
 	onDisconnection = [this](const SocketAddress&) { kill(ERROR_SOCKET); };
 
 	bool success;
 	Exception ex;
-	AUTO_ERROR(success = TCPClient::connect(ex, pSocket), name());
+	AUTO_ERROR(success = TCPClient::connect(ex, socket()), name());
 	if (!success)
 		return kill(ERROR_SOCKET);
 	onFlush = [this]() { flush(); }; // allow to signal end of congestion, and so was congestion so force flush (HTTPSession/HTTPFileSender uses it for example to continue to read a file)
-}
-
-void TCPSession::onParameters(const Parameters& parameters) {
-	Session::onParameters(parameters);
-	Exception ex;
-	AUTO_ERROR(self->processParams(ex, parameters), name(), " socket configuration");
-	DEBUG(name(), " socket buffers set to ", self->recvBufferSize(), "B in reception and ", self->sendBufferSize(), "B in sends");
-}
-
-void TCPSession::send(const Packet& packet) {
-	if (!died)
-		return api.threadPool.queue<TCPClient::Sender>(_sendingTrack, self, packet);
-	ERROR(name()," tries to send a message after dying");
 }
 
 void TCPSession::kill(Int32 error, const char* reason) {
@@ -62,7 +47,7 @@ void TCPSession::kill(Int32 error, const char* reason) {
 	// Stop reception
 	onData = nullptr;
 
-	Session::kill(error, reason); // onPeerDisconnection, before socket disconnection to allow possible last message
+	SocketSession::kill(error, reason); // onPeerDisconnection, before socket disconnection to allow possible last message
 
 	// unsubscribe events before to avoid to get onDisconnection=>kill again on client.disconnect
 	onDisconnection = nullptr;

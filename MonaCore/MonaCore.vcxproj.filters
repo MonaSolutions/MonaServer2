@@ -373,6 +373,9 @@
     <ClInclude Include="include\Mona\SRT\SRTSession.h">
       <Filter>Protocols\SRT</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\SocketSession.h">
+      <Filter>Sessions</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -632,6 +635,9 @@
     </ClCompile>
     <ClCompile Include="sources\DataWriter.cpp">
       <Filter>Serializers\Patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\SocketSession.cpp">
+      <Filter>Sessions</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

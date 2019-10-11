@@ -28,7 +28,7 @@ namespace Mona {
 
 struct Service {
 	struct Handler {
-		virtual void onUnload(Service& service) {}
+		virtual void onUnload(Service& service) = 0;
 	};
 	Service(lua_State* pState, const std::string& wwwPath, Handler& handler, IOFile& ioFile);
 	Service(lua_State* pState, const std::string& wwwPath, Service& parent, const char* name);

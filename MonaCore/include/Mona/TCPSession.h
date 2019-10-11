@@ -19,41 +19,27 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/Session.h"
+#include "Mona/SocketSession.h"
 #include "Mona/TCPClient.h"
 
 namespace Mona {
 
-struct TCPSession : Session, private TCPClient, virtual Object {
-	void connect(const shared<Socket>& pSocket);
+struct TCPSession : SocketSession, TCPClient, virtual Object {
+	const shared<Socket>&	socket() { return SocketSession::socket(); }
+	Socket&		operator*() { return SocketSession::operator*(); }
+	Socket*		operator->() { return SocketSession::operator->(); }
 
-	operator const shared<Socket>&() { return TCPClient::socket(); }
-	Socket*		operator->() { return TCPClient::operator->(); }
-	Socket&		operator*() { return TCPClient::operator*(); }
-
-	void send(const Packet& packet);
-
-	template<typename RunnerType>
-	void send(const shared<RunnerType>& pRunner)  {
-		if (!died)
-			return api.threadPool.queue(_sendingTrack, pRunner);
-		ERROR(name(), " tries to send a message after dying");
-	}
-
-	virtual	void kill(Int32 error=0, const char* reason = NULL);
+	void connect(); // to override the connect of TCPClient!
 
 protected:
+	TCPSession(Protocol& protocol, const shared<Socket>& pSocket);
+	TCPSession(Protocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
+
+	virtual	void kill(Int32 error = 0, const char* reason = NULL);
+
 	/*!
 	Subscribe to this event to receive data in child session, or overloads newDecoder() function */
 	TCPClient::OnData&		onData;
-
-	TCPSession(Protocol& protocol);
-
-	virtual void onParameters(const Parameters& parameters);
-
-private:
-
-	UInt16 _sendingTrack;
 };
 
 

@@ -19,16 +19,7 @@
     <ClInclude Include="sources\LUAXML.h">
       <Filter>LUAClass</Filter>
     </ClInclude>
-    <ClInclude Include="sources\LUANetStats.h">
-      <Filter>LUAClass</Filter>
-    </ClInclude>
     <ClInclude Include="sources\MonaServer.h" />
-    <ClInclude Include="sources\LUAWriter.h">
-      <Filter>LUAClass</Filter>
-    </ClInclude>
-    <ClInclude Include="sources\LUASocket.h">
-      <Filter>LUAClass</Filter>
-    </ClInclude>
     <ClInclude Include="sources\LUAMap.h">
       <Filter>LUAClass</Filter>
     </ClInclude>
@@ -110,6 +101,21 @@
       <Filter>LUAClass</Filter>
     </ClCompile>
     <ClCompile Include="sources\LUAMap.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\LUANetStats.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\LUASocket.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\LUASRTSocket.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\LUASRTClient.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\LUASRTServer.cpp">
       <Filter>LUAClass</Filter>
     </ClCompile>
   </ItemGroup>

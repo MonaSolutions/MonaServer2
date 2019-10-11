@@ -172,9 +172,6 @@
     <ClCompile Include="sources\BitReader.cpp">
       <Filter>Memory</Filter>
     </ClCompile>
-    <ClCompile Include="sources\Cache.cpp">
-      <Filter>Memory</Filter>
-    </ClCompile>
     <ClCompile Include="sources\ThreadPool.cpp">
       <Filter>Threading</Filter>
     </ClCompile>
@@ -371,9 +368,6 @@
       <Filter>Net</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\BitReader.h">
-      <Filter>Memory</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\Cache.h">
       <Filter>Memory</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\StreamData.h">

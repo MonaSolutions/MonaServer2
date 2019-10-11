@@ -19,8 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Script.h"
 #include "Mona/ServerAPI.h"
 #include "Mona/UDPSocket.h"
-#include "Mona/TCPClient.h"
-#include "Mona/TCPServer.h"
+#include "Mona/SRT.h"
 #include "LUAMap.h"
 #include "LUAIPAddress.h"
 #include "LUASocketAddress.h"
@@ -42,16 +41,15 @@ static int newIPAddress(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(ServerAPI, api)
 		if (SCRIPT_NEXT_READABLE) {
 			Exception ex;
-			IPAddress address;
-			int arg = SCRIPT_READ_NEXT(1);
-			if (LUAIPAddress::From(ex, pState, arg, address, SCRIPT_READ_BOOLEAN(false))) {
-				Script::NewObject(pState, new IPAddress(address));
+			IPAddress ip;
+			if (SCRIPT_READ_IP(ip)) {
 				if (ex)
 					SCRIPT_CALLBACK_THROW(ex);
+				SCRIPT_WRITE_IP(ip);
 			} else
 				SCRIPT_CALLBACK_THROW(ex);
 		} else
-			Script::NewObject(pState, new IPAddress());
+			SCRIPT_WRITE_IP();
 	SCRIPT_CALLBACK_RETURN
 }
 static int newSocketAddress(lua_State *pState) {
@@ -59,38 +57,28 @@ static int newSocketAddress(lua_State *pState) {
 		if (SCRIPT_NEXT_READABLE) {
 			Exception ex;
 			SocketAddress address;
-			int arg = SCRIPT_READ_NEXT(1);
-			if (LUASocketAddress::From(ex, pState, arg, address, SCRIPT_READ_BOOLEAN(false))) {
-				Script::NewObject(pState, new SocketAddress(address));
+			if (SCRIPT_READ_ADDRESS(address)) {
 				if (ex)
 					SCRIPT_CALLBACK_THROW(ex);
+				SCRIPT_WRITE_ADDRESS(address);
 			} else
 				SCRIPT_CALLBACK_THROW(ex)
 		} else
-			Script::NewObject(pState, new SocketAddress());
+			SCRIPT_WRITE_ADDRESS();
 	SCRIPT_CALLBACK_RETURN
 }
 static int newPath(lua_State *pState) {
 	SCRIPT_CALLBACK(ServerAPI, api)
 		// for security reason and to allow a MakeAbsolute/MakeRelative always resolve the relative path relating with the file location
 		string file;
-		if(Script::Resolve(pState, SCRIPT_READ_STRING(""), file))
+		if(Script::Resolve(pState, SCRIPT_NEXT_READABLE ? SCRIPT_READ_STRING("") : "", file))
 			Script::NewObject(pState, new const Path(move(file)));
 	SCRIPT_CALLBACK_RETURN
 }
-static int newUDPSocket(lua_State *pState) {
+template<typename Type>
+static int newIOSocket(lua_State *pState) {
 	SCRIPT_CALLBACK(ServerAPI, api)
-		Script::NewObject(pState, new UDPSocket(api.ioSocket));
-	SCRIPT_CALLBACK_RETURN
-}
-static int newTCPClient(lua_State *pState) {
-	SCRIPT_CALLBACK(ServerAPI, api)
-		Script::NewObject(pState, new TCPClient(api.ioSocket));
-	SCRIPT_CALLBACK_RETURN
-}
-static int newTCPServer(lua_State *pState) {
-	SCRIPT_CALLBACK(ServerAPI, api)
-		Script::NewObject(pState, new TCPServer(api.ioSocket));
+		Script::NewObject(pState, new Type(api.ioSocket));
 	SCRIPT_CALLBACK_RETURN
 }
 static int fromXML(lua_State *pState) {
@@ -125,14 +113,14 @@ static int newMediaWriter(lua_State *pState) {
 static int newMediaReader(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(ServerAPI, api)
 		const char* subMime = SCRIPT_READ_STRING(NULL);
-	if (subMime) {
-		unique<MediaReader> pReader = MediaReader::New(subMime);
-		if (pReader)
-			Script::NewObject(pState, pReader.release());
-		else
-			SCRIPT_CALLBACK_THROW(String("Unknown ", subMime, " MIME type"));
-	} else
-		SCRIPT_CALLBACK_THROW("Require a MIME media string");
+		if (subMime) {
+			unique<MediaReader> pReader = MediaReader::New(subMime);
+			if (pReader)
+				Script::NewObject(pState, pReader.release());
+			else
+				SCRIPT_CALLBACK_THROW(String("Unknown ", subMime, " MIME type"));
+		} else
+			SCRIPT_CALLBACK_THROW("Require a MIME media string");
 	SCRIPT_CALLBACK_RETURN
 }
 static int setTimer(lua_State *pState) {
@@ -164,14 +152,14 @@ static int newPublication(lua_State *pState) {
 		Publication* pPublication = api.publish(ex, Script::Client(), stream);
 		// ex.error already displayed!
 		if (pPublication) {
-			Script::AddObject<Publication, Media::Source>(pState, *pPublication, 1); // no new because no deletion require!
+			if (ex)
+				SCRIPT_CALLBACK_THROW(ex);
+			Script::AddObject(pState, *pPublication, 1); // no new because no deletion require!
 			lua_getmetatable(pState, -1);
 			lua_pushliteral(pState, "|api");
 			lua_pushlightuserdata(pState, &api);
 			lua_rawset(pState, -3);
 			lua_pop(pState, 1); // remove metatable
-			if (ex)
-				SCRIPT_CALLBACK_THROW(ex);
 		} else
 			SCRIPT_CALLBACK_THROW(ex);
 	SCRIPT_CALLBACK_RETURN
@@ -185,7 +173,7 @@ static int newSubscription(lua_State *pState) {
 		int arg = SCRIPT_READ_NEXT(1);
 		Publication* pPublication = Script::ToObject<Publication>(pState, arg);
 		if (pPublication) {
-			if (!(subscription =api.subscribe(ex, Script::Client(), pPublication->name(), *pSubscription)) || ex)
+			if (!(subscription = api.subscribe(ex, Script::Client(), pPublication->name(), *pSubscription)) || ex)
 				SCRIPT_CALLBACK_THROW(ex);
 		} else {
 			string name;
@@ -199,11 +187,11 @@ static int newSubscription(lua_State *pState) {
 				// Args are subscriptions params!
 				MapWriter<Parameters> mapWriter(*pSubscription);
 				SCRIPT_READ_NEXT(reader.read(mapWriter)-1);
-				Script::NewObject<Subscription, Media::Source>(pState, pSubscription.release());
+				Script::NewObject(pState, pSubscription.release());
 			}
 		}
 		if (subscription) {
-			Script::NewObject<Subscription, Media::Source>(pState, pSubscription.release());
+			Script::NewObject(pState, pSubscription.release());
 			lua_getmetatable(pState, -1);
 			lua_pushliteral(pState, "|api");
 			lua_pushlightuserdata(pState, &api);
@@ -227,9 +215,13 @@ template<> void Script::ObjInit(lua_State *pState, ServerAPI& api) {
 		SCRIPT_DEFINE_FUNCTION("newPath", &newPath);
 		SCRIPT_DEFINE_FUNCTION("newIPAddress", &newIPAddress);
 		SCRIPT_DEFINE_FUNCTION("newSocketAddress", &newSocketAddress);
-		SCRIPT_DEFINE_FUNCTION("newUDPSocket", &newUDPSocket);
-		SCRIPT_DEFINE_FUNCTION("newTCPClient", &newTCPClient);
-		SCRIPT_DEFINE_FUNCTION("newTCPServer", &newTCPServer);
+		SCRIPT_DEFINE_FUNCTION("newUDPSocket", &newIOSocket<UDPSocket>);
+		SCRIPT_DEFINE_FUNCTION("newTCPClient", &newIOSocket<TCPClient>);
+		SCRIPT_DEFINE_FUNCTION("newTCPServer", &newIOSocket<TCPServer>);
+#if defined(SRT_API)
+		SCRIPT_DEFINE_FUNCTION("newSRTClient", &newIOSocket<SRT::Client>);
+		SCRIPT_DEFINE_FUNCTION("newSRTServer", &newIOSocket<SRT::Server>);
+#endif
 		SCRIPT_DEFINE_FUNCTION("newSubscription", &newSubscription);
 		SCRIPT_DEFINE_FUNCTION("newPublication", &newPublication);
 		SCRIPT_DEFINE_FUNCTION("newMediaWriter", &newMediaWriter);

@@ -256,12 +256,14 @@ bool MediaSocket::Writer::starting(const Parameters& parameters) {
 }
 
 bool MediaSocket::Writer::beginMedia(const string& name) {
+	if (!start())
+		return false;
 	bool streaming = _pName.operator bool();
 	_pName.set(name);
 	if (streaming)
 		return true; // MBR switch!
-	if (!start())
-		return false;
+
+	send<Send>(); // First media, send the beginMedia!
 	if (type == TYPE_HTTP) { // HTTP
 		// send HTTP Header request!
 		if (!SendHTTPHeader(_httpAnswer? HTTP::TYPE_UNKNOWN : HTTP::TYPE_POST, _pSocket, path, _pWriter->mime(), _pWriter->subMime(), source.name().c_str(), description())) {
@@ -269,7 +271,6 @@ bool MediaSocket::Writer::beginMedia(const string& name) {
 			return false;
 		}
 	}
-	send<Send>(); // First media, send the beginMedia!
 	return true;
 }
 
@@ -286,9 +287,10 @@ bool MediaSocket::Writer::endMedia() {
 
 void MediaSocket::Writer::stopping() {
 	// Close socket to signal the end of media
-	if (state()==STATE_STARTING) // else not beginMedia or useless (was connecting!)
+	if (_pName) { // else not beginMedia or useless (was connecting!)
 		send<EndSend>(); // _pWriter->endMedia()!
-	_pName.reset();
+		_pName.reset();
+	}
 	if(_pSocket)
 		io.unsubscribe(_pSocket);
 	_subscribed = false;

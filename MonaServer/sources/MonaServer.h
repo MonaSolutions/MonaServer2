@@ -51,11 +51,12 @@ private:
 	void					onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient);
 
 	// Application handler
-	void					onUpdate(Service& service);
+	void					onUnload(Service& service);
 
 	lua_State*				_pState;
 	TerminateSignal&		_terminateSignal;
 	unique<Service>			_pService;
+	std::set<Subscription*> _luaSubscriptions;
 
 	std::set<Service*>		_servicesRunning;
 	PersistentData			_persistentData;

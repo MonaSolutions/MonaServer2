@@ -27,7 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct RTMPSession : TCPSession, virtual Object {
-	RTMPSession(Protocol& protocol);
+	RTMPSession(Protocol& protocol, const shared<Socket>& pSocket);
 
 private:
 	bool			manage();

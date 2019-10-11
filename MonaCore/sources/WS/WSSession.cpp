@@ -217,8 +217,8 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 
 	if (!pReader)
 		pReader.set<StringReader>(message.data(), message.size());
-	if (!peer.onInvocation(ex, name, *pReader, isBinary ? WS::TYPE_BINARY : (!isJSON  ? WS::TYPE_TEXT : 0)) && !ex)
-		ERROR(ex.set<Ex::Application>("Method client ", name, " not found in application ", peer.path));
+	if (!peer.onInvocation(ex, name, *pReader, isBinary ? WS::TYPE_BINARY : (!isJSON  ? WS::TYPE_TEXT : 0)))
+		ERROR(ex);
 }
 
 
@@ -226,7 +226,7 @@ bool WSSession::manage() {
 	if (!Session::manage())
 		return false;
 	if (peer && peer.pingTime.isElapsed(timeout/2)) {
-		writer.writePing();
+		writer.writePing(peer.connection);
 		peer.pingTime.update();
 	}
 	// check subscription

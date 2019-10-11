@@ -19,15 +19,11 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Script.h"
 #include "Mona/UDPSocket.h"
 #include "LUASocketAddress.h"
-#include "LUASocket.h"
 
 
 using namespace std;
 
 namespace Mona {
-
-template<> Net::Stats&    LUANetStats<UDPSocket>::NetStats(UDPSocket& socket) { return *socket; }
-template<> Socket&		  LUASocket<UDPSocket>::Socket(UDPSocket& socket) { return *socket; }
 
 static int connected(lua_State *pState) {
 	SCRIPT_CALLBACK(UDPSocket, socket)
@@ -43,23 +39,23 @@ static int connect(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(UDPSocket, socket)
 		Exception ex;
 		SocketAddress address(IPAddress::Loopback(), 0);
-		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && socket.connect(ex, address)) {
+		if (SCRIPT_READ_ADDRESS(address) && socket.connect(ex, address)) {
 			if (ex)
 				SCRIPT_CALLBACK_THROW(ex);
-			SCRIPT_WRITE_BOOLEAN(true)
+			SCRIPT_WRITE_BOOLEAN(true);
 		} else
-			SCRIPT_CALLBACK_THROW(ex)
+			SCRIPT_CALLBACK_THROW(ex);
 	SCRIPT_CALLBACK_RETURN
 }
 static int bind(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(UDPSocket, socket)
 		Exception ex;
 		SocketAddress address;
-		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && socket.bind(ex, address)) {
+		if (SCRIPT_READ_ADDRESS(address) && socket.bind(ex, address)) {
 			if (ex)
-				SCRIPT_CALLBACK_THROW(ex)
-			SCRIPT_WRITE_BOOLEAN(true)
-		} else 
+				SCRIPT_CALLBACK_THROW(ex);
+			SCRIPT_WRITE_BOOLEAN(true);
+		} else
 			SCRIPT_CALLBACK_THROW(ex);
 	SCRIPT_CALLBACK_RETURN
 }
@@ -68,7 +64,16 @@ static int send(lua_State *pState) {
 		SCRIPT_READ_PACKET(packet);
 		Exception ex;
 		SocketAddress address(IPAddress::Loopback(), 0);
-		if (socket.send(ex, packet, (SCRIPT_NEXT_READABLE&& LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address)) ? address : SocketAddress::Wildcard())) {
+		if (SCRIPT_NEXT_READABLE) {
+			if (SCRIPT_READ_ADDRESS(address)) {
+				if(ex)
+					SCRIPT_CALLBACK_THROW(ex);
+			} else {
+				SCRIPT_CALLBACK_THROW(ex);
+				address.reset(); // Wildcard!
+			}
+		}
+		if (socket.send(ex, packet, address)) {
 			if (ex)
 				SCRIPT_CALLBACK_THROW(ex);
 			SCRIPT_WRITE_BOOLEAN(true)
@@ -88,7 +93,6 @@ static int close(lua_State *pState) {
 }
 
 template<> void Script::ObjInit(lua_State *pState, UDPSocket& socket) {
-	shared<Exception> pEx;
 	socket.onError = [pState, &socket](const Exception& ex) {
 		bool gotten = false;
 		SCRIPT_BEGIN(pState)
@@ -116,6 +120,7 @@ template<> void Script::ObjInit(lua_State *pState, UDPSocket& socket) {
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
 	};
+	AddType<Socket>(pState, *socket);
 	SCRIPT_BEGIN(pState);
 		SCRIPT_DEFINE_FUNCTION("connected", &connected);
 		SCRIPT_DEFINE_FUNCTION("connect", &connect);
@@ -124,10 +129,10 @@ template<> void Script::ObjInit(lua_State *pState, UDPSocket& socket) {
 		SCRIPT_DEFINE_FUNCTION("bind", &bind);
 		SCRIPT_DEFINE_FUNCTION("send", &send);
 		SCRIPT_DEFINE_FUNCTION("close", &close);
-		SCRIPT_DEFINE_SOCKET(UDPSocket);
 	SCRIPT_END;
 }
 template<> void Script::ObjClear(lua_State *pState, UDPSocket& socket) {
+	RemoveType<Socket>(pState, *socket);
 	socket.onPacket = nullptr;
 	socket.onFlush = nullptr;
 	socket.onError = nullptr;

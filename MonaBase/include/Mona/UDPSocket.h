@@ -49,6 +49,10 @@ struct UDPSocket : virtual Object {
 	bool		send(Exception& ex, const Packet& packet, int flags = 0) { return send(ex, packet, SocketAddress::Wildcard(), flags); }
 	bool		send(Exception& ex, const Packet& packet, const SocketAddress& address, int flags = 0) { return socket()->write(ex, packet, address, flags) != -1; }
 
+	template<typename RunnerType>
+	void		send(const shared<RunnerType>& pRunner) { io.threadPool.queue(_sendingTrack, pRunner); }
+	template <typename RunnerType, typename ...Args>
+	void		send(Args&&... args) { send(std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
 	/*!
 	Runner example to send data with custom process in parallel thread */
 	struct Sender : Runner {
@@ -68,6 +72,7 @@ private:
 
 	shared<Socket>		_pSocket;
 	bool				_subscribed;
+	UInt16				_sendingTrack;
 };
 
 

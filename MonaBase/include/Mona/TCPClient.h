@@ -51,6 +51,10 @@ struct TCPClient : private StreamData<>, virtual Object {
 
 	bool		send(Exception& ex, const Packet& packet, int flags = 0);
 
+	template<typename RunnerType>
+	void		send(const shared<RunnerType>& pRunner) { io.threadPool.queue(_sendingTrack, pRunner); }
+	template <typename RunnerType, typename ...Args>
+	void		send(Args&&... args) { return send(std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
 	/*!
 	Runner example to send data with custom process in parallel thread */
 	struct Sender : Runner {
@@ -62,6 +66,7 @@ struct TCPClient : private StreamData<>, virtual Object {
 		Packet			_packet;
 		int				_flags;
 	};
+
 private:
 	virtual Socket::Decoder* newDecoder() { return NULL; }
 	virtual shared<Socket> newSocket();
@@ -76,6 +81,7 @@ private:
 	bool				_connected;
 	shared<TLS>			_pTLS;
 	bool				_subscribed;
+	UInt16				_sendingTrack;
 };
 
 

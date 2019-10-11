@@ -128,12 +128,12 @@ int SRT::LastError() {
 int SRT::Socket::ListenCallback(void* opaq, SRTSOCKET ns, int hsversion, const struct sockaddr* peeraddr, const char* streamid) {
 	if (streamid) {
 		SRT::Socket* pSRT = (SRT::Socket*)opaq;
-		pSRT->_stream = streamid; // streamid for next accept
+		pSRT->_streamId = streamid; // streamid for next accept
 	}
 	return 0; // always accept the connection
 };
 
-SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
+SRT::Socket::Socket() : Mona::Socket(TYPE_OTHER), _shutdownRecv(false) {
 	_id = ::srt_socket(AF_INET6, SOCK_DGRAM, 0);
 	if (_id == ::SRT_INVALID_SOCK) {
 		_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
@@ -144,7 +144,7 @@ SRT::Socket::Socket() : Mona::Socket(TYPE_SRT), _shutdownRecv(false) {
 	::srt_listen_callback(_id, &ListenCallback, this);
 }
 
-SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, Socket::TYPE_SRT), _shutdownRecv(false) {
+SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr, TYPE_OTHER), _shutdownRecv(false) {
 	init();
 }
 
@@ -155,14 +155,16 @@ bool SRT::Socket::processParams(Exception& ex, const Parameters& parameters, con
 	bool bValue;
 	string stValue;
 	// search always in priority with srt. prefix to be prioritary on general common version
-	if (processParam(parameters, "pktDrop", bValue, prefix))
+	if (processParam(parameters, "pktdrop", bValue, prefix))
 		result = setPktDrop(ex, bValue) && result;
 	if (processParam(parameters, "encryption", value, prefix))
-		result = setEncryptionType(ex, value) && result;
+		result = setEncryptionSize(ex, value) && result;
 	if (processParam(parameters, "passphrase", stValue, prefix))
 		result = setPassphrase(ex, stValue.data(), stValue.size()) && result;
 	if (processParam(parameters, "latency", value, prefix))
 		result = setLatency(ex, value) && result;
+	if (processParam(parameters, "peerlatency", value, prefix))
+		result = setPeerLatency(ex, value) && result;
 	if (processParam(parameters, "mss", value, prefix))
 		result = setMSS(ex, value) && result;
 	if (processParam(parameters, "overheadbw", value, prefix))
@@ -272,12 +274,12 @@ bool SRT::Socket::accept(Exception& ex, shared<Mona::Socket>& pSocket) {
 	int sclen = sizeof scl;
 	::SRTSOCKET sockfd = ::srt_accept(_id, (sockaddr*)&scl, &sclen);
 	if (sockfd == SRT_INVALID_SOCK) {
-		_stream.clear();
+		_streamId.clear();
 		SetException(ex);
 		return false;
 	}
 	SRT::Socket* pSRTSocket = new SRT::Socket(sockfd, (sockaddr&)scl);
-	pSRTSocket->_stream = move(_stream);
+	pSRTSocket->_streamId = move(_streamId);
 	pSocket = pSRTSocket;
 	return true;
 }
@@ -375,13 +377,13 @@ int SRT::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 	return sent;
 }
 
-bool SRT::Socket::setRecvBufferSize(Exception& ex, int size) {
+bool SRT::Socket::setRecvBufferSize(Exception& ex, UInt32 size) {
 	if (!setOption(ex, ::SRTO_UDP_RCVBUF, size))
 		return false;
 	_recvBufferSize = size;
 	return true;
 }
-bool SRT::Socket::setSendBufferSize(Exception& ex, int size) {
+bool SRT::Socket::setSendBufferSize(Exception& ex, UInt32 size) {
 	if (!setOption(ex, ::SRTO_UDP_SNDBUF, size))
 		return false;
 	_sendBufferSize = size;

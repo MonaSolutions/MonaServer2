@@ -34,8 +34,8 @@ UInt8 ScriptReader::followingType() {
 		return END;
 
 	switch (lua_type(_pState, _current)) {
-		case LUA_TSTRING:
-			return STRING;
+		case LUA_TNONE:
+			return END;
 		case LUA_TBOOLEAN:
 			return BOOLEAN;
 		case LUA_TNUMBER:
@@ -59,9 +59,11 @@ UInt8 ScriptReader::followingType() {
 				return DATE;
 			}
 			lua_pop(_pState, 1);
+			return OTHER;
 		}
+		default:;
 	}
-	return OTHER;
+	return STRING; // all the rest is concerted to String!
 }
 
 bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
@@ -76,7 +78,11 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 	switch (type) {
 
 		case STRING:  {
-			writer.writeString(lua_tostring(_pState, _current), lua_objlen(_pState, _current));
+			Script::PushString(_pState, _current);
+			size_t size;
+			const char* value = lua_tolstring(_pState, -1, &size);
+			writer.writeString(value, size);
+			lua_pop(_pState, 1);
 			++_current;
 			return true;
 		}

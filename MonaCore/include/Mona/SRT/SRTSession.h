@@ -19,29 +19,31 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/SRT.h"
 #include "Mona/MediaSocket.h"
 #include "Mona/SRT/SRTProtocol.h"
+#include "Mona/SocketSession.h"
 
 #if defined(SRT_API)
 namespace Mona {
 
-struct SRTSession : Session, virtual Object {
+struct SRTSession : SocketSession, virtual Object {
 	SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
-
+	~SRTSession();
 	void	init(SRTProtocol::Params& params);
 
 private:
+	bool	manage();
 	void	kill(Int32 error = 0, const char* reason = NULL);
 
-	UInt64	queueing() const { return _pSocket->queueing(); }
 	void	flush() { if (_pWriter) _pWriter->flush(); }
 
+	/*!
+	Do a SRT Writer to allow a client:close() + get a right queueing */
 	struct SRTWriter : Writer, virtual Object {
-		SRTWriter(SRTSession& session) : _session(session) {}
-		UInt64			queueing() const { return _session.queueing(); }
+		SRTWriter(const Socket& socket) : _socket(socket) {}
+		UInt64			queueing() const { return _socket.queueing(); }
 	private:
-		SRTSession& _session;
+		const Socket& _socket;
 	};
 
-	shared<Socket>				_pSocket;
 	SRTWriter					_writer;
 	Subscription*				_pSubscription;
 	Publication*				_pPublication;

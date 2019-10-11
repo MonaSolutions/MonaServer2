@@ -23,8 +23,13 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
+#define SCRIPT_READ_IP(IP)		LUAIPAddress::From(ex, __pState, SCRIPT_READ_NEXT(1), IP)
+#define SCRIPT_WRITE_IP(...)	Script::NewObject(__pState, new IPAddress(__VA_ARGS__));
+
 struct LUAIPAddress : virtual Static {
-	static bool From(Exception& ex, lua_State *pState, int index, IPAddress& address, bool withDNS = false);
+	/*!
+	Convert variable LUA to IPAddress, if first field is string with as first char '@' it uses DNS to resolve address */
+	static bool From(Exception& ex, lua_State *pState, int index, IPAddress& address);
 };
 
 }

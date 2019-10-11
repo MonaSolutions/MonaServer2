@@ -274,9 +274,9 @@ shared<MediaStream> Server::stream(const string& publication, const string& desc
 		_streamPublications.emplace_hint(it, pPublication->name().c_str(), pPublication);
 	} else if (!(pStream = stream(description))) // is Target
 		return nullptr;
-	pStream->onNewTarget = [this, publication, &params = pStream->params()](const shared<Media::Target>& pTarget) {
+	pStream->onNewTarget = [this, publication, &stream = *pStream](const shared<Media::Target>& pTarget) {
 		const auto& it = _streamSubscriptions.emplace(pTarget, new Subscription(*pTarget)).first;
-		for (const auto& itParam : params)
+		for (const auto& itParam : stream.params())
 			it->second->setParameter(itParam.first, itParam.second);
 		Exception ex; // logs already displaid by subscribe
 		if (!subscribe(ex, publication, *it->second))

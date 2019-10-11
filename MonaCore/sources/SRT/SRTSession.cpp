@@ -24,15 +24,19 @@ using namespace std;
 namespace Mona {
 
 SRTSession::SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer) :
-	Session(protocol, pPeer), _pSocket(pSocket), _pSubscription(NULL), _pPublication(NULL), _writer(self) {
+	SocketSession(protocol, pSocket, pPeer), _pSubscription(NULL), _pPublication(NULL), _writer(*pSocket) {
 	
 }
 
+SRTSession::~SRTSession() {
+	if (_pSubscription)
+		delete _pSubscription;
+}
 
 void SRTSession::init(SRTProtocol::Params& params) {
 	// Connect the Peer
 	Exception ex;
-	peer.onConnection(ex, _writer, *_pSocket, params());
+	peer.onConnection(ex, _writer, *socket(), params());
 	if (ex)
 		return kill(TO_ERROR(ex));
 
@@ -40,12 +44,12 @@ void SRTSession::init(SRTProtocol::Params& params) {
 	if (params.publish()) {
 		if ((_pPublication = api.publish(ex, peer, params.stream())) == NULL)
 			return kill(TO_ERROR(ex));
-		_pReader.set(MediaStream::TYPE_SRT, peer.path, *_pPublication, new TSReader(), _pSocket, api.ioSocket);
+		_pReader.set(MediaStream::TYPE_SRT, peer.path, *_pPublication, new TSReader(), socket(), api.ioSocket);
 		_pReader->onStop = [this]() { kill(TO_ERROR(_pReader->ex)); };
 		_pReader->start(); // no pulse required, socket already ready
 	}
 	else if (params.subscribe()) {
-		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), _pSocket, api.ioSocket);
+		_pWriter.set(MediaStream::TYPE_SRT, peer.path, new TSWriter(), socket(), api.ioSocket);
 		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter))))
 			return kill(TO_ERROR(ex));
 		_pWriter->onStop = [this]() { kill(TO_ERROR(_pWriter->ex)); };
@@ -67,12 +71,30 @@ void SRTSession::kill(Int32 error, const char* reason) {
 	}
 	if (_pPublication)
 		api.unpublish(*_pPublication, peer);
-	if (_pSubscription) {
+	if (_pSubscription) // delete subscription on SRTSession destruction to avoid a crash if this kill is called by subscription itself!
 		api.unsubscribe(peer, *_pSubscription);
-		delete _pSubscription;
-	}
 	Session::kill(error, reason);
 }
+
+bool SRTSession::manage() {
+	if (!Session::manage())
+		return false;
+	// check subscription
+	if (_pSubscription) {
+		switch (_pSubscription->ejected()) {
+			case Subscription::EJECTED_NONE:
+				break;
+			case Subscription::EJECTED_BANDWITDH:
+				kill(ERROR_CONGESTED, String("Insufficient bandwidth to play ", _pSubscription->name()).c_str());
+				return false;
+			case Subscription::EJECTED_ERROR: //  HTTPWriter error, error already written!
+				kill(ERROR_SOCKET);
+				return false;
+		}
+	}
+	return true;
+}
+
 
 } // namespace Mona
 

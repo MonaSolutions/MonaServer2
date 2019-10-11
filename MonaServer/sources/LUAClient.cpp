@@ -16,18 +16,14 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "LUANetStats.h"
 #include "LUAMap.h"
-#include "LUAWriter.h"
 #include "Mona/Client.h"
+#include "LUASocketAddress.h"
 
 
 using namespace std;
 
 namespace Mona {
-
-template<> Net::Stats&    LUANetStats<Client>::NetStats(Client& client) { return client; }
-template<> Writer&		  LUAWriter<Client>::Writer(Client& client) { return client.writer(); }
 
 static int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(Client, client);
@@ -58,14 +54,15 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 			return true;
 		}
 	};
-
-	Script::AddComparator<Mona::Client>(pState);
+	AddType<Writer>(pState, client.writer());
+	AddType<Net::Stats>(pState, client);
+	AddComparator<Mona::Client>(pState);
 
 	// properties
 	lua_pushliteral(pState, "properties");
 	AddObject(pState, client.properties());
 	lua_getmetatable(pState, -1);
-	lua_setmetatable(pState, -6); // metatable of parameters becomes metatable of __index of subscription object!
+	lua_setmetatable(pState, -6); // metatable of parameters becomes metatable of __index of client object!
 
 	SCRIPT_BEGIN(pState)
 		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<const Parameters>::Call<Mapper>);
@@ -75,19 +72,18 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 		SCRIPT_DEFINE_DOUBLE("connection", client.connection);
 		SCRIPT_DEFINE_STRING("path", client.path);
 		SCRIPT_DEFINE_STRING("query", client.query);
-		SCRIPT_DEFINE("address", NewObject(pState, new SocketAddress(client.address)));
-		SCRIPT_DEFINE("serverAddress", NewObject(pState, new SocketAddress(client.serverAddress)));
-		SCRIPT_DEFINE("writer", AddObject(pState, client.writer()));
-
+	
+		SCRIPT_DEFINE("address", SCRIPT_WRITE_ADDRESS(client.address));
+		SCRIPT_DEFINE("serverAddress", SCRIPT_WRITE_ADDRESS(client.serverAddress));
+		
 		SCRIPT_DEFINE_FUNCTION("__tostring", &__tostring);
 		SCRIPT_DEFINE_FUNCTION("ping", &ping);
 		SCRIPT_DEFINE_FUNCTION("rto", &rto);
-		SCRIPT_DEFINE_WRITER(Mona::Client);
-		SCRIPT_DEFINE_NETSTATS(Mona::Client);
-
 	SCRIPT_END
 }
 template<> void Script::ObjClear(lua_State *pState, Mona::Client& client) {
+	RemoveType<Writer>(pState, client.writer());
+	RemoveType<Net::Stats>(pState, client);
 	RemoveObject(pState, client.properties());
 	RemoveObject(pState, client.writer());
 }

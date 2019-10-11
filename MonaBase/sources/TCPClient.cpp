@@ -16,7 +16,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/TCPClient.h"
 #include "Mona/Exceptions.h"
-#include "Mona/SRT.h"
 
 using namespace std;
 
@@ -48,6 +47,7 @@ shared<Socket> TCPClient::newSocket() {
 }
 const shared<Socket>& TCPClient::socket() {
 	if (!_pSocket) {
+		_sendingTrack = 0;
 		_pSocket = newSocket();
 		Exception ex;
 		_subscribed = io.subscribe(ex, _pSocket, newDecoder(), _onReceived, _onFlush, onError, _onDisconnection);
@@ -91,6 +91,7 @@ bool TCPClient::connect(Exception& ex, const shared<Socket>& pSocket) {
 		io.unsubscribe(_pSocket);
 	else
 		_subscribed = true;
+	_sendingTrack = 0;
 	_pSocket = pSocket;
 	return true;
 }

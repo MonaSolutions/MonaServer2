@@ -25,7 +25,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #undef LOG_DEBUG
 #endif
 
-
 #include "Mona/TCPClient.h"
 #include "Mona/TCPServer.h"
 
@@ -75,11 +74,15 @@ struct SRT : virtual Object {
 		Socket();
 		virtual ~Socket();
 
+		enum Type {
+			TYPE_SRT = Mona::Socket::TYPE_OTHER,
+		};
+
 		bool  isSecure() const { return true; }
 
 		UInt32  available() const;
 
-		const std::string& stream() const { return _stream; }
+		const std::string& streamId() const { return _streamId; }
 
 		virtual bool accept(Exception& ex, shared<Mona::Socket>& pSocket);
 
@@ -95,10 +98,10 @@ struct SRT : virtual Object {
 
 		virtual bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "srt.");
 
-		virtual bool setSendBufferSize(Exception& ex, int size);
-		virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex, ::SRTO_UDP_SNDBUF, size); }
-		virtual bool setRecvBufferSize(Exception& ex, int size);
-		virtual bool getRecvBufferSize(Exception& ex, int& size) const { return getOption(ex, ::SRTO_UDP_RCVBUF, size); }
+		virtual bool setSendBufferSize(Exception& ex, UInt32 size);
+		virtual bool getSendBufferSize(Exception& ex, UInt32& size) const { return getOption(ex, ::SRTO_UDP_SNDBUF, size); }
+		virtual bool setRecvBufferSize(Exception& ex, UInt32 size);
+		virtual bool getRecvBufferSize(Exception& ex, UInt32& size) const { return getOption(ex, ::SRTO_UDP_RCVBUF, size); }
 
 		virtual bool setReuseAddress(Exception& ex, bool value) { return setOption(ex, ::SRTO_REUSEADDR, value ? 1 : 0); }
 		virtual bool getReuseAddress(Exception& ex, bool& value) const { int val; return getOption(ex, ::SRTO_REUSEADDR, val); }
@@ -106,27 +109,25 @@ struct SRT : virtual Object {
 		virtual bool setLinger(Exception& ex, bool on, int seconds);
 		virtual bool getLinger(Exception& ex, bool& on, int& seconds) const;
 
-		bool setConnectionTimeout(Exception& ex, int value) { return setOption(ex, ::SRTO_CONNTIMEO, value); }
-		bool getConnectionTimeout(Exception& ex, int& value) const { return getOption(ex, ::SRTO_CONNTIMEO, value); }
+		bool setConnectionTimeout(Exception& ex, UInt32 value) { return setOption(ex, ::SRTO_CONNTIMEO, value); }
+		bool getConnectionTimeout(Exception& ex, UInt32& value) const { return getOption(ex, ::SRTO_CONNTIMEO, value); }
 
-		bool getEncryptionState(Exception& ex, SRT_KM_STATE& state) const { return getOption(ex, ::SRTO_RCVKMSTATE, state); }
-		bool getPeerDecryptionState(Exception& ex, SRT_KM_STATE& state) const { return getOption(ex, ::SRTO_SNDKMSTATE, state); }
-		bool setEncryptionType(Exception& ex, int type) { return setOption(ex, ::SRTO_PBKEYLEN, type); }
-		bool getEncryptionType(Exception& ex, int& type) const { return getOption(ex, ::SRTO_PBKEYLEN, type); }
+		bool getRecvEncryptionState(Exception& ex, SRT_KM_STATE& state) const { return getOption(ex, ::SRTO_RCVKMSTATE, state); }
+		bool getSendEncryptionState(Exception& ex, SRT_KM_STATE& state) const { return getOption(ex, ::SRTO_SNDKMSTATE, state); }
+		bool setEncryptionSize(Exception& ex, UInt32 type) { return setOption(ex, ::SRTO_PBKEYLEN, type); }
+		bool getEncryptionSize(Exception& ex, UInt32& type) const { return getOption(ex, ::SRTO_PBKEYLEN, type); }
 		bool setPassphrase(Exception& ex, const char* data, UInt32 size);
 		bool setStreamId(Exception& ex, const char* data, UInt32 size);
 
-		bool setLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_TSBPDDELAY, value); }
-		bool getLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_TSBPDDELAY, value); }
-		bool setRecvLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_RCVLATENCY, value); }
-		bool getRecvLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_RCVLATENCY, value); }
-		bool setPeerLatency(Exception& ex, int value) { return setOption(ex, ::SRTO_PEERLATENCY, value); }
-		bool getPeerLatency(Exception& ex, int& value) const { return getOption(ex, ::SRTO_PEERLATENCY, value); }
+		bool setLatency(Exception& ex, UInt32 value) { return setOption(ex, ::SRTO_RCVLATENCY, value); }
+		bool getLatency(Exception& ex, UInt32& value) const { return getOption(ex, ::SRTO_RCVLATENCY, value); }
+		bool setPeerLatency(Exception& ex, UInt32 value) { return setOption(ex, ::SRTO_PEERLATENCY, value); }
+		bool getPeerLatency(Exception& ex, UInt32& value) const { return getOption(ex, ::SRTO_PEERLATENCY, value); }
 
-		bool setMSS(Exception& ex, int value) { return setOption(ex, ::SRTO_MSS, value); }
-		bool getMSS(Exception& ex, int& value) const { return getOption(ex, ::SRTO_MSS, value); }
-		bool setOverheadBW(Exception& ex, int value) { return setOption(ex, ::SRTO_OHEADBW, value); }
-		// bool getOverheadBW(Exception& ex, int& value) const { return getOption(ex, ::SRTO_OHEADBW, value); }  Not supported for now in SRT
+		bool setMSS(Exception& ex, UInt32 value) { return setOption(ex, ::SRTO_MSS, value); }
+		bool getMSS(Exception& ex, UInt32& value) const { return getOption(ex, ::SRTO_MSS, value); }
+		bool setOverheadBW(Exception& ex, UInt32 value) { return setOption(ex, ::SRTO_OHEADBW, value); }
+		bool getOverheadBW(Exception& ex, UInt32& value) const { return getOption(ex, ::SRTO_OHEADBW, value); } // Not supported for now in SRT
 		bool setMaxBW(Exception& ex, Int64 value) { return setOption(ex, ::SRTO_MAXBW, value); }
 		bool getMaxBW(Exception& ex, Int64& value) const { return getOption(ex, ::SRTO_MAXBW, value); }	
 
@@ -182,14 +183,14 @@ struct SRT : virtual Object {
 
 		Exception				_ex;
 		volatile bool			_shutdownRecv;
-		std::string				_stream;
+		std::string				_streamId;
 	};
 
 	struct Client : TCPClient {
 		Client(IOSocket& io) : Mona::TCPClient(io) {}
 
-		Socket&		operator*() { return (Socket&)TCPClient::operator*(); }
-		Socket*		operator->() { return (Socket*)TCPClient::operator->(); }
+		SRT::Socket&	operator*() { return (SRT::Socket&)TCPClient::operator*(); }
+		SRT::Socket*	operator->() { return (SRT::Socket*)TCPClient::operator->(); }
 	private:
 		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};
@@ -197,8 +198,8 @@ struct SRT : virtual Object {
 	struct Server : TCPServer {
 		Server(IOSocket& io) : Mona::TCPServer(io) {}
 
-		Socket&		operator*() { return (Socket&)TCPServer::operator*(); }
-		Socket*		operator->() { return (Socket*)TCPServer::operator->(); }
+		SRT::Socket&	operator*() { return (SRT::Socket&)TCPServer::operator*(); }
+		SRT::Socket*	operator->() { return (SRT::Socket*)TCPServer::operator->(); }
 	private:
 		shared<Mona::Socket> newSocket() { return std::make_shared<SRT::Socket>(); }
 	};

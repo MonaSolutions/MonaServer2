@@ -17,18 +17,14 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Script.h"
-#include "Mona/TCPServer.h"
+#include "Mona/TCPserver.h"
 #include "Mona/TCPClient.h"
 #include "LUASocketAddress.h"
-#include "LUASocket.h"
 
 
 using namespace std;
 
 namespace Mona {
-
-template<> Net::Stats&    LUANetStats<TCPServer>::NetStats(TCPServer& server) { return *server; }
-template<> Socket&		  LUASocket<TCPServer>::Socket(TCPServer& server) { return *server; }
 
 static bool OnError(lua_State *pState, TCPServer& server, const string& error) {
 	bool gotten = false;
@@ -51,7 +47,7 @@ static int start(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(TCPServer, server)
 		Exception ex;
 		SocketAddress address;
-		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && server.start(ex, address)) {
+		if(SCRIPT_READ_ADDRESS(address) && server.start(ex, address)) {
 			if (ex)
 				SCRIPT_CALLBACK_THROW(ex);
 			SCRIPT_WRITE_BOOLEAN(true)
@@ -78,7 +74,7 @@ template<> void Script::ObjInit(lua_State *pState, TCPServer& server) {
 				WARN("LUATCPServer ", pSocket->peerAddress(), " connection, ", ex);
 			SCRIPT_BEGIN(pState)
 				SCRIPT_MEMBER_FUNCTION_BEGIN(server, "onConnection")
-					NewObject(pState, pClient.release());
+					Script::NewObject(pState, pClient.release());
 					SCRIPT_FUNCTION_CALL
 				SCRIPT_FUNCTION_END
 			SCRIPT_END
@@ -89,14 +85,17 @@ template<> void Script::ObjInit(lua_State *pState, TCPServer& server) {
 		}
 
 	};
+	if (server->type < Socket::TYPE_OTHER)
+		AddType<Socket>(pState, *server);
 	SCRIPT_BEGIN(pState);
 		SCRIPT_DEFINE_FUNCTION("start", &start);
 		SCRIPT_DEFINE_FUNCTION("stop", &stop);
 		SCRIPT_DEFINE_FUNCTION("running", &running);
-		SCRIPT_DEFINE_SOCKET(TCPServer);
 	SCRIPT_END;
 }
 template<> void Script::ObjClear(lua_State *pState, TCPServer& server) {
+	if (server->type < Socket::TYPE_OTHER)
+		RemoveType<Socket>(pState, *server);
 	server.onConnection = nullptr;
 	server.onError = nullptr;
 }

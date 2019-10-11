@@ -45,9 +45,9 @@ struct Client : Entity, virtual Object, Net::Stats {
 	bool						eraseProperty(const std::string& key);
 	const Parameters&			properties() const { return _properties; }
 
-	operator bool() const		{ return connection ? true : false; }
-	const Time					connection;
-	const Time					disconnection;
+	operator bool() const		{ return connection && _pWriter->operator bool() ? true : false; }
+	const Time						connection;
+	const Time						disconnection;
 
 	 // user data (custom data)
 	template <typename DataType>
@@ -73,7 +73,6 @@ struct Client : Entity, virtual Object, Net::Stats {
 	Time						sendTime() const { return _pNetStats->sendTime(); }
 	UInt64						sendByteRate() const { return _pNetStats->sendByteRate(); }
 	double						sendLostRate() const { return _pNetStats->sendLostRate(); }
-
 	
 	Writer&						writer() { return *_pWriter; }
 

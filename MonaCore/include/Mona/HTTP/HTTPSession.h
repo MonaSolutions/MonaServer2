@@ -27,7 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct HTTPSession : virtual Object, TCPSession {
-	HTTPSession(Protocol& protocol);
+	HTTPSession(Protocol& protocol, const shared<Socket>& pSocket);
 
 private:
 	Socket::Decoder*		newDecoder();

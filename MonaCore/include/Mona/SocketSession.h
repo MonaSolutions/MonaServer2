@@ -13,23 +13,33 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License received along this program for more
 details (or else see http://www.gnu.org/licenses/).
-
+	
 */
 
 #pragma once
 
-#include "Mona/Client.h"
-#include "Script.h"
+#include "Mona/Mona.h"
+#include "Mona/Session.h"
+#include "Mona/Socket.h"
 
-class LUAClient {
-public:
+namespace Mona {
 
-	static int Item(lua_State *pState);
+struct SocketSession : Session, virtual Object {
+	const shared<Socket>&	socket() { return _pSocket; }
+	Socket*					operator->() { return _pSocket.get(); }
+	Socket&					operator*() { return *_pSocket; }
 
-	static void Init(lua_State *pState, Mona::Client& client);
-	static void Clear(lua_State* pState, Mona::Client& client);
-	static int  Index(lua_State* pState);
-	static int  IndexConst(lua_State* pState);
+protected:
+	SocketSession(Protocol& protocol, const shared<Socket>& pSocket);
+	SocketSession(Protocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
 
+	virtual	void kill(Int32 error = 0, const char* reason = NULL);
+
+	virtual void onParameters(const Parameters& parameters);
+
+	shared<Socket>	_pSocket;
 };
 
+
+
+} // namespace Mona

@@ -46,9 +46,6 @@ struct Socket : virtual Object, Net::Stats {
 		TYPE_STREAM = SOCK_STREAM,
 		TYPE_DATAGRAM = SOCK_DGRAM,
 		TYPE_OTHER = 0x10
-#if defined(SRT_API)
-		,TYPE_SRT = 0x10
-#endif
 	};
 
 	enum ShutdownType {
@@ -90,11 +87,11 @@ struct Socket : virtual Object, Net::Stats {
 
 	virtual bool processParams(Exception& ex, const Parameters& parameter, const char* prefix = "net.");
 
-	virtual bool setSendBufferSize(Exception& ex, int size);
-	virtual bool getSendBufferSize(Exception& ex, int& size) const { return getOption(ex,SOL_SOCKET, SO_SNDBUF, size); }
+	virtual bool setSendBufferSize(Exception& ex, UInt32 size);
+	virtual bool getSendBufferSize(Exception& ex, UInt32& size) const { return getOption(ex,SOL_SOCKET, SO_SNDBUF, size); }
 	
-	virtual bool setRecvBufferSize(Exception& ex, int size);
-	virtual bool getRecvBufferSize(Exception& ex, int& size) const { return getOption(ex, SOL_SOCKET, SO_RCVBUF, size); }
+	virtual bool setRecvBufferSize(Exception& ex, UInt32 size);
+	virtual bool getRecvBufferSize(Exception& ex, UInt32& size) const { return getOption(ex, SOL_SOCKET, SO_RCVBUF, size); }
 
 	bool setNoDelay(Exception& ex, bool value) { return setOption(ex,IPPROTO_TCP, TCP_NODELAY, value ? 1 : 0); }
 	bool getNoDelay(Exception& ex, bool& value) const { return getOption(ex, IPPROTO_TCP, TCP_NODELAY, value); }

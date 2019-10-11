@@ -22,6 +22,8 @@ using namespace std;
 
 namespace Mona {
 
+thread_local int	Script::_AddTop = 0;
+thread_local UInt32	Script::_RemoveTop = 0;
 
 static int LoadFile(lua_State *pState) {
 	// 1 - name
@@ -82,7 +84,7 @@ int Pairs(lua_State* pState) {
 		lua_replace(pState, -2); // replace metatable!
 		if (lua_isfunction(pState, -1)) {
 			lua_pushvalue(pState, 1);
-			lua_call(pState, 1, 3);
+			lua_call(pState, 1, 3); // lua_call rather lua_pcall because is called from LUA (callback, not CPP) => stop the script proprely without execute the rest (useless)
 			return 3;
 		}
 		lua_pop(pState, 1); // remove __pairs value
@@ -338,11 +340,13 @@ void Script::PushString(lua_State* pState, int index) {
 			if (!lua_isnil(pState, -1)) {
 				if(lua_isfunction(pState, -1)) {
 					lua_pushvalue(pState, index);
-					lua_call(pState, 1, 1); // consume arg + function
-					if (lua_isstring(pState, -1))
-						return;
 					SCRIPT_BEGIN(pState)
-						SCRIPT_ERROR("__tostring must return a string");
+						if (lua_pcall(pState, 1, 1, 0) == 0) { // consume arg + function
+							if (lua_isstring(pState, -1))
+								return;
+							SCRIPT_ERROR("__tostring must return a string");
+						} else
+							SCRIPT_ERROR(LastError(pState));
 					SCRIPT_END
 				} else {
 					SCRIPT_BEGIN(pState)
@@ -391,7 +395,7 @@ void Script::Test(lua_State* pState) {
 				printf("string: '%s'\n", lua_tostring(pState, i));
 				break;
 			case LUA_TBOOLEAN:  /* booleans */
-				printf("boolean %s\n", lua_toboolean(pState, i) ? "true" : "false");
+				printf("boolean: %s\n", lua_toboolean(pState, i) ? "true" : "false");
 				break;
 			case LUA_TNUMBER:  /* numbers */
 				printf("number: %g\n", lua_tonumber(pState, i));

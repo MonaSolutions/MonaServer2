@@ -94,9 +94,21 @@ void MonaServer::onManage() {
 	// control script size to debug!
 	if (lua_gettop(_pState) != 0)
 		CRITIC("LUA stack corrupted, contains ",lua_gettop(_pState)," irregular values");
+	// manage luaSubscriptions
+	SCRIPT_BEGIN(_pState)
+		auto it = _luaSubscriptions.begin();
+		while(it != _luaSubscriptions.end()) { // while to support unsubscribe while looping
+			Subscription* pSubscription = *it++;
+			if (!pSubscription->ejected())
+				continue;
+			SCRIPT_MEMBER_FUNCTION_BEGIN(*pSubscription, "onEject")
+				SCRIPT_FUNCTION_CALL // see self:ejected()
+			SCRIPT_FUNCTION_END
+		}
+	SCRIPT_END
 }
 
-void MonaServer::onUpdate(Service& service) {
+void MonaServer::onUnload(Service& service) {
 	// When a application is reloaded, the resource are released (to liberate port for example of one lua socket)
 	// So client which have record their member function with the onConnection of this application can not more interact with, we have to close them!
 	// All client in the inheritance application branch have to be disconnected. Ex: "/live" is updating, clients with path "/", "/live", "/live/sub" have to reconnect, clients with path "/live2" can stay alive!
@@ -122,12 +134,12 @@ SocketAddress& MonaServer::onHandshake(const string& path, const string& protoco
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_FUNCTION_BEGIN("onHandshake",pService->reference())
 			SCRIPT_WRITE_DATA(protocol.data(), protocol.size())
-			Script::NewObject(_pState, new SocketAddress(address));
+			SCRIPT_WRITE_ADDRESS(address);
 			SCRIPT_WRITE_DATA(path.data(), path.size())
 			SCRIPT_WRITE_VALUE(properties);
 			SCRIPT_FUNCTION_CALL
 			if(SCRIPT_NEXT_READABLE)
-				SCRIPT_AUTO_ERROR(LUASocketAddress::From(ex, _pState, SCRIPT_READ_NEXT(1), redirection));
+				SCRIPT_AUTO_ERROR(SCRIPT_READ_ADDRESS(redirection))
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
 	return redirection;
@@ -143,11 +155,11 @@ void MonaServer::onConnection(Exception& ex, Client& client, DataReader& inParam
 		return;
 	}
 	
-	Script::AddObject(_pState, client);
-
+	bool done = false;
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_FUNCTION_BEGIN("onConnection", pService->reference())
-			lua_pushvalue(_pState, 1); // client! (see Script::AddObject above)
+			done = true;
+			Script::AddObject(_pState, client);
 			ScriptWriter writer(_pState);
 			inParams.read(writer);
 			SCRIPT_FUNCTION_CALL
@@ -158,10 +170,13 @@ void MonaServer::onConnection(Exception& ex, Client& client, DataReader& inParam
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
 
-	lua_pop(_pState, 1); // remove Script::AddObject (see above)
-
-	if (!ex) // connection accepted
-		client.setCustomData(pService);
+	if (done) {
+		if(ex) // connection failed!
+			return Script::RemoveObject(_pState, client);
+	} else
+		Script::Pop(_pState, Script::AddObject(_pState, client));
+	// connection accepted
+	client.setCustomData(pService);
 }
 
 void MonaServer::onDisconnection(Client& client) {
@@ -180,19 +195,19 @@ void MonaServer::onDisconnection(Client& client) {
 void MonaServer::onAddressChanged(Client& client,const SocketAddress& oldAddress) {
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_MEMBER_FUNCTION_BEGIN(client, "onAddressChanged")
-			Script::NewObject(_pState, new SocketAddress(oldAddress));
+			SCRIPT_WRITE_ADDRESS(oldAddress);
 			SCRIPT_FUNCTION_CALL
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
 }
 
-bool MonaServer::onInvocation(Exception& ex, Client& client,const string& name,DataReader& reader, UInt8 responseType) {
-	bool found(false);
+bool MonaServer::onInvocation(Exception& ex, Client& client,const string& name, DataReader& reader, UInt8 responseType) {
+	const char* method = name.empty() ? "onMessage" : name.c_str();
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(client, name.empty() ? "onMessage" : name.c_str())
+		SCRIPT_MEMBER_FUNCTION_BEGIN(client, method)
+			method = NULL;
 			ScriptWriter writer(_pState);
 			reader.read(writer);
-			found=true;
 			SCRIPT_FUNCTION_CALL
 			if(SCRIPT_FUNCTION_ERROR)
 				ex.set<Ex::Application::Error>(SCRIPT_FUNCTION_ERROR);
@@ -200,7 +215,10 @@ bool MonaServer::onInvocation(Exception& ex, Client& client,const string& name,D
 				SCRIPT_READ_NEXT(ScriptReader(_pState, SCRIPT_NEXT_READABLE).read(client.writer().writeResponse(responseType)));
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
-	return found;
+	if(!method)
+		return true;
+	ex.set<Ex::Application>("Method client ", method, " not found in application ", client.path);
+	return false;
 }
 
 bool MonaServer::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) {
@@ -247,7 +265,7 @@ bool MonaServer::onPublish(Exception& ex, Publication& publication, Client* pCli
 		return true; // mona::newPublication, already added!
 	Script::Pop pop(_pState);
 	if(!publication) // can be added by subscription!
-		pop += Script::AddObject<Publication, Media::Source>(_pState, publication);
+		pop += Script::AddObject(_pState, publication);
 	if (!pClient)
 		return true; // intern publication!
 	bool result = true;
@@ -266,7 +284,7 @@ bool MonaServer::onPublish(Exception& ex, Publication& publication, Client* pCli
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
 	if (!result && !publication)
-		Script::RemoveObject<Publication, Media::Source>(_pState, publication);
+		Script::RemoveObject(_pState, publication);
 	return result;
 }
 
@@ -282,17 +300,21 @@ void MonaServer::onUnpublish(Publication& publication, Client* pClient) {
 		SCRIPT_END
 	}
 	if (!publication)
-		Script::RemoveObject<Publication, Media::Source>(_pState, publication);
+		Script::RemoveObject(_pState, publication);
 }
 
 bool MonaServer::onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient) {
 	Script::Pop pop(_pState);
 	if(!publication && !(pop += Script::FromObject(_pState, publication) )) // test FromObject in the case where we are here with a mona::newSubscription inside a client::onPublish => publication already added! (no performance issue, happen just when !publication)
-		Script::AddObject<Publication, Media::Source>(_pState, publication);
-	if (!pClient || pClient == &Script::Client())
-		return true; // intern publication or mona::newSubscription (already added)
+		Script::AddObject(_pState, publication);
+	if (!pClient)
+		return true; // intern publication
+	if (pClient == &Script::Client()) { // mona::newSubscription (already added)
+		_luaSubscriptions.emplace(&subscription); // to manage ejection!
+		return true;
+	}
 	bool result = true;
-	pop += Script::AddObject<Subscription, Media::Source>(_pState, subscription);
+	pop += Script::AddObject(_pState, subscription);
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_MEMBER_FUNCTION_BEGIN(*pClient, "onSubscribe")
 			if(publication)
@@ -310,14 +332,16 @@ bool MonaServer::onSubscribe(Exception& ex, Subscription& subscription, Publicat
 	SCRIPT_END
 	if (!result) {
 		if(!publication)
-			Script::RemoveObject<Publication, Media::Source>(_pState, publication);
-		Script::RemoveObject<Subscription, Media::Source>(_pState, subscription);
+			Script::RemoveObject(_pState, publication);
+		Script::RemoveObject(_pState, subscription);
 	}
 	return result;
 }
 
 void MonaServer::onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient) {
-	if (pClient != &Script::Client()) { // else subscription managed already by mona::newPublication
+	if (pClient == &Script::Client()) { // managed already by mona::newSubscription
+		_luaSubscriptions.erase(&subscription); // to manage ejection!
+	} else if (pClient) { // else intern subscription
 		SCRIPT_BEGIN(_pState)
 			SCRIPT_MEMBER_FUNCTION_BEGIN(*pClient, "onUnsubscribe")
 				Script::FromObject(_pState, publication);
@@ -325,10 +349,10 @@ void MonaServer::onUnsubscribe(Subscription& subscription, Publication& publicat
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
-		Script::RemoveObject<Subscription, Media::Source>(_pState, subscription);
+		Script::RemoveObject(_pState, subscription);
 	}
 	if (!publication)
-		Script::RemoveObject<Publication, Media::Source>(_pState, publication);
+		Script::RemoveObject(_pState, publication);
 }
 
 

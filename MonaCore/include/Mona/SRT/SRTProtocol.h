@@ -31,7 +31,7 @@ struct SRTProtocol : Protocol, virtual Object {
 
 	struct Params : private DataReader, virtual Object {
 		NULLABLE
-		Params(const std::string& stream, Peer& peer) : DataReader(BIN stream.data(), stream.size()), _peer(peer), _publish(false), _type(OTHER), _done(false), _subscribe(true) {
+		Params(const std::string& streamId, Peer& peer) : DataReader(BIN streamId.data(), streamId.size()), _peer(peer), _publish(false), _type(OTHER), _done(false), _subscribe(true) {
 			read(DataWriter::Null()); // fill parameters!
 		}
 		operator bool() const { return _done; }

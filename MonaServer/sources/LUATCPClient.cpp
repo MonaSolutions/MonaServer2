@@ -19,15 +19,11 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Script.h"
 #include "Mona/TCPClient.h"
 #include "LUASocketAddress.h"
-#include "LUASocket.h"
 
 
 using namespace std;
 
 namespace Mona {
-
-template<> Net::Stats&   LUANetStats<TCPClient>::NetStats(TCPClient& client) { return *client; }
-template<> Socket&		 LUASocket<TCPClient>::Socket(TCPClient& client) { return *client; }
 
 static int connected(lua_State *pState) {
 	SCRIPT_CALLBACK(TCPClient, client)
@@ -43,12 +39,12 @@ static int connect(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(TCPClient, client)
 		Exception ex;
 		SocketAddress address(IPAddress::Loopback(), 0);
-		if (LUASocketAddress::From(ex, pState, SCRIPT_READ_NEXT(1), address) && client.connect(ex, address)) {
+		if (SCRIPT_READ_ADDRESS(address) && client.connect(ex, address)) {
 			if (ex)
 				SCRIPT_CALLBACK_THROW(ex);
-			SCRIPT_WRITE_BOOLEAN(true)
+			SCRIPT_WRITE_BOOLEAN(true);
 		} else
-			SCRIPT_CALLBACK_THROW(ex)
+			SCRIPT_CALLBACK_THROW(ex);
 	SCRIPT_CALLBACK_RETURN
 }
 static int send(lua_State *pState) {
@@ -70,7 +66,6 @@ static int disconnect(lua_State *pState) {
 }
 
 template<> void Script::ObjInit(lua_State *pState, TCPClient& client) {
-	shared<Exception> pEx;
 	client.onError = [pState, &client](const Exception& ex) {
 		bool gotten = false;
 		SCRIPT_BEGIN(pState)
@@ -93,7 +88,7 @@ template<> void Script::ObjInit(lua_State *pState, TCPClient& client) {
 	client.onDisconnection = [pState, &client](const SocketAddress& peerAddress) {
 		SCRIPT_BEGIN(pState)
 			SCRIPT_MEMBER_FUNCTION_BEGIN(client, "onDisconnection")
-				Script::NewObject(pState, new SocketAddress(peerAddress));
+				SCRIPT_WRITE_ADDRESS(peerAddress);
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END
@@ -110,16 +105,19 @@ template<> void Script::ObjInit(lua_State *pState, TCPClient& client) {
 		SCRIPT_END
 		return rest;
 	};
+	if (client->type < Socket::TYPE_OTHER)
+		AddType<Socket>(pState, *client);
 	SCRIPT_BEGIN(pState);
 		SCRIPT_DEFINE_FUNCTION("connected", &connected);
 		SCRIPT_DEFINE_FUNCTION("connecting", &connecting);
 		SCRIPT_DEFINE_FUNCTION("connect", &connect);
 		SCRIPT_DEFINE_FUNCTION("disconnect", &disconnect);
 		SCRIPT_DEFINE_FUNCTION("send", &send);
-		SCRIPT_DEFINE_SOCKET(TCPClient);
 	SCRIPT_END;
 }
 template<> void Script::ObjClear(lua_State *pState, TCPClient& client) {
+	if (client->type < Socket::TYPE_OTHER)
+		RemoveType<Socket>(pState, *client);
 	client.onData = nullptr;
 	client.onFlush = nullptr;
 	client.onDisconnection = nullptr;

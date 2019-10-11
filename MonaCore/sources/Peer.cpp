@@ -94,31 +94,36 @@ SocketAddress& Peer::onHandshake(SocketAddress& redirection) {
 
 void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response) {
 	if(disconnection) {
+		if (!writer) {
+			ERROR(ex.set<Ex::Intern>("Client writer given for connection is closed"));
+			return;
+		}
 		setWriter(writer, netStats);
-		writer.flushable = false; // response parameter causes unflushable to avoid a data corruption
-		writer.onClose = onClose;
-
+		writer.onClose = [&ex](Int32 error, const char* reason) {
+			// anticipate a writer.close() inside _api.onConnection (no log, it's the application user which choose to display it or not)
+			ex.set<Ex::Application>(reason ? reason : ""); // no need to have the exact Ex::Type, writer.close have been called manually with the type!
+		};
+		Util::Scoped<bool> noFlushable(writer.flushable, false); // response parameter causes unflushable to avoid a data corruption
 		// reset default protocol parameters
 		Parameters outParams;
 		MapWriter<Parameters> parameterWriter(outParams);
 		SplitWriter parameterAndResponse(parameterWriter,response);
-
 		_api.onConnection(ex, self, parameters, parameterAndResponse);
 		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(self).second) {
 			CRITIC(ex.set<Ex::Protocol>("Client ", String::Hex(id, Entity::SIZE), " exists already"));
 			_api.onDisconnection(self);
 		}
-		if (ex) {
+		writer.onClose = nullptr;
+		if (ex) { // writer can have been closed manually in onConnection!
 			writer.clear();
-			writer.onClose = nullptr;
 			setWriter();
 		} else {
+			writer.onClose = onClose;
 			((Time&)connection).update();
 			(Time&)disconnection = 0;
+			DEBUG("Client ", address, " connection");
 			onParameters(outParams);
-			DEBUG("Client ",address," connection")
 		}
-		writer.flushable = true; // remove unflushable
 	} else
 		CRITIC("Client ", String::Hex(id, Entity::SIZE), " seems already connected!")
 }
@@ -136,10 +141,16 @@ void Peer::onDisconnection() {
 }
 
 bool Peer::onInvocation(Exception& ex, const string& name, DataReader& reader, UInt8 responseType) {
-	if (connection)
-		return _api.onInvocation(ex, *this, name, reader, responseType);
-	CRITIC("RPC client before connection to ", path);
-	return false;
+	if (!connection) {
+		CRITIC("RPC client before connection to ", path);
+		return false;
+	}
+	if (_api.onInvocation(ex, *this, name, reader, responseType))
+		return true;
+	// method not found!
+	if(!ex)
+		ex.set<Ex::Application>("Method client ", name, " not found in application ", path); // no log just in this case!
+	return false; // method not found!
 }
 
 bool Peer::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) {

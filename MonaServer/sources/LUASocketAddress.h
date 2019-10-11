@@ -23,8 +23,14 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
+#define SCRIPT_READ_ADDRESS(ADDRESS)	LUASocketAddress::From(ex, __pState, ++__arg, ADDRESS)
+#define SCRIPT_WRITE_ADDRESS(...)		Script::NewObject(__pState,new SocketAddress(__VA_ARGS__));
+
 struct LUASocketAddress : virtual Static {
-	static bool From(Exception& ex, lua_State *pState, int index, SocketAddress& address, bool withDNS = false);
+	/*!
+	Convert variable LUA to SocketAddress, if first field is string with as first char '@' it uses DNS to resolve address,
+	index is a in and out parameter, to indicate if multiple LUA elements are consumed */
+	static bool From(Exception& ex, lua_State *pState, int& index, SocketAddress& address);
 };
 
 }

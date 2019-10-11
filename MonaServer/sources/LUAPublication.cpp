@@ -80,6 +80,8 @@ static int latency(lua_State *pState) {
 }
 
 template<> void Script::ObjInit(lua_State *pState, Publication& publication) {
+	AddType<Media::Source>(pState, publication);
+
 	// properties
 	lua_pushliteral(pState, "properties");
 	AddObject(pState, (Parameters&)publication);
@@ -99,6 +101,8 @@ template<> void Script::ObjInit(lua_State *pState, Publication& publication) {
 	SCRIPT_END;
 }
 template<> void Script::ObjClear(lua_State *pState, Publication& publication) {
+	RemoveType<Media::Source>(pState, publication);
+
 	RemoveObject(pState, (Parameters&)publication);
 	RemoveObject(pState, publication.audios);
 	RemoveObject(pState, publication.videos);

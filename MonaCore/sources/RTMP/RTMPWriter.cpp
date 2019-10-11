@@ -25,8 +25,8 @@ using namespace std;
 
 namespace Mona {
 
-RTMPWriter::RTMPWriter(UInt32 channelId, TCPSession& session, const shared<RC4_KEY>& pEncryptKey) : streamId(0),
-	_pChannel(SET, channelId), _pEncryptKey(pEncryptKey), _session(session) {
+RTMPWriter::RTMPWriter(UInt32 channelId, TCPClient& client, const shared<RC4_KEY>& pEncryptKey) : streamId(0),
+	_pChannel(SET, channelId), _pEncryptKey(pEncryptKey), _client(client) {
 }
 
 void RTMPWriter::writeProtocolSettings() {
@@ -42,14 +42,14 @@ void RTMPWriter::writeProtocolSettings() {
 
 void RTMPWriter::flushing() {
 	for (auto& pSender : _senders)
-		_session.send(pSender);
+		_client.send(pSender);
 	_senders.clear();
 }
 
 AMFWriter& RTMPWriter::write(AMF::Type type, UInt32 time, Media::Data::Type packetType, const Packet& packet, bool reliable) {
 	if(closed())
         return AMFWriter::Null();
-	_senders.emplace_back(SET, type, time, streamId, _pChannel, _session, _pEncryptKey, packetType, packet);
+	_senders.emplace_back(SET, type, time, streamId, _pChannel, _client.socket(), _pEncryptKey, packetType, packet);
 	return _senders.back()->writer;
 }
 

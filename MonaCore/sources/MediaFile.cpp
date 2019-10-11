@@ -191,10 +191,11 @@ bool MediaFile::Writer::starting(const Parameters& parameters) {
 }
 
 bool MediaFile::Writer::beginMedia(const string& name) {
+	if (!start()) // begin media, we can try to start here (just on beginMedia!)
+		return false;
 	// New media, so open the file to write here => overwrite by default, otherwise append if requested!
 	if (_pFile)
 		return true; // already running (MBR switch)
-	start(); // begin media, we can try to start here (just on beginMedia!)
 	if (!run())
 		return false;
 	_pFile.set(name, path, _pWriter, _pPlaylist, _sequences, io).onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
