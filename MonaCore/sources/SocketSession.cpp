@@ -42,7 +42,7 @@ void SocketSession::onParameters(const Parameters& parameters) {
 void SocketSession::kill(Int32 error, const char* reason) {
 	if (died)
 		return;
-	SocketSession::kill(error, reason); // onPeerDisconnection, before socket disconnection to allow possible last message
+	Session::kill(error, reason); // onPeerDisconnection, before socket disconnection to allow possible last message
 	_pSocket->shutdown();
 }
 

@@ -49,7 +49,7 @@ static int encryptionSize(lua_State *pState) {
 			if(!socket.setEncryptionSize(ex, SCRIPT_READ_UINT8(0)) || ex)
 				SCRIPT_CALLBACK_THROW(ex);
 		}
-		UInt8 size;
+		UInt32 size;
 		if (socket.getEncryptionSize(ex, size)) {
 			if(ex)
 				SCRIPT_CALLBACK_THROW(ex);
@@ -95,7 +95,7 @@ static int overheadBW(lua_State *pState) {
 		Exception ex;
 		if (SCRIPT_NEXT_READABLE && (!socket.setOverheadBW(ex, SCRIPT_READ_UINT8(25)) || ex))
 			SCRIPT_CALLBACK_THROW(ex);
-		UInt8 overheadBW;
+		UInt32 overheadBW;
 		if (socket.getOverheadBW(ex, overheadBW)) {
 			if(ex)
 				SCRIPT_CALLBACK_THROW(ex);
