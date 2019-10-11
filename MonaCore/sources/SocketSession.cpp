@@ -35,7 +35,7 @@ SocketSession::SocketSession(Protocol& protocol, const shared<Socket>& pSocket, 
 void SocketSession::onParameters(const Parameters& parameters) {
 	Session::onParameters(parameters);
 	Exception ex;
-	AUTO_ERROR(_pSocket->processParams(ex, parameters), name(), " socket configuration");
+	AUTO_WARN(_pSocket->processParams(ex, parameters), name(), " socket configuration");
 	DEBUG(name(), " socket buffers set to ", _pSocket->recvBufferSize(), "B in reception and ", _pSocket->sendBufferSize(), "B in sends");
 }
 

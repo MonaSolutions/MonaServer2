@@ -37,6 +37,7 @@ protected:
 
 	virtual void onParameters(const Parameters& parameters);
 
+private:
 	shared<Socket>	_pSocket;
 };
 
