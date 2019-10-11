@@ -46,14 +46,14 @@ MediaServer::Reader::Reader(MediaServer::Type type, const Path& path, Media::Sou
 
 bool MediaServer::Reader::starting(const Parameters& parameters) {
 	// can subscribe after bind + listen for server, no risk to miss an event
-	_pSocket = newSocket(parameters, _pTLS);
-
-	bool success;
-	Exception ex;
-	AUTO_ERROR(success = _pSocket->bind(ex, address) && _pSocket->listen(ex) && 
-		io.subscribe(ex = nullptr, _pSocket, _onConnnection, _onError), description());
-	if (success)
-		return run();
+	if (initSocket(_pSocket, parameters, _pTLS)) {
+		bool success;
+		Exception ex;
+		AUTO_ERROR(success = _pSocket->bind(ex, address) && _pSocket->listen(ex) &&
+			io.subscribe(ex = nullptr, _pSocket, _onConnnection, _onError), description());
+		if (success)
+			return run();
+	}
 	stop();
 	return false;
 }
@@ -83,11 +83,12 @@ MediaServer::Writer::Writer(MediaServer::Type type, const Path& path, unique<Med
 
 bool MediaServer::Writer::starting(const Parameters& parameters) {
 	// can subscribe after bind + listen for server, no risk to miss an event
-	_pSocket = newSocket(parameters, _pTLS);
-	bool success;
-	AUTO_ERROR(success = (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, _onConnnection, _onError)), description());
-	if (success)
-		return run();
+	if(initSocket(_pSocket, parameters, _pTLS)) {
+		bool success;
+		AUTO_ERROR(success = (_pSocket->bind(ex, address) && _pSocket->listen(ex) && io.subscribe(ex, _pSocket, _onConnnection, _onError)), description());
+		if (success)
+			return run();
+	}
 	stop();
 	return false;
 }

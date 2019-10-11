@@ -85,12 +85,11 @@ MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, 
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { run(); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
-	newSocket();
+	initSocket();
 }
 
-bool MediaSocket::Reader::newSocket(const Parameters& parameters) {
-	if (!_pSocket)
-		_pSocket = MediaStream::newSocket(parameters, _pTLS);
+bool MediaSocket::Reader::initSocket(const Parameters& parameters) {
+	MediaStream::initSocket(_pSocket, parameters, _pTLS);
 	bool success;
 	if (type == TYPE_UDP) { // Bind if UDP
 		AUTO_ERROR(success = _pSocket->bind(ex, address), description());
@@ -148,7 +147,7 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 }
 
 bool MediaSocket::Reader::starting(const Parameters& parameters) {
-	if (!_pSocket && !newSocket(parameters)) {
+	if (!_pSocket && !initSocket(parameters)) {
 		stop();
 		return false;
 	}
@@ -230,8 +229,8 @@ MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& p
 bool MediaSocket::Writer::initSocket(const Parameters& parameters) {
 	if (_subscribed)
 		return true;
-	if (!_pSocket)
-		_pSocket = MediaStream::newSocket(parameters, _pTLS);
+	if (!MediaStream::initSocket(_pSocket, parameters, _pTLS))
+		return false;
 	AUTO_ERROR(_subscribed = io.subscribe(ex, _pSocket, nullptr, nullptr, _onSocketError, _onSocketDisconnection), description());
 	if (!_subscribed)
 		_pSocket.reset();

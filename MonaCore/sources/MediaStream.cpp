@@ -100,27 +100,28 @@ shared<const File> MediaStream::file() const {
 	return nullptr;
 }
 
-shared<Socket> MediaStream::newSocket(const Parameters& parameters, const shared<TLS>& pTLS) {
+bool MediaStream::initSocket(shared<Socket>& pSocket, const Parameters& parameters, const shared<TLS>& pTLS) {
 	if (type <= 0)
-		return nullptr;
-	shared<Socket> pSocket;
-	switch (type) {
-		case TYPE_SRT:
-#if defined(SRT_API)
-			pSocket.set<SRT::Socket>();
-			break;
-#else
-			ERROR(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
-#endif
-		default:
-			if (pTLS)
-				pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, pTLS);
-			else
-				pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
+		return false;
+	if(!pSocket) {
+		switch (type) {
+			case TYPE_SRT:
+	#if defined(SRT_API)
+				pSocket.set<SRT::Socket>();
+				break;
+	#else
+				ERROR(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
+	#endif
+			default:
+				if (pTLS)
+					pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, pTLS);
+				else
+					pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
+		}
 	}
 	Exception ex;
 	AUTO_WARN(pSocket->processParams(ex, parameters, "stream."), description());
-	return pSocket;
+	return true;
 }
 
 unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {

@@ -47,7 +47,7 @@ struct MediaSocket : virtual Static {
 	
 		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
-		bool newSocket(const Parameters& parameters = Parameters::Null());
+		bool initSocket(const Parameters& parameters = Parameters::Null());
 
 		struct Decoder : HTTPDecoder, virtual Object {
 			Decoder(const Handler& handler, const shared<MediaReader>& pReader, const std::string& name, Type type) :

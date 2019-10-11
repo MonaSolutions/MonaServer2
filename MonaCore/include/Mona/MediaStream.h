@@ -102,7 +102,7 @@ protected:
 		stop();
 	}
 
-	shared<Socket> newSocket(const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
+	bool initSocket(shared<Socket>& pSocket, const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
 
 	template <typename StreamType, typename ...Args>
 	StreamType* addTarget(Args&&... args) {
