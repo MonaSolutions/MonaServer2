@@ -44,6 +44,11 @@ extern "C" {
 #include "luajit-2.1/lualib.h"
 #endif
 #endif
+
+#if !defined(LUA_OK) // luajit <2.1
+#define lua_tointegerx(STATE, INDEX, ISNUM) ((*ISNUM=lua_isnumber(STATE, INDEX)) ? lua_tointeger(STATE, INDEX) : 0 )
+#define lua_tonumberx(STATE, INDEX, ISNUM) ((*ISNUM=lua_isnumber(STATE, INDEX)) ? lua_tonumber(STATE, INDEX) : 0 )
+#endif
 }
 
 #define SCRIPT_LOG(LEVEL, DISPLAYSCALLER, ...)	 { if (Logs::GetLevel() >= LEVEL)  { Script::Log(__pState, LEVEL, __FILE__, __LINE__, DISPLAYSCALLER, __VA_ARGS__); } }
