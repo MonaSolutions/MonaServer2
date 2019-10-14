@@ -29,7 +29,7 @@ template<bool isSend>
 static int encryptionState(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(SRT::Socket, socket);
 		Exception ex;
-		UInt32 state;
+		int state;
 		if (isSend ? socket.getRecvEncryptionState(ex, (SRT_KM_STATE&)state) : socket.getSendEncryptionState(ex, (SRT_KM_STATE&)state)) {
 			static const char* States[] = { "unsecured", "securing", "secured", "nosecret", "badsecret" };
 			if (state < int(sizeof(States) / sizeof(States[0]))) {
