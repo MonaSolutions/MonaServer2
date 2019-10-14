@@ -48,7 +48,7 @@ template<> void Script::ObjClear(lua_State *pState, SocketAddress& address) {
 bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, SocketAddress& address) {
 
 	int isNum; 
-	UInt16 port = range<UInt16>(lua_tointegerxx(pState, index, &isNum));
+	UInt16 port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
 	if (isNum) {
 		// just port?
 		address.setPort(port);
