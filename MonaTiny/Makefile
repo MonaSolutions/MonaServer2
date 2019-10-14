@@ -11,8 +11,8 @@ CXX?=g++
 EXEC?=MonaTiny
 
 # Variables extendable
-override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
-override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I./include -I../
+override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-class-conversion -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
+override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I../
 LIBDIRS+=-L../MonaBase/lib/ -L../MonaCore/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,../MonaCore/lib/,-rpath,/usr/local/lib/"
 override LIBS+=-pthread -lMonaBase -lMonaCore -lcrypto -lssl
