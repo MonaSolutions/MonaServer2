@@ -29,7 +29,7 @@ template<bool isSend>
 static int encryptionState(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(SRT::Socket, socket);
 		Exception ex;
-		int state;
+		UInt32 state;
 		if (isSend ? socket.getRecvEncryptionState(ex, (SRT_KM_STATE&)state) : socket.getSendEncryptionState(ex, (SRT_KM_STATE&)state)) {
 			static const char* States[] = { "unsecured", "securing", "secured", "nosecret", "badsecret" };
 			if (state < (sizeof(States) / sizeof(States[0]))) {
@@ -123,7 +123,7 @@ static int streamId(lua_State *pState) {
 		if (SCRIPT_NEXT_READABLE) {
 			Exception ex;
 			SCRIPT_READ_DATA(data, size);
-			if (data && !socket.setStreamId(ex, STR data, size) || ex)
+			if (data && (!socket.setStreamId(ex, STR data, size) || ex))
 				SCRIPT_CALLBACK_THROW(ex);
 		}
 		SCRIPT_WRITE_STRING(socket.streamId());
@@ -134,7 +134,7 @@ static int passphrase(lua_State *pState) {
 		if (SCRIPT_NEXT_READABLE) {
 			Exception ex;
 			SCRIPT_READ_DATA(data, size);
-			if (data && !socket.setPassphrase(ex, STR data, size) || ex)
+			if (data && (!socket.setPassphrase(ex, STR data, size) || ex))
 				SCRIPT_CALLBACK_THROW(ex);
 		}
 		SCRIPT_WRITE_STRING(socket.streamId());
