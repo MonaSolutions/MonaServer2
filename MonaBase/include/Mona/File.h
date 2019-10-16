@@ -102,11 +102,13 @@ struct File : virtual Object {
 private:
 	Path				_path;
 	volatile bool		_loaded;
-	long				_handle;
 	std::atomic<UInt64>	_readen;
 	std::atomic<UInt64>	_written;
-#if !defined(_WIN32)
+#if defined(_WIN32)
+	HANDLE				_handle;
+#else
 	struct flock		_lock;
+	long				_handle;
 #endif
 
 	//// Used by IOFile /////////////////////
