@@ -19,6 +19,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <sys/stat.h>
 #include <fcntl.h>
 #if !defined(_WIN32)
+#define INVALID_HANDLE_VALUE -1
 #include <unistd.h>
 #if defined(_BSD) && !defined(lseek64) // not defined on 64 bit systems
 	#define lseek64 lseek
@@ -35,7 +36,7 @@ namespace Mona {
 
 File::File(const Path& path, Mode mode) : _flushing(0), _loaded(false), pDecoder(NULL),
 	_written(0), _readen(0), _path(path), mode(mode), _decodingTrack(0),
-	_queueing(0), _ioTrack(0), _handle(-1), externDecoder(false) {
+	_queueing(0), _ioTrack(0), _handle(INVALID_HANDLE_VALUE), externDecoder(false) {
 #if !defined(_WIN32)
 	memset(&_lock, 0, sizeof(_lock));
 #endif
@@ -47,7 +48,7 @@ File::~File() {
 		delete pDecoder;
 	}
 	// No CPU expensive
-	if (_handle == -1)
+	if (_handle == INVALID_HANDLE_VALUE)
 		return;
 #if defined(_WIN32)
 	CloseHandle((HANDLE)_handle);
@@ -95,8 +96,8 @@ bool File::load(Exception& ex) {
 	} else
 		flags = OPEN_EXISTING;
 	
-	_handle = (long)CreateFileW(wFile, mode ? GENERIC_WRITE : GENERIC_READ, mode ? FILE_SHARE_READ : (FILE_SHARE_READ | FILE_SHARE_WRITE), NULL, flags, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
-	if (_handle != -1) {
+	_handle = CreateFileW(wFile, mode ? GENERIC_WRITE : GENERIC_READ, mode ? FILE_SHARE_READ : (FILE_SHARE_READ | FILE_SHARE_WRITE), NULL, flags, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+	if (_handle != INVALID_HANDLE_VALUE) {
 		if(mode==File::MODE_APPEND)
 			SetFilePointer((HANDLE)_handle, 0, NULL, FILE_END);
 		LARGE_INTEGER size;
