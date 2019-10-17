@@ -64,10 +64,10 @@ struct Util : virtual Static {
 		ResultType deltaMax(max - pt); // always positive
 		if (distance<= Type2(deltaMax)) {
 			pt += distance; // distance can be negative
-			if ((TypeM)pt<min)
+			if ((TypeM)pt < min || (TypeM)pt > max)
 				pt += max;
 		} else
-			pt = distance - deltaMax;
+			pt = min + distance - deltaMax - 1;
 		return pt;
 	}
 
