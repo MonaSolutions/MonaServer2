@@ -29,7 +29,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct WSSender : Runner, virtual Object {
-	WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& packet = Packet::Null());
+	WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& packet, const char* name = NULL);
 
 	DataWriter&		writer();
 
@@ -39,16 +39,19 @@ protected:
 	Packet	_packet;
 
 private:
+	const char* name() const { return _name ? _name : (_pSocket->isSecure() ? "WSS" : "WS"); }
+
 	bool send(const Packet& packet);
 
 	unique<DataWriter>	_pWriter;
 	shared<Buffer>		_pBuffer;
 	shared<Socket>		_pSocket;
 	WS::Type			_type;
+	const char*			_name;
 };
 
 struct WSDataSender : WSSender, virtual Object {
-	WSDataSender(const shared<Socket>& pSocket, Media::Data::Type packetType, const Packet& packet) : _packetType(packetType), WSSender(pSocket, WS::TYPE_NIL, packet) {}
+	WSDataSender(const shared<Socket>& pSocket, Media::Data::Type packetType, const Packet& packet, const char* name = NULL) : _packetType(packetType), WSSender(pSocket, WS::TYPE_NIL, packet, name) {}
 private:
 	bool run(Exception&);
 

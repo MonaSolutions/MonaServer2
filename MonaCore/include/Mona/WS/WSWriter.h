@@ -27,8 +27,10 @@ namespace Mona {
 
 
 struct WSWriter : Writer, Media::TrackTarget, virtual Object {
-	WSWriter(TCPClient& client) : _client(client) {}
+	WSWriter(TCPClient& client, const char* name = NULL) : _client(client), _name(name) {}
 	
+	const char*		name() const { return _name ? _name : (_client->isSecure() ? "WSS" : "WS"); }
+
 	UInt64			queueing() const { return _client->queueing(); }
 
 	void			clear() { _senders.clear(); }
@@ -62,9 +64,10 @@ private:
 		if (closed())
 			return NULL;
 		_senders.emplace_back();
-		return &_senders.back().set<SenderType>(_client.socket(), std::forward<Args>(args)...);
+		return &_senders.back().set<SenderType>(_client.socket(), std::forward<Args>(args)..., _name);
 	}
 
+	const char*						_name;
 	TCPClient&						_client;
 	std::vector<shared<WSSender>>	_senders;
 };

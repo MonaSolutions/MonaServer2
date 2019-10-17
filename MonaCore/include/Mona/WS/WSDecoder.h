@@ -27,12 +27,15 @@ namespace Mona {
 
 
 struct WSDecoder : Socket::Decoder, private StreamData<Socket&>, virtual Object {
-	typedef Event<void(WS::Request&)> ON(Request);
+	typedef Event<void(WS::Message&)> ON(Message);
 
-	WSDecoder(const Handler& handler) : _masked(false), _type(0), _size(0), _handler(handler), _message(handler, onRequest) {}
+	WSDecoder(const Handler& handler, const char* name = NULL);
 
-	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
+	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) { decode(Packet(pBuffer), address, pSocket); }
+	void decode(const Packet& packet, const SocketAddress& address, const shared<Socket>& pSocket);
 private:
+	const char* name(const Socket& socket) const { return _name ? _name : (socket.isSecure() ? "WSS" : "WS"); }
+
 	UInt32 onStreamData(Packet& buffer, Socket& socket);
 
 	UInt32			_size;
@@ -40,14 +43,15 @@ private:
 	bool			_masked;
 	const Handler&	_handler;
 	UInt32			_limit;
+	const char*		_name;
 
-	struct Message : StreamData<UInt8,bool, const Socket&> {
-		Message(const Handler& handler, OnRequest& onRequest) : _handler(handler), _onRequest(onRequest) {}
+	struct Message : StreamData<UInt8, bool, const Socket&> {
+		Message(WSDecoder& decoder) : _decoder(decoder), _type(0) {}
+
 	private:
 		UInt32 onStreamData(Packet& buffer, UInt8 type, bool flush, const Socket& socket);
-		const Handler&		_handler;
-		OnRequest&			_onRequest;
-		UInt8				_type;
+		UInt8		_type;
+		WSDecoder& _decoder;
 	} _message;
 };
 

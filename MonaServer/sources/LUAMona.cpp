@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Script.h"
 #include "Mona/ServerAPI.h"
 #include "Mona/UDPSocket.h"
+#include "Mona/WS/WSClient.h"
 #include "Mona/SRT.h"
 #include "LUAMap.h"
 #include "LUAIPAddress.h"
@@ -218,6 +219,7 @@ template<> void Script::ObjInit(lua_State *pState, ServerAPI& api) {
 		SCRIPT_DEFINE_FUNCTION("newUDPSocket", &newIOSocket<UDPSocket>);
 		SCRIPT_DEFINE_FUNCTION("newTCPClient", &newIOSocket<TCPClient>);
 		SCRIPT_DEFINE_FUNCTION("newTCPServer", &newIOSocket<TCPServer>);
+		SCRIPT_DEFINE_FUNCTION("newWSClient", &newIOSocket<WSClient>);
 #if defined(SRT_API)
 		SCRIPT_DEFINE_FUNCTION("newSRTClient", &newIOSocket<SRT::Client>);
 		SCRIPT_DEFINE_FUNCTION("newSRTServer", &newIOSocket<SRT::Server>);

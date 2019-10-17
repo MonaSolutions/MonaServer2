@@ -376,6 +376,9 @@
     <ClInclude Include="include\Mona\SocketSession.h">
       <Filter>Sessions</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\WS\WSClient.h">
+      <Filter>Protocols\WS</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -638,6 +641,9 @@
     </ClCompile>
     <ClCompile Include="sources\SocketSession.cpp">
       <Filter>Sessions</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\WS\WSClient.cpp">
+      <Filter>Protocols\WS</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

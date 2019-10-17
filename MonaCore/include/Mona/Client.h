@@ -87,7 +87,7 @@ struct Client : Entity, virtual Object, Net::Stats {
 
 protected:
 	
-	void setWriter(Writer& writer = Writer::Null(), Net::Stats& netStats = Net::Stats::Null()) { _pWriter = &writer; _pNetStats = &netStats; }
+	void setWriter(Writer& writer = Writer::Null(), Net::Stats& netStats = Net::Stats::Null());
 
 	UInt16		setPing(UInt64 value);
 private:

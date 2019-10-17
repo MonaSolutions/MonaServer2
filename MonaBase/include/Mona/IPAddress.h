@@ -66,6 +66,7 @@ struct IPAddress : virtual Object {
 	IPAddress(const IPAddress& other);
 	IPAddress& set(const IPAddress& other) { return set(other, port()); }
 	IPAddress& operator=(const IPAddress& other) { return set(other); }
+	IPAddress& operator=(std::nullptr_t) { return reset(); }
 
 	// Create/Set an IPAddress from a native internet address. A pointer to a in_addr or a in6_addr structure may be  passed. Additionally, for an IPv6 address, a scope ID may be specified.
 	IPAddress(const in_addr& addr);

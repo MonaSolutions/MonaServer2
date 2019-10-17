@@ -93,7 +93,7 @@ SocketAddress& Peer::onHandshake(SocketAddress& redirection) {
 }
 
 void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response) {
-	if(disconnection) {
+	if(!connection) {
 		if (!writer) {
 			ERROR(ex.set<Ex::Intern>("Client writer given for connection is closed"));
 			return;
@@ -119,8 +119,6 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 			setWriter();
 		} else {
 			writer.onClose = onClose;
-			((Time&)connection).update();
-			(Time&)disconnection = 0;
 			DEBUG("Client ", address, " connection");
 			onParameters(outParams);
 		}
@@ -129,15 +127,13 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 }
 
 void Peer::onDisconnection() {
-	if (disconnection)
+	if (!connection)
 		return;
-	(Time&)connection = 0;
-	((Time&)disconnection).update();
+	writer().onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
+	_api.onDisconnection(self);
 	if (!((Entity::Map<Client>&)_api.clients).erase(id))
 		CRITIC("Client ", String::Hex(id, Entity::SIZE), " seems already disconnected!");
-	writer().onClose = nullptr; // before close, no need to subscribe to event => already disconnecting!
-	_api.onDisconnection(*this);
-	setWriter();
+	setWriter(); // in last to allow a last message!
 }
 
 bool Peer::onInvocation(Exception& ex, const string& name, DataReader& reader, UInt8 responseType) {

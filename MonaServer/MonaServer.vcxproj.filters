@@ -118,5 +118,8 @@
     <ClCompile Include="sources\LUASRTServer.cpp">
       <Filter>LUAClass</Filter>
     </ClCompile>
+    <ClCompile Include="sources\LUAWSClient.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

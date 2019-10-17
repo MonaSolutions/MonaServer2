@@ -27,7 +27,7 @@ namespace Mona {
 
 
 struct WSSession : Session, virtual Object {
-	WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder);
+	WSSession(Protocol& protocol, TCPSession& session, const shared<WSDecoder>& pDecoder);
 
 	WSWriter	writer;
 
@@ -49,7 +49,7 @@ private:
 	void		processMessage(Exception& ex, const Packet& message, bool isBinary = false);
 
 
-	WSDecoder::OnRequest	_onRequest;
+	WSDecoder::OnMessage	_onMessage;
 
 	Publication*			_pPublication;
 	UInt8					_track;

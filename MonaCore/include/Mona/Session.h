@@ -27,11 +27,11 @@ namespace Mona {
 class Session : public virtual Object {
 	shared<Peer> _pPeer; // build it in first to initialize peer&!
 public:
-	enum {
+	enum : Int32 {
 		// Int32 0 =>  Normal close (Client close properly)
 		// Int32 Positive => Can send a last message
 		ERROR_UNEXPECTED = 1, // Unexpected CLIENT close, will display a error log
-		ERROR_SERVER = 2, 
+		ERROR_SERVER = 2, // server shutdown, always possible to send a message to the client!
 		ERROR_IDLE = 3,
 		ERROR_REJECTED = 4, // close requested by the client
 		ERROR_PROTOCOL = 5,
@@ -41,7 +41,6 @@ public:
 		ERROR_UPDATE = 9, // update of one application
 		// Int32 Negative => no possible to distribute a message
 		ERROR_SOCKET = -1,
-		ERROR_SHUTDOWN = -1, // no more message exchange acceptation!
 		ERROR_CONGESTED = -2,
 		ERROR_ZOMBIE = -3 // is already died indeed, impossible to send a message!
 	};

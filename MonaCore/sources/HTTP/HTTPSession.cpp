@@ -73,7 +73,7 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 							disconnection();
 		
 							// Create WSSession
-							WSSession* pSession = new WSSession(*pProtocol, *this, move(request->pWSDecoder));
+							WSSession* pSession = new WSSession(*pProtocol, self, request->pWSDecoder);
 							_pUpgradeSession = pSession;
 							HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
 								HTTP_ADD_HEADER("Upgrade", "WebSocket")
@@ -428,7 +428,8 @@ void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader&
 	MapWriter<Parameters> props(properties);
 	bool append(request->type == HTTP::TYPE_POST);
 	struct AppendReader : WriterReader {
-		void writeOne(DataWriter& writer, bool& again) { writer.writeString(EXPAND("append")); }
+		AppendReader() : WriterReader(STRING) {}
+		void write(DataWriter& writer) { writer.writeString(EXPAND("append")); }
 	} appendReader;
 	SplitReader params(parameters, append ? appendReader : DataReader::Null());
 	if (peer.onWrite(ex, request.path, params, props)) {

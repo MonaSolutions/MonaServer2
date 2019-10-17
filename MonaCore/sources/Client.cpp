@@ -26,7 +26,7 @@ namespace Mona {
 
 Client::Client(const char* protocol, const SocketAddress& address) : // if broadcast address we are on a dummy client, so emulate connection (see Script::Client())!
 	protocol(protocol), _pData(NULL), connection(!address.port() && address.host().isBroadcast() ? Time::Now() : 0),
-	disconnection(!address.port() && address.host().isBroadcast() ? 0 : Time::Now()), _pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()),
+	_pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()), disconnection(Time::Now()), // disconnection has to be on Now value to be used as a timeout reference without onConnection call
 	_rttvar(0), _rto(Net::RTO_INIT), _ping(0), address(address) {
 	if(address.host().isLoopback())
 		((IPAddress&)serverAddress.host()).set(address.host());
@@ -70,6 +70,18 @@ UInt16 Client::setPing(UInt64 value) {
 		_rto = Net::RTO_MAX;
 
 	return _ping;
+}
+
+void Client::setWriter(Writer& writer, Net::Stats& netStats) {
+	_pWriter = &writer;
+	_pNetStats = &netStats;
+	if (writer) { // connection
+		((Time&)connection).update();
+		(Time&)disconnection = 0;
+	} else { // disconnection
+		((Time&)disconnection).update();
+		(Time&)connection = 0;
+	}
 }
 
 

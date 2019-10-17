@@ -54,6 +54,9 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 			return true;
 		}
 	};
+	lua_pushliteral(pState, "|writer");
+	lua_pushlightuserdata(pState, &client.writer());
+	lua_rawset(pState, -4); // in metatable, writer can change!
 	AddType<Writer>(pState, client.writer());
 	AddType<Net::Stats>(pState, client);
 	AddComparator<Mona::Client>(pState);
@@ -82,10 +85,14 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 	SCRIPT_END
 }
 template<> void Script::ObjClear(lua_State *pState, Mona::Client& client) {
-	RemoveType<Writer>(pState, client.writer());
+	lua_getmetatable(pState, -1);
+	lua_pushliteral(pState, "|writer"); // writer can have been changed!
+	lua_rawget(pState, -2);
+	Writer* pWriter = (Writer*)lua_touserdata(pState, -1);
+	lua_pop(pState, 2); // remove pWriter + metatable
+	RemoveType<Writer>(pState, *pWriter);
 	RemoveType<Net::Stats>(pState, client);
 	RemoveObject(pState, client.properties());
-	RemoveObject(pState, client.writer());
 }
 
 }

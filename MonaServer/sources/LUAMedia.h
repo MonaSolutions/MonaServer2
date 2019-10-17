@@ -58,11 +58,11 @@ struct LUAMedia : virtual Static {
 		};
 
 		struct Reader : virtual Object, WriterReader {
-			Reader(const Media::Audio::Tag& audio) : isAudio(true), _pTag((void*)&audio) {}
-			Reader(const Media::Video::Tag& video) : isAudio(false), _pTag((void*)&video) {}
+			Reader(const Media::Audio::Tag& audio) : isAudio(true), _pTag((void*)&audio), WriterReader(OTHER) {}
+			Reader(const Media::Video::Tag& video) : isAudio(false), _pTag((void*)&video), WriterReader(OTHER) {}
 			const bool isAudio;
 		private:
-			void	writeOne(DataWriter& writer, bool& again);
+			void	write(DataWriter& writer);
 
 			void*  _pTag;
 		};

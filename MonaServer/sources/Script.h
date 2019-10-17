@@ -217,8 +217,8 @@ struct Script : virtual Static {
 		// attach destructor
 		if (autoRemove) {
 			lua_pushliteral(pState, "__gc");
-			lua_pushlightuserdata(pState, (void*)&object); // table object in upvalue 1
-			lua_pushboolean(pState, autoRemove < 0); // is new in upvalue 2 (must call delete)
+			lua_pushvalue(pState, -2); // table object in upvalue 1
+			lua_pushlightuserdata(pState, autoRemove < 0 ? (void*)&object : NULL); // object if has to be deleted in upvalue2
 			lua_newuserdata(pState, 0); // userdata in upvalue 3 (to keep it alive)
 			lua_pushvalue(pState, -6); // metatable
 			lua_setmetatable(pState, -2); // metatable of user data, as metatable as object
@@ -236,11 +236,13 @@ struct Script : virtual Static {
 		return object;
 	}
 
-	template<typename Type>
+	template<int index = 0, typename Type>
 	static void RemoveObject(lua_State *pState, Type& object) {
 		//NOTE("remove ", typeof<Type>(), " " , &object);
-		if (!FromObject<Type>(pState, object)) //
-			return;// already removed!
+		if (index)
+			lua_pushvalue(pState, index);
+		else if (!FromObject<Type>(pState, object))
+			return; // already removed!
 		Util::Scoped<UInt32> scopedTop(_RemoveTop, lua_gettop(pState));
 		RemoveType<Type>(pState, object);
 #if defined(_DEBUG)
@@ -394,10 +396,12 @@ private:
 
 	template<typename Type>
 	static void AddType(lua_State* pState, Type& object) {
+		//DEBUG("ADD ", typeof<Type>(),' ', &object);
 		DEBUG_ASSERT(!FromObject(pState, object));
 		DEBUG_ASSERT(_AddTop != 0); // else is a call in a bad location (not encapsulated in AddObject)
 		int top = abs(_AddTop);
-		if(lua_gettop(pState)>top) {
+		bool fixStack = lua_gettop(pState) > top;
+		if(fixStack) {
 			lua_pushvalue(pState, top - 2); // index
 			lua_pushvalue(pState, top - 1); // metatable
 			lua_pushvalue(pState, top); // object
@@ -462,12 +466,16 @@ private:
 			else
 				lua_rawset(pState, top - 2); // set in index!
 		}
+		if (fixStack)
+			lua_pop(pState, 3);
 	}
 
 	template<typename Type>
 	static void RemoveType(lua_State* pState, Type& object) {
+		//DEBUG("REM ", typeof<Type>(), ' ', &object);
 		DEBUG_ASSERT(_RemoveTop != 0); // else is a call in a bad location (not encapsulated in RemoveObject pr DeleteObject)
-		if (UInt32(lua_gettop(pState))>_RemoveTop)
+		bool fixStack = UInt32(lua_gettop(pState)) > _RemoveTop;
+		if (fixStack)
 			lua_pushvalue(pState, _RemoveTop); // object
 		Util::Scoped<UInt32> scopedTop(_RemoveTop, lua_gettop(pState)); // negative if persistent!
 		// -1 object
@@ -497,7 +505,7 @@ private:
 		lua_getmetatable(pState, -1);
 		lua_pushlightuserdata(pState, NULL);
 		lua_rawseti(pState, -2, iType);
-		lua_pop(pState, 1); // remove metatable
+		lua_pop(pState, fixStack ? 2 : 1); // remove metatable
 	}
 
 
@@ -527,9 +535,11 @@ private:
 
 	template<typename Type>
 	static int DeleteObject(lua_State *pState) {
-		Type* pObject = (Type*)lua_touserdata(pState, lua_upvalueindex(1));
-		RemoveObject(pState, *pObject);
-		if (lua_toboolean(pState, lua_upvalueindex(2)))
+		Type* pObject = ToObject<Type>(pState, lua_upvalueindex(1));
+		if(pObject) // else already manually removed!
+			RemoveObject<lua_upvalueindex(1)>(pState, *pObject);
+		pObject = (Type*)lua_touserdata(pState, lua_upvalueindex(2));
+		if (pObject)
 			delete pObject;
 		return 0;
 	}

@@ -60,10 +60,16 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, Socket
 		if (lua_type(pState, ++index) == LUA_TSTRING)
 			return *value == '@' ? address.setWithDNS(ex, value + 1, lua_tostring(pState, index)) : address.set(ex, value, lua_tostring(pState, index));
 		port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
-		if (isNum)
-			return *value == '@' ? address.setWithDNS(ex, value + 1, port) : address.set(ex, value, port);
-		--index;
-		return *value == '@' ? address.setWithDNS(ex, value + 1) : address.set(ex, value);
+		for(;;) {
+			if (isNum)
+				return *value == '@' ? address.setWithDNS(ex, value + 1, port) : address.set(ex, value, port);
+			--index;
+			// try with default port (if already set on address?)
+			bool result = *value == '@' ? address.setWithDNS(ex, value + 1) : address.set(ex, value);
+			if (result || !(port = address.port()) || !ex.cast<Ex::Net::Address::Port>())
+				return result;
+			isNum = true;
+		}
 	}
 	
 	if(lua_istable(pState,index)) {
@@ -78,7 +84,7 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, Socket
 			if (lua_type(pState, ++index)==LUA_TSTRING)
 				return address.set(ex, *pHost, lua_tostring(pState, index));
 			port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
-			if (isNum) {
+			if (isNum || (port = address.port())) {
 				address.set(*pHost, port);
 				return true;
 			}

@@ -52,7 +52,7 @@ struct UDPSocket : virtual Object {
 	template<typename RunnerType>
 	void		send(const shared<RunnerType>& pRunner) { io.threadPool.queue(_sendingTrack, pRunner); }
 	template <typename RunnerType, typename ...Args>
-	void		send(Args&&... args) { send(std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
+	void		send(Args&&... args) { io.threadPool.queue<RunnerType>(_sendingTrack, std::forward<Args>(args)...); }
 	/*!
 	Runner example to send data with custom process in parallel thread */
 	struct Sender : Runner {

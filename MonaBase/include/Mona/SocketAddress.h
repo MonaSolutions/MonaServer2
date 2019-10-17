@@ -54,6 +54,7 @@ struct SocketAddress : private IPAddress, virtual Object {
 	/*!
 	Set a SocketAddress from other */
 	SocketAddress& operator=(const SocketAddress& other) { return set(other); }
+	SocketAddress& operator=(std::nullptr_t) { return reset(); }
 	/*!
 	set SocketAddress from a given IP and a given port */
 	SocketAddress& set(const IPAddress& host, UInt16 port) { IPAddress::set(host, port); return *this; }
@@ -89,7 +90,7 @@ struct SocketAddress : private IPAddress, virtual Object {
 	
 	void setPort(UInt16 port) { IPAddress::setPort(port); }
 
-	IPAddress& reset() { IPAddress::reset(); return *this; }
+	SocketAddress& reset() { IPAddress::reset(); return self; }
 
 	IPAddress::Family		family() const { return IPAddress::family(); }
 	IPAddress&				host() { return *this; }

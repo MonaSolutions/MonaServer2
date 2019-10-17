@@ -177,9 +177,9 @@ void MP4Reader::Track::writeProperties(Media::Properties& properties) {
 	if (!lang[0])
 		return;
 	struct TrackReader : WriterReader {
-		TrackReader(const Track& track) : _track(track) {}
+		TrackReader(const Track& track) : _track(track), WriterReader(OTHER) {}
 	private:
-		void writeOne(DataWriter& writer, bool& again) {
+		void write(DataWriter& writer) {
 			writer.beginObject();
 			writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
 			writer.writeString(_track.lang, strlen(_track.lang));

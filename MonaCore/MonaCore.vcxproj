@@ -306,6 +306,7 @@
     <ClInclude Include="include\Mona\FlashWriter.h" />
     <ClInclude Include="include\Mona\WriterReader.h" />
     <ClInclude Include="include\Mona\WS\WS.h" />
+    <ClInclude Include="include\Mona\WS\WSClient.h" />
     <ClInclude Include="include\Mona\WS\WSDecoder.h" />
     <ClInclude Include="include\Mona\WS\WSProtocol.h" />
     <ClInclude Include="include\Mona\WS\WSSender.h" />
@@ -400,6 +401,7 @@
     <ClCompile Include="sources\FlashStream.cpp" />
     <ClCompile Include="sources\FlashWriter.cpp" />
     <ClCompile Include="sources\WS\WS.cpp" />
+    <ClCompile Include="sources\WS\WSClient.cpp" />
     <ClCompile Include="sources\WS\WSDecoder.cpp" />
     <ClCompile Include="sources\WS\WSSender.cpp" />
     <ClCompile Include="sources\WS\WSSession.cpp" />

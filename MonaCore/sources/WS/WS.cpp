@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-UInt16 WS::ErrorToCode(UInt32 error) {
+UInt16 WS::ErrorToCode(Int32 error) {
 	if (!error)
 		return WS::CODE_NORMAL_CLOSE;
 	switch (error) {

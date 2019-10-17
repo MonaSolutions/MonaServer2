@@ -80,7 +80,7 @@ void LUAMedia::Tag::Writer::clear() {
 	track = 1;
 }
 
-void LUAMedia::Tag::Reader::writeOne(DataWriter& writer, bool& again) {
+void LUAMedia::Tag::Reader::write(DataWriter& writer) {
 	if (isAudio) {
 		const Media::Audio::Tag& tag(*(Media::Audio::Tag*)_pTag);
 		writer.beginObject("audio");

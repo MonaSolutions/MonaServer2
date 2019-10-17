@@ -36,7 +36,7 @@ struct WS : virtual Static {
 		TYPE_PONG		= 0x0a /// Pong frame.
 	};
 
-	enum Code {
+	enum Code : UInt16 {
 		CODE_NORMAL_CLOSE				= 1000,
 		CODE_ENDPOINT_GOING_AWAY		= 1001,
 		CODE_PROTOCOL_ERROR				= 1002,
@@ -51,13 +51,13 @@ struct WS : virtual Static {
 		CODE_UNEXPECTED_CONDITION		= 1011
 	};
 
-	static UInt16			ErrorToCode(UInt32 error);
+	static UInt16			ErrorToCode(Int32 error);
 
 	static BinaryWriter&	WriteKey(BinaryWriter& writer, const std::string& key);
 	static BinaryReader&	Unmask(BinaryReader& reader);
 
-	struct Request : virtual Object, Packet {
-		Request(UInt8 type, const Packet& packet, bool flush) : flush(flush), Packet(std::move(packet)), type(type) {}
+	struct Message : virtual Object, Packet {
+		Message(UInt8 type, const Packet& packet, bool flush) : flush(flush), Packet(std::move(packet)), type(type) {}
 		const UInt8	type;
 		const bool  flush;
 	};

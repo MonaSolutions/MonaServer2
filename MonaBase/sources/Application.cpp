@@ -183,7 +183,7 @@ void Application::defineOptions(Exception& ex, Options& options) {
 
 	options.add(ex, "dump", "d", "Enables packet traces in logs. Optional argument is a string filter to dump just packet which matchs this expression. If no argument is given, all the dumpable packet are gotten.")
 		.argument("filter", false)
-		.handler([this](Exception& ex, const char* value) { Logs::SetDump(value); return true; });
+		.handler([this](Exception& ex, const char* value) { Logs::SetDump(value ? value : ""); return true; });
 	
 	options.add(ex, "dumpLimit", "dl", "If dump is activated this option set the limit of dump messages. Argument is an unsigned integer defining the limit of bytes to show. By default there is not limit.")
 		.argument("limit")

@@ -201,7 +201,7 @@ void MonaServer::onAddressChanged(Client& client,const SocketAddress& oldAddress
 	SCRIPT_END
 }
 
-bool MonaServer::onInvocation(Exception& ex, Client& client,const string& name, DataReader& reader, UInt8 responseType) {
+bool MonaServer::onInvocation(Exception& ex, Client& client, DataReader& reader, UInt8 responseType) {
 	const char* method = name.empty() ? "onMessage" : name.c_str();
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_MEMBER_FUNCTION_BEGIN(client, method)
@@ -211,7 +211,7 @@ bool MonaServer::onInvocation(Exception& ex, Client& client,const string& name, 
 			SCRIPT_FUNCTION_CALL
 			if(SCRIPT_FUNCTION_ERROR)
 				ex.set<Ex::Application::Error>(SCRIPT_FUNCTION_ERROR);
-			else
+			else if(SCRIPT_NEXT_READABLE)
 				SCRIPT_READ_NEXT(ScriptReader(_pState, SCRIPT_NEXT_READABLE).read(client.writer().writeResponse(responseType)));
 		SCRIPT_FUNCTION_END
 	SCRIPT_END

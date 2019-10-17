@@ -25,24 +25,24 @@ using namespace std;
 
 namespace Mona {
 
-WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> pDecoder) : Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
-	_onRequest([this](WS::Request& request) {
+WSSession::WSSession(Protocol& protocol, TCPSession& session, const shared<WSDecoder>& pDecoder) : Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
+	_onMessage([this](WS::Message& message) {
 		Exception ex;
 
-		switch (request.type) {
+		switch (message.type) {
 			case WS::TYPE_BINARY: {
-				processMessage(ex, request, true);
+				processMessage(ex, message, true);
 				break;
 			}
 			case WS::TYPE_TEXT: {
-				processMessage(ex, request);
+				processMessage(ex, message);
 				break;
 			}
 			case WS::TYPE_CLOSE: {
-				BinaryReader reader(request.data(), request.size());
+				BinaryReader reader(message.data(), message.size());
 				UInt16 code(reader.read16());
 				if (reader.available()) // if message, display a log, otherwise not necessary
-					ERROR(name(), " close, ", string(STR reader.current(), reader.available()));
+					ERROR(name(), " close, ", String::Data(reader.current(), reader.available()));
 				switch (code) {
 					case 0: // no error code
 					case WS::CODE_NORMAL_CLOSE:
@@ -76,18 +76,18 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> 
 				return;
 			}
 			case WS::TYPE_PING:
-				writer.writePong(request);
+				writer.writePong(message);
 				writer.flush();
 				break;
 			case WS::TYPE_PONG: {
-				UInt32 elapsed0(BinaryReader(request.data(), request.size()).read32());
+				UInt32 elapsed0(BinaryReader(message.data(), message.size()).read32());
 				UInt32 elapsed1 = UInt32(peer.connection.elapsed());
 				if (elapsed1>elapsed0)
 					peer.setPing(elapsed1 - elapsed0);
 				return;
 			}
 			default:
-				ERROR(ex.set<Ex::Protocol>(name(), String::Format<UInt8>(" request type %#x unknown", request.type)));
+				ERROR(ex.set<Ex::Protocol>(name(), String::Format<UInt8>(" request type %#x unknown", message.type)));
 				break;
 		}
 
@@ -95,10 +95,10 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder> 
 		if (ex)
 			return close(TO_ERROR(ex));
 
-		if (request.flush)
+		if (message.flush)
 			flush();
 	}) {
-	pDecoder->onRequest = _onRequest;
+	pDecoder->onMessage = _onMessage;
 }
 
 void WSSession::kill(Int32 error, const char* reason) {
@@ -106,7 +106,7 @@ void WSSession::kill(Int32 error, const char* reason) {
 		return;
 
 	// Stop reception
-	_onRequest = nullptr;
+	_onMessage = nullptr;
 
 	// unpublish and unsubscribe
 	unpublish();

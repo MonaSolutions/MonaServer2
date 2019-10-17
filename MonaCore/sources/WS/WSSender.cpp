@@ -23,9 +23,8 @@ using namespace std;
 
 namespace Mona {
 
-WSSender::WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& packet) :
-	_pSocket(pSocket), _packet(move(packet)), _type(type), Runner("WSSender") {
-}
+WSSender::WSSender(const shared<Socket>& pSocket, WS::Type type, const Packet& packet, const char* name) :
+	_pSocket(pSocket), _packet(move(packet)), _type(type), Runner("WSSender"), _name(name) {}
 
 DataWriter& WSSender::writer() {
 	if (!_pWriter) { 
@@ -84,7 +83,7 @@ bool WSSender::run(Exception&) {
 
 bool WSSender::send(const Packet& packet) {
 	Exception ex;
-	DUMP_RESPONSE(_pSocket->isSecure() ? "WSS" : "WS", packet.data(), packet.size(), _pSocket->peerAddress());
+	DUMP_RESPONSE(name(), packet.data(), packet.size(), _pSocket->peerAddress());
 	int result = _pSocket->write(ex, packet);
 	if (ex || result<0)
 		DEBUG(ex);

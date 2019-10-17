@@ -45,16 +45,16 @@ struct TCPClient : private StreamData<>, virtual Object {
 	bool		connect(Exception& ex, const SocketAddress& address);
 	bool		connect(Exception& ex, const shared<Socket>& pSocket);
 
-	bool		connecting() const { return _pSocket ? (!_connected && _pSocket->peerAddress()) : false; }
-	bool		connected() const { return _connected; }
-	void		disconnect();
+	bool			connecting() const { return _pSocket ? (!_connected && _pSocket->peerAddress()) : false; }
+	bool			connected() const { return _connected; }
+	virtual void	disconnect();
 
-	bool		send(Exception& ex, const Packet& packet, int flags = 0);
+	virtual bool	send(Exception& ex, const Packet& packet, int flags = 0);
 
 	template<typename RunnerType>
 	void		send(const shared<RunnerType>& pRunner) { io.threadPool.queue(_sendingTrack, pRunner); }
 	template <typename RunnerType, typename ...Args>
-	void		send(Args&&... args) { return send(std::make_shared<RunnerType>(std::forward<Args>(args)...)); }
+	void		send(Args&&... args) { io.threadPool.queue<RunnerType>(_sendingTrack, std::forward<Args>(args)...); }
 	/*!
 	Runner example to send data with custom process in parallel thread */
 	struct Sender : Runner {

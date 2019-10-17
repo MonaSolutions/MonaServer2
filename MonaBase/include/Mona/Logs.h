@@ -102,18 +102,24 @@ struct Logs : virtual Static {
 			Dump(String(std::forward<Args>(args)...), data, size);
 		_Logging = false;
 	}
+	template <typename ...Args>
+	static void Dump(const std::string& name, const UInt8* data, UInt32 size, Args&&... args) { Dump(name.c_str(), data, size, std::forward<Args>(args)...); }
 
 	template <typename ...Args>
 	static void DumpRequest(const char* name, const UInt8* data, UInt32 size, Args&&... args) {
 		if (_DumpRequest)
 			Dump(name, data, size, std::forward<Args>(args)...);
 	}
+	template <typename ...Args>
+	static void DumpRequest(const std::string& name, const UInt8* data, UInt32 size, Args&&... args) { DumpRequest(name.c_str(), data, size, std::forward<Args>(args)...); }
 
 	template <typename ...Args>
 	static void DumpResponse(const char* name, const UInt8* data, UInt32 size, Args&&... args) {
 		if (_DumpResponse)
 			Dump(name, data, size, std::forward<Args>(args)...);
 	}
+	template <typename ...Args>
+	static void DumpResponse(const std::string& name, const UInt8* data, UInt32 size, Args&&... args) { DumpResponse(name.c_str(), data, size, std::forward<Args>(args)...); }
 
 #if defined(_DEBUG)
 	// To dump easly during debugging => no name filter = always displaid even if no dump argument

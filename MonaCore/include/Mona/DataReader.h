@@ -27,7 +27,7 @@ namespace Mona {
 struct DataReader : virtual Object {
 	NULLABLE
 
-	enum {
+	enum : UInt8 {
 		END=0, // keep equal to 0!
 		NIL,
 		BOOLEAN,

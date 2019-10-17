@@ -23,18 +23,17 @@ using namespace std;
 
 namespace Mona {
 
-
-HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, string&& name) :
-	_name(move(name)), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
+HTTPDecoder::HTTPDecoder(const Handler& handler, const string& www, const char* name) :
+	_name(name), _www(www), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 	FileSystem::MakeFile(_www);
 }
-HTTPDecoder::HTTPDecoder(const Handler& handler, const Path& path, const shared<HTTP::RendezVous>& pRendezVous, string&& name) : _pRendezVous(pRendezVous),
-	_name(move(name)), _www(path), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
+HTTPDecoder::HTTPDecoder(const Handler& handler, const string& www, const shared<HTTP::RendezVous>& pRendezVous, const char* name) : _pRendezVous(pRendezVous),
+	_name(name), _www(www), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 	FileSystem::MakeFile(_www);
 }
 
 void HTTPDecoder::onRelease(Socket& socket) {
-	if (_pUpgradeDecoder || socket.sendTime() >= _lastRequest)
+	if (_pWSDecoder || socket.sendTime() >= _lastRequest)
 		return;
 	// We have gotten a HTTP request and since nothing has been answering,
 	// to avoid client like XMLHttpRequest to interpret it like a timeout and request again (no response = timeout for some browers like chrome|firefox)
@@ -42,28 +41,28 @@ void HTTPDecoder::onRelease(Socket& socket) {
 	// (usefull too for HTTP RDV to signal "no meeting" after timeout!)
 	Exception ignore;
 	static const Packet TimeoutClose(EXPAND("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"));
-	DUMP_RESPONSE(socket.isSecure() ? "HTTPS" : "HTTP", TimeoutClose.data(), TimeoutClose.size(), socket.peerAddress());
+	DUMP_RESPONSE(name(socket), TimeoutClose.data(), TimeoutClose.size(), socket.peerAddress());
 	socket.write(ignore, TimeoutClose);
 }
 
 void HTTPDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
-	if (_stage < BODY && _pUpgradeDecoder) {
+	if (_stage < BODY && _pWSDecoder) {
 		// has upgraded the session, so is no more a HTTP Session!
-		if (!_pUpgradeDecoder.unique())
-			return _pUpgradeDecoder->decode(pBuffer, address, pSocket);
+		if (!_pWSDecoder.unique())
+			return _pWSDecoder->decode(pBuffer, address, pSocket);
 		DEBUG(_ex.set<Ex::Protocol>("HTTP upgrade rejected")); // DEBUG level because can happen on HTTPSession close (not an error and impossible to differenciate the both by the code)
-		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
+		pSocket->shutdown(); // no more reception and sending (error sending can have been sent already by HTTPDecoder handler)s
 	}
 
 	Packet packet(pBuffer); // to capture pBuffer!
-	DUMP_REQUEST(_name.empty() ? (pSocket->isSecure() ? "HTTPS" : "HTTP") : _name.c_str(), packet.data(), packet.size(), address); // dump
+	DUMP_REQUEST(name(*pSocket), packet.data(), packet.size(), address); // dump
 
 	if (_ex) // a request error is killing the session!
 		return;
 
 	if (!addStreamData(packet, pSocket->recvBufferSize(), pSocket)) {
 		ERROR(_ex.set<Ex::Protocol>("HTTP message exceeds buffer maximum ", pSocket->recvBufferSize(), " size"));
-		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
+		pSocket->shutdown(); // no more reception, no response because request is not finished!
 	}
 }
 
@@ -76,22 +75,22 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 		char* key(NULL);
 
 		while (_stage<BODY) {
-			if (buffer.size() < 2) {
-				// useless to parse if we have not at less one line which  to carry \r\n\r\n!
-				UInt32 rest(key ? (STR buffer.data() - key) : (STR buffer.data() - signifiant));
-				if (rest <= 0x2000)
-					return rest;
-				_ex.set<Ex::Protocol>("HTTP header too large (>8KB)");
-				break;	
-			}
-
 			if (!_pHeader) {
 				// reset header var to parse
 				_path.reset();
 				_code = 0;
 				_pHeader.set(*pSocket, _pRendezVous.operator bool());
 			}
-	
+
+			if (buffer.size() < 2) {
+				// useless to parse if we have not at less one line which  to carry \r\n\r\n!
+				UInt32 rest = buffer.size()  + (key ? (STR buffer.data() - key) : (STR buffer.data() - signifiant));
+				if (rest <= 0x2000)
+					return rest;
+				_ex.set<Ex::Protocol>("HTTP header too large (>8KB)");
+				break;	
+			}
+
 			// if == '\r\n' (or '\0\n' since that it can have been modified for key/value parsing)
 			if (*buffer.data()=='\r' && *(buffer.data()+1) == '\n') {
 
@@ -99,21 +98,31 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					// \r\n\r\n!
 					// BEGIN OF FINAL PARSE
 					buffer += 2;
+
+					// Try to fix mime if no content-type with file extension!
+					if (!_pHeader->mime)
+						_pHeader->mime = MIME::Read(_path, _pHeader->subMime);
 					
 					// Upgrade session?
 					if (_pHeader->connection&HTTP::CONNECTION_UPGRADE && String::ICompare(_pHeader->upgrade, "websocket") == 0) {
+						if (_code && _code != 101) {
+							// was response, check is a 101 switching protocol response!
+							_ex.set<Ex::Permission>("Connection ", pSocket->peerAddress(), " refused");
+							break;
+						}
 						// Fix "ws://localhost/test" in "ws://localhost/test/" to connect to "test" application even if the last "/" is forgotten
 						if(!_path.isFolder()) {
 							_pHeader->path += '/';
 							_pHeader->path.append(_path.name());
 						}
-						_pHeader->pWSDecoder.set(_handler);
-						_pUpgradeDecoder = _pHeader->pWSDecoder;
+						_pWSDecoder.set(_handler, _name);
+						_pHeader->pWSDecoder = _pWSDecoder;
+						// following is WebSocket data, not read the content!
+						receive(Packet::Null(), true); // flush immediatly the swithing protocol response!
+						if(buffer)
+							_pWSDecoder->decode(buffer, pSocket->peerAddress(), pSocket);
+						return 0;
 					}
-
-					// Try to fix mime if no content-type with file extension!
-					if (!_pHeader->mime)
-						_pHeader->mime = MIME::Read(_path, _pHeader->subMime);
 
 					if (_pHeader->chunked) {
 						_stage = CHUNKED;
@@ -226,7 +235,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					String::Scoped scoped(STR buffer.data());
 					if (String::ICompare(signifiant, EXPAND("HTTP")) != 0) { // else is response!
 						if (!(_pHeader->type = HTTP::ParseType(signifiant, _pRendezVous.operator bool()))) {
-							_ex.set<Ex::Protocol>("Unknown HTTP type ", string(signifiant, 3));
+							_ex.set<Ex::Protocol>("Unknown HTTP type ", String::Data(signifiant, 3));
 							break;
 						}
 						_pHeader->setString("type", HTTP::TypeToString(_pHeader->type));
@@ -250,7 +259,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						// Response!
 						size_t size = strlen(signifiant);
 						if (size != 3 || !isdigit(signifiant[0]) || !isdigit(signifiant[1]) || !isdigit(signifiant[2])) {
-							_ex.set<Ex::Protocol>("Invalid HTTP code ", string(signifiant, min(size, 3u)));
+							_ex.set<Ex::Protocol>("Invalid HTTP code ", String::Data(signifiant, min(size, 3u)));
 							break;
 						}
 						_code = (signifiant[0] - '0') * 100 + (signifiant[1] - '0') * 10 + (signifiant[2] - '0');
@@ -275,6 +284,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 			++buffer;
 		}; // WHILE < BODY
 
+		if (throwError(*pSocket))
+			return 0;
 ///////////////////// PARSE HEADER //////////////////////////////
 /////////////////////////////////////////////////////////////////
 
@@ -283,7 +294,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 
 		Packet packet(buffer);
 
-		if (_stage == CHUNKED && !_length && !_ex) {
+		if (_stage == CHUNKED && !_length) {
 			for (;;) {
 				if (packet.size() < 2)
 					return buffer.size();
@@ -291,19 +302,13 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					break;
 				++packet;
 			}
-			if (!String::ToNumber(STR buffer.data(), packet.data() - buffer.data(), _length, BASE_16))
+			if (!String::ToNumber(STR buffer.data(), packet.data() - buffer.data(), _length, BASE_16)) {
 				_ex.set<Ex::Protocol>("Invalid HTTP transfer-encoding chunked size ", String::Data(STR buffer.data(), packet.data() - buffer.data()));
+				throwError(*pSocket);
+				return 0;
+			}
 			_length += 2; // wait the both \r\n at the end of payload data!
 			buffer = (packet += 2); // skip chunked size and \r\n
-		}
-
-		if (_ex) {
-			// No more message if was a response, otherwise no more reception (allow a error response)
-			pSocket->shutdown(_pHeader && _pHeader->type ? Socket::SHUTDOWN_RECV : Socket::SHUTDOWN_BOTH);
-			// receive exception to warn the client
-			ERROR(_ex)
-			receive(_ex);
-			return 0;
 		}
 
 		if (_length > packet.size())
@@ -337,6 +342,9 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 		} else if(packet) // progressive (no more header), usefull just if has content (can be empty on end of transfer chunked)
 			receive(packet, !buffer); // !buffer => flush if no more data buffered
 	
+		if (throwError(*pSocket, true))
+			return 0;
+
 		if (!_length)
 			_stage = CMD; // to parse Header next time!
 		else if(_length>0) // chunked mode!
@@ -348,6 +356,21 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 	} while (buffer);
 
 	return 0;
+}
+
+bool HTTPDecoder::throwError(Socket& socket, bool onReceive) {
+	if (!_ex)
+		return false;
+	if (onReceive) {
+		if(_code)
+			_ex.set<Ex::Protocol>(name(socket), " unsupport response");
+		else
+			_ex.set<Ex::Protocol>(name(socket), " unsupport request");
+	}
+	socket.shutdown(_code ? Socket::SHUTDOWN_BOTH : Socket::SHUTDOWN_RECV);
+	ERROR(_ex)
+	receive(_ex); // to signal HTTPDecoder user!;
+	return true;
 }
 
 

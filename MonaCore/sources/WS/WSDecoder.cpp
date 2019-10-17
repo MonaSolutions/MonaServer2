@@ -23,9 +23,13 @@ using namespace std;
 
 namespace Mona {
 
-void WSDecoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+WSDecoder::WSDecoder(const Handler& handler, const char* name) :
+	_name(name), _masked(false), _type(0), _size(0), _handler(handler), _message(self) {
+}
+
+void WSDecoder::decode(const Packet& packet, const SocketAddress& address, const shared<Socket>& pSocket) {
 	_limit = pSocket->recvBufferSize();
-	if (!addStreamData(Packet(pBuffer), _limit, *pSocket)) {
+	if (!addStreamData(packet, _limit, *pSocket)) {
 		ERROR("WS message exceeds buffer maximum ", pSocket->recvBufferSize(), " size");
 		pSocket->shutdown(Socket::SHUTDOWN_RECV); // no more reception
 	}
@@ -74,8 +78,8 @@ UInt32 WSDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			// Control frames(see Section 5.5) MAY be injected in the middle of
 			// a fragmented message.Control frames themselves MUST NOT be
 			// fragmented.
-			DUMP_REQUEST(socket.isSecure() ? "WSS" : "WS", packet.data(), packet.size(), socket.peerAddress());
-			_handler.queue(onRequest, _type&0x0F, packet, !buffer);
+			DUMP_REQUEST(name(socket), packet.data(), packet.size(), socket.peerAddress());
+			_handler.queue(onMessage, _type&0x0F, packet, !buffer);
 		} else
 			_message.addStreamData(packet, _limit, _type, !buffer, socket);
 	} while (buffer);
@@ -90,9 +94,8 @@ UInt32 WSDecoder::Message::onStreamData(Packet& buffer, UInt8 type, bool flush, 
 
 	if (!(type & 0x80))
 		return buffer.size(); // wait next frame!
-
-	DUMP_REQUEST(socket.isSecure() ? "WSS" : "WS", buffer.data(), buffer.size(), socket.peerAddress());
-	_handler.queue(_onRequest, _type, buffer, flush);
+	DUMP_REQUEST(_decoder.name(socket), buffer.data(), buffer.size(), socket.peerAddress());
+	_decoder._handler.queue(_decoder.onMessage, _type, buffer, flush);
 	_type = 0;
 	return 0;
 }
