@@ -64,7 +64,7 @@ template<> void Script::ObjInit(lua_State *pState, WSClient& client) {
 	AddType<Mona::Client>(pState, client);
 	client.onMessage = [pState, &client](Packet& message) {
 		unique<DataReader> pReader;
-		if (binaryData)
+		if (client.binaryData)
 			pReader.set<StringReader>(message.data(), message.size());
 		else  // Use NewReader to check JSON validity
 			pReader = Media::Data::NewReader(Media::Data::TYPE_JSON, message, Media::Data::TYPE_TEXT);

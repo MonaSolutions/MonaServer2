@@ -41,7 +41,7 @@ private:
 	void					onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams);
 	void					onDisconnection(Client& client);
 	void					onAddressChanged(Client& client, const SocketAddress& oldAddress);
-	bool					onInvocation(Exception& ex, Client& client, DataReader& reader, UInt8 responseType);
+	bool					onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& reader, UInt8 responseType);
 	bool					onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient);
 
 	bool					onPublish(Exception& ex, Publication& publication, Client* pClient);
