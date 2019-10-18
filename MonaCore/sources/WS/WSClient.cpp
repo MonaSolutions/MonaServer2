@@ -165,7 +165,7 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, string&& pathAn
 	};
 
 	shared<Buffer> pHeader(SET);
-	String::Assign(*pHeader, "GET ", _url, " HTTP/1.1\r\n");
+	String::Assign(*pHeader, "GET ", url(), " HTTP/1.1\r\n");
 	String::Append(*pHeader, "Host: ", address, "\r\n");
 	String::Append(*pHeader, "Connection: Upgrade\r\n");
 	String::Append(*pHeader, "Upgrade: websocket\r\n");
