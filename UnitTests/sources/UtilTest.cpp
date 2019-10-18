@@ -49,6 +49,10 @@ ADD_TEST(distance) {
 	CHECK(Util::AddDistance(1u, INT_MAX, INT_MAX, INT_MIN) == INT_MIN);
 	CHECK(Util::AddDistance(1u, INT_MAX, INT_MAX) == 0);
 	CHECK(Util::AddDistance(INT_MAX, 1u, INT_MAX, INT_MIN) == INT_MIN);
+	CHECK(Util::AddDistance(INT_MAX, 1u, INT_MAX, INT_MIN) == INT_MIN);
+	CHECK(Util::AddDistance(-95, -6, -20, -100) == -20);
+	CHECK(Util::AddDistance(LLONG_MAX, 1i64, LLONG_MAX, 1i64) == 1);
+	CHECK(Util::AddDistance(LLONG_MAX, 1i64, ULLONG_MAX, 1ui64) == LLONG_MAX+1);
 }
 
 

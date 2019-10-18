@@ -59,16 +59,19 @@ struct Util : virtual Static {
 		return result>0 ? (result - max) : (max + result);
 	}
 
-	template<typename Type1, typename Type2, typename TypeM = typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type, typename ResultType = typename std::make_signed<TypeM>::type>
-	static ResultType AddDistance(Type1 pt, Type2 distance, TypeM max, TypeM min = 0) {
-		ResultType deltaMax(max - pt); // always positive
-		if (distance<= Type2(deltaMax)) {
-			pt += distance; // distance can be negative
-			if ((TypeM)pt < min || (TypeM)pt > max)
-				pt += max;
-		} else
-			pt = min + distance - deltaMax - 1;
-		return pt;
+	template<typename Type1, typename Type2, typename TypeM>
+	static TypeM AddDistance(Type1 pt, Type2 distance, TypeM max, TypeM min = 0) {
+		DEBUG_ASSERT((min <= TypeM(pt)) && (TypeM(pt) <= max));
+		if (distance >= 0) { // move on the right
+			TypeM delta = max - pt; // > 0
+			if (TypeM(distance) > delta) // roundup on the right
+				return min + distance - delta - 1;
+		} else { // move on the left, Type2 is negative!
+			Type2 delta = min - pt; // > 0
+			if (distance < delta) // roundup on the left
+				return max + distance - delta + 1;
+		}
+		return pt + distance;
 	}
 
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
