@@ -44,34 +44,41 @@ struct Util : virtual Static {
 
 	static const UInt8 UInt8Generators[];
 
-	template<typename Type1, typename Type2, typename ResultType = typename std::make_signed<typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type>::type>
-	static ResultType Distance(Type1 value1, Type2 value2) {
-		ResultType result(value2 - value1);
-		return abs(result) > std::ceil(std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max() / 2.0) ? (value1 - value2) : result;
+	template<typename Type, typename ResultType = typename std::make_signed<Type>::type>
+	static ResultType Distance(Type pt1, Type pt2) {
+		ResultType result(pt2 - pt1);
+		return Mona::abs(result) > std::ceil(std::numeric_limits<typename std::make_unsigned<ResultType>::type>::max() / 2.0) ? (pt1 - pt2) : result;
 	}
 
-	template<typename Type1, typename Type2, typename TypeM = typename std::conditional<sizeof(Type1) >= sizeof(Type2), Type1, Type2>::type, typename ResultType = typename std::make_signed<TypeM>::type>
-	static ResultType Distance(Type1 value1, Type2 value2, TypeM max, TypeM min = 0) {
-		ResultType result(value2 - value1);
-		max = TypeM(max - min + 1);
-		if (TypeM(Mona::abs(result)) <= (max / 2))
+	template<typename Type, typename ResultType = typename std::make_signed<Type>::type>
+	static ResultType Distance(Type pt1, Type pt2, Type max, Type min = 0) {
+		DEBUG_ASSERT(min <= pt1 && pt1 <= max);
+		DEBUG_ASSERT(min <= pt2 && pt2 <= max);
+		ResultType result(pt2 - pt1);
+		max -= min;
+		if (Mona::abs(result) <= std::ceil(max / 2.0))
 			return result;
-		return result>0 ? (result - max) : (max + result);
+		return result>0 ? (result - max - 1) : (result + max + 1);
 	}
-
-	template<typename Type1, typename Type2, typename TypeM>
-	static TypeM AddDistance(Type1 pt, Type2 distance, TypeM max, TypeM min = 0) {
-		DEBUG_ASSERT((min <= TypeM(pt)) && (TypeM(pt) <= max));
+	
+	template<typename Type, typename TypeD>
+	static Type AddDistance(Type pt, TypeD distance, Type max, Type min = 0) {
+		DEBUG_ASSERT(min <= pt && pt <= max);
+		std::make_unsigned<Type>::type delta;
 		if (distance >= 0) { // move on the right
-			TypeM delta = max - pt; // > 0
-			if (TypeM(distance) > delta) // roundup on the right
-				return min + distance - delta - 1;
-		} else { // move on the left, Type2 is negative!
-			Type2 delta = min - pt; // > 0
-			if (distance < delta) // roundup on the left
-				return max + distance - delta + 1;
+			while (std::make_unsigned<TypeD>::type(distance) > (delta = (max - pt))) {
+				pt = min;
+				distance -= delta + 1;
+			}
+			return pt + distance;
 		}
-		return pt + distance;
+		// move on the left (distance<0), TypeD is necessary signed!
+		distance = -std::make_signed<TypeD>::type(distance);
+		while (std::make_unsigned<TypeD>::type(distance) > (delta = (pt - min))) {
+			pt = max;
+			distance -= delta + 1;
+		}
+		return pt - distance;
 	}
 
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
