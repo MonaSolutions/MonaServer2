@@ -16,7 +16,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "Test.h"
+#include "Mona/UnitTest.h"
 #include "Mona/Util.h"
 #include <set>
 
@@ -50,7 +50,9 @@ ADD_TEST(distance) {
 
 	
 	CHECK(Util::AddDistance(1, 11, 5) == 0);
+	CHECK(Util::AddDistance(18, 100, 20, 11) == 18);
 	CHECK(Util::AddDistance(1, -11, 5) == 2);
+	
 	CHECK(Util::AddDistance(0x7FFFFFFFu, 1u, 0xFFFFFFFFu, 1u) == 0x80000000);
 	CHECK(Util::AddDistance(4u, -5, 0x1000000u, 1u) == 0xFFFFFF);
 	CHECK(Util::AddDistance(4, -5, 0x1000000, 1) == 0xFFFFFF);

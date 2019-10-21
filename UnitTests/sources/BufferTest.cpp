@@ -16,7 +16,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "Test.h"
+#include "Mona/UnitTest.h"
 #include "Mona/BufferPool.h"
 
 using namespace Mona;
