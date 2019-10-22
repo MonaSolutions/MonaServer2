@@ -15,21 +15,50 @@ In order to use it you need to install the [C++ vc_redist.x86 Visual Studio 2015
 
 You can compile *MonaTiny* using the following procedures.
 
-## Linux
+## Unix-type OS
+
+In general, you can checkout and compile MonaTiny like this:
+
+```
+    git clone https://github.com/MonaSolutions/MonaServer2.git
+    cd MonaServer2
+    make
+```
+
+### Linux
 
 On linux there are 2 prerequisites :
  - g++ 5,
  - and Openssl with headers (usually libssl-dev openssl-devel).
 
-Then you can checkout and compile MonaTiny :
+### BSD/macOSX
 
-    git clone https://github.com/MonaSolutions/MonaServer2.git
-    cd MonaServer2
-    make
+On OSX, you should have installed: 
+
+ - G++-Clang v11.0.0+ (always gets installed with XCode CLI tools)
+ - OpenSSL v1.1.x+ (found on Homebrew)
+ - LuaJIT v2.0.x (found on Homebrew) OR v2.1.x (you can have both installed side-by-side, our build will choose the latter)
+
+#### Build & Install LuaJIT 2.1.0 from source:
+
+You can install LuaJIT from source like so:
+
+```
+wget http://luajit.org/download/LuaJIT-2.1.0-beta3.tar.gz
+   tar zxf LuaJIT-2.1.0-beta3.tar.gz
+cd LuaJIT-2.1.0-beta3
+   make && sudo make install
+````
+
+You might hit this issue: https://github.com/LuaJIT/LuaJIT/issues/484
+
+### Android
+
+TODO
 
 ## Windows
 
-On Windows you have to install [Microsoft Visual Studio Express 2015 for Windows Desktop](https://www.visualstudio.com/fr/post-download-vs/?sku=xdesk&clcid=0x409&telem=ga).
+On Windows you have to install [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads).
 
 Then clone this repository, open the **Mona.sln** project file, right clic on "MonaTiny" then clic on "Build".
 
@@ -43,8 +72,8 @@ Feature                                      | State
 ---------------------------------------------|---------------------
 Windows                                      | OK
 Linux                                        | OK
+BSD/macOSX                                   | OK
 Android                                      | In progress
-BSD/OS X                                     | In progress
 
 ## Protocols
 
@@ -62,7 +91,7 @@ Feature                                      | State
 ---------------------------------------------|---------------------
 Recording                                    | OK
 Congestion control                           | OK
-Multi-servers		                              | NOK
+Multi-servers                                | NOK
 LUA (MonaServer)                             | NOK
 cache system                                 | NOK
 VOD                                          | In progress
