@@ -396,7 +396,7 @@ void Media::Source::writeMedia(const Media::Base& media) {
 			return writeData(data.tag, media, media.track);
 		}
 		default:
-			WARN(typeof(self), " write a unknown media ", media.type);
+			WARN(typeof(self), " write a unknown media ", UInt8(media.type));
 	}
 }
 
