@@ -39,6 +39,13 @@ On OSX, you should have installed:
  - OpenSSL v1.1.x+ (found on Homebrew)
  - LuaJIT v2.0.x (found on Homebrew) OR v2.1.x (you can have both installed side-by-side, our build will choose the latter)
 
+#### Important: Set environment vars for lib/include-paths
+
+```
+export LIBS=-L/usr/local/opt/openssl/lib
+export INCLUDES=-I/usr/local/opt/openssl/include
+```
+
 #### Build & Install LuaJIT 2.1.0 from source:
 
 You can install LuaJIT from source like so:
@@ -48,7 +55,7 @@ wget http://luajit.org/download/LuaJIT-2.1.0-beta3.tar.gz
    tar zxf LuaJIT-2.1.0-beta3.tar.gz
 cd LuaJIT-2.1.0-beta3
    make && sudo make install
-````
+```
 
 You might hit this issue: https://github.com/LuaJIT/LuaJIT/issues/484
 
