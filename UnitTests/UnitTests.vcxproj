@@ -226,15 +226,11 @@
     <ClCompile Include="sources\StopwatchTest.cpp" />
     <ClCompile Include="sources\StreamDataTest.cpp" />
     <ClCompile Include="sources\StringTest.cpp" />
-    <ClCompile Include="sources\Test.cpp" />
     <ClCompile Include="sources\TimerTest.cpp" />
     <ClCompile Include="sources\TimeTest.cpp" />
     <ClCompile Include="sources\SocketTest.cpp" />
     <ClCompile Include="sources\UtilTest.cpp" />
     <ClCompile Include="sources\XMLParserTest.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="sources\Test.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

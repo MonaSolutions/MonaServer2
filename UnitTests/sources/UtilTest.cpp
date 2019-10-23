@@ -16,8 +16,9 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#include "Test.h"
+#include "Mona/UnitTest.h"
 #include "Mona/Util.h"
+#include "limits.h"
 #include <set>
 #include <climits>
 
@@ -47,11 +48,13 @@ ADD_TEST(distance) {
 	CHECK(TestDistance(-1, 0, INT_MAX, INT_MAX));
 	
 	CHECK(TestDistance(-1, INT_MIN, INT_MAX, INT_MAX, INT_MIN));
-	CHECK(TestDistance(LLONG_MAX, UInt64(0), UInt64(LLONG_MAX), ULLONG_MAX));
+	CHECK(TestDistance(LLONG_MAX, UInt64(0), UInt64(LLONG_MAX), UInt64(ULLONG_MAX)));
 
 	
 	CHECK(Util::AddDistance(1, 11, 5) == 0);
+	CHECK(Util::AddDistance(18, 100, 20, 11) == 18);
 	CHECK(Util::AddDistance(1, -11, 5) == 2);
+	
 	CHECK(Util::AddDistance(0x7FFFFFFFu, 1u, 0xFFFFFFFFu, 1u) == 0x80000000);
 	CHECK(Util::AddDistance(4u, -5, 0x1000000u, 1u) == 0xFFFFFF);
 	CHECK(Util::AddDistance(4, -5, 0x1000000, 1) == 0xFFFFFF);

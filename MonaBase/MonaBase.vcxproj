@@ -268,6 +268,7 @@
     <ClCompile Include="sources\Thread.cpp" />
     <ClCompile Include="sources\Timer.cpp" />
     <ClCompile Include="sources\Timezone.cpp" />
+    <ClCompile Include="sources\UnitTest.cpp" />
     <ClCompile Include="sources\Util.cpp" />
     <ClCompile Include="sources\TCPClient.cpp" />
     <ClCompile Include="sources\TCPServer.cpp" />
@@ -337,6 +338,7 @@
     <ClInclude Include="include\Mona\Time.h" />
     <ClInclude Include="include\Mona\Timer.h" />
     <ClInclude Include="include\Mona\Timezone.h" />
+    <ClInclude Include="include\Mona\UnitTest.h" />
     <ClInclude Include="include\Mona\Util.h" />
     <ClInclude Include="include\Mona\WinRegistryKey.h" />
     <ClInclude Include="include\Mona\WinService.h" />
