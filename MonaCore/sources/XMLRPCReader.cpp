@@ -291,7 +291,7 @@ bool XMLRPCReader::readOne(UInt8 type, DataWriter& writer) {
 			return true;
 		}
 		case BYTE: {
-			shared<Buffer> pBuffer;
+			shared<Buffer> pBuffer(SET);
 			if (Util::FromBase64(BIN _data, _size, *pBuffer)) {
 				writer.writeByte(Packet(pBuffer));
 				return true;

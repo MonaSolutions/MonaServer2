@@ -43,7 +43,6 @@ private:
 	const char*		jumpToString(UInt32& size);
 	bool			jumpTo(char marker);
 	bool			countArrayElement(UInt32& count);
-	void			ignoreObjectRest();
 	const UInt8*	current();
 
 	UInt32			_size;

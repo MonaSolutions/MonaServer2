@@ -194,6 +194,8 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 
 	bool started(false);
 	const UInt8* cur(NULL);
+	DataWriter* pWriter = &writer;
+
 	while ((cur=current()) && *cur != '}') {
 
 		if (started) {
@@ -201,7 +203,7 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 				// skip comma , (2nd iteration)
 				ERROR("JSON malformed, comma object separator absent");
 				reader.next(reader.available());
-				writer.endObject();
+				pWriter->endObject();
 				return true;
 			}
 			reader.next();
@@ -214,7 +216,7 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 		if (!name) {
 			if (!started)
 				return  false;
-			writer.endObject();
+			pWriter->endObject();
 			return true;
 		}
 		reader.next(2+_size); // skip "string"
@@ -222,7 +224,7 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 		if (!jumpTo(':')) {
 			if (!started)
 				return  false;
-			writer.endObject();
+			pWriter->endObject();
 			return true;
 		}
 		reader.next();
@@ -235,57 +237,57 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 			}
 			if (*cur == '"') {
 
-				if (_size == 6 && String::ICompare(name, "__type")==0) {
+				if (_size == 6 && String::ICompare(name, EXPAND("__type"))==0) {
 					UInt32 size;
 					const char* value(jumpToString(size));
 					if (!value)
 						return false;
 					reader.next(2+size); // skip "string"
 					String::Scoped scoped(value + size);
-					writer.beginObject(value);
+					pWriter->beginObject(value);
 					started = true;
 					continue;
 				}
 				
-				if (_size == 5 && String::ICompare(name, "__bin")==0) {
+				if (_size == 5 && String::ICompare(name, EXPAND("__bin"))==0) {
 					UInt32 size;
 					const char* value(jumpToString(size));
 					if (!value)
 						return false;
-					shared<Buffer> pBuffer;
+					shared<Buffer> pBuffer(SET);
 					reader.next(2 + size); // skip "data"
 					if (!Util::FromBase64(BIN value, size, *pBuffer)) {
-						WARN("JSON raw ", string(name, _size), " data must be in a base64 encoding format to be acceptable");
-						writer.writeByte(Packet(self, BIN value, size));
+						WARN("JSON raw ", String::Data(name, _size), " data must be in a base64 encoding format to be acceptable");
+						pWriter->writeByte(Packet(self, BIN value, size));
 					} else
-						writer.writeByte(Packet(pBuffer));
-					ignoreObjectRest();
-					return true;
+						pWriter->writeByte(Packet(pBuffer));
+					pWriter = &DataWriter::Null();
+					continue;
 				}
 			}
 
-			writer.beginObject();
+			pWriter->beginObject();
 			started = true;
 		}
 
 		{
 			String::Scoped scoped(name+_size);
-			writer.writePropertyName(name);
+			pWriter->writePropertyName(name);
 		}
 	
 		// write value
-		if (!readNext(writer)) {
+		if (!readNext(*pWriter)) {
 			// here necessary position is at the end of the packet
-			writer.writeNull();
-			writer.endObject();
+			pWriter->writeNull();
+			pWriter->endObject();
 			return true;
 		}
 
 	}
 
 	if (!started)
-		writer.beginObject();
-	writer.endObject();
+		pWriter->beginObject();
+	pWriter->endObject();
 
 	if (cur)
 		reader.next(); // skip }
@@ -394,41 +396,6 @@ bool JSONReader::countArrayElement(UInt32& count) {
 		return false;
 	}
 	return true;
-}
-
-
-void JSONReader::ignoreObjectRest() {
-	UInt8 c;
-	UInt32 inner(0);
-	while (reader.available() && (inner || (c=reader.read8()) != '}')) {
-
-		// skip string
-		if (c == '"') {
-			while (reader.available() && (c=reader.read8()) != '"') {
-				if (c== '\\') {
-					if (reader.available()==0)
-						break;
-					reader.next();
-				}
-			}
-			if(reader.available()==0) {
-				reader.next(reader.available());
-				ERROR("JSON malformed, marker \" end of text not found");
-				return;
-			}
-		} else if (c == '{' || c == '[') {
-			++inner;
-		} else if (c == ']' || c == '}') {
-			if (inner == 0) {
-				reader.next(reader.available());
-				ERROR("JSON malformed, marker ", c, " without beginning");
-				return;
-			}
-			--inner;
-		}
-	}
-	if (reader.available()==0)
-		ERROR("JSON malformed, marker } end of object not found");
 }
 
 } // namespace Mona
