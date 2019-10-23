@@ -22,11 +22,12 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/BinaryWriter.h"
 #include "Mona/Date.h"
 #include "Mona/Exceptions.h"
+#include "Mona/Packet.h"
 
 namespace Mona {
 
 struct DataWriter : virtual Object {
-	NULLABLE
+	NULLABLE // something has been written
 
 ////  TO DEFINE ////	
 	virtual void   writePropertyName(const char* value)=0;
@@ -36,7 +37,7 @@ struct DataWriter : virtual Object {
 	virtual void   writeBoolean(bool value)=0;
 	virtual void   writeNull()=0;
 	virtual UInt64 writeDate(const Date& date)=0;
-	virtual UInt64 writeBytes(const UInt8* data, UInt32 size)=0;
+	virtual UInt64 writeByte(const Packet& bytes)=0;
 ////////////////////
 
 

@@ -80,7 +80,7 @@ void LUAMedia::Tag::Writer::clear() {
 	track = 1;
 }
 
-void LUAMedia::Tag::Reader::write(DataWriter& writer) {
+bool LUAMedia::Tag::Reader::readOne(UInt8 type, DataWriter& writer) {
 	if (isAudio) {
 		const Media::Audio::Tag& tag(*(Media::Audio::Tag*)_pTag);
 		writer.beginObject("audio");
@@ -99,6 +99,7 @@ void LUAMedia::Tag::Reader::write(DataWriter& writer) {
 		writer.writeNumberProperty("compositionOffset", tag.compositionOffset);
 		writer.endObject();
 	}
+	return true;
 }
 
 static int writeAudio(lua_State *pState) {

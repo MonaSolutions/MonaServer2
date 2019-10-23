@@ -64,17 +64,17 @@ struct Util : virtual Static {
 	template<typename Type, typename TypeD>
 	static Type AddDistance(Type pt, TypeD distance, Type max, Type min = 0) {
 		DEBUG_ASSERT(min <= pt && pt <= max);
-		std::make_unsigned<Type>::type delta;
+		typename std::make_unsigned<Type>::type delta;
 		if (distance >= 0) { // move on the right
-			while (std::make_unsigned<TypeD>::type(distance) > (delta = (max - pt))) {
+			while (typename std::make_unsigned<TypeD>::type(distance) > (delta = (max - pt))) {
 				pt = min;
 				distance -= delta + 1;
 			}
 			return pt + distance;
 		}
 		// move on the left (distance<0), TypeD is necessary signed!
-		distance = -std::make_signed<TypeD>::type(distance);
-		while (std::make_unsigned<TypeD>::type(distance) > (delta = (pt - min))) {
+		distance = -typename std::make_signed<TypeD>::type(distance);
+		while (typename std::make_unsigned<TypeD>::type(distance) > (delta = (pt - min))) {
 			pt = max;
 			distance -= delta + 1;
 		}

@@ -38,8 +38,7 @@ protected:
 		UInt8		level;
 	};
 
-	ReferableReader(const UInt8* data, UInt32 size) : DataReader(data, size),_recursive(false) {}
-	ReferableReader() : DataReader() {}
+	ReferableReader(const Packet& packet = Packet::Null(), UInt8 type = END) : DataReader(packet, type),_recursive(false) {}
 
 	Reference*	beginObject(DataWriter& writer, UInt64 reference, const char* type = NULL) { return beginRepeatable(reference,writer.beginObject(type)); }
 	Reference*	beginArray(DataWriter& writer, UInt64 reference, UInt32 size){ return beginRepeatable(reference,writer.beginArray(size)); }
@@ -51,7 +50,7 @@ protected:
 	void		endMap(DataWriter& writer, Reference* pReference) { writer.endMap();  endRepeatable(pReference); }
 
 	void		writeDate(DataWriter& writer, UInt64 reference, const Date& date) { writeRepeatable(reference,writer.writeDate(date)); }
-	void		writeBytes(DataWriter& writer, UInt64 reference, const UInt8* data, UInt32 size) { writeRepeatable(reference,writer.writeBytes(data,size)); }
+	void		writeByte(DataWriter& writer, UInt64 reference, const Packet& bytes) { writeRepeatable(reference,writer.writeByte(bytes)); }
 
 	bool		writeReference(DataWriter& writer, UInt64 reference);
 	bool		tryToRepeat(DataWriter& writer, UInt64 reference);

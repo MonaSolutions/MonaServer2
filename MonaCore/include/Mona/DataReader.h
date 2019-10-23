@@ -20,12 +20,12 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/BinaryReader.h"
-#include "Mona/DataWriter.h"
+#include "Mona/StringWriter.h"
+#include "Mona/ByteWriter.h"
 
 namespace Mona {
 
-struct DataReader : virtual Object {
-	NULLABLE
+struct DataReader : Packet, virtual Object {
 
 	enum : UInt8 {
 		END=0, // keep equal to 0!
@@ -34,7 +34,7 @@ struct DataReader : virtual Object {
 		NUMBER,
 		STRING,
 		DATE,
-		BYTES,
+		BYTE,
 		OTHER
 	};
 
@@ -51,20 +51,18 @@ struct DataReader : virtual Object {
 	bool			available() { return nextType()!=END; }
 
 ////  OPTIONAL DEFINE ////
-	virtual void	reset() { reader.reset(); }
+	virtual void	reset() { _nextType = _type; reader.reset(); }
 ////////////////////
 
 	template <typename BufferType>
-	bool			readString(BufferType& buffer) { BufferWriter<BufferType> writer(buffer); return read(STRING, writer); }
+	bool			readString(BufferType& buffer) { StringWriter<BufferType> writer(buffer); return read(STRING, writer); }
 	template <typename NumberType>
 	bool			readNumber(NumberType& value) {  NumberWriter<NumberType> writer(value); return read(NUMBER, writer); }
 	bool			readBoolean(bool& value) {  BoolWriter writer(value); return read(BOOLEAN, writer); }
 	bool			readDate(Date& date) { DateWriter writer(date); return read(DATE, writer); }
 	bool			readNull() { return read(NIL,DataWriter::Null()); }
-	template <typename BufferType>
-	bool			readBytes(BufferType& buffer) { BufferWriter<BufferType> writer(buffer); return followingType()==STRING ? read(STRING, writer) : read(BYTES, writer); }
+	bool			readByte(Packet& bytes) { ByteWriter writer(bytes); return read(BYTE, writer); }
 
-	operator bool() const { return reader.operator bool(); }
 	BinaryReader*		operator->() { return &reader; }
 	const BinaryReader*	operator->() const { return &reader; }
 	BinaryReader&		operator*() { return reader; }
@@ -73,8 +71,7 @@ struct DataReader : virtual Object {
 	static DataReader&	Null();
 
 protected:
-	DataReader(const UInt8* data, UInt32 size) : reader(data, size, Byte::ORDER_NETWORK), _nextType(END) {}
-	DataReader() : reader(NULL, 0, Byte::ORDER_NETWORK), _nextType(END) {}
+	DataReader(const Packet& packet = Packet::Null(), UInt8 type = END) : Packet(packet), reader(packet.data(), packet.size(), Byte::ORDER_NETWORK), _type(type), _nextType(type) {}
 
 	BinaryReader	reader;
 
@@ -85,87 +82,51 @@ private:
 ////  TO DEFINE ////
 	// must return true if something has been written in DataWriter object (so if DataReader has always something to read and write, !=END)
 	virtual bool	readOne(UInt8 type, DataWriter& writer) = 0;
-	virtual UInt8	followingType() = 0;
+	virtual UInt8	followingType() { return _nextType; }
 ////////////////////
 
 	UInt8			_nextType;
+	UInt8			_type;
 	
 	template<typename NumberType>
 	struct NumberWriter : DataWriter {
 		NumberWriter(NumberType& value) : _value(value) {}
-		UInt64	beginObject(const char* type) { return 0; }
-		void	writePropertyName(const char* value) {}
-		void	endObject() {}
-		
-		UInt64	beginArray(UInt32 size) { return 0; }
-		void	endArray() {}
-
+		void	writePropertyName(const char* value) { String::ToNumber(value, _value); }
 		UInt64	writeDate(const Date& date) { _value = (NumberType)date.time(); return 0; }
 		void	writeNumber(double value) { _value = (NumberType)value; }
 		void	writeString(const char* value, UInt32 size) { String::ToNumber(value, size, _value); }
 		void	writeBoolean(bool value) { _value = (value ? 1 : 0); }
 		void	writeNull() { _value = 0; }
-		UInt64	writeBytes(const UInt8* data, UInt32 size) { writeString(STR data,size); return 0; }
+		UInt64	writeByte(const Packet& bytes) { writeString(STR bytes.data(), bytes.size()); return 0; }
 	private:
 		NumberType&	_value;
 	};
 	struct DateWriter : DataWriter {
 		DateWriter(Date& date) : _date(date) {}
-		UInt64	beginObject(const char* type) { return 0; }
-		void	writePropertyName(const char* value) {}
-		void	endObject() {}
-		
-		UInt64	beginArray(UInt32 size) { return 0; }
-		void	endArray() {}
-
+		void	writePropertyName(const char* value) { Exception ex; _date.update(ex, value); }
 		UInt64	writeDate(const Date& date) { _date = date; return 0; }
 		void	writeNumber(double value) { _date = (Int64)value; }
 		void	writeString(const char* value, UInt32 size) { Exception ex; _date.update(ex, value, size); }
 		void	writeBoolean(bool value) { _date = (value ? Time::Now() : 0); }
 		void	writeNull() { _date = 0; }
-		UInt64	writeBytes(const UInt8* data, UInt32 size) { writeString(STR data,size); return 0; }
+		UInt64	writeByte(const Packet& bytes) { writeString(STR bytes.data(), bytes.size()); return 0; }
 
 	private:
 		Date&	_date;
 	};
 	struct BoolWriter : DataWriter {
 		BoolWriter(bool& value) : _value(value) {}
-		UInt64	beginObject(const char* type) { return 0; }
-		void	writePropertyName(const char* value) {}
-		void	endObject() {}
-		
-		UInt64	beginArray(UInt32 size) { return 0; }
-		void	endArray() {}
 
+		void	writePropertyName(const char* value) { _value = !String::IsFalse(value); }
 		UInt64	writeDate(const Date& date) { _value = date ? true : false; return 0; }
 		void	writeNumber(double value) { _value = value ? true : false; }
 		void	writeString(const char* value, UInt32 size) { _value = !String::IsFalse(value, size); }
 		void	writeBoolean(bool value) { _value = value; }
 		void	writeNull() { _value = false; }
-		UInt64	writeBytes(const UInt8* data, UInt32 size) { writeString(STR data,size); return 0; }
+		UInt64	writeByte(const Packet& bytes) { writeString(STR bytes.data(), bytes.size()); return 0; }
 
 	private:
 		bool&	_value;
-	};
-
-	template<typename BufferType>
-	struct BufferWriter : DataWriter {
-		BufferWriter(BufferType& buffer) : _buffer(buffer) { }
-		UInt64	beginObject(const char* type) { return 0; }
-		void	writePropertyName(const char* value) {}
-		void	endObject() {}
-		
-		UInt64	beginArray(UInt32 size) { return 0; }
-		void	endArray() {}
-
-		UInt64	writeDate(const Date& date) { String::Assign(_buffer,date.time()); return 0; }
-		void	writeNumber(double value) { String::Assign(_buffer,value); }
-		void	writeString(const char* value, UInt32 size) { _buffer.clear(); _buffer.append(value, size); }
-		void	writeBoolean(bool value) { String::Assign(_buffer,value); }
-		void	writeNull() { writeString(EXPAND("null")); }
-		UInt64	writeBytes(const UInt8* data, UInt32 size) { writeString(STR data, size); return 0; }
-	private:
-		BufferType&  _buffer;
 	};
 };
 

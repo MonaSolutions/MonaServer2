@@ -90,11 +90,11 @@ UInt64 ScriptWriter::writeDate(const Date& date) {
 	return ref;
 }
 
-UInt64 ScriptWriter::writeBytes(const UInt8* data,UInt32 size) {
+UInt64 ScriptWriter::writeByte(const Packet& bytes) {
 	begin();
-	lua_newtable(_pState);
-	lua_pushlstring(_pState,(const char*)data,size);
-	lua_setfield(_pState,-2,"__raw");
+	SCRIPT_BEGIN(_pState);
+		SCRIPT_WRITE_PACKET(bytes);
+	SCRIPT_END
 	UInt64 ref(reference());
 	end();
 	return ref;

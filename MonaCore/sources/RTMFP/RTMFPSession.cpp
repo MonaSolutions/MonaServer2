@@ -148,14 +148,14 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 		}
 
 		UInt32 time = reader.read32();
-		Packet packet(message, reader.current(), reader.available());
+		message += reader.position();
 		// Capture setPeerInfo!
 		switch (type) {
 			case AMF::TYPE_INVOCATION_AMF3:
 				reader.next();
 			case AMF::TYPE_INVOCATION: {
 				string buffer;
-				AMFReader amf(reader.current(), reader.available());
+				AMFReader amf(Packet(message, reader.current(), reader.available()));
 				if (amf.readString(buffer) && buffer == "setPeerInfo") {
 					amf.read(DataReader::NUMBER, DataWriter::Null()); // callback number, useless here because no response
 					amf.readNull();
@@ -175,7 +175,7 @@ void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 				}
 			}
 		}
-		pStream->process((AMF::Type)type, time, packet, *_pFlow->pWriter, *this);
+		pStream->process((AMF::Type)type, time, message, *_pFlow->pWriter, *this);
 	};
 	_pSession->onFlush = [this](RTMFP::Flush& flush) {
 		_recvTime.update();

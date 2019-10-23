@@ -42,12 +42,12 @@ void QueryWriter::writeString(const char* value, UInt32 size) {
 		write(value);
 }
 
-UInt64 QueryWriter::writeBytes(const UInt8* data, UInt32 size) {
+UInt64 QueryWriter::writeByte(const Packet& bytes) {
 	write();
 	if(_pBuffer)
-		Util::ToBase64(data, size, *_pBuffer, true);
+		Util::ToBase64(bytes.data(), bytes.size(), *_pBuffer, true);
 	else
-		Util::ToBase64(data, size, writer, true);
+		Util::ToBase64(bytes.data(), bytes.size(), writer, true);
 	return 0;
 }
 

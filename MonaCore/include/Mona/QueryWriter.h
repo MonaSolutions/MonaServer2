@@ -42,7 +42,7 @@ struct QueryWriter : DataWriter, virtual Object {
 	void   writeBoolean(bool value) { write(value ? "true" : "false"); }
 	void   writeNull() { write("null"); }
 	UInt64 writeDate(const Date& date) { write(String::Date(date, dateFormat)); return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size);
+	UInt64 writeByte(const Packet& bytes);
 
 	void clear();
 

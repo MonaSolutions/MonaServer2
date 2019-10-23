@@ -261,9 +261,6 @@
     <ClInclude Include="include\Mona\MonaWriter.h">
       <Filter>Multimedia\Serializers</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\PacketWriter.h">
-      <Filter>Serializers</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\MediaReader.h">
       <Filter>Multimedia\Serializers\Patterns</Filter>
     </ClInclude>
@@ -312,9 +309,6 @@
     </ClInclude>
     <ClInclude Include="include\Mona\VTTWriter.h">
       <Filter>Multimedia\Serializers</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\WriterReader.h">
-      <Filter>Serializers\Patterns</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\HEVC.h">
       <Filter>Multimedia</Filter>
@@ -378,6 +372,12 @@
     </ClInclude>
     <ClInclude Include="include\Mona\WS\WSClient.h">
       <Filter>Protocols\WS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\ByteReader.h">
+      <Filter>Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\ByteWriter.h">
+      <Filter>Serializers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

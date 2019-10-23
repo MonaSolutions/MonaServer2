@@ -20,9 +20,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MapReader.h"
 #include "Mona/MapWriter.h"
 #include "Mona/QueryReader.h"
-#include "Mona/StringReader.h"
+#include "Mona/ByteReader.h"
 #include "Mona/SplitReader.h"
-#include "Mona/WriterReader.h"
 #include "Mona/WS/WSSession.h"
 
 
@@ -427,9 +426,9 @@ void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader&
 	Parameters properties;
 	MapWriter<Parameters> props(properties);
 	bool append(request->type == HTTP::TYPE_POST);
-	struct AppendReader : WriterReader {
-		AppendReader() : WriterReader(STRING) {}
-		void write(DataWriter& writer) { writer.writeString(EXPAND("append")); }
+	struct AppendReader : DataReader {
+		AppendReader() : DataReader(Packet::Null(), STRING) {}
+		bool readOne(UInt8 type, DataWriter& writer) { writer.writeString(EXPAND("append")); return true; }
 	} appendReader;
 	SplitReader params(parameters, append ? appendReader : DataReader::Null());
 	if (peer.onWrite(ex, request.path, params, props)) {
@@ -457,7 +456,8 @@ bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& par
 
 	bool hasContent = request->hasKey("content-length");
 	string method;
-	DataReader* pReader = hasContent ? Media::Data::NewReader(Media::Data::ToType(request->subMime), request, Media::Data::TYPE_TEXT).release() : &parameters;
+	Media::Data::Type type = Media::Data::ToType(request->subMime);
+	DataReader* pReader = hasContent ? Media::Data::NewReader<ByteReader>(type, request).release() : &parameters;
 	if (!name) {
 		pReader->readString(method);
 		name = method.c_str();

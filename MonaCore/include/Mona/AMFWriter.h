@@ -48,7 +48,7 @@ struct AMFWriter : DataWriter, virtual Object {
 	void   writeBoolean(bool value);
 	void   writeNull();
 	UInt64 writeDate(const Date& date);
-	UInt64 writeBytes(const UInt8* data, UInt32 size);
+	UInt64 writeByte(const Packet& bytes);
 	
 	bool   amf0;
 

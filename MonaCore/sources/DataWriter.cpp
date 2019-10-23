@@ -35,7 +35,7 @@ DataWriter& DataWriter::Null() {
 		void   writeBoolean(bool value) {}
 		void   writeNull() {}
 		UInt64 writeDate(const Date& date) { return 0; }
-		UInt64 writeBytes(const UInt8* data, UInt32 size) { return 0; }
+		UInt64 writeByte(const Packet& bytes) { return 0; }
 	} Null;
 	return Null;
 }

@@ -19,39 +19,21 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/DataReader.h"
+#include "Mona/DataWriter.h"
 
 namespace Mona {
 
-
-struct JSONReader : DataReader, virtual Object {
-	JSONReader(const Packet& packet);
-
-	bool				isValid() const { return _isValid; }
-	void				reset() { reader.reset(_pos); }
-
+struct ByteWriter : DataWriter {
+	ByteWriter(Packet& bytes) : _bytes(bytes) {}
+	void			writePropertyName(const char* value) { writeString(value, std::strlen(value)); }
+	UInt64			writeDate(const Date& date) { Int64 time = date; writeByte(Packet(&time, sizeof(time))); return 0; }
+	void			writeNumber(double value) { writeByte(Packet(&value, sizeof(value))); }
+	void			writeString(const char* value, UInt32 size) { writeByte(Packet(value, size)); }
+	void			writeBoolean(bool value) { writeByte(value ? Packet(EXPAND("1")) : Packet(EXPAND("0"))); }
+	void			writeNull() { writeByte(Packet(EXPAND("\0"))); }
+	virtual UInt64	writeByte(const Packet& bytes) { _bytes = std::move(bytes); return 0; }
 private:
-	enum {
-		OBJECT =	OTHER,
-		ARRAY =		OTHER+1
-	};
-
-	bool	readOne(UInt8 type, DataWriter& writer);
-	UInt8	followingType();
-
-
-	const char*		jumpToString(UInt32& size);
-	bool			jumpTo(char marker);
-	bool			countArrayElement(UInt32& count);
-	void			ignoreObjectRest();
-	const UInt8*	current();
-
-	UInt32			_size;
-	Date			_date;
-	double			_number;
-	bool			_isValid;
-	UInt32			_pos;
+	Packet&  _bytes;
 };
-
 
 } // namespace Mona

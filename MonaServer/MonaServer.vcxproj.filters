@@ -35,6 +35,9 @@
     <ClInclude Include="sources\LUATimer.h">
       <Filter>LUAClass</Filter>
     </ClInclude>
+    <ClInclude Include="sources\LUAWriter.h">
+      <Filter>LUAClass</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\LUAClient.cpp">

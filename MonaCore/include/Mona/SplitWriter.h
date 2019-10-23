@@ -46,7 +46,7 @@ struct SplitWriter : DataWriter, virtual Object {
 	void   writeBoolean(bool value)											{ for (DataWriter* pWriter : _writers) pWriter->writeBoolean(value); }
 	void   writeNull()														{ for (DataWriter* pWriter : _writers) pWriter->writeNull(); }
 	UInt64 writeDate(const Date& date)										{ for (DataWriter* pWriter : _writers) pWriter->writeDate(date); return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size)						{ for (DataWriter* pWriter : _writers) pWriter->writeBytes(data,size); return 0; }
+	UInt64 writeByte(const Packet& bytes)									{ for (DataWriter* pWriter : _writers) pWriter->writeByte(bytes); return 0; }
 
 	UInt64 beginObjectArray(UInt32 size)									{ for (DataWriter* pWriter : _writers) pWriter->beginObjectArray(size); return 0; }
 

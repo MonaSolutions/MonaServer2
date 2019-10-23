@@ -96,8 +96,25 @@ struct Media : virtual Static {
 		static Type ToType(const std::string& subMime) { return ToType(subMime.c_str()); }
 		static Type ToType(const char* subMime);
 
-		static unique<DataReader> NewReader(Type type, const Packet& packet, Type alternateType= Media::Data::Type::TYPE_UNKNOWN);
-		static unique<DataWriter> NewWriter(Type type, Buffer& buffer, Type alternateType = Media::Data::Type::TYPE_UNKNOWN);
+		
+		static unique<DataReader> NewReader(Type type, const Packet& packet);
+		template<typename AlternateReader>
+		static unique<DataReader> NewReader(Type& type, const Packet& packet) {
+			unique<DataReader> pReader = NewReader(type, packet);
+			if (pReader)
+				return pReader;
+			type = Data::TYPE_UNKNOWN;
+			return new AlternateReader(packet);
+		}
+		static unique<DataWriter> NewWriter(Type type, Buffer& buffer);
+		template<typename AlternateWriter>
+		static unique<DataWriter> NewWriter(Type& type, Buffer& buffer) {
+			unique<DataWriter> pWriter = NewWriter(type, buffer);
+			if (pWriter)
+				return pWriter;
+			type = Data::TYPE_UNKNOWN;
+			return new AlternateWriter(buffer);
+		}
 
 		Data(Media::Data::Type type, const Packet& packet, UInt8 track = 0, bool isProperties=false) : Base(TYPE_DATA, packet, track), isProperties(isProperties), tag(type) {}
 

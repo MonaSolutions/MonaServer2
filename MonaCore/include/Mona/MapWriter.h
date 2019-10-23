@@ -45,7 +45,7 @@ struct MapWriter : DataWriter, virtual Object {
 	void writeBoolean(bool value) { set(value ? "true" : "false");}
 	void writeNull() { set(EXPAND("null")); }
 	UInt64 writeDate(const Date& date) { set(String(date)); return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size) { set(STR data, size); return 0; }
+	UInt64 writeByte(const Packet& packet) { set(STR packet.data(), packet.size()); return 0; }
 	
 private:
 	UInt64 beginComplex(std::string&& count=std::string()) {

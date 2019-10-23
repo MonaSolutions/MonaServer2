@@ -26,7 +26,7 @@ using namespace std;
 namespace Mona {
 
 
-XMLRPCReader::XMLRPCReader(const UInt8* data, UInt32 size) : _isResponse(false),_countingLevel(0),_nextType(END), XMLParser(STR reader.current(),reader.available()), DataReader(data, size),_validating(3),_first(true) {
+XMLRPCReader::XMLRPCReader(const Packet& packet) : _isResponse(false),_countingLevel(0),_nextType(END), XMLParser(STR packet.data(), packet.size()), DataReader(packet),_validating(3),_first(true) {
 	// validating!
 	Exception ex; // ignore exception here
 	if (XMLParser::parse(ex) == XMLParser::RESULT_ERROR)
@@ -114,7 +114,7 @@ bool XMLRPCReader::onStartXMLElement(const char* name, Parameters& attributes) {
 		else if (String::ICompare(name, "dateTime.iso8601") == 0)
 			_nextType = DATE;
 		else if (String::ICompare(name, "base64") == 0)
-			_nextType = BYTES;
+			_nextType = BYTE;
 		else {
 			_xmls.back() = UNKNOWN;
 			ERROR("XML-RPC type ", name, " unknown");
@@ -290,14 +290,14 @@ bool XMLRPCReader::readOne(UInt8 type, DataWriter& writer) {
 				writer.writeBoolean(true);
 			return true;
 		}
-		case BYTES: {
-			Buffer buffer;
-			if (Util::FromBase64(BIN _data, _size, buffer)) {
-				writer.writeBytes(buffer.data(), buffer.size());
+		case BYTE: {
+			shared<Buffer> pBuffer;
+			if (Util::FromBase64(BIN _data, _size, *pBuffer)) {
+				writer.writeByte(Packet(pBuffer));
 				return true;
 			}
 			WARN("XMLRPC base64 data should be in a base64 encoding format");
-			writer.writeBytes(BIN _data, _size);
+			writer.writeByte(Packet(_data, _size));
 			return true;
 		}
 

@@ -329,35 +329,35 @@ Media::Data::Type Media::Data::ToType(const char* subMime) {
 	return TYPE_UNKNOWN;
 }
 
-unique<DataReader> Media::Data::NewReader(Type type, const Packet& packet, Type alternateType) {
+unique<DataReader> Media::Data::NewReader(Type type, const Packet& packet) {
 	switch (type) {
 		case TYPE_JSON: {
-			unique<JSONReader> pReader(SET, packet.data(), packet.size());
+			unique<JSONReader> pReader(SET, packet);
 			if (pReader->isValid())
 				return move(pReader);
 			break;
 		}
 		case TYPE_XMLRPC: {
-			unique<XMLRPCReader> pReader(SET, packet.data(), packet.size());
+			unique<XMLRPCReader> pReader(SET, packet);
 			if (pReader->isValid())
 				return move(pReader);
 			break;
 		}
 		case TYPE_AMF:
 		case TYPE_AMF0:
-			return make_unique<AMFReader>(packet.data(), packet.size());
+			return make_unique<AMFReader>(packet);
 		case TYPE_QUERY:
-			return make_unique<QueryReader>(packet.data(), packet.size());
+			return make_unique<QueryReader>(packet);
 		case TYPE_TEXT:
-			return make_unique<StringReader>(packet.data(), packet.size());
+			return make_unique<StringReader>(packet);
 		case TYPE_MEDIA:
 		case TYPE_UNKNOWN:;
 		// do default to be warned if we have added a Media::Date::Type and we have forgotten to add the related switch/case
 	}
-	return alternateType ? NewReader(alternateType, packet) : nullptr;
+	return nullptr;
 }
 
-unique<DataWriter> Media::Data::NewWriter(Type type, Buffer& buffer, Type alternateType) {
+unique<DataWriter> Media::Data::NewWriter(Type type, Buffer& buffer) {
 	switch (type) {
 		case TYPE_JSON:
 			return make_unique<JSONWriter>(buffer);
@@ -375,7 +375,7 @@ unique<DataWriter> Media::Data::NewWriter(Type type, Buffer& buffer, Type altern
 		case TYPE_UNKNOWN:;
 		// do default to be warned if we have added a Media::Date::Type and we have forgotten to add the related switch/case
 	}
-	return alternateType ? NewWriter(alternateType, buffer) : nullptr;
+	return nullptr;
 }
 
 void Media::Source::addProperties(const Media::Properties& properties) {
@@ -396,7 +396,7 @@ void Media::Source::writeMedia(const Media::Base& media) {
 			return writeData(data.tag, media, media.track);
 		}
 		default:
-			WARN(typeof(self), " write a unknown media ", media.type);
+			WARN(typeof(self), " write an unknown media ", UInt8(media.type));
 	}
 }
 

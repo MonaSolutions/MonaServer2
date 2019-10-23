@@ -27,7 +27,7 @@ namespace Mona {
 
 
 struct AMFReader : ReferableReader, virtual Object {
-	AMFReader(const UInt8* data, UInt32 size);
+	AMFReader(const Packet& packet);
 
 	enum {
 		OBJECT =	OTHER,

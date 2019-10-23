@@ -43,7 +43,7 @@ struct ScriptWriter : DataWriter, virtual Object {
 	void	writeBoolean(bool value) { begin(); lua_pushboolean(_pState, value); end(); }
 	void	writeNull() { begin(); lua_pushnil(_pState); end(); }
 	UInt64	writeDate(const Date& date);
-	UInt64	writeBytes(const UInt8* data,UInt32 size);
+	UInt64	writeByte(const Packet& bytes);
 
 	UInt64	beginMap(Exception& ex, UInt32 size, bool weakKeys = false);
 	void	endMap() { endComplex(); }

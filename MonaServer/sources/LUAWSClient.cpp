@@ -62,25 +62,20 @@ static int connect(lua_State *pState) {
 template<> void Script::ObjInit(lua_State *pState, WSClient& client) {
 	AddType<TCPClient>(pState, client);
 	AddType<Mona::Client>(pState, client);
-	client.onMessage = [pState, &client](Packet& message) {
-		unique<DataReader> pReader;
-		if (client.binaryData)
-			pReader.set<StringReader>(message.data(), message.size());
-		else  // Use NewReader to check JSON validity
-			pReader = Media::Data::NewReader(Media::Data::TYPE_JSON, message, Media::Data::TYPE_TEXT);
+	client.onMessage = [pState, &client](DataReader& message) {
+		static const char* const OnMessage("onMessage");
 		SCRIPT_BEGIN(pState)
 			string name;
-			bool hasName = !client.binaryData && pReader->readString(name);
-			SCRIPT_MEMBER_FUNCTION_BEGIN(client, hasName ? name.c_str() : "onMessage", "onMessage")
-				if (!hasName)
-					message.reset();
-				else
-					hasName = false;
+			message.readString(name);
+			SCRIPT_MEMBER_FUNCTION_BEGIN(client, name.empty() ? OnMessage : name.c_str(), OnMessage)
+				if (!name.empty() && SCRIPT_FUNCTION_NAME == OnMessage)
+					SCRIPT_WRITE_STRING(name);
+				name.clear();
 				ScriptWriter writer(pState);
-				pReader->read(writer);
+				message.read(writer);
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
-			if(hasName) // rpc fails
+			if(!name.empty()) // rpc fails
 				ERROR("Method ", name, " client ", client.address, " not found");
 		SCRIPT_END
 	};

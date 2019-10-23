@@ -97,7 +97,7 @@ bool WSDataSender::run(Exception& ex) {
 		if (pReader)
 			pReader->read(writer()); // Convert to JSON
 		else
-			writer().writeBytes(_packet.data(), _packet.size()); // Write Raw
+			writer().writeByte(_packet); // Write Raw
 		_packet = nullptr;
 	}
 	return WSSender::run(ex);

@@ -26,12 +26,10 @@ namespace Mona {
 
 
 struct StringReader : DataReader, virtual Object {
-	StringReader(const UInt8* data, UInt32 size) : DataReader(data, size) {}
-	StringReader(const char* data, std::size_t size) : DataReader(BIN data, size) {}
+	StringReader(const Packet& packet) : DataReader(packet, STRING) {}
+	StringReader(const char* data, std::size_t size) : DataReader(Packet(data, size), STRING) {}
 
 private:
-	UInt8 followingType() { return reader.available() ? STRING : END; }
-
 	bool readOne(UInt8 type, DataWriter& writer) {
 		// read/write all
 		writer.writeString(STR reader.current(),reader.available());

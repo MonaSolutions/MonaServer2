@@ -26,8 +26,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
-class XMLRPCWriter : public DataWriter, public virtual Object {
-public:
+struct XMLRPCWriter : DataWriter, virtual Object {
 	XMLRPCWriter(Buffer& buffer);
 
 	UInt64 beginObject(const char* type=NULL);
@@ -43,7 +42,7 @@ public:
 	void   writeBoolean(bool value) { beginValue("boolean").write(value ? "1" : "0", 1); endValue("boolean"); }
 	void   writeNull() { beginValue(NULL); endValue(NULL); }
 	UInt64 writeDate(const Date& date);
-	UInt64 writeBytes(const UInt8* data, UInt32 size) { Util::ToBase64(data, size, beginValue("base64"),true); endValue("base64"); return 0; }
+	UInt64 writeByte(const Packet& bytes) { Util::ToBase64(bytes.data(), bytes.size(), beginValue("base64"),true); endValue("base64"); return 0; }
 
 	void clear();
 	

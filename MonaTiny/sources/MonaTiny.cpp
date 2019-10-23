@@ -43,7 +43,7 @@ private:
 		struct HTTPClient : TCPClient {
 			HTTPClient(Mona::Client& client, ServerAPI& api) : _api(api), TCPClient(api.ioSocket),
 				_onResponse([this, &client](HTTP::Response& response) {
-					client.writer().writeResponse(2).writeBytes(response.data(), response.size());
+					client.writer().writeResponse(2).writeByte(response.data(), response.size());
 					client.writer().flush();
 				}) {
 			}

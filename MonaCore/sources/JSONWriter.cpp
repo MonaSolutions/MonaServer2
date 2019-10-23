@@ -139,11 +139,11 @@ UInt64 JSONWriter::writeDate(const Date& date) {
 
 
 
-UInt64 JSONWriter::writeBytes(const UInt8* data,UInt32 size) {
+UInt64 JSONWriter::writeByte(const Packet& bytes) {
 	start();
 
-	writer.write(EXPAND("{\"__raw\":\""));
-	Util::ToBase64(data, size, writer,true);
+	writer.write(EXPAND("{\"__bin\":\""));
+	Util::ToBase64(bytes.data(), bytes.size(), writer,true);
 	writer.write("\"}");
 
 	end();

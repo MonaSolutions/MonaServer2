@@ -19,7 +19,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MP4Reader.h"
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
-#include "Mona/WriterReader.h"
 
 using namespace std;
 
@@ -176,14 +175,15 @@ MP4Reader::Box& MP4Reader::Box::operator-=(UInt32 readen) {
 void MP4Reader::Track::writeProperties(Media::Properties& properties) {
 	if (!lang[0])
 		return;
-	struct TrackReader : WriterReader {
-		TrackReader(const Track& track) : _track(track), WriterReader(OTHER) {}
+	struct TrackReader : DataReader {
+		TrackReader(const Track& track) : _track(track), DataReader(Packet::Null(), OTHER) {}
 	private:
-		void write(DataWriter& writer) {
+		bool readOne(UInt8 type, DataWriter& writer) {
 			writer.beginObject();
 			writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
 			writer.writeString(_track.lang, strlen(_track.lang));
 			writer.endObject();
+			return true;
 		}
 		const Track& _track;
 	} reader(self);

@@ -44,12 +44,12 @@ UInt8 ScriptReader::followingType() {
 			return NIL;
 		case LUA_TTABLE: {
 			if((_pPacket = Script::ToObject<Packet>(_pState, _current)))
-				return BYTES;
+				return BYTE;
 
-			lua_getfield(_pState, _current, "__raw");
+			lua_getfield(_pState, _current, "__bin");
 			if (lua_isstring(_pState, -1)) {
 				lua_pop(_pState, 1);
-				return BYTES;
+				return BYTE;
 			}
 			lua_pop(_pState, 1);
 
@@ -97,14 +97,16 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 			++_current;
 			return true;
 
-		case BYTES:
-			if(_pPacket) {
-				writeBytes(writer, reference, _pPacket->data(), _pPacket->size());
-				return true;
-			}
-			lua_getfield(_pState, _current++, "__raw");
-			writeBytes(writer,reference,(const UInt8*)lua_tostring(_pState,-1),lua_objlen(_pState,-1));
-			lua_pop(_pState,1);
+		case BYTE:
+			++_current;
+			if(!_pPacket) {
+				lua_getfield(_pState, _current, "__bin");
+				size_t size;
+				const char* value = lua_tolstring(_pState, -1, &size);
+				writeByte(writer, reference, Packet(value, size));
+				lua_pop(_pState, 1);
+			} else
+				writeByte(writer, reference, *_pPacket);
 			return true;
 
 		case DATE: {

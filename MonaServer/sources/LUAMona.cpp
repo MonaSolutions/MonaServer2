@@ -210,6 +210,10 @@ template<> void Script::ObjInit(lua_State *pState, ServerAPI& api) {
 	lua_setmetatable(pState, -4); // metatable of parameters becomes metatable of __index of api object!
 
 	SCRIPT_BEGIN(pState);
+		if(Byte::ORDER_NATIVE == Byte::ORDER_BIG_ENDIAN)
+			SCRIPT_DEFINE_BOOLEAN("bigEndian", true)
+		else
+			SCRIPT_DEFINE_BOOLEAN("littleEndian", true)
 		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<const Parameters>::Call<LUAMap<const Parameters>::Mapper<ServerAPI>>);
 		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<const Parameters>::Pairs<LUAMap<const Parameters>::Mapper<ServerAPI>>);
 		SCRIPT_DEFINE_FUNCTION("time", &time);

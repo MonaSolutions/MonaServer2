@@ -24,32 +24,17 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-/*!
-Help to custom writing operation for method which require a DataReader like Writer::writeRaw =>
-struct HTTPHeader : WriterReader {
-	HTTPHeader() : WriterReader(OTHER) {}
-	void write(DataWriter& writer) {
-		writer.beginObject();
-		writer.writeStringProperty("content-type", EXPAND("html"));
-		writer.endObject();
-	}
-} reader;
-client.writer().writeRaw(reader); */
-struct WriterReader : DataReader, virtual Object {
-	WriterReader(UInt8 type) : _done(false), _type(type) {}
 
-	void reset() { _done = false; }
-
-protected:
-	virtual UInt8 followingType() { return _done ? END : _type; }
+struct ByteReader : DataReader, virtual Object {
+	ByteReader(const Packet& packet) : DataReader(packet, BYTE) {}
 
 private:
-	virtual void write(DataWriter& writer) = 0;
-
-	bool readOne(UInt8 type, DataWriter& writer) { _done = true; write(writer); return true; }
-
-	bool  _done;
-	UInt8 _type;
+	bool readOne(UInt8 type, DataWriter& writer) {
+		// read/write all
+		writer.writeByte(self);
+		reader.next(reader.available());
+		return true;
+	}
 };
 
 

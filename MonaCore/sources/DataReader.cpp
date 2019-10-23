@@ -26,8 +26,8 @@ namespace Mona {
 
 DataReader& DataReader::Null() {
 	static struct DataReaderNull : DataReader, virtual Object {
+		DataReaderNull() : DataReader(Packet::Null()) {}
 		bool	readOne(UInt8 type, DataWriter& writer) { return false; }
-		UInt8	followingType() { return END; }
 	} Null;
 	return Null;
 }

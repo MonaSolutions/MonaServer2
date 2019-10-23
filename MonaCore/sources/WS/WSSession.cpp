@@ -17,7 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/WS/WSSession.h"
-#include "Mona/StringReader.h"
+#include "Mona/ByteReader.h"
 #include "Mona/JSONReader.h"
 
 using namespace std;
@@ -150,14 +150,10 @@ void WSSession::unpublish() {
 
 void WSSession::processMessage(Exception& ex, const Packet& message, bool isBinary) {
 
-	unique<DataReader> pReader;
-	if (isBinary)
-		pReader.set<StringReader>(message.data(), message.size());
-	else  // Use NewReader to check JSON validity
-		pReader = Media::Data::NewReader(Media::Data::TYPE_JSON, message);
+	Media::Data::Type type = isBinary ? Media::Data::TYPE_UNKNOWN : Media::Data::TYPE_JSON;
+	unique<DataReader> pReader = Media::Data::NewReader<ByteReader>(type, message); // Use NewReader to check JSON validity
 	string name;
-	bool isJSON(!isBinary && pReader);
-	if (isJSON && pReader->readString(name) && name[0]=='@') {
+	if (type==Media::Data::TYPE_JSON && pReader->readString(name) && name[0]=='@') {
 		if (name == "@publish") {
 			if (!pReader->readString(name)) {
 				ERROR(ex.set<Ex::Protocol>("@publish method takes a stream name in first parameter"));
@@ -182,7 +178,7 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 	
 	} else if (_pPublication) {
 		if (!isBinary)
-			return _pPublication->writeData(isJSON ? Media::Data::TYPE_JSON : Media::Data::TYPE_UNKNOWN, message, _track);
+			return _pPublication->writeData(type, message, _track);
 
 		// Binary => audio or video or data
 
@@ -215,9 +211,7 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 		return;
 	}
 
-	if (!pReader)
-		pReader.set<StringReader>(message.data(), message.size());
-	if (!peer.onInvocation(ex, name, *pReader, isBinary ? WS::TYPE_BINARY : (!isJSON  ? WS::TYPE_TEXT : 0)))
+	if (!peer.onInvocation(ex, name, *pReader, isBinary ? WS::TYPE_BINARY : (!type  ? WS::TYPE_TEXT : 0)))
 		ERROR(ex);
 }
 

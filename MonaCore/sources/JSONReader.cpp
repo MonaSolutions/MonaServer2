@@ -26,7 +26,7 @@ using namespace std;
 namespace Mona {
 
 
-JSONReader::JSONReader(const UInt8* data, UInt32 size) : _pos(reader.position()), DataReader(data, size), _isValid(false) {
+JSONReader::JSONReader(const Packet& packet) : _pos(reader.position()), DataReader(packet), _isValid(false) {
 
 	// check first '[' and last ']' or '{ and '}'
 
@@ -235,7 +235,7 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 			}
 			if (*cur == '"') {
 
-				if (_size >= 4 && String::ICompare(name + (_size - 4), "type")==0) { // finish by "type" ("__type")
+				if (_size == 6 && String::ICompare(name, "__type")==0) {
 					UInt32 size;
 					const char* value(jumpToString(size));
 					if (!value)
@@ -247,18 +247,18 @@ bool JSONReader::readOne(UInt8 type, DataWriter& writer) {
 					continue;
 				}
 				
-				if (_size >= 3 && String::ICompare(name + (_size - 3), "raw")==0) { // finish by "raw" ("__raw")
+				if (_size == 5 && String::ICompare(name, "__bin")==0) {
 					UInt32 size;
 					const char* value(jumpToString(size));
 					if (!value)
 						return false;
-					Buffer buffer;
+					shared<Buffer> pBuffer;
 					reader.next(2 + size); // skip "data"
-					if (!Util::FromBase64(BIN value, size, buffer)) {
+					if (!Util::FromBase64(BIN value, size, *pBuffer)) {
 						WARN("JSON raw ", string(name, _size), " data must be in a base64 encoding format to be acceptable");
-						writer.writeBytes(BIN value, size);
+						writer.writeByte(Packet(self, BIN value, size));
 					} else
-						writer.writeBytes(buffer.data(), buffer.size());
+						writer.writeByte(Packet(pBuffer));
 					ignoreObjectRest();
 					return true;
 				}

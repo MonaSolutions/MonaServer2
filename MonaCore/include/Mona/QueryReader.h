@@ -26,8 +26,8 @@ namespace Mona {
 
 
 struct QueryReader : DataReader, virtual Object {
-	QueryReader(const UInt8* data, UInt32 size) :  DataReader(data, size),_type(END) {}
-	QueryReader(const char* data, std::size_t size=std::string::npos) : DataReader(BIN data, size==std::string::npos ? strlen(data) : size), _type(END) {}
+	QueryReader(const Packet& packet) :  DataReader(packet), _type(END) {}
+	QueryReader(const char* data, std::size_t size=std::string::npos) : DataReader(Packet(data, size==std::string::npos ? strlen(data) : size)), _type(END) {}
 
 	void		reset() { DataReader::reset(); _type = END; }
 

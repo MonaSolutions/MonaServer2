@@ -36,7 +36,7 @@ struct StringWriter : DataWriter, virtual Object {
 	void   writeBoolean(bool value) { if (value) append(EXPAND("true")); else append(EXPAND("false")); }
 	void   writeNull() { append(EXPAND("null")); }
 	UInt64 writeDate(const Date& date) { date.format(Date::FORMAT_SORTABLE, self); return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size) { append(data, size); return 0; }
+	UInt64 writeByte(const Packet& bytes) { append(bytes.data(), bytes.size()); return 0; }
 
 	virtual void clear() { _buffer.clear(); writer.clear(); }
 	virtual StringWriter& append(const void* value, UInt32 size) { _buffer.append(STR value, size); writer.append(value, size); return self; }

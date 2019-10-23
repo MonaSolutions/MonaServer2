@@ -245,6 +245,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     <ClInclude Include="sources\LUASubscription.h" />
     <ClInclude Include="sources\LUATimer.h" />
     <ClInclude Include="sources\LUAVector.h" />
+    <ClInclude Include="sources\LUAWriter.h" />
     <ClInclude Include="sources\LUAXML.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>

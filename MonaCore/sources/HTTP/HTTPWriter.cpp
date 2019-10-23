@@ -23,7 +23,7 @@ using namespace std;
 
 namespace Mona {
 
-struct RawWriter : DataWriter, Packet, virtual Object {
+struct RawWriter : DataWriter, virtual Object {
 
 	RawWriter(Buffer& buffer) : _level(0), DataWriter(buffer), _header(false), _first(true) {}
 
@@ -61,7 +61,7 @@ struct RawWriter : DataWriter, Packet, virtual Object {
 	void writeBoolean(bool value) { append(value ? "true" : "false"); }
 	void writeNull() { append("null"); }
 	UInt64 writeDate(const Date& date) { append(String::Date(date, Date::FORMAT_HTTP));  return 0; }
-	UInt64 writeBytes(const UInt8* data, UInt32 size) { append(String::Data(STR data, size)); return 0; }
+	UInt64 writeByte(const Packet& bytes) { append(bytes); return 0; }
 
 	void   clear() { _header = false; _first = true; _level = 0; DataWriter::clear(); }
 private:

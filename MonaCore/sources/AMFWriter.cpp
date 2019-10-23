@@ -148,15 +148,15 @@ void AMFWriter::writeNumber(double value){
 	writer.writeDouble(value);
 }
 
-UInt64 AMFWriter::writeBytes(const UInt8* data, UInt32 size) {
+UInt64 AMFWriter::writeByte(const Packet& bytes) {
 	if (!_amf3) {
 		if (amf0)
 			WARN("Impossible to write a byte array in AMF0, switch to AMF3");
 		writer.write8(AMF::AMF0_AMF3_OBJECT); // switch in AMF3 format
 	}
 	writer.write8(AMF::AMF3_BYTEARRAY); // bytearray in AMF3 format!
-	writer.write7Bit<UInt32>((size << 1) | 1, 4);
-	writer.write(data,size);
+	writer.write7Bit<UInt32>((bytes.size() << 1) | 1, 4);
+	writer.write(bytes.data(), bytes.size());
 	_references.emplace_back(AMF::AMF3_BYTEARRAY);
 	return (_references.size()<<1) | 0x01;
 }
@@ -274,7 +274,7 @@ Media::Data::Type AMFWriter::convert(Media::Data::Type type, Packet& packet) {
 	if (pReader)
 		pReader->read(self); // Convert to AMF
 	else
-		writeBytes(packet.data(), packet.size()); // Write Raw
+		writeByte(packet); // Write Raw
 	packet = nullptr;
 	return amfType;
 }

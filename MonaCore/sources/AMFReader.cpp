@@ -27,7 +27,7 @@ namespace Mona {
 
 
 
-AMFReader::AMFReader(const UInt8* data, UInt32 size) : ReferableReader(data, size),_amf3(0),_referencing(true) {
+AMFReader::AMFReader(const Packet& packet) : ReferableReader(packet),_amf3(0),_referencing(true) {
 
 }
 
@@ -100,7 +100,7 @@ UInt8 AMFReader::followingType() {
 			case AMF::AMF3_DATE:
 				return DATE;
 			case AMF::AMF3_BYTEARRAY:
-				return BYTES;
+				return BYTE;
 			case AMF::AMF3_ARRAY:
 				return ARRAY;
 			case AMF::AMF3_DICTIONARY:
@@ -236,7 +236,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 			writer.writeNull();
 			return true;
 
-		case BYTES: {
+		case BYTE: {
 			reader.next();
 			// Forced in AMF3 here!
 			UInt32 pos = reader.position();
@@ -252,9 +252,9 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 			if(isInline) {
 				if (_referencing) {
 					_references.emplace_back(pos);
-					writeBytes(writer, (_references.size()<<1) | 0x01, reader.current(), size);
+					writeByte(writer, (_references.size()<<1) | 0x01, Packet(self, reader.current(), size));
 				} else
-					writer.writeBytes(reader.current(), size);
+					writer.writeByte(Packet(self, reader.current(), size));
 				reader.next(size);
 				return true;
 			}
@@ -265,7 +265,7 @@ bool AMFReader::writeOne(UInt8 type, DataWriter& writer) {
 				}
 				UInt32 reset = reader.position();
 				reader.reset(_references[size]);
-				writeBytes(writer, ((++size)<<1) | 0x01, reader.current(), reader.read7Bit<UInt32>(4)>>1);
+				writeByte(writer, ((++size)<<1) | 0x01, Packet(self, reader.current(), reader.read7Bit<UInt32>(4)>>1));
 				reader.reset(reset);
 			}
 			return true;

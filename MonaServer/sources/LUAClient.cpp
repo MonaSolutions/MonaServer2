@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "LUAMap.h"
 #include "Mona/Client.h"
 #include "LUASocketAddress.h"
+#include "LUAWriter.h"
 
 
 using namespace std;
@@ -42,6 +43,8 @@ static int rto(lua_State *pState) {
 	SCRIPT_CALLBACK_RETURN;
 }
 
+template<> Mona::Writer& LUAWriter<Client>::Writer(Client& client) { return client.writer(); }
+
 template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 	struct Mapper : LUAMap<const Parameters>::Mapper<Mona::Client>, virtual Object {
 		Mapper(Mona::Client& client, lua_State* pState) : LUAMap<const Parameters>::Mapper<Mona::Client>(client, client.properties(), pState) {}
@@ -54,10 +57,6 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 			return true;
 		}
 	};
-	lua_pushliteral(pState, "|writer");
-	lua_pushlightuserdata(pState, &client.writer());
-	lua_rawset(pState, -4); // in metatable, writer can change!
-	AddType<Writer>(pState, client.writer());
 	AddType<Net::Stats>(pState, client);
 	AddComparator<Mona::Client>(pState);
 
@@ -82,15 +81,10 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 		SCRIPT_DEFINE_FUNCTION("__tostring", &__tostring);
 		SCRIPT_DEFINE_FUNCTION("ping", &ping);
 		SCRIPT_DEFINE_FUNCTION("rto", &rto);
+		SCRIPT_DEFINE_WRITER(Mona::Client);
 	SCRIPT_END
 }
 template<> void Script::ObjClear(lua_State *pState, Mona::Client& client) {
-	lua_getmetatable(pState, -1);
-	lua_pushliteral(pState, "|writer"); // writer can have been changed!
-	lua_rawget(pState, -2);
-	Writer* pWriter = (Writer*)lua_touserdata(pState, -1);
-	lua_pop(pState, 2); // remove pWriter + metatable
-	RemoveType<Writer>(pState, *pWriter);
 	RemoveType<Net::Stats>(pState, client);
 	RemoveObject(pState, client.properties());
 }

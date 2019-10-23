@@ -40,7 +40,7 @@ struct JSONWriter : DataWriter, virtual Object {
 	void   writeBoolean(bool value) { start(); String::Append(writer,value); end(); }
 	void   writeNull() { start(); writer.write(EXPAND("null")); end(); }
 	UInt64 writeDate(const Date& date);
-	UInt64 writeBytes(const UInt8* data,UInt32 size);
+	UInt64 writeByte(const Packet& bytes);
 
 	void clear();
 	

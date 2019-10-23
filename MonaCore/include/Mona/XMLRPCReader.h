@@ -26,9 +26,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-class XMLRPCReader : public DataReader, private XMLParser, public virtual Object {
-public:
-	XMLRPCReader(const UInt8* data, UInt32 size);
+struct XMLRPCReader : DataReader, private XMLParser, virtual Object {
+	XMLRPCReader(const Packet& packet);
 
 	enum XMLName {
 		ARRAY = OTHER + 2,

@@ -20,7 +20,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FLVReader.h"
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
-#include "Mona/PacketWriter.h"
 #include "Mona/Logs.h"
 
 
@@ -97,7 +96,7 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 		case AMF::TYPE_INVOCATION_AMF3:
 		case AMF::TYPE_INVOCATION: {
 			string name;
-			AMFReader reader(packet.data() + (type & 1), packet.size() - (type & 1)); // packet+1 for TYPE_INVOCATION_AMF3
+			AMFReader reader(packet + (type & 1)); // packet+1 for TYPE_INVOCATION_AMF3
 			reader.readString(name);
 			double number(0);
 			reader.readNumber(number);
@@ -286,10 +285,10 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 	if (*packet.data() == AMF::AMF0_NULL) {
 		// IF NetStream.send(Null,...) => manual publish
 
-		AMFReader reader(packet.data(), packet.size());
+		AMFReader reader(packet);
 		reader.readNull();
-		PacketWriter bytes(packet, reader->current(), reader->available());
-		if (reader.read(DataReader::BYTES, bytes)) {
+		Packet bytes;
+		if (reader.readByte(bytes)) {
 			// netStream.send(null, tag as ByteArray , data as ByteArray, ...)
 			// => audio / video / data
 			Media::Audio::Tag  audio;
@@ -298,36 +297,26 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 			UInt8			   track;
 			BinaryReader tag(bytes.data(), bytes.size());
 			Media::Type type = Media::Unpack(tag, audio, video, data, track);
-			Packet content(packet);
 			switch (type) {
 				case Media::TYPE_AUDIO:
 					audio.time = timestamp;
-					_audioTrack = track; // trick to set _audioTrack of NetStream audio
-					while (content += reader->position()) {
-						bytes.set(content);
-						if (!reader.read(DataReader::BYTES, bytes))
-							return dataHandler(timestamp, content);
+					_audioTrack = track; // trick to fix _audioTrack of NetStream audio (call without bytes)
+					while (reader.readByte(bytes)) {
 						_pPublication->writeAudio(audio, bytes, track);
 						_audioTrack = 1;
 					}
-					break;
+					return dataHandler(timestamp, packet + reader->position());
 				case Media::TYPE_VIDEO:
 					video.time = timestamp;
-					_videoTrack = track; // trick to set _videoTrack of NetStream video
-					while (content += reader->position()) {
-						bytes.set(content);
-						if (!reader.read(DataReader::BYTES, bytes))
-							return dataHandler(timestamp, content);
+					_videoTrack = track; // trick to fix _videoTrack of NetStream video (call without bytes)
+					while (reader.readByte(bytes)) {
 						_pPublication->writeVideo(video, bytes, track);
 						_videoTrack = 1;
 					}
-					break;
+					return dataHandler(timestamp, packet + reader->position());
 				case Media::TYPE_DATA:
-					_dataTrack = track; // trick to set _dataTrack of NetStream data
-					while (content += reader->position()) {
-						bytes.set(content);
-						if (!reader.read(DataReader::BYTES, bytes))
-							return dataHandler(timestamp, content);
+					_dataTrack = track; // trick to fix _dataTrack of NetStream data (call without bytes)
+					while (reader.readByte(bytes)) {
 						_pPublication->writeData(data, bytes, track);
 						_dataTrack = 0;
 					}
@@ -356,7 +345,7 @@ void FlashStream::dataHandler(UInt32 timestamp, const Packet& packet) {
 				if (memcmp(packet.data() + 3, EXPAND("@setDataFrame")) != 0)
 					break;
 				// @setDataFrame
-				AMFReader reader(packet.data(), packet.size());
+				AMFReader reader(packet);
 				reader.next(); // @setDataFrame
 				if (reader.nextType() == DataReader::STRING)
 					reader.next(); // remove onMetaData

@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Test.h"
 #include "Mona/Util.h"
 #include <set>
+#include <climits>
 
 using namespace Mona;
 using namespace std;
@@ -62,8 +63,8 @@ ADD_TEST(distance) {
 	CHECK(Util::AddDistance(INT_MAX, 1, INT_MAX, INT_MIN) == INT_MIN);
 	CHECK(Util::AddDistance(INT_MIN, -1, INT_MAX, INT_MIN) == INT_MAX);
 	CHECK(Util::AddDistance(-95, -6, -20, -100) == -20);
-	CHECK(Util::AddDistance(LLONG_MAX, 1i64, LLONG_MAX, 1i64) == 1);
-	CHECK(Util::AddDistance(UInt64(LLONG_MAX), 1i64, ULLONG_MAX, 1ui64) == UInt64(LLONG_MAX)+1);
+	CHECK(Util::AddDistance(LLONG_MAX, Int64(1), LLONG_MAX, Int64(1)) == 1);
+	CHECK(Util::AddDistance(UInt64(LLONG_MAX), UInt64(1), ULLONG_MAX, UInt64(1)) == UInt64(LLONG_MAX)+1);
 }
 
 

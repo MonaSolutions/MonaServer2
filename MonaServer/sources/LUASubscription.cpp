@@ -142,6 +142,7 @@ template<> void Script::ObjClear(lua_State *pState, Subscription& subscription) 
 	lua_pop(pState, 2);
 }
 
+static const char* const OnMedia("onMedia");
 
 UInt64 LUASubscription::queueing() const {
 	UInt64 queueing = 0;
@@ -170,8 +171,8 @@ bool LUASubscription::beginMedia(const string& name) {
 bool LUASubscription::writeProperties(const Media::Properties& properties) {
 	bool result = true;
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onProperties", "onMedia")
-			if (strcmp(SCRIPT_FUNCTION_NAME, "onMedia") == 0)
+		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onProperties", OnMedia)
+			if (SCRIPT_FUNCTION_NAME == OnMedia)
 				SCRIPT_WRITE_STRING("properties");
 			ScriptWriter writer(_pState);
 			MapReader<Parameters>(properties).read(writer);
@@ -187,7 +188,7 @@ bool LUASubscription::writeProperties(const Media::Properties& properties) {
 bool LUASubscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
 	bool result = true;
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onAudio", "onMedia")
+		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onAudio", OnMedia)
 			SCRIPT_WRITE_INT(track);
 			ScriptWriter writer(_pState);
 			LUAMedia::Tag::Reader(tag).read(writer);
@@ -206,7 +207,7 @@ bool LUASubscription::writeAudio(UInt8 track, const Media::Audio::Tag& tag, cons
 bool LUASubscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
 	bool result = true;
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onVideo", "onMedia")
+		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onVideo", OnMedia)
 			SCRIPT_WRITE_INT(track);
 			ScriptWriter writer(_pState);
 			LUAMedia::Tag::Reader(tag).read(writer);
@@ -224,7 +225,7 @@ bool LUASubscription::writeVideo(UInt8 track, const Media::Video::Tag& tag, cons
 bool LUASubscription::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) {
 	bool result = true;
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onData", "onMedia")
+		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onData", OnMedia)
 			SCRIPT_WRITE_INT(track);
 			SCRIPT_WRITE_STRING(Media::Data::TypeToString(type))
 			Script::NewObject(_pState, new Packet(packet));
@@ -241,8 +242,8 @@ bool LUASubscription::writeData(UInt8 track, Media::Data::Type type, const Packe
 bool LUASubscription::endMedia() {
 	bool result = true; // true by default because no risks even with a garbagecollect called to erase LUASubscription object because "self" argument protect its deletion immediate
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onEnd", "onMedia")
-			if(strcmp(SCRIPT_FUNCTION_NAME, "onMedia")==0)
+		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onEnd", OnMedia)
+			if(SCRIPT_FUNCTION_NAME == OnMedia)
 				SCRIPT_WRITE_NIL;
 			SCRIPT_FUNCTION_CALL
 			if (SCRIPT_NEXT_READABLE)
@@ -253,7 +254,7 @@ bool LUASubscription::endMedia() {
 }
 void LUASubscription::flush() {
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onFlush", "onMedia")
+		SCRIPT_MEMBER_FUNCTION_BEGIN(self(), "onFlush", OnMedia)
 			SCRIPT_FUNCTION_CALL
 		SCRIPT_FUNCTION_END
 	SCRIPT_END

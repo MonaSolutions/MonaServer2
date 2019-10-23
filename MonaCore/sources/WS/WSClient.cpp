@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/WS/WSClient.h"
+#include "Mona/ByteReader.h"
 
 using namespace std;
 
@@ -27,16 +28,6 @@ WSClient::WSClient(IOSocket& io, const char* name) :TCPClient(io), binaryData(fa
 }
 WSClient::WSClient(IOSocket& io, const shared<TLS>& pTLS, const char* name) :TCPClient(io, pTLS), binaryData(false),
 	Client(pTLS ? "WSS" : "WS", SocketAddress::Wildcard()), _writer(self, name ? name : (pTLS ? "WSSClient" : "WSClient")) {
-}
-
-const string& WSClient::url() const {
-	if (!_url.empty())
-		return _url;
-	if (!connecting() && !connected())
-		return _url;
-	shared<Socket> pSocket = ((TCPClient&)self).socket();
-	String::Append(_url, pSocket->isSecure() ? "wss://" : "ws://", pSocket->peerAddress(), path, query);
-	return _url;
 }
 
 UInt16 WSClient::ping() {
@@ -70,7 +61,7 @@ void WSClient::disconnect() {
 	disconnect(); // disconnect can delete this!
 }
 
-bool WSClient::connect(Exception& ex, const SocketAddress& addr, string&& pathAndQuery) {
+bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& pathAndQuery) {
 	Util::UnpackUrl(pathAndQuery, (string&)path, (string&)query);
 	SocketAddress address(addr);
 	if (!address.port())
@@ -79,6 +70,8 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, string&& pathAn
 		return false;
 	if (connection)
 		return true; // already send!
+
+	String::Append(_url, self->isSecure() ? "wss://" : "ws://", self->peerAddress(), pathAndQuery);
 	(SocketAddress&)this->address = socket()->address();
 	(SocketAddress&)this->serverAddress = address;
 	setWriter(_writer, *socket());
@@ -159,13 +152,15 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, string&& pathAn
 			}
 		}
 		// BINARY or TEXT
-		onMessage(message);
+		Media::Data::Type type = binaryData ? Media::Data::TYPE_UNKNOWN : Media::Data::TYPE_JSON;
+		unique<DataReader> pReader = Media::Data::NewReader<ByteReader>(type, message); // Use NewReader to check JSON validity
+		onMessage(*pReader);
 		if (message.flush)
 			_writer.flush();
 	};
 
 	shared<Buffer> pHeader(SET);
-	String::Assign(*pHeader, "GET ", url(), " HTTP/1.1\r\n");
+	String::Assign(*pHeader, "GET ", _url, " HTTP/1.1\r\n");
 	String::Append(*pHeader, "Host: ", address, "\r\n");
 	String::Append(*pHeader, "Connection: Upgrade\r\n");
 	String::Append(*pHeader, "Upgrade: websocket\r\n");

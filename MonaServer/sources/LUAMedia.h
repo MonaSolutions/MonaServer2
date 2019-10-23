@@ -21,7 +21,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Script.h"
 #include "Mona/Media.h"
 #include "Mona/MapWriter.h"
-#include "Mona/WriterReader.h"
 #include "ScriptReader.h"
 #include "ScriptWriter.h"
 
@@ -57,12 +56,12 @@ struct LUAMedia : virtual Static {
 			};
 		};
 
-		struct Reader : virtual Object, WriterReader {
-			Reader(const Media::Audio::Tag& audio) : isAudio(true), _pTag((void*)&audio), WriterReader(OTHER) {}
-			Reader(const Media::Video::Tag& video) : isAudio(false), _pTag((void*)&video), WriterReader(OTHER) {}
+		struct Reader : virtual Object, DataReader {
+			Reader(const Media::Audio::Tag& audio) : isAudio(true), _pTag((void*)&audio), DataReader(Packet::Null(), OTHER) {}
+			Reader(const Media::Video::Tag& video) : isAudio(false), _pTag((void*)&video), DataReader(Packet::Null(), OTHER) {}
 			const bool isAudio;
 		private:
-			void	write(DataWriter& writer);
+			bool	readOne(UInt8 type, DataWriter& writer);
 
 			void*  _pTag;
 		};
