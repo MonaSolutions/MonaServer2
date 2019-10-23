@@ -31,7 +31,7 @@ On linux there are 2 prerequisites :
  - g++ 5,
  - and Openssl with headers (usually libssl-dev openssl-devel).
 
-### BSD/macOSX
+### macOSX
 
 On OSX, you should have installed: 
 
@@ -57,7 +57,7 @@ cd LuaJIT-2.1.0-beta3
    make && sudo make install
 ```
 
-You might hit this issue: https://github.com/LuaJIT/LuaJIT/issues/484
+Depending on the macOSX version, you might hit this issue: https://github.com/LuaJIT/LuaJIT/issues/484
 
 ### Android
 
