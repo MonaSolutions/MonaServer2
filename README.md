@@ -15,9 +15,17 @@ In order to use it you need to install the [C++ vc_redist.x86 Visual Studio 2015
 
 You can compile *MonaTiny* using the following procedures.
 
-## Unix-type OS
+## Windows
 
-In general, you can checkout and compile MonaTiny like this:
+On Windows you have to install [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads).
+
+Then clone this repository, open the **Mona.sln** project file, right clic on "MonaTiny" then clic on "Build".
+
+You can then start MonaTiny (CTRL+F5 or F5 in debug mode) or MonaServer.
+
+## POSIX/Unix-type OS
+
+In general, you can checkout and compile everything like this:
 
 ```
     git clone https://github.com/MonaSolutions/MonaServer2.git
@@ -25,11 +33,32 @@ In general, you can checkout and compile MonaTiny like this:
     make
 ```
 
-### Linux
+You can the run `MonaTiny` & `MonaServer` executables.
 
-On linux there are 2 prerequisites :
- - g++ 5,
- - and Openssl with headers (usually libssl-dev openssl-devel).
+### GNU/Linux
+
+In general here following are our system prerequisites:
+ - g++ 5 (or compliant clang ...)
+ - OpenSSL lib (with headers) (e.g dev-packages `libssl-dev` / `openssl-devel`)
+
+#### Debian/Ubuntu setup steps (assumed prerequisites above are fulfilled)
+
+1. `apt install libssl-dev`
+2. Install LuaJIT as explained
+
+#### Other distros
+
+TODO
+
+#### Issues looking up dynamic libraries when running
+
+If when trying to run the executables, you hit errors about not found "shared objects" or "dylib" files, make sure: 
+1. To call the executable directly from the folder it has been built to
+2. That the built so/dylib files are to be found at the path the executable looks at
+
+#### LuaJIT dependency
+
+You will need to build/install manually a version of [LuaJIT](https://luajit.org) (preferrably 2.1.0, but the previous version 2.0.5 will also work). Find instructions for this further below (same as for macOS) or [here](https://luajit.org/download.html) and [here](https://luajit.org/install.html).
 
 ### macOSX
 
@@ -51,10 +80,10 @@ export INCLUDES=-I/usr/local/opt/openssl/include
 You can install LuaJIT from source like so:
 
 ```
-wget http://luajit.org/download/LuaJIT-2.1.0-beta3.tar.gz
-   tar zxf LuaJIT-2.1.0-beta3.tar.gz
-cd LuaJIT-2.1.0-beta3
-   make && sudo make install
+    wget http://luajit.org/download/LuaJIT-2.1.0-beta3.tar.gz
+    tar zxf LuaJIT-2.1.0-beta3.tar.gz
+    cd LuaJIT-2.1.0-beta3
+    make && sudo make install
 ```
 
 Depending on the macOSX version, you might hit this issue: https://github.com/LuaJIT/LuaJIT/issues/484
@@ -62,14 +91,6 @@ Depending on the macOSX version, you might hit this issue: https://github.com/Lu
 ### Android
 
 TODO
-
-## Windows
-
-On Windows you have to install [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads).
-
-Then clone this repository, open the **Mona.sln** project file, right clic on "MonaTiny" then clic on "Build".
-
-You can then start MonaTiny (CTRL+F5 or F5 in debug mode).
 
 # Current state
 
