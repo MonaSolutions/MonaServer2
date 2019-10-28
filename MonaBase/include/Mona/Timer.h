@@ -33,7 +33,7 @@ struct Timer : virtual Object {
 	OnTimer is a function which returns the timeout in ms of next call, or 0 to stop the timer.
 	"count" parameter informs on the number of raised time */
 	struct OnTimer : std::function<UInt32(UInt32 delay)>, virtual Object {
-		NULLABLE
+		NULLABLE(!_nextRaising)
 
 		OnTimer() : _nextRaising(0), count(0) {}
 		// explicit to forbid to pass in "const OnTimer" parameter directly a lambda function
@@ -43,8 +43,7 @@ struct Timer : virtual Object {
 		~OnTimer() { if (_nextRaising) FATAL_ERROR("OnTimer function deleting while running"); }
 
 		const Time& nextRaising() const { return _nextRaising; }
-		explicit operator bool() const { return _nextRaising ? true : false; }
-
+	
 		template<typename FunctionType>
 		OnTimer& operator=(FunctionType&& function) {
 			std::function<UInt32(UInt32)>::operator=(std::move(function));

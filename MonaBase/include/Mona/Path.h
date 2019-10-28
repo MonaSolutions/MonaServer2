@@ -28,7 +28,7 @@ Powerfull feature to manipulate a path to File or Folder
 /!\ No move or copy constructor because a shared<Path> usage is a lot more faster */
 struct Path : virtual Object {
 	CONST_STRING(_pImpl ? _pImpl->path() : String::Empty());
-	NULLABLE
+	NULLABLE(!_pImpl)
 
 	Path() {}
 	/*!
@@ -42,8 +42,6 @@ struct Path : virtual Object {
 	Path& operator=(Path&& path) { _pImpl = std::move(path._pImpl); return self; }
 	Path& operator=(std::nullptr_t) { return reset(); }
 
-	explicit operator bool() const { return _pImpl ? true : false; }
-	
 	// properties
 	const std::string&	name() const { return _pImpl ? _pImpl->name() : String::Empty(); }
 	const std::string&	baseName() const { return _pImpl ? _pImpl->baseName() : String::Empty(); }
@@ -94,7 +92,7 @@ private:
 		bool			   isFolder() const { return _type == FileSystem::TYPE_FOLDER; }
 		bool			   isAbsolute() const { return _isAbsolute; }
 
-		bool	exists(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh); }
+		bool	exists(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh) ? true : false; }
 		UInt64	size(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).size; }
 		Int64	lastChange(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).lastChange; }
 		Int64	lastAccess(bool refresh) const { std::lock_guard<std::mutex> lock(_mutex); return attributes(refresh).lastAccess; }

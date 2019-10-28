@@ -259,7 +259,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 			//	DEBUG("cc", channel, " => ", *pBuffer);
 				writeData(Media::Data::TYPE_TEXT, Packet(pBuffer), (track - 1) * 4 + channel);
 			});
-			CCaption::OnLang onLang([this, &tag, track](UInt8 channel, const char* lang) {
+			CCaption::OnLang onLang([this, track](UInt8 channel, const char* lang) {
 				if (lang) {
 					DEBUG("Subtitle lang ", lang);
 					setString(String((track - 1) * 4 + channel, ".textLang"), lang);

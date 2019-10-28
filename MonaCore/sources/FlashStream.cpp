@@ -117,7 +117,7 @@ bool FlashStream::process(AMF::Type type, UInt32 time, const Packet& packet, Fla
 			ERROR("Unpacking type '",String::Format<UInt8>("%02x",(UInt8)type),"' unknown");
 	}
 
-	return writer;
+	return writer ? true : false;
 }
 
 

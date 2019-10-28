@@ -45,11 +45,11 @@ void RTMFPSession::Flow::unjoin() {
 RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, shared<Peer>& pPeer) : 
 		_recvLostRate(_recvByteRate), _pFlow(NULL), _mainStream(api, peer), _killing(0), _senderTrack(0), Session(protocol, pPeer), _nextWriterId(0), _timesKeepalive(0) {
 
-	_mainStream.onStart = [this](UInt16 id, FlashWriter& writer) {
+	_mainStream.onStart = [](UInt16 id, FlashWriter& writer) {
 		// Stream Begin signal
 		writer.writeRaw().write16(0).write32(id);
 	};
-	_mainStream.onStop = [this](UInt16 id, FlashWriter& writer) {
+	_mainStream.onStop = [](UInt16 id, FlashWriter& writer) {
 		// Stream EOF signal
 		writer.writeRaw().write16(1).write32(id);
 	};

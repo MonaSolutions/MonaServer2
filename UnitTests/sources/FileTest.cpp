@@ -111,7 +111,7 @@ ADD_TEST(FileWriter) {
 		FATAL_ERROR("FileWriter, ", ex);
 	};
 	bool onFlush = false;
-	writer.onFlush = [&onFlush, &writer](bool deletion) {
+	writer.onFlush = [&onFlush](bool deletion) {
 		onFlush = true;
 		CHECK(!deletion);
 	};

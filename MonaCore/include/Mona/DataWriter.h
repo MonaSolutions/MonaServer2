@@ -27,7 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct DataWriter : virtual Object {
-	NULLABLE // something has been written
+	NULLABLE(!writer) // something has been written
 
 ////  TO DEFINE ////	
 	virtual void   writePropertyName(const char* value)=0;
@@ -68,8 +68,6 @@ struct DataWriter : virtual Object {
 	void		   writeBooleanProperty(const char* name, bool value) { writePropertyName(name); writeBoolean(value); }
 	void		   writeStringProperty(const char* name, const char* value, std::size_t size = std::string::npos) { writePropertyName(name); writeString(value, size==std::string::npos ? strlen(value) : size); }
 	void		   writeStringProperty(const char* name, const std::string& value) { writePropertyName(name); writeString(value.data(), value.size()); }
-
-	operator bool() const { return writer.operator bool(); }
 
 	BinaryWriter*		operator->() { return &writer; }
 	const BinaryWriter*	operator->() const { return &writer; }

@@ -58,7 +58,6 @@ struct MediaServer : virtual Static {
 		shared<Socket>					_pSocket;
 		shared<TLS>						_pTLS;
 		shared<MediaSocket::Reader>	_pTarget;
-		bool						_streaming;
 	};
 
 	struct Writer : MediaStream, virtual Object {

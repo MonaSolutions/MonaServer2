@@ -372,7 +372,7 @@ ADD_TEST(Hex) {
 
 ADD_TEST(URI) {
 	CHECK(String(String::URI(EXPAND("https://127.0.0.1/test/"))) == "https%3A%2F%2F127.0.0.1%2Ftest%2F");
-	CHECK(String(String::URI(EXPAND("sàlùt="))) == "s%E0l%F9t%3D");
+	CHECK(String(String::URI(EXPAND("s\xE0l\xF9t="))) == "s%E0l%F9t%3D");
 }
 
 

@@ -31,7 +31,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 /////  Usefull macros and patchs   //////
 
 #define self    (*this)
-#define NULLABLE explicit operator void() { static_assert(std::is_constructible<bool, decltype(*this)>::value || std::is_convertible<decltype(*this), bool>::value, "Missing nullable operator"); }
+#define NULLABLE(CONDITION) explicit operator bool() const { return CONDITION ? false : true; }
 
 #define BIN		(Mona::UInt8*)
 #define STR		(char*)

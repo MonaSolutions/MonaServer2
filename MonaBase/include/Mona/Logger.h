@@ -40,11 +40,12 @@ enum {
 };
 
 struct Logger : virtual Object {
-	NULLABLE
+	NULLABLE(!enabled())
+
 	Logger() : fatal(NULL) {}
 	/*!
 	Test if always valid */
-	virtual operator bool() const { return true; }
+	virtual bool enabled() const { return true; }
 
 	const char* name;
 	const char* fatal;

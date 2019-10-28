@@ -54,6 +54,7 @@ private:
 	};
 
 	const char* name(const Socket& socket) const { return _name ? _name : (socket.isSecure() ? "HTTPS" : "HTTP"); }
+	const std::string& name() const { return Media::Source::name(); } // overrides Source::name, remove a clang warning!
 
 	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { receive(new Media::Audio(tag, packet, track)); }
 	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { receive(new Media::Video(tag, packet, track)); }

@@ -27,7 +27,7 @@ namespace Mona {
 struct Client;
 struct Writer : virtual Object {
 	typedef Event<void(Int32 error, const char* reason)> ON(Close);
-	NULLABLE
+	NULLABLE(_closed)
 
 	virtual ~Writer();
 
@@ -56,9 +56,6 @@ struct Writer : virtual Object {
 	virtual UInt64			queueing() const = 0;
 	bool					flush() { if (!flushable) return false; flushing(); return true; } // allows flush even if closed, few protocol like RTMFP have need to wait end of transmission to garantee reliability
 
-	
-
-	operator bool() const { return !_closed; }
 
 	static Writer&			Null();
 

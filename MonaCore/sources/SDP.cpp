@@ -94,7 +94,7 @@ bool SDP::build(Exception& ex, const char* text) {
 				break;
 			case 'c': { // c=* (connection information -- not required if included in all media)
 				IPAddress defaultAddress;  // TODO defaultAddress is useless for what?
-				String::ForEach forEach([&ex,&defaultAddress, this](UInt32 index, const char* value) {
+				String::ForEach forEach([&ex,&defaultAddress](UInt32 index, const char* value) {
 					switch (index) {
 						case 1:
 							defaultAddress.set(IPAddress::Wildcard(String::ICompare(value,"IP6")==0 ? IPAddress::IPv6 : IPAddress::IPv4));
@@ -153,14 +153,14 @@ bool SDP::build(Exception& ex, const char* text) {
 			case 'a': { // a=* (zero or more session attribute lines)
 
 				vector<string>* pFields = NULL;
-				bool	isMsId = false;
+				//bool	isMsId = false;
 				string   fingerHash;
 
 				// TODO SDPSource* pSource = NULL;
 				// TODO list<UInt32>* pSourceGroupe = NULL;
 
 
-				String::ForEach forEach([&ex, &pMedia, &pFields, &isMsId, &fingerHash, this](UInt32 index, const char* value) {
+				String::ForEach forEach([&pMedia, &pFields, &fingerHash, this](UInt32 index, const char* value) {
 
 					// RFC 5576
 					if(pMedia) {

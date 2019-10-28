@@ -29,7 +29,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct Publication : Media::Source, Media::Properties, virtual Object {
-	NULLABLE
+	NULLABLE(!_publishing && subscriptions.empty())
 
 	template<typename TrackType>
 	struct Tracks : std::deque<TrackType>, virtual Object {
@@ -67,8 +67,6 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 	Publication(const std::string& name);
 	virtual ~Publication();
-
-	explicit operator bool() const { return _publishing || !subscriptions.empty(); }
 
 	const std::string&				name() const { return _name; }
 

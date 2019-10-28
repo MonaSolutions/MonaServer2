@@ -55,13 +55,12 @@ private:
 	};
 
 	struct Track : virtual Object {
-		NULLABLE
+		NULLABLE(!_pBuffer || _pBuffer->empty())
 
 		Track() : _flags(FLAG_SKIP) {} // by default the mode is TEXT (wait first DIRECT or LOAD caption mode!)
 	
 		UInt8 channel;
 
-		explicit operator bool() const { return _pBuffer.operator bool() && !_pBuffer->empty(); }
 		Buffer* operator->() { return _pBuffer.get(); }
 
 		Track& operator=(std::nullptr_t) { _flags = FLAG_SKIP; _pBuffer.reset();  return self; }

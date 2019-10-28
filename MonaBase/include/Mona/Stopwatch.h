@@ -27,11 +27,10 @@ namespace Mona {
 
 /// A chrono in microseconds
 struct Stopwatch : virtual Object {
-	NULLABLE 
+	NULLABLE(!_running)
 
 	Stopwatch() : _elapsed(0) {}
 
-	operator bool() const { return _running; }
 	bool running() const { return _running; }
 
 	void start() { _running = true;  _start = std::chrono::steady_clock::now(); }

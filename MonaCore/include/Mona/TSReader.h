@@ -37,11 +37,9 @@ struct TSReader : virtual Object, MediaReader {
 private:
 
 	struct Program : virtual Object {
-		NULLABLE
+		NULLABLE(!_pReader)
 		Program() : type(Media::TYPE_NONE), _pReader(NULL), waitHeader(true), sequence(0xFF) {}
 		~Program() { if (_pReader) delete _pReader; }
-
-		operator bool() const { return _pReader ? true : false; }
 
 		template<typename TrackReaderType>
 		Program& set(Media::Type type, Media::Source& source) {

@@ -44,7 +44,7 @@ struct Media : virtual Static {
 	};
 	static const char* TypeToString(Type type) {
 		static const char* Strings[] = { "none", "data", "audio", "video"};
-		if (type >= (sizeof(Strings) / sizeof(Strings[0])))
+		if (UInt8(type) >= (sizeof(Strings) / sizeof(Strings[0])))
 			return "undefined";
 		return Strings[UInt8(type)];
 	}
@@ -78,7 +78,7 @@ struct Media : virtual Static {
 		typedef Type Tag;
 		static const char* TypeToString(Type type) {
 			static const char* Strings[] = { "Unknown", "AMF", "AMF0", "JSON", "XMLRPC", "QUERY", "Text" };
-			if (type >= (sizeof(Strings) / sizeof(Strings[0])))
+			if (UInt8(type) >= (sizeof(Strings) / sizeof(Strings[0])))
 				return "Unknown";
 			return Strings[type];
 		}
@@ -142,7 +142,7 @@ struct Media : virtual Static {
 		};
 		static const char* CodecToString(Codec codec) {
 			static const char* Strings[] = { "RAW", "JPEG", "SORENSON", "SCREEN1", "VP6", "VP6_ALPHA", "SCREEN2", "H264", "H263", "MPEG4_2", "UNKNOWN", "UNKNOWN", "HEVC" };
-			if (codec >= (sizeof(Strings) / sizeof(Strings[0])))
+			if (UInt8(codec) >= (sizeof(Strings) / sizeof(Strings[0])))
 				return "UNKNOWN";
 			return Strings[codec];
 		}
@@ -180,11 +180,10 @@ struct Media : virtual Static {
 			UInt16				 compositionOffset;
 		};
 		struct Config : Tag, Packet, virtual Object {
-			NULLABLE
+			NULLABLE(frame != FRAME_CONFIG)
 			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
 			explicit Config() {}
 			explicit Config(const Tag& tag, const Packet& packet) { set(tag, packet); }
-			operator bool() const { return frame == FRAME_CONFIG; ; }
 			void reset() {
 				frame = FRAME_UNSPECIFIED;
 				Packet::reset();
@@ -220,7 +219,7 @@ struct Media : virtual Static {
 		};
 		static const char* CodecToString(Codec codec) {
 			static const char* Strings[] = { "RAW", "ADPCM", "MP3", "PCM_LITTLE", "NELLYMOSER_16K", "NELLYMOSER_8K", "NELLYMOSER", "G711A", "G711U", "UNKNOWN", "AAC", "SPEEX", "UNKNOWN", "UNKNOWN", "MPEG4_2" };
-			if (codec >= (sizeof(Strings) / sizeof(Strings[0])))
+			if (UInt8(codec) >= (sizeof(Strings) / sizeof(Strings[0])))
 				return "UNKNOWN";
 			return Strings[codec];
 		}
@@ -250,11 +249,11 @@ struct Media : virtual Static {
 			UInt32				rate;
 		};
 		struct Config : Tag, Packet, virtual Object {
-			NULLABLE
+			NULLABLE(!isConfig)
 			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
 			explicit Config() { time = 0;  }
 			explicit Config(const Tag& tag, const Packet& packet) { time = 0; set(tag, packet); }
-			operator bool() const { return isConfig ? true : false; }
+
 			void reset() {
 				isConfig = false;
 				Packet::reset();

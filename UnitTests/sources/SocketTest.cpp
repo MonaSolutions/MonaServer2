@@ -228,7 +228,7 @@ ADD_TEST(TCP_SSL_Blocking) {
 
 struct UDPEchoClient :  UDPSocket {
 	UDPEchoClient(IOSocket& io) : UDPSocket(io) {
-		onError = [this](const Exception& ex) { FATAL_ERROR("UDPEchoClient, ", ex); };
+		onError = [](const Exception& ex) { FATAL_ERROR("UDPEchoClient, ", ex); };
 		onPacket = [this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 			CHECK(address == self->peerAddress());
 			CHECK(_packets.front().size() == pBuffer->size() && memcmp(_packets.front().data(), pBuffer->data(), pBuffer->size()) == 0);

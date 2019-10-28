@@ -126,14 +126,13 @@ struct RTMFPMessenger : RTMFPSender, virtual Object {
 
 private:
 	struct Message : private shared<Buffer>, virtual Object {
-		NULLABLE
+		NULLABLE(!packet && !writer)
 		Message(bool reliable, Media::Data::Type type, const Mona::Packet& packet) : shared<Buffer>(SET), type(type), reliable(reliable), packet(std::move(packet)), writer(*self) {}
 		bool				reliable;
 		AMFWriter			writer; // data
 		Media::Data::Type	type;
 		Mona::Packet		packet; // footer
 		void				convertToAMF() { type = writer.convert(type, packet); }
-		operator bool() const { return packet || writer ? true : false; }
 	};
 	UInt32	headerSize();
 	void	run();

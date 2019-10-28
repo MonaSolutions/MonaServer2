@@ -30,7 +30,7 @@ namespace Mona {
 
 struct Client : Entity, virtual Object, Net::Stats {
 	typedef Event<bool(const std::string& key, DataReader& reader)>	ON(SetProperty);
-	NULLABLE
+	NULLABLE(!connection || !_pWriter->operator bool())
 
 	Client(const char* protocol, const SocketAddress& address);
 
@@ -42,10 +42,9 @@ struct Client : Entity, virtual Object, Net::Stats {
 	/*!
 	Can be usefull in some protocol implementation to allow to change client property (like HTTP and Cookie) */
 	Parameters::const_iterator	setProperty(const std::string& key, std::string&& value, DataReader& parameters);
-	bool						eraseProperty(const std::string& key);
+	bool						eraseProperty(const std::string& key) { return onSetProperty(key, DataReader::Null()) && _properties.erase(key); }
 	const Parameters&			properties() const { return _properties; }
 
-	operator bool() const		{ return connection && _pWriter->operator bool() ? true : false; }
 	const Time						connection;
 	const Time						disconnection;
 
