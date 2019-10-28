@@ -58,7 +58,7 @@ private:
 	void  writeAdaptiveHeader(BinaryWriter& writer, UInt16 pid, UInt32 time, bool randomAccess, UInt8 fillSize);
 
 	struct Track : virtual Object {
-		NULLABLE
+		NULLABLE(!_pWriter)
 		Track(Media::Audio::Codec codec, MediaTrackWriter* pWriter) : type(Media::TYPE_AUDIO), _pWriter(pWriter), codec(codec) {
 			if (pWriter)
 				pWriter->beginMedia();
@@ -71,7 +71,7 @@ private:
 
 		const Media::Type type;
 		const UInt8 codec;
-		operator bool() const { return _pWriter ? true : false; }
+
 		Track& operator=(MediaTrackWriter* pWriter);
 		MediaTrackWriter* operator->() { return _pWriter; }
 		MediaTrackWriter& operator*() { return *_pWriter; }

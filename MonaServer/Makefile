@@ -11,19 +11,19 @@ CXX?=g++
 EXEC?=MonaServer
 
 # Variables extendable
-override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wno-unused-value -Wunknown-pragmas -Wno-class-conversion -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
-override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I../
+override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-unused-value -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
+override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I../ -I/usr/local/opt/openssl/include/
 LIBDIRS+=-L../MonaBase/lib/ -L../MonaCore/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,../MonaCore/lib/,-rpath,/usr/local/lib/"
 override LIBS+=-pthread -lMonaBase -lMonaCore -lcrypto -lssl -lluajit-5.1
 ifneq ($(OS),FreeBSD)
-	LIBS+= -ldl
+	override LIBS+= -ldl
 endif
 ifeq ($(OS),Darwin)
 	LBITS := $(shell getconf LONG_BIT)
 	ifeq ($(LBITS),64)
-	   # just require for OSX 64 buts
-		LIBS +=  -pagezero_size 10000 -image_base 100000000
+	   # just require for OSX 64 bits
+		override LIBS += -pagezero_size 10000 -image_base 100000000
 	endif
 endif
 

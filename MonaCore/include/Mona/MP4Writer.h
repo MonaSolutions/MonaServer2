@@ -50,9 +50,7 @@ private:
 	void flush(const OnWrite& onWrite, Int8 reset=0);
 
 	struct Frame : virtual Object {
-		NULLABLE
-		
-		operator bool() const { return _pMedia ? true : false; }
+		NULLABLE(!_pMedia)
 
 		Frame(const Media::Video::Tag& tag, const Packet& packet) : isSync(tag.frame == Media::Video::FRAME_KEY) { _pMedia.set<Media::Video>(tag, packet); }
 		Frame(const Media::Audio::Tag& tag, const Packet& packet) : isSync(true) { _pMedia.set<Media::Audio>(tag, packet); }
@@ -67,9 +65,9 @@ private:
 	};
 
 	struct Frames : virtual Object, std::deque<Frame> {
-		NULLABLE
+		NULLABLE(!_started)
 
-		Frames() : _sizeTraf(0), _started(false), rate(0), lastTime(0), lastDuration(0), codec(0),
+		Frames() : _started(false), rate(0), lastTime(0), lastDuration(0), codec(0),
 			hasCompositionOffset(false), hasKey(false), writeConfig(false) {}
 
 		UInt8	codec;
@@ -88,7 +86,6 @@ private:
 		UInt32	lastTime;
 		UInt32  lastDuration;
 
-		operator bool() const { return _started; }
 		Frames& operator=(std::nullptr_t);
 
 		template<typename TagType>
@@ -102,7 +99,6 @@ private:
 		std::deque<Frame> flush();
 	private:
 		bool	_started;
-		UInt32  _sizeTraf;
 	};
 
 	void	writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset);

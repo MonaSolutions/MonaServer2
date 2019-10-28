@@ -176,18 +176,18 @@ void Application::defineOptions(Exception& ex, Options& options) {
 
 	options.add(ex, "log", "l", "Log level argument, must be beetween 0 and 8 : nothing, fatal, critic, error, warn, note, info, debug, trace. Default value is 6 (info), all logs until info level are displayed.")
 		.argument("level")
-		.handler([this](Exception& ex, const char* value) {
+		.handler([](Exception& ex, const char* value) {
 			Logs::SetLevel(String::ToNumber<UInt8, LOG_DEFAULT>(value));
 			return true;
 		});
 
 	options.add(ex, "dump", "d", "Enables packet traces in logs. Optional argument is a string filter to dump just packet which matchs this expression. If no argument is given, all the dumpable packet are gotten.")
 		.argument("filter", false)
-		.handler([this](Exception& ex, const char* value) { Logs::SetDump(value ? value : ""); return true; });
+		.handler([](Exception& ex, const char* value) { Logs::SetDump(value ? value : ""); return true; });
 	
 	options.add(ex, "dumpLimit", "dl", "If dump is activated this option set the limit of dump messages. Argument is an unsigned integer defining the limit of bytes to show. By default there is not limit.")
 		.argument("limit")
-		.handler([this](Exception& ex, const char* value) { Logs::SetDumpLimit(String::ToNumber<Int32, -1>(ex, value)); return true; });
+		.handler([](Exception& ex, const char* value) { Logs::SetDumpLimit(String::ToNumber<Int32, -1>(ex, value)); return true; });
 
 	options.add(ex,"help", "h", "Displays help information about command-line usage.");
 	options.add(ex,"version", "v", String("Displays ", name()," version."));

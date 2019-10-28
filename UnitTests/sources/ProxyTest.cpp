@@ -53,7 +53,7 @@ static ThreadPool	_ThreadPool;
 
 struct UDPEchoClient : UDPSocket {
 	UDPEchoClient(IOSocket& io) : UDPSocket(io) {
-		onError = [this](const Exception& ex) { FATAL_ERROR("UDPEchoClient, ", ex); };
+		onError = [](const Exception& ex) { FATAL_ERROR("UDPEchoClient, ", ex); };
 		onPacket = [this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 			CHECK(address == self->peerAddress());
 			CHECK(_packets.front().size() == pBuffer->size() && memcmp(_packets.front().data(), pBuffer->data(), pBuffer->size()) == 0);
@@ -80,12 +80,12 @@ private:
 
 struct UDPProxy : UDPSocket {
 	UDPProxy(IOSocket& io, const SocketAddress& address) : UDPSocket(io), _proxy(io), _address(address) {
-		onError = [this](const Exception& ex) { FATAL_ERROR("UDPProxy, ", ex); };
+		onError = [](const Exception& ex) { FATAL_ERROR("UDPProxy, ", ex); };
 		onPacket = [this](shared<Buffer>& pBuffer, const SocketAddress& address) {
 			Exception ex;
 			CHECK(_proxy.relay(ex, socket(), Packet(pBuffer), _address, address) && !ex);
 		};
-		_proxy.onError = [this](const Exception& ex) { FATAL_ERROR("UDPProxy, ", ex); };
+		_proxy.onError = [](const Exception& ex) { FATAL_ERROR("UDPProxy, ", ex); };
 	}
 
 	~UDPProxy() {
@@ -178,7 +178,7 @@ private:
 
 struct TCPProxy : TCPServer {
 	TCPProxy(IOSocket& io, const SocketAddress& address) : TCPServer(io), _address(address) {
-		onError = [this](const Exception& ex) { FATAL_ERROR("TCPProxy, ", ex); };
+		onError = [](const Exception& ex) { FATAL_ERROR("TCPProxy, ", ex); };
 		onConnection = [this](const shared<Socket>& pSocket) {
 			Connection* pConnection(new Connection(this->io, _address));
 			pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
@@ -199,13 +199,13 @@ struct TCPProxy : TCPServer {
 private:
 	struct Connection : TCPClient {
 		Connection(IOSocket& io, const SocketAddress& address) : TCPClient(io), _proxy(io), _address(address) {
-			onError = [this](const Exception& ex) { FATAL_ERROR("TCPProxy::Connection, ", ex); };
+			onError = [](const Exception& ex) { FATAL_ERROR("TCPProxy::Connection, ", ex); };
 			onData = [this](Packet& buffer) {
 				Exception ex;
 				CHECK(_proxy.relay(ex, socket(), buffer, _address) && !ex);
 				return 0;
 			};
-			_proxy.onError = [this](const Exception& ex) { FATAL_ERROR("TCPProxy::Connection, ", ex); };
+			_proxy.onError = [](const Exception& ex) { FATAL_ERROR("TCPProxy::Connection, ", ex); };
 		}
 
 		~Connection() {

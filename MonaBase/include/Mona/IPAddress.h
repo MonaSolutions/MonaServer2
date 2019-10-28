@@ -53,7 +53,7 @@ IPv6 addresses are supported only if the target platform
 supports IPv6. */
 struct IPAddress : virtual Object {
 	CONST_STRING(toString());
-	NULLABLE
+	NULLABLE(isWildcard())
 
 	enum Family {
 		IPv4=AF_INET,
@@ -176,8 +176,6 @@ struct IPAddress : virtual Object {
 	// Returns the internal address structure
 	const void* data() const;
 	UInt8		size() const;
-
-	explicit operator bool() const { return !isWildcard(); }
 
 	// Returns a wildcard IPv4 or IPv6 address (0.0.0.0)
 	static const IPAddress& Wildcard(Family family = IPv4);

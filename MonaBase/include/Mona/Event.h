@@ -44,7 +44,7 @@ Finally allows too to return an argument (result, why multiple subscription is f
 /!\ For performance and design reason it's not thread-safe */
 template<typename Result, typename... Args>
 struct Event<Result(Args ...)> : virtual Object {
-	NULLABLE
+	NULLABLE(!_pFunction || !_pFunction->operator bool()) // 'true' if is subscribed
 
 	Event(std::nullptr_t) {} // Null Event, usefull just for (const Event& event=nullptr) default parameter
 	Event() : _pFunction(SET) {}
@@ -57,10 +57,6 @@ struct Event<Result(Args ...)> : virtual Object {
 	/*!
 	Raise the event */
 	Result operator()(Args... args) const { return _pFunction && *_pFunction ? (*_pFunction)(std::forward<Args>(args)...) : Result();}
-
-	/*!
-	Return 'true' if is subscribed */
-	explicit operator bool() const { return _pFunction && _pFunction->operator bool(); }
 
 	/*!
 	Assign lambda function */

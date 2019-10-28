@@ -256,6 +256,7 @@ private:
 			back().set<MediaType>(std::forward<Args>(args)...);
 			return true;
 		}
+		void flush() {}; // to overrides Media::Target flush (remove a clang warning)
 
 		Subscription&		 _subscription;
 		unique<Subscription> _pNextSubscription;

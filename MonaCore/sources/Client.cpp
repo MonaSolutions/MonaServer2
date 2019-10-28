@@ -37,13 +37,6 @@ Parameters::const_iterator Client::setProperty(const string& key, string&& value
 	SplitReader reader(valueReader, parameters);
 	return onSetProperty(key, reader) ? _properties.emplace(key, move(value)).first : _properties.end();
 }
-bool Client::eraseProperty(const string& key) {
-	if (!onSetProperty(key, DataReader::Null()))
-		return false;
-	_properties.erase(key);
-	return NULL;
-}
-
 
 UInt16 Client::setPing(UInt64 value) {
 	if (value == 0)

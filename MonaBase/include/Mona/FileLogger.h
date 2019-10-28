@@ -29,7 +29,7 @@ struct FileLogger : Logger, virtual Object {
 	};
 	FileLogger(const std::string dir, UInt32 sizeByFile = DEFAULT_SIZE_BY_FILE, UInt16 rotation = DEFAULT_ROTATION);
 
-	operator bool() const { return _pFile.operator bool(); }
+	bool enabled() const { return _pFile ? true : false; }
 
 	bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
 	bool dump(const std::string& header, const UInt8* data, UInt32 size);

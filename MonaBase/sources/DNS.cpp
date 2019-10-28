@@ -61,7 +61,7 @@ bool DNS::HostByAddress(Exception& ex,const IPAddress& address, HostEntry& host)
 			return true;
 		}
 	}
-	SetAIError(ex, rc, " (address=",address,")");
+	SetAIError(ex, rc, " (address=", address,")");
 	return false;
 }
 

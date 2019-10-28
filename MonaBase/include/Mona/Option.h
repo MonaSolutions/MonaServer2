@@ -29,7 +29,7 @@ namespace Mona {
 
 struct Option : virtual Object {
 	CONST_STRING(fullName().empty() ? shortName() : fullName());
-	NULLABLE
+	NULLABLE(_fullName.empty() && _shortName.empty())
 
 	static const char* Parse(const char* argument) { return *argument && *argument == '-' && *++argument && (*argument != '-' || *++argument) ? argument : NULL; }
 
@@ -95,8 +95,6 @@ struct Option : virtual Object {
 	bool operator!=(const Option& other) const { return !operator==(other); }
 	bool operator<(const Option& other) const { return _fullName < other._fullName; }
 	bool operator>(const Option& other) const { return _fullName > other._fullName; }
-
-	explicit operator bool() const { return !_fullName.empty() && !_shortName.empty(); }
 
 	static Option& Null() { static Option Option(NULL, NULL); return Option; }
 private:

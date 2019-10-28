@@ -24,7 +24,7 @@ namespace Mona {
 struct ConsoleLogger : Logger, virtual Object {
 	ConsoleLogger();
 
-	operator bool() const { return _isInteractive; }
+	bool enabled() const { return _isInteractive; }
 
 	bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message);
 	bool dump(const std::string& header, const UInt8* data, UInt32 size);

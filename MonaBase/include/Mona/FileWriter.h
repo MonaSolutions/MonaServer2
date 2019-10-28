@@ -27,7 +27,7 @@ It can be used too for an asynchronous folder deletion in using erase method */
 struct FileWriter : virtual Object {
 	typedef File::OnFlush	 ON(Flush);
 	typedef File::OnError	 ON(Error);
-	NULLABLE
+	NULLABLE(!_pFile)
 	
 	FileWriter(IOFile& io) : io(io) {}
 	~FileWriter() { close(); }
@@ -39,7 +39,6 @@ struct FileWriter : virtual Object {
 	File* operator->() const { return _pFile.get(); }
 	File& operator*() { return *_pFile; }
 
-	explicit operator bool() const { return _pFile.operator bool(); }
 	bool opened() const { return operator bool(); }
 
 	/*!

@@ -201,7 +201,7 @@ struct HTTP : virtual Static {
 
 	
 	struct Message : Packet, Parameters, virtual Object {
-		NULLABLE
+		NULLABLE(!_pHeader)
 
 		const Exception			ex;
 		Media::Base*			pMedia;
@@ -211,7 +211,6 @@ struct HTTP : virtual Static {
 		const Header* operator->() const { return _pHeader.get(); }
 		const Header& operator*() const { return *_pHeader; }
 		operator const shared<const Header>&() const { return _pHeader; }
-		operator bool() const { return _pHeader.operator bool(); }
 		bool unique() const { return _pHeader.unique(); }
 	protected:
 		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) { if (_pHeader) setParams(*_pHeader); }

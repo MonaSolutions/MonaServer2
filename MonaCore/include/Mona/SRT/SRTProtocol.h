@@ -30,11 +30,10 @@ struct SRTProtocol : Protocol, virtual Object {
 	bool load(Exception& ex);
 
 	struct Params : private DataReader, virtual Object {
-		NULLABLE
+		NULLABLE(!_ok)
 		Params(const std::string& streamId, Peer& peer) : DataReader(Packet(streamId.data(), streamId.size())), _peer(peer), _publish(false), _type(OTHER), _ok(false), _subscribe(false) {
 			read(DataWriter::Null()); // fill parameters!
 		}
-		operator bool() const { return _ok; }
 
 		const std::string&	stream() const { return _stream; }
 		bool				publish() const { return _publish; }

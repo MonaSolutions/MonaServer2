@@ -29,7 +29,6 @@ struct Peer : Client, virtual Object {
 	typedef Event<void(Parameters&)>					 ON(Parameters);
 	typedef Event<void(const SocketAddress& oldAddress)> ON(AddressChanged);
 	typedef Event<void(Int32 error, const char* reason)> ON(Close);
-	NULLABLE
 
 	Peer(ServerAPI& api, const char* protocol, const SocketAddress& address);
 	~Peer();

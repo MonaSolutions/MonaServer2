@@ -28,7 +28,7 @@ namespace Mona {
 /// host address and a port number.
 struct SocketAddress : private IPAddress, virtual Object {
 	CONST_STRING(addrToString());
-	NULLABLE
+	NULLABLE(isWildcard() && !port())
 
 	/*!
 	Creates a wildcard (all zero) IPv4/IPv6 SocketAddress */
@@ -107,8 +107,6 @@ struct SocketAddress : private IPAddress, virtual Object {
 	bool operator <= (const SocketAddress& address) const { return operator==(address) || operator<(address); }
 	bool operator >  (const SocketAddress& address) const { return !operator<=(address); }
 	bool operator >= (const SocketAddress& address) const { return operator==(address) || operator>(address); }
-	
-	explicit operator bool() const { return port() || !isWildcard(); }
 
 	// Returns a wildcard IPv4 or IPv6 address (0.0.0.0)
 	static const SocketAddress& Wildcard(IPAddress::Family family = IPAddress::IPv4);

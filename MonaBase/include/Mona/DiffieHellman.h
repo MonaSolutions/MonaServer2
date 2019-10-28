@@ -25,14 +25,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct DiffieHellman : virtual Object {
-	NULLABLE
+	NULLABLE(!_pDH)
 
 	enum { SIZE = 0x80 };
 
 	DiffieHellman() : _pDH(NULL), _publicKeySize(0), _privateKeySize(0) {}
 	~DiffieHellman() { if(_pDH) DH_free(_pDH);}
-
-	operator bool() const { return _pDH ? true : false; }
 
 	bool	computeKeys(Exception& ex);
 	UInt8	computeSecret(Exception& ex, const UInt8* farPubKey, UInt32 farPubKeySize, UInt8* sharedSecret);

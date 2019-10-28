@@ -53,7 +53,7 @@ enum {
 
 /// Utility class for generation parse of strings
 struct String : std::string {
-	NULLABLE 
+	NULLABLE(empty())
 
 	/*!
 	Object formatable, must be iterable with key/value convertible in string */
@@ -68,7 +68,6 @@ struct String : std::string {
 	String(Args&&... args) {
 		Assign<std::string>(*this, std::forward<Args>(args)...);
 	}
-	operator bool() const { return !empty(); }
 	std::string& clear() { std::string::clear(); return *this; }
 
 	static const std::string& Empty() { static std::string Empty; return Empty; }

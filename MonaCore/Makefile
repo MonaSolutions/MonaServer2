@@ -10,8 +10,8 @@ endif
 CXX?=g++
 
 # Variables extendable
-override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-overloaded-virtual -Wno-potentially-evaluated-expression -Wno-class-conversion -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
-override INCLUDES+=-I./../MonaBase/include/ -I./include/
+override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-overloaded-virtual -Wno-potentially-evaluated-expression -Wno-switch-bool -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
+override INCLUDES+=-I./../MonaBase/include/ -I./include/ -I/usr/local/opt/openssl/include/
 LIBDIRS+=-L./../MonaBase/lib/
 LIBS+=-lMonaBase -lcrypto -lssl
 

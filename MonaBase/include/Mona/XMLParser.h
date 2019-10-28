@@ -58,10 +58,9 @@ public:
 	};
 
 	struct XMLState : virtual Object {
-		NULLABLE
+		NULLABLE(!_current)
 
 		XMLState() : _current(NULL) {}
-		operator bool() const { return _current ? true : false; }
 		void clear() { _current = NULL; }
 	private:
 		bool						_started;

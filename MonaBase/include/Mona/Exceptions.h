@@ -23,9 +23,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 	struct Ex : String, virtual Object {
-		NULLABLE
+		NULLABLE(empty())
 		struct Application; struct Extern; struct Format; struct Intern; struct Net; struct Permission; struct Protocol; struct System; struct Unavailable; struct Unfound; struct Unsupported;
-		operator bool() const { return !empty(); }
 	};
 	/*!
 	Application exception, error from user side */
@@ -82,7 +81,7 @@ namespace Mona {
 
 
 struct Exception : virtual Object {
-	NULLABLE
+	NULLABLE(!_pEx)
 	CONST_STRING(toString());
 
 	Exception(std::nullptr_t = nullptr) {}
@@ -98,8 +97,6 @@ struct Exception : virtual Object {
 		return *this;
 	}
 	Exception& operator=(std::nullptr_t) { return reset(); }
-
-	explicit operator bool() const { return _pEx.operator bool(); } // explicit otherwise can be converted to a number, and confuse overload function name(ex) and name(number)
 
 	template<typename ExType, typename ...Args>
 	ExType& set(Args&&... args) {

@@ -47,7 +47,7 @@ bool Segments::Clear(Exception &ex, const Path& path, IOFile& io) {
 
 UInt32 Segments::NextSequence(Exception &ex, const Path& path, IOFile& io) {
 	UInt32 lastSequence = 0;
-	FileSystem::ForEach forEach([&path, &io, &lastSequence](const string& file, UInt16 level) {
+	FileSystem::ForEach forEach([&path, &lastSequence](const string& file, UInt16 level) {
 		UInt32 sequence;
 		if (MathSegment(path, file, sequence) && sequence > lastSequence)
 			lastSequence = sequence;

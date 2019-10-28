@@ -131,10 +131,9 @@ struct MediaFile : virtual Static  {
 		}
 
 		struct File : FileWriter, Path, virtual Object {
-			NULLABLE
-			File(const std::string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylist, UInt8 sequences, IOFile& io);
+			NULLABLE(!FileWriter::operator bool())
 
-			operator bool() const { return FileWriter::operator bool(); }
+			File(const std::string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylist, UInt8 sequences, IOFile& io);
 
 			MediaWriter*	operator->() { return _pWriter.get(); }
 			MediaWriter&	operator*() { return *_pWriter; }

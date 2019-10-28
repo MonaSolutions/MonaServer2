@@ -54,12 +54,11 @@ struct FileSystem : virtual Static {
 
 
 	struct Attributes : virtual Object {
-		NULLABLE
+		NULLABLE(!lastChange)
 		Attributes() : size(0), lastChange(0), lastAccess(0) {}
 		Time	lastChange;
 		Time	lastAccess;
 		UInt64	size;
-		operator bool() const { return lastChange ? true : false; }
 		Attributes& reset() { lastAccess = 0;  lastChange = 0; size = 0; return *this; }
 	};
 
@@ -149,9 +148,8 @@ struct FileSystem : virtual Static {
 
 private:
 	struct Home : std::string, virtual Object {
-		NULLABLE
+		NULLABLE(empty())
 		Home();
-		operator bool() const { return !empty(); }
 	};
 
 	struct Directory : std::string, virtual Object {
@@ -167,9 +165,8 @@ private:
 	};
 
 	struct CurrentApp : std::string, virtual Object {
-		NULLABLE
+		NULLABLE(empty())
 		CurrentApp();
-		operator bool() const { return !empty(); }
 	};
 
 	static CurrentDirs& GetCurrentDirs() { static CurrentDirs Dirs; return Dirs; }

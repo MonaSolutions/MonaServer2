@@ -37,11 +37,10 @@ struct SRT : virtual Object {
 	static const char*	LastErrorMessage() { return ::srt_getlasterror_str(); }
 
 	struct Stats : Net::Stats {
-		NULLABLE 
+		NULLABLE(!_stats.msTimeStamp)
 
 		Stats() { _stats.msTimeStamp = 0; }
-		operator bool() const { return _stats.msTimeStamp ? true : false; }
-
+	
 		double bandwidthEstimated() const { return self ? _stats.mbpsBandwidth : 0; }
 		double bandwidthMaxUsed() const { return self ? _stats.mbpsMaxBW : 0; }
 		UInt32 recvBufferTime() const { return self ? _stats.msRcvBuf : 0; }

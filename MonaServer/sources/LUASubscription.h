@@ -36,6 +36,11 @@ private:
 	bool	endMedia();
 	void	flush();
 
+	// overrides Media::Source methods of Subscription (remove a clang warning)
+	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { return Subscription::writeAudio(tag, packet, track); }
+	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { return Subscription::writeVideo(tag, packet, track); }
+	void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { return Subscription::writeData(type, packet, track); }
+
 	lua_State* _pState;
 };
 

@@ -50,7 +50,7 @@ bool Options::process(Exception& ex, const char* argument, const ForEach& forEac
 	const char* itArg = Option::Parse(argument);
 	if (!itArg) {
 		ex.set<Ex::Application::Argument>("Malformed ", argument, " argument");
-		return NULL;
+		return false;
 	}
 	argument = itArg;
 	while (*itArg && *itArg != ':' && *itArg != '=')
@@ -58,7 +58,7 @@ bool Options::process(Exception& ex, const char* argument, const ForEach& forEac
 
 	if (argument == itArg) {
 		ex.set<Ex::Application::Argument>("Empty option");
-		return NULL;
+		return false;
 	}
 		
 
@@ -75,21 +75,21 @@ bool Options::process(Exception& ex, const char* argument, const ForEach& forEac
 		}
 		if (!pOption && !ignoreUnknown) {
 			ex.set<Ex::Application::Argument>("Unknown ", name, " option");
-			return NULL;
+			return false;
 		}
 	} else
 		pOption = &*itOption;
 
 	if (!alreadyReaden.emplace(name).second && (!pOption || !pOption->repeatable())) {
 		ex.set<Ex::Application::Argument>("Option ", name, " duplicated");
-		return NULL;
+		return false;
 	}
 
 	argument = !*itArg ? NULL : ++itArg;
 	if(pOption) {
 		if (!argument && pOption->argumentRequired()) {
 			ex.set<Ex::Application::Argument>(*pOption, " requires ", pOption->argumentName());
-			return NULL;
+			return false;
 		}
 		if (pOption->_handler && !pOption->_handler(ex, argument))
 			return false;

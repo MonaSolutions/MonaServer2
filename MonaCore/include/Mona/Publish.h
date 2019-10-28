@@ -31,16 +31,13 @@ Publish a publication by the code, externally to the server:
 3 - Check *pPublish to test if publication is still active (not failed)
 4 - Start again at point 2 or delete pPublish to terminate publication	*/
 struct Publish : Media::Source, virtual Object {
-	NULLABLE
+	NULLABLE(!_pPublishing->api.running() || !*_pPublishing) // Test if publication is always valid (not failed)
 	Publish(ServerAPI& api, const char* name);
 	Publish(ServerAPI& api, Media::Source& source);
 	~Publish();
 	/*!
 	Publication name */
 	const std::string& name() const { return _pPublishing->name; }
-	/*!
-	Test if publication is always valid (not failed) */
-	operator bool() const { return _pPublishing->api.running() && *_pPublishing; }
 	/*!
 	Write audio packet */
 	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track=1) { queue<Write<Media::Audio>>(tag, packet, track); }
@@ -83,12 +80,11 @@ private:
 	void flush() { flush(0); }
 
 	struct Publishing : Runner, virtual Object {
-		NULLABLE
+		NULLABLE(_failed)
 		Publishing(ServerAPI& api, const char* name) : _failed(false), Runner("Publishing"), name(name), api(api) {}
 		Publishing(ServerAPI& api, Source& source) : _failed(false), _pSource(&source), Runner(NULL), name(source.name()), api(api) {}
 
 		const std::string name;
-		operator bool() const { return !_failed; }
 		bool isPublication() const { return Runner::name && !_failed; }
 
 		ServerAPI& api;

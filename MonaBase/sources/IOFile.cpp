@@ -59,7 +59,7 @@ protected:
 		return true;
 	}
 private:
-	
+	virtual bool run(Exception& ex) = 0;
 	virtual bool process(Exception& ex, const shared<File>& pFile) {
 		if (pFile->load(ex))
 			return true;

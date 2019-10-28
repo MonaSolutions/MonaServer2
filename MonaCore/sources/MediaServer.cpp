@@ -32,7 +32,7 @@ unique<MediaServer::Reader> MediaServer::Reader::New(MediaServer::Type type, con
 }
 
 MediaServer::Reader::Reader(MediaServer::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	MediaStream(MediaStream::Type(type), path, source), _streaming(false), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)) {
+	MediaStream(MediaStream::Type(type), path, source), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)) {
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		if (!_pTarget) {
 			_pTarget.set<MediaSocket::Reader>(this->type, this->path, this->source, MediaReader::New(_pReader->subMime()), pSocket, this->io);

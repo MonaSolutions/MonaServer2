@@ -19,9 +19,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Path.h"
 #include "Mona/Handler.h"
-#if !defined(_WIN32)
-#include <fcntl.h>
-#endif
 
 namespace Mona {
 
@@ -32,7 +29,7 @@ struct File : virtual Object {
 	typedef Event<void(shared<Buffer>& pBuffer, bool end)>	OnReaden;
 	typedef Event<void(const Exception&)>					OnError;
 	typedef Event<void(bool deletion)>						OnFlush;
-	NULLABLE
+	NULLABLE(!_loaded)
 
 	/*!
 	Decoder offers to decode data in the reception thread when file is used with IOFile,
@@ -55,7 +52,6 @@ struct File : virtual Object {
 
 	const Mode  mode;
 
-	explicit operator bool() const { return _loaded; }
 	operator const Path&() const { return _path; }
 
 	// properties
@@ -107,7 +103,6 @@ private:
 #if defined(_WIN32)
 	HANDLE				_handle;
 #else
-	struct flock		_lock;
 	long				_handle;
 #endif
 

@@ -134,7 +134,7 @@ size_t Util::UnpackUrl(const char* url, string& address, string& path, string& q
 	// level > 1 => path => . after /
 	UInt8 level(1); 
 
-	String::ForEachDecodedChar forEach([&level,&slashs,&path,&query](char c,bool wasEncoded){
+	String::ForEachDecodedChar forEach([&level,&slashs,&path](char c,bool wasEncoded){
 
 		if (c == '?')
 			return false;
