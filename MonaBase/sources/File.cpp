@@ -17,8 +17,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/File.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #if !defined(_WIN32)
+#include <sys/file.h>
 #define INVALID_HANDLE_VALUE -1
 #include <unistd.h>
 #if defined(_BSD) && !defined(lseek64) // not defined on 64 bit systems
