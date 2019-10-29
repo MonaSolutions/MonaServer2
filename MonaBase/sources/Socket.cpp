@@ -291,15 +291,14 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 	// Allow to call multiple time this method, it can help on windows target to etablish a connection instead of waiting the connection!
 	int result;
 	if (type == Socket::TYPE_DATAGRAM) {
-		if (_peerAddress) { // disconnect in first (required especially on linux)
-			SocketAddress wildcard(_peerAddress.family());
-			if(!::connect(_id, wildcard.data(), wildcard.size()))
-				_peerAddress = wildcard;
-		}
-		if (address)
+		if (!address) {
+			static const struct Disconnection : sockaddr_in6 {
+				Disconnection() { sin6_family = AF_UNSPEC; }
+				operator const sockaddr*() const { return reinterpret_cast<const sockaddr*>(this); }
+			} Disconnect;
+			result = ::connect(_id, Disconnect, sizeof(Disconnect));
+		} else
 			result = ::connect(_id, address.data(), address.size());
-		else
-			result = ::connect(_id, SocketAddress::Wildcard(IPAddress::IPv6).data(), SocketAddress::Wildcard(IPAddress::IPv6).size());
 	} else
 		result = ::connect(_id, address.data(), address.size());
 

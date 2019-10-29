@@ -198,7 +198,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 void Server::loadIniStreams() {
 	// Load Streams configs
 	struct Description : String {
-		Description(const string& publication, string&& description, bool isSource = false) : isSource(isSource), publication(publication), String(move(description)) {}
+		Description(const string& publication, string&& description, bool isSource) : isSource(isSource), publication(publication), String(move(description)) {}
 		const string& publication;
 		const bool    isSource;
 	};
@@ -211,7 +211,7 @@ void Server::loadIniStreams() {
 			continue;
 
 		if (String::ICompare(it.first, "logs") == 0)
-			descriptions.emplace_back(it.first, "!logs");
+			descriptions.emplace_back(it.first, "!logs", true);
 	
 		for (auto& it2 : range(temp.assign(it.first) += '.')) {
 			const char* name(it2.first.c_str() + temp.size());

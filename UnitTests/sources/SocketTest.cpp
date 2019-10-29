@@ -56,7 +56,7 @@ ADD_TEST(IPMulticast) {
 	Socket server(Socket::TYPE_DATAGRAM);
 
 	SocketAddress address;
-	CHECK(address.set(ex, "239.255.1.2", nullptr) && !ex);
+	CHECK(address.set(ex, "239.255.1.2", UInt16(0)) && !ex);
 
 	CHECK(server.bind(ex, address) && !ex && server.address() && !server.address().host());
 	address.setPort(server.address().port());
@@ -68,12 +68,13 @@ ADD_TEST(IPMulticast) {
 	CHECK(client.send(ex, EXPAND("hi mathieu and thomas")) == 21 && !ex);
 	// with sendto
 	CHECK(client.connect(ex, SocketAddress::Wildcard()) && !ex && !client.peerAddress());
-	CHECK(UInt32(client.sendTo(ex, _Short0Data.c_str(), _Short0Data.size(), address)) == _Short0Data.size() && !ex  && client.address());
+	CHECK(UInt32(client.sendTo(ex, _Short0Data.c_str(), _Short0Data.size(), address)) == _Short0Data.size() && !ex);
 
 	UInt8 buffer[8192];
 	SocketAddress from;
 	CHECK(server.receiveFrom(ex, buffer, sizeof(buffer), from) == 21 && !ex && memcmp(buffer, EXPAND("hi mathieu and thomas")) == 0);
-	CHECK(server.sendTo(ex, buffer, 21, from) == 21 && !ex);
+	// send To client.address() here and not "from" because the client can have been rebound on few platforms when client.connect(WILDCARD) has been called, it's not an error
+	CHECK(server.sendTo(ex, buffer, 21, client.address()) == 21 && !ex); 
 
 	CHECK(UInt32(server.receiveFrom(ex, buffer, sizeof(buffer), from)) == _Short0Data.size() && !ex && memcmp(buffer, _Short0Data.data(), _Short0Data.size()) == 0)
 	CHECK(UInt32(server.sendTo(ex, buffer, _Short0Data.size(), from)) == _Short0Data.size() && !ex)
@@ -107,7 +108,7 @@ ADD_TEST(UDP_Blocking) {
 	CHECK(client.receive(ex, buffer, sizeof(buffer)) == 21 && !ex&& memcmp(buffer, EXPAND("hi mathieu and thomas")) == 0);
 	CHECK(UInt32(client.receive(ex, buffer, sizeof(buffer)))==_Short0Data.size() && !ex && memcmp(buffer,_Short0Data.data(),_Short0Data.size())==0)
 
-	CHECK(client.connect(ex, SocketAddress::Wildcard()) && !ex && !client.peerAddress() && client.address())
+	CHECK(client.connect(ex, SocketAddress::Wildcard()) && !ex && !client.peerAddress())
 }
 
 
