@@ -44,6 +44,8 @@ void Write(Args&&... args) {
 	writer.write64(-1234567890);
 	writer.write64(1234567890);
 
+	writer.writeDouble(UInt64(0x2FFFFFFFFFFFFE)); // last convertible uint to double without truncation
+
 	float fVal = 1.5;
 	writer.write(&fVal, sizeof(fVal));
 	double dVal = -1.5;
@@ -99,6 +101,9 @@ void Read(Args&&... args) {
 
 	UInt64 uint64v = reader.read64();
 	CHECK(uint64v == 1234567890);
+
+	uint64v = (UInt64)reader.readDouble();
+	CHECK(uint64v == 0x2FFFFFFFFFFFFE);
 
 	float floatv;
 	reader.read(sizeof(floatv), (char *)&floatv);
