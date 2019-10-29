@@ -67,17 +67,16 @@ ADD_TEST(IPMulticast) {
 	CHECK(client.connect(ex, address) && !ex && client.peerAddress() == address && client.address());
 	CHECK(client.send(ex, EXPAND("hi mathieu and thomas")) == 21 && !ex);
 	// with sendto
-	CHECK(client.connect(ex, SocketAddress::Wildcard()) && !ex && !client.peerAddress());
+	CHECK(client.connect(ex, SocketAddress::Wildcard()) && !ex && !client.peerAddress()); // // connect(WILDCARD) can rebound on few platforms, it's not an error
 	CHECK(UInt32(client.sendTo(ex, _Short0Data.c_str(), _Short0Data.size(), address)) == _Short0Data.size() && !ex);
 
 	UInt8 buffer[8192];
 	SocketAddress from;
 	CHECK(server.receiveFrom(ex, buffer, sizeof(buffer), from) == 21 && !ex && memcmp(buffer, EXPAND("hi mathieu and thomas")) == 0);
-	// send To client.address() here and not "from" because the client can have been rebound on few platforms when client.connect(WILDCARD) has been called, it's not an error
-	CHECK(server.sendTo(ex, buffer, 21, client.address()) == 21 && !ex); 
-
 	CHECK(UInt32(server.receiveFrom(ex, buffer, sizeof(buffer), from)) == _Short0Data.size() && !ex && memcmp(buffer, _Short0Data.data(), _Short0Data.size()) == 0)
+	CHECK(server.sendTo(ex, EXPAND("hi mathieu and thomas"), from) == 21 && !ex);
 	CHECK(UInt32(server.sendTo(ex, buffer, _Short0Data.size(), from)) == _Short0Data.size() && !ex)
+	
 
 	// client receiveFrom or receive have to work same!
 	CHECK(client.receiveFrom(ex, buffer, sizeof(buffer), from) == 21 && !ex&& memcmp(buffer, EXPAND("hi mathieu and thomas")) == 0);
