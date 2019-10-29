@@ -11,6 +11,7 @@
 /MonaServer/release
 /MonaServer/www
 /MonaServer/MonaServer
+/MonaServer/MonaServer.log/
 /MonaTiny/logs
 /MonaTiny/tmp
 /MonaTiny/tmp64
@@ -18,7 +19,10 @@
 /MonaTiny/release
 /MonaTiny/www
 /MonaTiny/MonaTiny
+/MonaTiny/MonaTiny.log/
 /UnitTests/tmp
 /UnitTests/tmp64
 /UnitTests/debug
 /UnitTests/release
+/UnitTests/UnitTests
+/UnitTests/UnitTests.log/

@@ -22,6 +22,7 @@ namespace Mona {
 
 void UnitTest::Test::run(UInt32 loop) {
 	_chrono.restart();
+	DEBUG(_name," now running ", loop, " iterations ...");
 	for (_loop = 0; _loop < loop; ++_loop)
 		TestFunction();
 	_chrono.stop();
@@ -72,6 +73,8 @@ void UnitTest::runSelectedModule() {
 	cout << endl << "Choose the index of the test to run (or type enter to run all) : ";
 	string input;
 	getline(cin, input);
+
+	cout << endl;
 
 	if (!input.empty())
 		return runAt(input, _loop);
