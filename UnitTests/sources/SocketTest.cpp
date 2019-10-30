@@ -302,12 +302,14 @@ ADD_TEST(UDP_NonBlocking) {
 }
 
 struct TCPEchoClient : TCPClient {
-	TCPEchoClient(IOSocket& io, const shared<TLS>& pTLS) : TCPClient(io, pTLS) {
+	TCPEchoClient(IOSocket& io, const shared<TLS>& pTLS = nullptr) : TCPClient(io, pTLS), _recv(0), _send(0) {
 
 		onError = [this](const Exception& ex) { this->ex = ex; };;
 		onDisconnection = [this](const SocketAddress& peerAddress){ CHECK(!connected()) };
 		onFlush = [this](){ CHECK(connected()) };;
 		onData = [this](Packet& buffer)->UInt32 {
+			_recv += buffer.size();
+			//DEBUG(_recv, "/", _send);
 			do {
 				CHECK(!_packets.empty());
 				UInt32 size(_packets.front().size());
@@ -330,14 +332,54 @@ struct TCPEchoClient : TCPClient {
 
 	Exception	ex;
 
-	bool echoing() const { return !_packets.empty(); }
-	void echo(const void* data,UInt32 size) {
+	bool echoing() const { return !_packets.empty() || _send != _recv; }
+	void echo(const void* data, UInt32 size) {
+		_send += size;
 		_packets.emplace_back(Packet(data, size));
 		CHECK(send(ex, _packets.back()) && !ex);
 	}
 
 private:
 	deque<Packet>	_packets;
+	UInt64			_recv;
+	UInt64			_send;
+};
+
+struct TCPEchoServer : TCPServer {
+	TCPEchoServer(IOSocket& io, const shared<TLS>& pTLS = nullptr, const shared<TLS>& pClientTLS = nullptr) : TCPServer(io, pTLS) {
+		onError = [](const Exception& ex) { FATAL_ERROR("TCPEchoServer, ", ex); };
+		onConnection = [&](const shared<Socket>& pSocket) {
+			CHECK(pSocket && pSocket->peerAddress());
+
+			TCPClient* pConnection(new TCPClient(io, pClientTLS));
+
+			pConnection->onError = onError;
+			pConnection->onDisconnection = [this, pConnection](const SocketAddress& address) {
+				CHECK(!pConnection->connected() && address);
+				_connections.erase(pConnection);
+				delete pConnection; // here no unsubscription required because event dies before the function
+			};
+			pConnection->onFlush = [pConnection]() { CHECK(pConnection->connected()) };
+			pConnection->onData = [pConnection](Packet& buffer) {
+				Exception ex;
+				CHECK(pConnection->send(ex, buffer) && !ex); // echo
+				return 0;
+			};
+
+			Exception ex;
+			CHECK(pConnection->connect(ex, pSocket) && !ex);
+
+			CHECK(_connections.emplace(pConnection).second);
+		};
+	}
+	
+	typedef set<TCPClient*>::const_iterator const_iterator;
+	const_iterator	begin() const { return _connections.begin(); }
+	const_iterator	end() const { return _connections.end(); }
+	UInt32 count() const { return _connections.size(); }
+
+private:
+	set<TCPClient*> _connections;
 };
 
 void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TLS>& pServerTLS = nullptr) {
@@ -345,38 +387,8 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	MainHandler	 handler;
 	IOSocket io(handler, _ThreadPool);
 
-	TCPServer   server(io, pServerTLS);
-	set<TCPClient*> pConnections;
-
-	TCPServer::OnError onError([](const Exception& ex) {
-		FATAL_ERROR("TCPEchoServer, ", ex);
-	});
-	server.onError = onError;
-
-	server.onConnection = [&](const shared<Socket>& pSocket) {
-		CHECK(pSocket && pSocket->peerAddress());
-
-		TCPClient* pConnection(new TCPClient(io, pClientTLS));
-
-		pConnection->onError = onError;
-		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address);
-			pConnections.erase(pConnection);
-			delete pConnection; // here no unsubscription required because event dies before the function
-		};
-		pConnection->onFlush = [pConnection]() { CHECK(pConnection->connected()) };
-		pConnection->onData = [&, pConnection](Packet& buffer) {
-			CHECK(pConnection->send(ex, buffer) && !ex); // echo
-			return 0;
-		};
-
-		Exception ex;
-		CHECK(pConnection->connect(ex, pSocket) && !ex);
-
-		pConnections.emplace(pConnection);
-	};
-
-
+	TCPEchoServer   server(io, pServerTLS, pClientTLS);
+	
 	SocketAddress address;
 	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
 	// Restart on the same address (to test start/stop/start server on same address binding)
@@ -391,7 +403,7 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	client.echo(_Long0Data.c_str(), _Long0Data.size());
 	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); } ));
 
-	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
+	CHECK(server.count() == 1 && (*server.begin())->connected() && (**server.begin())->peerAddress() == client->address() && client->peerAddress() == (**server.begin())->address())
 
 	client.disconnect();
 	CHECK(!client.connected());
@@ -411,11 +423,8 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	
 	server.stop();
 	CHECK(!server.running());
-	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
+	CHECK(handler.join([&server]()->bool { return !server.count(); }));
 
-	server.onConnection = nullptr;
-	server.onError = nullptr;
-	
 	_ThreadPool.join();
 	handler.flush();
 	CHECK(!io.subscribers());
@@ -435,87 +444,34 @@ ADD_TEST(TCP_SSL_NonBlocking) {
 
 
 ADD_TEST(TestTCPLoad) {
-	const shared<TLS>& pClientTLS = nullptr;
-	const shared<TLS>& pServerTLS = nullptr;
 	Exception ex;
 	MainHandler	 handler;
 	IOSocket io(handler, _ThreadPool);
 
-	TCPServer   server(io, pServerTLS);
-	set<TCPClient*> pConnections;
-
-	TCPServer::OnError onError([](const Exception& ex) {
-		FATAL_ERROR("TCPEchoServer, ", ex);
-	});
-	server.onError = onError;
-
-	server.onConnection = [&](const shared<Socket>& pSocket) {
-		CHECK(pSocket && pSocket->peerAddress());
-
-		TCPClient* pConnection(new TCPClient(io, pClientTLS));
-
-		pConnection->onError = onError;
-		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address);
-			pConnections.erase(pConnection);
-			delete pConnection; // here no unsubscription required because event dies before the function
-		};
-		pConnection->onFlush = [pConnection]() { CHECK(pConnection->connected()) };
-		pConnection->onData = [&, pConnection](Packet& buffer) {
-			CHECK(pConnection->send(ex, buffer) && !ex);
-			return 0;
-		};
-
-		Exception ex;
-		CHECK(pConnection->connect(ex, pSocket) && !ex);
-
-		pConnections.emplace(pConnection);
-	};
-
+	TCPEchoServer   server(io);
 
 	SocketAddress address;
-	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
-	// Restart on the same address (to test start/stop/start server on same address binding)
-	address = server->address();
-	server.stop();
 	CHECK(!server.running() && server.start(ex, address) && !ex  && server.running());
 
-	TCPEchoClient client(io, pClientTLS);
-	SocketAddress target(IPAddress::Loopback(), address.port());
+	TCPEchoClient client(io);
+	SocketAddress target(IPAddress::Loopback(), server->address().port());
 	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
 	for (int i = 0; i < 500; ++i)
 		client.echo(_Short0Data.c_str(), _Short0Data.size());
 	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); }));
 
-	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
+	CHECK(server.count() == 1 && (*server.begin())->connected() && (**server.begin())->peerAddress() == client->address() && client->peerAddress() == (**server.begin())->address())
 
 	client.disconnect();
-	CHECK(!client.connected());
-
-	CHECK(!client.ex);
-
-	// Test a refused connection
-	SocketAddress unknown(IPAddress::Loopback(), 62434);
-	if (client.connect(ex, unknown)) {
-		CHECK(!ex && !client.connected() && client.connecting() && client->address() && client->peerAddress() == unknown);
-		if (Util::Random() % 2) // Random to check that with or without sending, after SocketEngine join we get a client.connected()==false!
-			CHECK((client.send(ex, Packet(EXPAND("salut"))) && !ex) || ex);
-		CHECK(handler.join([&client]()->bool { return !client.connecting(); }));
-		CHECK((ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED && !client.ex) || client.ex.cast<Ex::Net::Socket>().code == NET_ECONNREFUSED); // if ex it has been set by random client.send
-	}
-	CHECK(!client.connected() && !client.connecting());
+	CHECK(!client.connected() && !client.ex);
 
 	server.stop();
 	CHECK(!server.running());
-	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
-
-	server.onConnection = nullptr;
-	server.onError = nullptr;
+	CHECK(handler.join([&server]()->bool { return !server.count(); }));
 
 	_ThreadPool.join();
 	handler.flush();
 	CHECK(!io.subscribers());
 }
-
 
 }
