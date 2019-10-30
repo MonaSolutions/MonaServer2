@@ -93,8 +93,8 @@ struct Option : virtual Object {
 
 	bool operator==(const Option& other) const { return String::ICompare(_fullName, other._fullName) == 0 || String::ICompare(_shortName, other._shortName) == 0; }
 	bool operator!=(const Option& other) const { return !operator==(other); }
-	bool operator<(const Option& other) const { return _fullName < other._fullName; }
-	bool operator>(const Option& other) const { return _fullName > other._fullName; }
+	bool operator<(const Option& other) const { int cmp = String::ICompare(_shortName, other._shortName); return cmp ? String::ICompare(_fullName, other._fullName) < 0 : 0; }
+	bool operator>(const Option& other) const { int cmp = String::ICompare(_shortName, other._shortName); return cmp ? String::ICompare(_fullName, other._fullName) > 0 : 0; }
 
 	static Option& Null() { static Option Option(NULL, NULL); return Option; }
 private:

@@ -17,6 +17,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Socket.h"
 #if !defined(_WIN32)
+#include <net/if.h>
 #include <fcntl.h>
 #endif
 
@@ -225,7 +226,19 @@ bool Socket::joinGroup(Exception& ex, const IPAddress& ip, UInt32 interfaceIndex
 	if (ip.family() == IPAddress::IPv4) {
 		struct ip_mreq mreq;
 		memcpy(&mreq.imr_multiaddr, ip.data(), ip.size());
+#if defined(_WIN32)
 		mreq.imr_interface.s_addr = htonl(interfaceIndex);
+#else
+		struct ifreq ifreq;
+		if (interfaceIndex) {
+			if (if_indextoname(interfaceIndex, ifreq.ifr_name) == NULL) {
+				mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+				SetException(ex, " (ip=", ip, ", interfaceIndex=", interfaceIndex, ")");
+			} else
+				mreq.imr_interface.s_addr = ((struct sockaddr_in&)ifreq.ifr_addr).sin_addr.s_addr;
+		} else
+			mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+#endif
 		return setOption(ex, IPPROTO_IP, IP_ADD_MEMBERSHIP, mreq);
 	}
 	struct ipv6_mreq mreq;
@@ -296,7 +309,8 @@ bool Socket::connect(Exception& ex, const SocketAddress& address, UInt16 timeout
 				Disconnection() { sin6_family = AF_UNSPEC; }
 				operator const sockaddr*() const { return reinterpret_cast<const sockaddr*>(this); }
 			} Disconnect;
-			result = ::connect(_id, Disconnect, sizeof(Disconnect));
+			::connect(_id, Disconnect, sizeof(Disconnect));
+			result = 0; // no error possible here (OSX can return NET_EAFNOSUPPORT for example)
 		} else
 			result = ::connect(_id, address.data(), address.size());
 	} else
@@ -365,8 +379,9 @@ bool Socket::bind(Exception& ex, const SocketAddress& addr) {
 		setLinger(ex, true, 0); // avoid a TCP port overriding on server usage
 		setReuseAddress(ex, true); // to avoid a conflict between address bind on not exactly same address (see http://stackoverflow.com/questions/14388706/socket-options-so-reuseaddr-and-so-reuseport-how-do-they-differ-do-they-mean-t)
 	} else if (address.host().isMulticast()) {
-		// if address is multicast then connect to the ip group multicast!
-		joinGroup(ex, address.host());
+		// if address is multicast then connect to the ip group multicast (and bind on the port requested!)
+		if (!joinGroup(ex, address.host()))
+			return false;
 		address.host().set(IPAddress::Wildcard());
 	}
 	if (::bind(_id, address.data(), address.size()) != 0) {

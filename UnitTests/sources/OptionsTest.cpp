@@ -119,10 +119,8 @@ ADD_TEST(TestOption) {
 
 ADD_TEST(TestOptionsAdd) {
 
-	//removeAllOptions();
-
 	CHECK(AddOption("helper", "H", "start helper"));
-	CHECK(AddOption("help", "h", "print help text"));
+	CHECK(!AddOption("help", "h", "print help text"));
 	CHECK(AddOption("include-dir", "I", "specify a search path for locating header files", false, true, "path"));
 	CHECK(AddOption("library-dir", "L", "specify a search path for locating library files", false, true, "path"));
 	CHECK(AddOption("insert", "it", "insert something", false, true, "path"));
@@ -132,15 +130,15 @@ ADD_TEST(TestOptionsAdd) {
 
 	CHECK(GetOption("include"));
 	CHECK(GetOption("insert"));
-	CHECK(!GetOption("Insert"));
+	CHECK(GetOption("Insert"));
 	CHECK(!GetOption("item"));
 	CHECK(!GetOption("i"));
 	CHECK(!GetOption("he"));
 	CHECK(!GetOption("in"));
-	CHECK(GetOption("help"));
 	CHECK(!GetOption("helpe"));
 	CHECK(GetOption("helper"));
 
+	CHECK(GetOption("include-dir"));
 	_Options.remove("include-dir");
 	CHECK(!GetOption("include-dir"));
 

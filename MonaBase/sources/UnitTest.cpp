@@ -54,7 +54,7 @@ void UnitTest::defineOptions(Exception& ex, Options& options) {
 	options.add(ex, "module", "m", "Specify the module to run.")
 		.argument("module");
 
-	options.add(ex, "loop", "l", "Specify the number of loop to execute for every test to run.")
+	options.add(ex, "loop", "x", "Specify the number of loop to execute for every test to run.")
 		.argument("number of loop");
 
 	// defines here your options applications

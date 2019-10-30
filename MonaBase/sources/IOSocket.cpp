@@ -180,8 +180,9 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket) {
 	int res;
 #if defined(_BSD)
 	struct kevent events[2];
-	EV_SET(&events[0], *pSocket, EVFILT_READ, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
-	EV_SET(&events[1], *pSocket, EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_EOF, 0, 0, pSocket->_pWeakThis);
+	// no need to look EV_EOF, set automatically!
+	EV_SET(&events[0], *pSocket, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, pSocket->_pWeakThis);
+	EV_SET(&events[1], *pSocket, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, pSocket->_pWeakThis);
 	res = kevent(_system, events, 2, NULL, 0, NULL);
 #else
 	epoll_event event;
@@ -266,10 +267,11 @@ void IOSocket::unsubscribe(Socket* pSocket) {
 }
 
 void IOSocket::read(const shared<Socket>& pSocket, int error) {
-	// ::printf("READ(%d) socket %d\n", error, pSocket->id());
+	//::printf("READ(%d) socket %d\n", error, pSocket->id());
 	if(pSocket->_reading && !error)
 		return; // useless!
 	++pSocket->_reading;
+	//::printf("READING(%d) socket %d\n", error, pSocket->id());
 
 	if (pSocket->listening()) {
 
@@ -396,9 +398,10 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 }
 
 void IOSocket::write(const shared<Socket>& pSocket, int error) {
-	// ::printf("WRITE(%d) socket %d\n", error, pSocket->id());
-	if (!pSocket->_opened)
-		pSocket->_opened = true;
+	//::printf("WRITE(%d) socket %d\n", error, pSocket->id());
+	if (!pSocket->_opened) // send a first onFlush on connection!
+		pSocket->_opened = true; 
+
 	struct Send : Action {
 		Send(int error, const shared<Socket>& pSocket) : Action("SocketSend", error, pSocket) {}
 	private:
@@ -424,9 +427,11 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 
 
 void IOSocket::close(const shared<Socket>& pSocket, int error) {
-	// ::printf("CLOSE(%d) socket %d\n", error, pSocket->id());
+	//::printf("CLOSE(%d) socket %d\n", error, pSocket->id());
 	if (pSocket->type == Socket::TYPE_DATAGRAM)
 		return; // no Disconnection requirement!
+	//::printf("CLOSING(%d) socket %d\n", error, pSocket->id());
+
 	struct Close : Action {
 		Close(int error, const shared<Socket>& pSocket) : Action("SocketClose", error, pSocket) {}
 	private:
@@ -613,15 +618,18 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 			if(!pSocket)
 				continue; // socket error
 			// EVFILT_READ | EVFILT_WRITE | EV_EOF
+			// printf("%d => 0x%08x(0x%08x - 0x%08x)\n", pSocket->id(), event.filter, event.flags, event.fflags);
 			int error = 0;
 			if (event.flags&EV_ERROR) {
 				socklen_t len(sizeof(error));
 				if (getsockopt(pSocket->id(), SOL_SOCKET, SO_ERROR, (void *)&error, &len) == -1)
 					error = Net::LastError();
 			}
-			if (event.flags&EV_EOF) // if close or shutdown RD = read (recv) => disconnection
-				close(pSocket, error);
-			else if (event.filter==EVFILT_READ)
+			if (event.flags&EV_EOF) {
+				// if close or shutdown RD = read (recv) => disconnection
+				if (event.filter == EVFILT_READ) // necessary subscribed to EVFILT_READ (ignore the EVFILT_WRITE, causes two close otherwise!)
+					close(pSocket, error);
+			} else if (event.filter == EVFILT_READ)
 				read(pSocket, error);
 			else if (event.filter==EVFILT_WRITE)
 				write(pSocket, error);

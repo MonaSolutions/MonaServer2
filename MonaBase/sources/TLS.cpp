@@ -131,17 +131,17 @@ int TLS::Socket::receive(Exception& ex, void* buffer, UInt32 size, int flags, So
 	if (!pTLS)
 		return Mona::Socket::receive(ex, buffer, size, flags, pAddress); // normal socket
 
-	lock_guard<mutex> lock(_mutex);
+	unique_lock<mutex> lock(_mutex);
 	if (!_ssl)
 		return Mona::Socket::receive(ex, buffer, size, flags, pAddress); // normal socket
 
 	if (!SSL_is_init_finished(_ssl)) {
 		if (catchResult(ex, SSL_do_handshake(_ssl)) < 0)
 			return -1;
-		_mutex.unlock();
+		lock.unlock(); // always unlock to flush because cann call TLS::sendTo which relock _mutex
 		// try to flush data queueing after handshake gotten!
 		Mona::Socket::flush(ex, false);
-		_mutex.lock();
+		lock.lock();
 	}
 
 	int result = catchResult(ex, SSL_read(_ssl, buffer, size), " (from=", peerAddress(), ", size=", size, ")");
@@ -167,14 +167,14 @@ int TLS::Socket::sendTo(Exception& ex, const void* data, UInt32 size, const Sock
 
 bool TLS::Socket::flush(Exception& ex, bool deleting) {
 	// Call when Writable!
-	if (!pTLS || queueing()) // if queueing a SLL_Write will do the handshake!
+	if (!pTLS || queueing() || deleting) // if queueing a SLL_Write will do the handshake!
 		return Mona::Socket::flush(ex, deleting);
 	// maybe WRITE event for handshake need!
-	unique_lock<mutex> lock(_mutex, defer_lock);
-	if (!deleting)
-		lock.lock();
-	if (!_ssl || catchResult(ex, SSL_do_handshake(_ssl)) > 0)
+	unique_lock<mutex> lock(_mutex);
+	if (!_ssl || catchResult(ex, SSL_do_handshake(_ssl)) > 0) {
+		lock.unlock(); // always unlock to flush because can call TLS::sendTo which relock _mutex
 		return Mona::Socket::flush(ex, deleting);
+	}
 	if (ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
 		return false;
 	ex = nullptr;

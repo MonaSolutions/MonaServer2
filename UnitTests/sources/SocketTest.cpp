@@ -58,7 +58,13 @@ ADD_TEST(IPMulticast) {
 	SocketAddress address;
 	CHECK(address.set(ex, "239.255.1.2", UInt16(0)) && !ex);
 
-	CHECK(server.bind(ex, address) && !ex && server.address() && !server.address().host());
+	bool result = server.bind(ex, address);
+	if (!result && ex.cast<Ex::Net::Socket>().code == NET_EINVAL) {
+		WARN("Multicast IP not supported by OS system")
+		return;
+	}
+
+	CHECK(result && !ex && server.address() && !server.address().host());
 	address.setPort(server.address().port());
 
 	Socket client(Socket::TYPE_DATAGRAM);
@@ -324,10 +330,7 @@ struct TCPEchoClient : TCPClient {
 
 	Exception	ex;
 
-	bool echoing() {
-		return !_packets.empty();
-	}
-
+	bool echoing() const { return !_packets.empty(); }
 	void echo(const void* data,UInt32 size) {
 		_packets.emplace_back(Packet(data, size));
 		CHECK(send(ex, _packets.back()) && !ex);
@@ -418,6 +421,19 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	CHECK(!io.subscribers());
 }
 
+ADD_TEST(TCP_NonBlocking) {
+	TestTCPNonBlocking();
+}
+
+ADD_TEST(TCP_SSL_NonBlocking) {
+	Exception ex;
+	shared<TLS> pClientTLS, pServerTLS;
+	CHECK(TLS::Create(ex, pClientTLS) && !ex);
+	CHECK(TLS::Create(ex, "cert.pem", "key.pem", pServerTLS) && !ex);
+	TestTCPNonBlocking(pClientTLS, pServerTLS);
+}
+
+
 ADD_TEST(TestTCPLoad) {
 	const shared<TLS>& pClientTLS = nullptr;
 	const shared<TLS>& pServerTLS = nullptr;
@@ -501,16 +517,5 @@ ADD_TEST(TestTCPLoad) {
 	CHECK(!io.subscribers());
 }
 
-ADD_TEST(TCP_NonBlocking) {
-	TestTCPNonBlocking();
-}
-
-ADD_TEST(TCP_SSL_NonBlocking) {
-	Exception ex;
-	shared<TLS> pClientTLS, pServerTLS;
-	CHECK(TLS::Create(ex, pClientTLS) && !ex);
-	CHECK(TLS::Create(ex, "cert.pem", "key.pem", pServerTLS) && !ex);
-	TestTCPNonBlocking(pClientTLS, pServerTLS);
-}
 
 }
