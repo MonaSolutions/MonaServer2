@@ -67,7 +67,8 @@ TLS::Socket::~Socket() {
 	/// shutdown + flush
 	Exception ignore;
 	flush(ignore, true);
-	SSL_shutdown(_ssl);
+	if(!SSL_in_init(_ssl)) // just if required (causes an error while init)
+		SSL_shutdown(_ssl);
 	SSL_free(_ssl);
 }
 
@@ -182,9 +183,9 @@ bool TLS::Socket::flush(Exception& ex, bool deleting) {
 }
 
 bool TLS::Socket::close(Socket::ShutdownType type) {
-	if(type && pTLS) {
+	if(type && pTLS) { // shutdown just if SEND (or BOTH)
 		lock_guard<mutex> lock(_mutex);
-		if (_ssl) // shutdown just if SEND (or BOTH)
+		if (_ssl && !SSL_in_init(_ssl)) // just if required (causes an error while init)
 			SSL_shutdown(_ssl); // ignore error, it's the error of main socket which has priority
 	}
 	return Mona::Socket::close(type);

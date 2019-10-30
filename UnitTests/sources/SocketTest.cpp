@@ -302,14 +302,12 @@ ADD_TEST(UDP_NonBlocking) {
 }
 
 struct TCPEchoClient : TCPClient {
-	TCPEchoClient(IOSocket& io, const shared<TLS>& pTLS = nullptr) : TCPClient(io, pTLS), _recv(0), _send(0) {
+	TCPEchoClient(IOSocket& io, const shared<TLS>& pTLS = nullptr) : TCPClient(io, pTLS) {
 
 		onError = [this](const Exception& ex) { this->ex = ex; };;
 		onDisconnection = [this](const SocketAddress& peerAddress){ CHECK(!connected()) };
 		onFlush = [this](){ CHECK(connected()) };;
 		onData = [this](Packet& buffer)->UInt32 {
-			_recv += buffer.size();
-			//DEBUG(_recv, "/", _send);
 			do {
 				CHECK(!_packets.empty());
 				UInt32 size(_packets.front().size());
@@ -332,17 +330,14 @@ struct TCPEchoClient : TCPClient {
 
 	Exception	ex;
 
-	bool echoing() const { return !_packets.empty() || _send != _recv; }
+	bool echoing() const { return !_packets.empty(); }
 	void echo(const void* data, UInt32 size) {
-		_send += size;
 		_packets.emplace_back(Packet(data, size));
 		CHECK(send(ex, _packets.back()) && !ex);
 	}
 
 private:
 	deque<Packet>	_packets;
-	UInt64			_recv;
-	UInt64			_send;
 };
 
 struct TCPEchoServer : TCPServer {

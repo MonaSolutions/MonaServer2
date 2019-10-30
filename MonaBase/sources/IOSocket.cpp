@@ -400,7 +400,10 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	//::printf("WRITE(%d) socket %d\n", error, pSocket->id());
 	if (!pSocket->_opened) // send a first onFlush on connection!
-		pSocket->_opened = true; 
+		pSocket->_opened = true;
+	else if (!pSocket->queueing())
+		return; // useless!
+	//::printf("WRITING(%d) socket %d\n", error, pSocket->id());
 
 	struct Send : Action {
 		Send(int error, const shared<Socket>& pSocket) : Action("SocketSend", error, pSocket) {}
@@ -618,7 +621,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 			if(!pSocket)
 				continue; // socket error
 			// EVFILT_READ | EVFILT_WRITE | EV_EOF
-			// printf("%d => 0x%08x(0x%08x - 0x%08x)\n", pSocket->id(), event.filter, event.flags, event.fflags);
+			// printf("%d => 0x%08x(0x%08x)\n", pSocket->id(), event.filter, event.flags);
 			int error = 0;
 			if (event.flags&EV_ERROR) {
 				socklen_t len(sizeof(error));
@@ -655,7 +658,7 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 			if(!pSocket)
 				continue; // socket error
 			// EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP
-			// printf("%d => %u\n", pSocket->id(), event.events);
+			//printf("%d => 0x%08x\n", pSocket->id(), event.events);
 			int error = 0;
 			if(event.events&EPOLLERR) {
 				socklen_t len(sizeof(error));
@@ -668,15 +671,13 @@ bool IOSocket::run(Exception& ex, const volatile bool& requestStop) {
 				continue;
 			}
 			if (!(event.events&EPOLLHUP)) { // if socket unexpected close no more read or write!
-				if (event.events&EPOLLIN) {
-					/* even in EPOLLET we can miss the first WRITE event, for example with an UDP socket, its creation makes it writable quickly,
-					so the IOSocket subscribe happens after its WRITABLE state event and we miss its WRITE change state */
-					if (event.events&EPOLLOUT && !error && !pSocket->_opened) // for first Flush requirement!
-						write(pSocket, 0); // before read! Connection!
-					read(pSocket, error);
-					error = 0;
-				} else if (event.events&EPOLLOUT) { // else if because EPOLLET!
+				// EPOLLOUT in first to get the onFlush (onConnection for TCP) in first (before any reception)
+				if (event.events&EPOLLOUT) {
 					write(pSocket, error);
+					error = 0;
+				}
+				if (event.events&EPOLLIN) {
+					read(pSocket, error);
 					error = 0;
 				}
 			}
