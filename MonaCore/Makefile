@@ -17,7 +17,8 @@ LIBS+=-lMonaBase -lcrypto -lssl
 
 # Variables fixed
 ifeq ($(OS),Darwin)
-    LIB=lib/libMonaCore.dylib
+	LIBDIRS+=-L/usr/local/opt/openssl/lib/
+	LIB=lib/libMonaCore.dylib
 	SHARED=-dynamiclib -install_name ./../MonaCore/$(LIB)
 else
 	LIB=lib/libMonaCore.so

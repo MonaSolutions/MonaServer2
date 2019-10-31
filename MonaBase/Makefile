@@ -16,6 +16,7 @@ LIBS+=-lcrypto -lssl
 
 # Variables fixed
 ifeq ($(OS),Darwin)
+	LIBDIRS+=-L/usr/local/opt/openssl/lib/
 	LIB=lib/libMonaBase.dylib
 	SHARED=-dynamiclib -install_name ./../MonaBase/$(LIB)
 else
@@ -33,7 +34,7 @@ release:
 	mkdir -p lib
 	@$(MAKE) -k $(OBJECT)
 	@echo creating dynamic lib $(LIB)
-	@$(CXX) $(CFLAGS) -O3 -fPIC $(SHARED) -o $(LIB) $(OBJECT) $(LIBS)
+	@$(CXX) $(CFLAGS) -O3 $(LIBDIRS) -fPIC $(SHARED) -o $(LIB) $(OBJECT) $(LIBS)
 	@if [ "$(OS)" != "Darwin" ]; then\
 		echo "creating static lib $(AR)";\
 		ar rcs $(AR) $(OBJECT);\
@@ -44,7 +45,7 @@ debug:
 	mkdir -p lib
 	@$(MAKE) -k $(OBJECTD)
 	@echo creating dynamic debug lib $(LIB)
-	@$(CXX) -g -D_DEBUG $(CFLAGS) -Og -fPIC $(SHARED) -o $(LIB) $(OBJECTD) $(LIBS)
+	@$(CXX) -g -D_DEBUG $(CFLAGS) -Og $(LIBDIRS) -fPIC $(SHARED) -o $(LIB) $(OBJECTD) $(LIBS)
 	@if [ "$(OS)" != "Darwin" ]; then\
 		echo "creating static lib $(AR)";\
 		ar rcs $(AR) $(OBJECTD);\

@@ -17,6 +17,7 @@ LIBDIRS+=-L../MonaBase/lib/
 LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/"
 override LIBS+=-pthread -lMonaBase -lcrypto -lssl
 ifeq ($(OS),Darwin)
+	LIBDIRS+=-L/usr/local/opt/openssl/lib/
 	LBITS := $(shell getconf LONG_BIT)
 	ifeq ($(LBITS),64)
 	   # just require for OSX 64 bits
