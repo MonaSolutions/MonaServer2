@@ -30,7 +30,7 @@ Socket::Socket(Type type) :
 #if !defined(_WIN32)
 	_pWeakThis(NULL), 
 #endif
-	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
+	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
 
 	if (type < TYPE_OTHER) {
 		_id = ::socket(AF_INET6, type, 0);
@@ -47,7 +47,7 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(ad
 #if !defined(_WIN32)
 	_pWeakThis(NULL),
 #endif
-	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
+	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
 
 	if (type < TYPE_OTHER)
 		init();
@@ -478,12 +478,12 @@ int Socket::sendTo(Exception& ex, const void* data, UInt32 size, const SocketAdd
 
 int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& address, int flags) {
 	lock_guard<mutex> lock(_mutexSending);
-	_queueing += packet.size(); // /!\ increments queueing BEFORE to do sendTo to be sure that if IOSocket send WRITE event we will not ignore it (see IOSocket write ingore-pre-condition)
 	if(!_sendings.empty()) {
 		_sendings.emplace_back(packet, address ? address : _peerAddress, flags);
+		_queueing += packet.size();
 		return 0;
 	}
-
+	_sending = true;
 	int	sent = sendTo(ex, packet.data(), packet.size(), address);
 	if (sent < 0) {
 		int code = ex.cast<Ex::Net::Socket>().code;
@@ -495,13 +495,16 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 			// RELIABILITY IMPOSSIBLE => is not an error socket + is not connected (connecting = (peerAddress && error==NET_ENOTCONN) = false) + is not WOUldBLOCK
 			if (type == TYPE_STREAM) // else udp socket which send a packet without destinator address
 				close(); // shutdown system to avoid to try to send before shutdown!
+			_sending = false;
 			return -1;
 		}
-	} else if (UInt32(sent) >= packet.size())
+	} else if (UInt32(sent) >= packet.size()) {
+		_sending = false;
 		return packet.size();
+	}
 
-	_queueing -= sent;
 	_sendings.emplace_back(packet+sent, address ? address : _peerAddress, flags);
+	_queueing += _sendings.back().size();
 	return sent;
 }
 
@@ -536,8 +539,8 @@ bool Socket::flush(Exception& ex, bool deleting) {
 		}
 		_sendings.pop_front();
 	}
-	if (!deleting && written)
-		_queueing -= written;
+	if (!deleting && written && !(_queueing -= written))
+		_sending = false;
 	return true;
 }
 

@@ -401,8 +401,8 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	//::printf("WRITE(%d) socket %d\n", error, pSocket->id());
 	if (!pSocket->_opened) // send a first onFlush on connection!
 		pSocket->_opened = true;
-	else if (!pSocket->queueing())
-		return; // useless!
+	else if (!error && !pSocket->_sending)
+		return; // /!\ On UNIX epoll a READ event can cause a false-WRITE event, if _sending=false there is nothing to send
 	//::printf("WRITING(%d) socket %d\n", error, pSocket->id());
 
 	struct Send : Action {

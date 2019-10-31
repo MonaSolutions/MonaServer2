@@ -254,6 +254,7 @@ private:
 	UInt16						_threadReceive;
 	std::atomic<UInt32>			_receiving;
 	std::atomic<UInt8>			_reading;
+	std::atomic<bool>			_sending;
 	const Handler*				_pHandler; // to diminue size of Action+Handle
 
 	bool						_opened;
