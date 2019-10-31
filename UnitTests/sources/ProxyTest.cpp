@@ -205,7 +205,7 @@ private:
 				CHECK(_proxy.relay(ex, socket(), buffer, _address) && !ex);
 				return 0;
 			};
-			_proxy.onError = [](const Exception& ex) { FATAL_ERROR("TCPProxy::Connection, ", ex); };
+			_proxy.onError = [](const Exception& ex) { FATAL_ERROR("TCPProxy::Relay, ", ex); };
 		}
 
 		~Connection() {

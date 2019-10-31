@@ -170,7 +170,7 @@ protected:
 	void			send(UInt32 count) { _sendTime = Time::Now(); _sendByteRate += count; }
 	void			receive(UInt32 count) { _recvTime = Time::Now(); _recvByteRate += count; }
 	virtual bool	flush(Exception& ex, bool deleting);
-	virtual bool	close(ShutdownType type = SHUTDOWN_BOTH);
+	virtual bool	close(ShutdownType type = SHUTDOWN_BOTH) { return ::shutdown(_id, type) == 0; }
 
 	template<typename Type, typename = typename std::enable_if<std::is_arithmetic<Type>::value && !std::is_same<Type, bool>::value>::type>
 	bool processParam(const Parameters& parameters, const char* name, Type& value, const char* prefix = NULL) {

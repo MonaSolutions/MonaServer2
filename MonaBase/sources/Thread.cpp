@@ -174,13 +174,13 @@ void Thread::start(Priority priority) {
 
 void Thread::stop() {
 	_requestStop = true; // advise thread (intern)
-	wakeUp.set(); // wakeUp a sleeping thread
 	if (_Me == this) {
 		// In the unique case were the caller is the thread itself, set _stop to true to allow to an extern caller to restart it!
 		_stop = true;
 		return;
 	}
 	std::lock_guard<std::mutex> lock(_mutex);
+	wakeUp.set(); // wakeUp a sleeping thread, mutex it to avoid a Signal::reset before on start call!
 	if (_thread.joinable())
 		_thread.join();
 }

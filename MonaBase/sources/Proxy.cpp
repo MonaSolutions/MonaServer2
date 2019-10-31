@@ -26,7 +26,7 @@ namespace Mona {
 
 void Proxy::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
 	Exception ex;
-	if (!_pSocket->write(ex, Packet(pBuffer), _address) || ex)
+	if (_pSocket->write(ex, Packet(pBuffer), _address)<0 || ex)
 		_handler.queue(onError, ex);
 }
 

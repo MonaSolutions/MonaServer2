@@ -72,13 +72,6 @@ Socket::~Socket() {
 	NET_CLOSESOCKET(_id);
 }
 
-bool Socket::close(ShutdownType type) {
-	if (::shutdown(_id, type) == 0)
-		return true;
-	Net::LastError(); // to pick up _errno
-	return false;
-}
-
 bool Socket::shutdown(Socket::ShutdownType type) {
 	if (_id == NET_INVALID_SOCKET)
 		return false;
@@ -485,9 +478,9 @@ int Socket::sendTo(Exception& ex, const void* data, UInt32 size, const SocketAdd
 
 int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& address, int flags) {
 	lock_guard<mutex> lock(_mutexSending);
+	_queueing += packet.size(); // /!\ increments queueing BEFORE to do sendTo to be sure that if IOSocket send WRITE event we will not ignore it (see IOSocket write ingore-pre-condition)
 	if(!_sendings.empty()) {
 		_sendings.emplace_back(packet, address ? address : _peerAddress, flags);
-		_queueing += packet.size();
 		return 0;
 	}
 
@@ -500,17 +493,15 @@ int Socket::write(Exception& ex, const Packet& packet, const SocketAddress& addr
 			sent = 0;
 		} else {
 			// RELIABILITY IMPOSSIBLE => is not an error socket + is not connected (connecting = (peerAddress && error==NET_ENOTCONN) = false) + is not WOUldBLOCK
-			if (type == TYPE_STREAM) { // else udp socket which send a packet without destinator address
+			if (type == TYPE_STREAM) // else udp socket which send a packet without destinator address
 				close(); // shutdown system to avoid to try to send before shutdown!
-				_sendings.clear();
-			}
 			return -1;
 		}
 	} else if (UInt32(sent) >= packet.size())
 		return packet.size();
 
+	_queueing -= sent;
 	_sendings.emplace_back(packet+sent, address ? address : _peerAddress, flags);
-	_queueing += _sendings.back().size();
 	return sent;
 }
 
@@ -540,17 +531,12 @@ bool Socket::flush(Exception& ex, bool deleting) {
 			} else if (type == TYPE_STREAM) {
 				// fail to send few reliable data, shutdown send!
 				close(); // shutdown system to avoid to try to send before shutdown!
-				_sendings.clear();
 				return false;
 			}
 		}
 		_sendings.pop_front();
 	}
-	if (deleting) {
-		_sendings.clear();
-		return true;
-	}
-	if (written)
+	if (!deleting && written)
 		_queueing -= written;
 	return true;
 }

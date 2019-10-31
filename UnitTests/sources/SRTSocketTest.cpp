@@ -166,16 +166,9 @@ ADD_TEST(TestBlocking) {
 
 struct SRTEchoClient : SRT::Client {
 	SRTEchoClient(IOSocket& io) : SRT::Client(io) {
-
-		onError = [this](const Exception& ex) { 
-			this->ex = ex; 
-		};
-		onDisconnection = [this](const SocketAddress& peerAddress){ 
-			CHECK(!connected()) 
-		};
-		onFlush = [this](){
-			CHECK(connected())
-		};
+		onError = [this](const Exception& ex) { this->ex = ex; };
+		onDisconnection = [this](const SocketAddress& peerAddress){  CHECK(!connected()) };
+		onFlush = [this](){ CHECK(connected()) };
 		onData = [this](Packet& buffer)->UInt32 {
 			do {
 				CHECK(!_packets.empty());
@@ -188,6 +181,8 @@ struct SRTEchoClient : SRT::Client {
 			} while (buffer);
 			return 0;
 		};
+
+		CHECK(self->setPktDrop(ex, false) && !ex); // /!\we want reliable here
 	}
 
 	~SRTEchoClient() {
@@ -199,10 +194,7 @@ struct SRTEchoClient : SRT::Client {
 
 	Exception	ex;
 
-	bool echoing() {
-		return !_packets.empty();
-	}
-
+	bool echoing() const { return !_packets.empty(); }
 	void echo(const void* data,UInt32 size) {
 		_packets.emplace_back(Packet(data, size));
 		CHECK(send(ex, _packets.back()) && !ex);
@@ -212,49 +204,55 @@ private:
 	deque<Packet>	_packets;
 };
 
+
+struct SRTEchoServer : SRT::Server {
+	SRTEchoServer(IOSocket& io) : SRT::Server(io) {
+		onError = [](const Exception& ex) { FATAL_ERROR("SRTEchoServer, ", ex); };
+		onConnection = [&](const shared<Socket>& pSocket) {
+			CHECK(pSocket && pSocket->peerAddress());
+
+			SRT::Client* pConnection(new SRT::Client(io));
+
+			pConnection->onError = onError;
+			pConnection->onDisconnection = [this, pConnection](const SocketAddress& address) {
+				CHECK(!pConnection->connected() && address);
+				_connections.erase(pConnection);
+				delete pConnection; // here no unsubscription required because event dies before the function
+			};
+			pConnection->onFlush = [pConnection]() { CHECK(pConnection->connected()) };
+			pConnection->onData = [pConnection](Packet& buffer) {
+				Exception ex;
+				CHECK(pConnection->send(ex, buffer) && !ex); // echo
+				return 0;
+			};
+
+			Exception ex;
+			CHECK((*pConnection)->setPktDrop(ex, false) && !ex); // /!\we want reliable here
+			CHECK(pConnection->connect(ex, pSocket) && !ex);
+
+			CHECK(_connections.emplace(pConnection).second);
+		};
+	}
+	
+	typedef set<SRT::Client*>::const_iterator const_iterator;
+	const_iterator	begin() const { return _connections.begin(); }
+	const_iterator	end() const { return _connections.end(); }
+	UInt32 count() const { return _connections.size(); }
+
+private:
+	set<SRT::Client*> _connections;
+};
+
 ADD_TEST(TestNonBlocking) {
 	Exception ex;
 	MainHandler	 handler;
 	IOSocket io(handler, _ThreadPool);
 
-	SRT::Server   server(io);
-	set<SRT::Client*> pConnections;
+	SRTEchoServer server(io);
 
-	SRT::Server::OnError onError([](const Exception& ex) {
-		FATAL_ERROR("EchoServer, ", ex);
-	});
-	server.onError = onError;
-
-	server.onConnection = [&](const shared<Socket>& pSocket) {
-		CHECK(pSocket && pSocket->peerAddress());
-
-		SRT::Client* pConnection(new SRT::Client(io));
-
-		pConnection->onError = onError;
-		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address);
-			pConnections.erase(pConnection);
-			delete pConnection; // here no unsubscription required because event dies before the function
-		};
-		pConnection->onFlush = [pConnection]() { 
-			CHECK(pConnection->connected()) 
-		};
-		pConnection->onData = [&, pConnection](Packet& buffer) {
-			CHECK(pConnection->send(ex, buffer) && !ex); // echo
-			return 0;
-		};
-
-		Exception ex;
-		CHECK(pConnection->connect(ex, pSocket) && !ex);
-
-		pConnections.emplace(pConnection);
-	};
-
-
-	SocketAddress address;
-	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
+	CHECK(!server.running() && server.start(ex) && !ex && server.running());
 	// Restart on the same address (to test start/stop/start server on same address binding)
-	address = server->address();
+	SocketAddress address(server->address());
 	server.stop();
 	CHECK(!server.running() && server.start(ex, address) && !ex  && server.running()); 
 
@@ -265,7 +263,7 @@ ADD_TEST(TestNonBlocking) {
 	client.echo(_Long0Data.c_str(), _Long0Data.size());
 	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); } ));
 
-	CHECK(pConnections.size() == 1 && (*pConnections.begin())->connected() && (**pConnections.begin())->peerAddress() == client->address() && client->peerAddress() == (**pConnections.begin())->address())
+	CHECK(server.count() == 1 && (*server.begin())->connected() && (**server.begin())->peerAddress() == client->address() && client->peerAddress() == (**server.begin())->address())
 
 	client.disconnect();
 	CHECK(!client.connected());
@@ -285,11 +283,8 @@ ADD_TEST(TestNonBlocking) {
 	
 	server.stop();
 	CHECK(!server.running());
-	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
+	CHECK(handler.join([&server]()->bool { return !server.count(); }));
 
-	server.onConnection = nullptr;
-	server.onError = nullptr;
-	
 	_ThreadPool.join();
 	handler.flush();
 	CHECK(!io.subscribers());
@@ -300,67 +295,27 @@ ADD_TEST(TestLoad) {
 	MainHandler	 handler;
 	IOSocket io(handler, _ThreadPool);
 
-	SRT::Server   server(io);
-	set<SRT::Client*> pConnections;
+	SRTEchoServer   server(io);
 
-	SRT::Server::OnError onError([](const Exception& ex) {
-		FATAL_ERROR("EchoServer, ", ex);
-	});
-	server.onError = onError;
-
-	const UInt32 messages(8191); // it seems this is the limit before getting the log "No room to store incoming packet"
-	atomic<UInt32> received(0);
-	server.onConnection = [&](const shared<Socket>& pSocket) {
-		CHECK(pSocket && pSocket->peerAddress());
-
-		SRT::Client* pConnection(new SRT::Client(io));
-
-		pConnection->onError = onError;
-		pConnection->onDisconnection = [&, pConnection](const SocketAddress& address) {
-			CHECK(!pConnection->connected() && address);
-			pConnections.erase(pConnection);
-			delete pConnection; // here no unsubscription required because event dies before the function
-		};
-		pConnection->onFlush = [pConnection]() {
-			CHECK(pConnection->connected())
-		};
-		pConnection->onData = [&, pConnection](Packet& buffer) {
-			CHECK(buffer.size() == 1316);
-			++received;
-			CHECK(pConnection->send(ex, buffer) && !ex); // echo
-			return 0;
-		};
-
-		Exception ex;
-		CHECK(pConnection->connect(ex, pSocket) && !ex);
-
-		pConnections.emplace(pConnection);
-	};
-	CHECK(server->setPktDrop(ex, false) && !ex); // /!\we want reliable here
-	SocketAddress address;
-	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
-	address = server->address();
+	CHECK(!server.running() && server.start(ex) && !ex && server.running());
 
 	SRTEchoClient client(io);
-	CHECK(client->setPktDrop(ex, false) && !ex); // /!\we want reliable here
-	SocketAddress target(IPAddress::Loopback(), address.port());
+	SocketAddress target(IPAddress::Loopback(), server->address().port());
 	CHECK(client.connect(ex, target) && !ex && client->peerAddress() == target);
-
-	CHECK(handler.join([&]()->bool { return client.connected(); }));
-
+	const UInt32 messages(8191); // it seems this is the limit before getting the log "No room to store incoming packet" TODO re-test (was missing a setPktDrop on server connection)
 	for (UInt32 i = 0; i < messages; ++i)
 		client.echo(_Long0Data.c_str(), _Long0Data.size());
-	CHECK(handler.join([&]()->bool { return client.connected() && received == messages && !client.echoing(); }));
+	CHECK(handler.join([&]()->bool { return client.connected() && !client.echoing(); }));
+
+	CHECK(server.count() == 1 && (*server.begin())->connected() && (**server.begin())->peerAddress() == client->address() && client->peerAddress() == (**server.begin())->address())
 
 	// Closing
 	client.disconnect();
+	CHECK(!client.connected() && !client.ex);
 
 	server.stop();
 	CHECK(!server.running());
-	CHECK(handler.join([&pConnections]()->bool { return pConnections.empty(); }));
-
-	server.onConnection = nullptr;
-	server.onError = nullptr;
+	CHECK(handler.join([&server]()->bool { return !server.count(); }));
 
 	_ThreadPool.join();
 	handler.flush();

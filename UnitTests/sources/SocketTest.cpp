@@ -383,11 +383,10 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	IOSocket io(handler, _ThreadPool);
 
 	TCPEchoServer   server(io, pServerTLS, pClientTLS);
-	
-	SocketAddress address;
-	CHECK(!server.running() && server.start(ex, address) && !ex && server.running());
+
+	CHECK(!server.running() && server.start(ex) && !ex && server.running());
 	// Restart on the same address (to test start/stop/start server on same address binding)
-	address = server->address();
+	SocketAddress address(server->address());
 	server.stop();
 	CHECK(!server.running() && server.start(ex, address) && !ex  && server.running());
 
@@ -445,8 +444,7 @@ ADD_TEST(TestTCPLoad) {
 
 	TCPEchoServer   server(io);
 
-	SocketAddress address;
-	CHECK(!server.running() && server.start(ex, address) && !ex  && server.running());
+	CHECK(!server.running() && server.start(ex) && !ex  && server.running());
 
 	TCPEchoClient client(io);
 	SocketAddress target(IPAddress::Loopback(), server->address().port());
