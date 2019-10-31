@@ -12,11 +12,13 @@ CXX?=g++
 # Variables extendable
 override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I./include/ -I/usr/local/opt/openssl/include/
-LIBS+=-lcrypto -lssl
+override LIBS+=-lcrypto -lssl
+ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
+    override LIBDIRS+=-L/usr/local/opt/openssl/lib/
+endif
 
 # Variables fixed
 ifeq ($(OS),Darwin)
-	LIBDIRS+=-L/usr/local/opt/openssl/lib/
 	LIB=lib/libMonaBase.dylib
 	SHARED=-dynamiclib -install_name ./../MonaBase/$(LIB)
 else

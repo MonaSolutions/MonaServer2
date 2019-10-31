@@ -13,11 +13,16 @@ EXEC?=UnitTests
 # Variables extendable
 override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64
 override INCLUDES+=-I../MonaBase/include/ -I../ -I/usr/local/opt/openssl/include/
-LIBDIRS+=-L../MonaBase/lib/
-LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/"
+override LIBDIRS+=-L../MonaBase/lib/
+override LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/"
 override LIBS+=-pthread -lMonaBase -lcrypto -lssl
+ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
+    override LIBDIRS+=-L/usr/local/opt/openssl/lib/
+endif
+ifneq ($(OS),FreeBSD)
+	override LIBS+= -ldl
+endif
 ifeq ($(OS),Darwin)
-	LIBDIRS+=-L/usr/local/opt/openssl/lib/
 	LBITS := $(shell getconf LONG_BIT)
 	ifeq ($(LBITS),64)
 	   # just require for OSX 64 bits
