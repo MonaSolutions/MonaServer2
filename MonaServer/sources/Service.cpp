@@ -35,7 +35,7 @@ Service::Service(lua_State* pState, const string& wwwPath, Handler& handler, IOF
 		const char* path = (file.isFolder() ? file.c_str() : file.parent().c_str()) + _wwwPath.size();
 		Service* pService;
 		if (file.exists()) {
-			DEBUG("Application ", file, " update");
+			DEBUG("Application ", file, " load");
 			pService = &open(path);
 			if (file.isFolder())
 				pService = NULL; // no children update required here!

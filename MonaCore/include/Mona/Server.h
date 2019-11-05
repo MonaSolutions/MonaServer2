@@ -36,8 +36,8 @@ struct Server : protected ServerAPI, private Thread {
 	Server(UInt16 cores=0);
 	virtual ~Server();
 
-	void start() { Parameters parameters;  start(parameters); }// params by default
-	void start(const Parameters& parameters);
+	Parameters& start() { Parameters parameters;  return start(parameters); }// params by default
+	Parameters& start(const Parameters& parameters);
 	void stop() { Thread::stop(); }
 	bool running() { return Thread::running(); }
 
@@ -80,7 +80,7 @@ private:
 	Protocols			_protocols;
 	std::string			_www;
 
-	std::map<shared<MediaStream>, unique<Subscription>>			_iniStreams;
+	std::map<shared<MediaStream>, unique<Subscription>>				_iniStreams;
 	std::multimap<const char*, Publication*, String::Comparator>	_streamPublications; // contains publications initiated by autoStreams
 	std::map<shared<Media::Target>, unique<Subscription>>			_streamSubscriptions; // contains susbscriptions created by auto streams target
 	std::map<std::string, Publication>								_publications;

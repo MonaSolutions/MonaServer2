@@ -252,6 +252,14 @@ static int Trace(lua_State *pState) {
 	SCRIPT_END
 	return 0;
 }
+static int Log(lua_State *pState) {
+	LogWriter writer(pState);
+	SCRIPT_BEGIN(pState)
+		UInt8 level = (UInt8)max(min(UInt8(LOG_TRACE), lua_tointeger(pState, 1)), LOG_ERROR);
+		SCRIPT_LOG(level ? level : LOG_DEFAULT, false, writer);
+	SCRIPT_END
+	return 0;
+}
 
 const char* Script::LastError(lua_State *pState) {
 	size_t size;
@@ -277,8 +285,22 @@ lua_State* Script::CreateState() {
 	lua_setglobal(pState,"INFO");
 	lua_pushcfunction(pState,&Debug);
 	lua_setglobal(pState,"DEBUG");
-	lua_pushcfunction(pState,&Trace);
+	lua_pushcfunction(pState, &Trace);
 	lua_setglobal(pState,"TRACE");
+	lua_pushcfunction(pState, &Mona::Log);
+	lua_setglobal(pState, "LOG");
+	lua_pushinteger(pState, LOG_ERROR);
+	lua_setglobal(pState, "LOG_ERROR");
+	lua_pushinteger(pState, LOG_WARN);
+	lua_setglobal(pState, "LOG_WARN");
+	lua_pushinteger(pState, LOG_NOTE);
+	lua_setglobal(pState, "LOG_NOTE");
+	lua_pushinteger(pState, LOG_INFO);
+	lua_setglobal(pState, "LOG_INFO");
+	lua_pushinteger(pState, LOG_DEBUG);
+	lua_setglobal(pState, "LOG_DEBUG");
+	lua_pushinteger(pState, LOG_TRACE);
+	lua_setglobal(pState, "LOG_TRACE");
 	lua_pushcfunction(pState, &Pairs);
 	lua_setglobal(pState, "pairs");
 	lua_pushcfunction(pState, &GetMetatable);

@@ -38,12 +38,23 @@ private:
 
 		// starts the server
 		MonaServer server(self, terminateSignal);
-		server.start(self);
+		Parameters& params = server.start(self);
+		// sync params!
+		onChange = [&params](const string& key, const string* pValue) {
+			if (pValue)
+				params.setString(key, *pValue);
+			else
+				params.erase(key);
+		};
+		onClear = [&params]() { params.clear(); };
 
 		terminateSignal.wait();
 
 		// Stop the server
 		server.stop();
+
+		onChange = nullptr;
+		onClear = nullptr;
 
 		return Application::EXIT_OK;
 	}
