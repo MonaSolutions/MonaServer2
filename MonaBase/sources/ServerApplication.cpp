@@ -223,7 +223,7 @@ int ServerApplication::run(int argc, const char** argv) {
 #endif
 		
 
-		// define the "daemon" option now to fork on low level process!
+		// define the "service" option now to fork on low level process!
 		const char** argV = argv;
 		int argC = argc;
 		for (int i = 1; i < argc; ++i) {
@@ -235,13 +235,13 @@ int ServerApplication::run(int argc, const char** argv) {
 		Exception ex;
 		Options& options = (Options&)this->options();
 		string name;
-		Option& option = options.add(ex, "daemon", "d", String("Run ", FileSystem::GetName(argv[0], name), " as a daemon."))
+		Option& option = options.add(ex, "service", "s", String("Run ", FileSystem::GetName(argv[0], name), " as a service."))
 			.argument("pidFile", false)
 			.handler([this](Exception& ex, const char* value) {
-			// become daemon!
+			// become service!
 			pid_t pid;
 			if ((pid = fork()) < 0)
-				FATAL_ERROR("Cannot fork daemon process");
+				FATAL_ERROR("Cannot fork service process");
 			if (pid != 0)
 				exit(0);
 
@@ -262,7 +262,7 @@ int ServerApplication::run(int argc, const char** argv) {
 			if (!ferr)
 				FATAL_ERROR("Cannot attach stderr to /dev/null");
 
-			setBoolean("application.runAsDaemon", true);
+			setBoolean("application.runAsService", true);
 			_isInteractive = false;
 			// write PID?
 			if (!value)

@@ -34,7 +34,7 @@ struct LUAVector : virtual Static {
 
 	static int Index(lua_State *pState) {
 		if (!lua_gettop(pState)) {
-			SCRIPT_TABLE_BEGIN(pState)
+			SCRIPT_TABLE_BEGIN(0)
 				SCRIPT_DEFINE_STRING("len", "length()");
 			SCRIPT_TABLE_END
 			return 1;

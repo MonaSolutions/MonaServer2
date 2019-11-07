@@ -37,7 +37,7 @@ static int encryptionState(lua_State *pState) {
 					SCRIPT_CALLBACK_THROW(ex);
 				SCRIPT_WRITE_STRING(States[state]);
 			} else
-				SCRIPT_CALLBACK_THROW("Unknown SRT encryption state ", state);
+				SCRIPT_CALLBACK_THROW(String("Unknown SRT encryption state ", state));
 		} else if (ex)
 			SCRIPT_CALLBACK_THROW(ex);
 	SCRIPT_CALLBACK_RETURN;
@@ -161,7 +161,7 @@ static int getStats(lua_State *pState) {
 		if (socket.getStats(ex, stats)) {
 			if(ex)
 				SCRIPT_CALLBACK_THROW(ex);
-			SCRIPT_TABLE_BEGIN
+			SCRIPT_TABLE_BEGIN(0)
 				SCRIPT_DEFINE_DOUBLE("bandwidthEstimated", stats.bandwidthEstimated());
 				SCRIPT_DEFINE_DOUBLE("bandwidthMaxUsed", stats.bandwidthMaxUsed());
 				SCRIPT_DEFINE_INT("recvBufferTime", stats.recvBufferTime());

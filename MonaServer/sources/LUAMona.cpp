@@ -82,22 +82,6 @@ static int newIOSocket(lua_State *pState) {
 		Script::NewObject(pState, new Type(api.ioSocket));
 	SCRIPT_CALLBACK_RETURN
 }
-static int fromXML(lua_State *pState) {
-	SCRIPT_CALLBACK_TRY(ServerAPI, api)
-		SCRIPT_READ_DATA(data, size)
-		Exception ex;
-		if (!LUAXML::XMLToLUA(ex, pState, STR data, size) || ex)
-			SCRIPT_CALLBACK_THROW(ex)
-	SCRIPT_CALLBACK_RETURN
-}
-static int toXML(lua_State *pState) {
-	SCRIPT_CALLBACK_TRY(ServerAPI, api)
-		// TODO compress option
-		Exception ex;
-		if (!LUAXML::LUAToXML(ex, pState, SCRIPT_READ_NEXT(1)) || ex)
-			SCRIPT_CALLBACK_THROW(ex)
-	SCRIPT_CALLBACK_RETURN
-}
 static int newMediaWriter(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(ServerAPI, api)
 		const char* subMime = SCRIPT_READ_STRING(NULL);
@@ -202,6 +186,77 @@ static int newSubscription(lua_State *pState) {
 	SCRIPT_CALLBACK_RETURN
 }
 
+static int fromXML(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(ServerAPI, api)
+		SCRIPT_READ_DATA(data, size)
+		Exception ex;
+		if (!LUAXML::XMLToLUA(ex, pState, STR data, size) || ex)
+			SCRIPT_CALLBACK_THROW(ex)
+	SCRIPT_CALLBACK_RETURN
+}
+static int toXML(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(ServerAPI, api)
+		// TODO compress option
+		Exception ex;
+		if (!LUAXML::LUAToXML(ex, pState, SCRIPT_READ_NEXT(1)) || ex)
+			SCRIPT_CALLBACK_THROW(ex)
+	SCRIPT_CALLBACK_RETURN
+}
+static int fromData(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(ServerAPI, api)
+		int isNum;
+		Media::Data::Type type = Media::Data::Type(lua_tointegerx(pState, lua_upvalueindex(1), &isNum));
+		if (!isNum)
+			type = Media::Data::ToType(SCRIPT_READ_STRING(""));
+		SCRIPT_READ_PACKET(packet);
+		unique<DataReader> pReader = Media::Data::NewReader(type, packet);
+		if (pReader) {
+			ScriptWriter writer(pState);
+			pReader->read(writer);
+		} else
+			SCRIPT_CALLBACK_THROW(String("Unsupported type ", Media::Data::TypeToString(type)));
+	SCRIPT_CALLBACK_RETURN
+}
+static int toData(lua_State *pState) {
+	SCRIPT_CALLBACK_TRY(ServerAPI, api)
+		int isNum;
+		Media::Data::Type type = Media::Data::Type(lua_tointegerx(pState, lua_upvalueindex(1), &isNum));
+		if(!isNum)
+			type = Media::Data::ToType(SCRIPT_READ_STRING(""));
+		shared<Buffer> pBuffer(SET);
+		unique<DataWriter> pWriter = Media::Data::NewWriter(type, *pBuffer);
+		if (pWriter) {
+			SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_NEXT_READABLE).read(*pWriter));
+			SCRIPT_WRITE_PACKET(pBuffer);
+		} else
+			SCRIPT_CALLBACK_THROW(String("Unsupported type ", Media::Data::TypeToString(type)));
+	SCRIPT_CALLBACK_RETURN
+}
+static int hash(lua_State *pState) {
+	SCRIPT_CALLBACK(ServerAPI, api)
+		EVP_MD* pEVP = (EVP_MD*)lua_touserdata(pState, SCRIPT_READ_NEXT(1));
+		if(pEVP) {
+			SCRIPT_READ_PACKET(packet);
+			shared<Buffer> pBuffer(SET, pEVP->md_size);
+			Crypto::Hash::Compute(pEVP, packet.data(), packet.size(), pBuffer->data());
+			SCRIPT_WRITE_PACKET(pBuffer);
+		} else
+			SCRIPT_ERROR("Give hash algorithm in first argument as mona.md5, mona.sha256, etc...");
+	SCRIPT_CALLBACK_RETURN
+}
+static int hmac(lua_State *pState) {
+	SCRIPT_CALLBACK(ServerAPI, api)
+		EVP_MD* pEVP = (EVP_MD*)lua_touserdata(pState, SCRIPT_READ_NEXT(1));
+		if(pEVP) {
+			SCRIPT_READ_PACKET(key);
+			SCRIPT_READ_PACKET(packet);
+			shared<Buffer> pBuffer(SET, pEVP->md_size);
+			Crypto::HMAC::Compute(pEVP, key.data(), key.size(), packet.data(), packet.size(), pBuffer->data());
+			SCRIPT_WRITE_PACKET(pBuffer);
+		} else
+			SCRIPT_ERROR("Give hmac algorithm in first argument as mona.md5, mona.sha256, etc...");
+	SCRIPT_CALLBACK_RETURN
+}
 
 template<> void Script::ObjInit(lua_State *pState, ServerAPI& api) {
 	AddObject(pState, (const Parameters&)api);
@@ -233,10 +288,33 @@ template<> void Script::ObjInit(lua_State *pState, ServerAPI& api) {
 		SCRIPT_DEFINE_FUNCTION("newMediaWriter", &newMediaWriter);
 		SCRIPT_DEFINE_FUNCTION("newMediaReader", &newMediaReader);
 		SCRIPT_DEFINE_FUNCTION("setTimer", &setTimer);
-		SCRIPT_DEFINE_FUNCTION("fromXML", &fromXML);
-		SCRIPT_DEFINE_FUNCTION("toXML", &toXML);
 		SCRIPT_DEFINE("environment", AddObject(pState, Util::Environment()));
 		SCRIPT_DEFINE("publications", AddObject(pState, api.publications()));
+
+		SCRIPT_DEFINE_FUNCTION("toXML", &toXML);
+		SCRIPT_DEFINE_FUNCTION("toData", toData);
+		SCRIPT_DEFINE("toJSON", lua_pushinteger(pState, Media::Data::TYPE_JSON); lua_pushcclosure(pState, &toData, 1));
+		SCRIPT_DEFINE("toAMF", lua_pushinteger(pState, Media::Data::TYPE_AMF); lua_pushcclosure(pState, &toData, 1));
+		SCRIPT_DEFINE("toAMF0", lua_pushinteger(pState, Media::Data::TYPE_AMF0); lua_pushcclosure(pState, &toData, 1));
+		SCRIPT_DEFINE("toQuery", lua_pushinteger(pState, Media::Data::TYPE_QUERY); lua_pushcclosure(pState, &toData, 1));
+		SCRIPT_DEFINE("toXMLRPC", lua_pushinteger(pState, Media::Data::TYPE_XMLRPC); lua_pushcclosure(pState, &toData, 1));
+		SCRIPT_DEFINE_FUNCTION("fromXML", &fromXML);
+		SCRIPT_DEFINE_FUNCTION("fromData", fromData);
+		SCRIPT_DEFINE("fromJSON", lua_pushinteger(pState, Media::Data::TYPE_JSON); lua_pushcclosure(pState, &fromData, 1));
+		SCRIPT_DEFINE("fromAMF", lua_pushinteger(pState, Media::Data::TYPE_AMF); lua_pushcclosure(pState, &fromData, 1));
+		SCRIPT_DEFINE("fromAMF0", lua_pushinteger(pState, Media::Data::TYPE_AMF0); lua_pushcclosure(pState, &fromData, 1));
+		SCRIPT_DEFINE("fromQuery", lua_pushinteger(pState, Media::Data::TYPE_QUERY); lua_pushcclosure(pState, &fromData, 1));
+		SCRIPT_DEFINE("fromXMLRPC", lua_pushinteger(pState, Media::Data::TYPE_XMLRPC); lua_pushcclosure(pState, &fromData, 1));
+
+		SCRIPT_DEFINE("MD5", lua_pushlightuserdata(pState, (void*)EVP_md5()));
+		SCRIPT_DEFINE("SHA1", lua_pushlightuserdata(pState, (void*)EVP_md5()));
+		SCRIPT_DEFINE("SHA256", lua_pushlightuserdata(pState, (void*)EVP_md5()));
+		SCRIPT_DEFINE_INT("MD5_SIZE", Crypto::MD5_SIZE);
+		SCRIPT_DEFINE_INT("SHA1_SIZE", Crypto::SHA1_SIZE);
+		SCRIPT_DEFINE_INT("SHA256_SIZE", Crypto::SHA256_SIZE);
+
+		SCRIPT_DEFINE("hash", &hash);
+		SCRIPT_DEFINE("hmac", &hmac);
 	SCRIPT_END;
 }
 template<> void Script::ObjClear(lua_State *pState, ServerAPI& api) {
@@ -341,14 +419,6 @@ int	LUAInvoker::Sha256(lua_State *pState) {
 	SCRIPT_CALLBACK_RETURN
 }
 
-int	LUAInvoker::ToAMF0(lua_State *pState) {
-	SCRIPT_CALLBACK(Invoker,invoker)
-		AMFWriter writer(invoker.poolBuffers);
-		writer.amf0=true;
-		SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_READ_AVAILABLE).read(writer));
-		SCRIPT_WRITE_BINARY(writer.packet.data(),writer.packet.size())
-	SCRIPT_CALLBACK_RETURN
-}
 
 int LUAInvoker::IndexConst(lua_State *pState) {
 	SCRIPT_CALLBACK(Invoker,invoker)
@@ -358,23 +428,7 @@ int LUAInvoker::IndexConst(lua_State *pState) {
 				Script::Collection(pState,1,"clients");
 			} else if (strcmp(name, "dump") == 0) {
 				SCRIPT_WRITE_FUNCTION(LUAInvoker::Dump)
-			} else if (strcmp(name, "toAMF") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::ToData<AMFWriter>)
-			} else if (strcmp(name, "toAMF0") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::ToAMF0)
-			} else if (strcmp(name, "fromAMF") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::FromData<AMFReader>)
-			} else if (strcmp(name, "toJSON") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::ToData<JSONWriter>)
-			} else if (strcmp(name, "fromJSON") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::FromDataWithBuffers<JSONReader>)
-			} else if (strcmp(name, "toXMLRPC") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::ToData<XMLRPCWriter>)
-			} else if (strcmp(name, "fromXMLRPC") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::FromDataWithBuffers<XMLRPCReader>)
-			} else if (strcmp(name, "toQuery") == 0) {
-				SCRIPT_WRITE_FUNCTION(LUAInvoker::ToData<QueryWriter>)
-			} else if (strcmp(name, "fromQuery") == 0) {
+			}
 				SCRIPT_WRITE_FUNCTION(LUAInvoker::FromData<QueryReader>)
 			} else if (strcmp(name, "split") == 0) {
 				SCRIPT_WRITE_FUNCTION(LUAInvoker::Split)

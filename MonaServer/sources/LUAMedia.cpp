@@ -125,7 +125,7 @@ static int writeVideo(lua_State *pState) {
 static int writeData(lua_State *pState) {
 	SCRIPT_CALLBACK(Media::Source, source)
 		UInt8 track(SCRIPT_NEXT_TYPE == LUA_TNUMBER ? SCRIPT_READ_UINT8(0) : 0); // to be compatible with a mapping Media::Target => Media::Source (ex: Subcription::on## => Publication)
-		Media::Data::Type type = Media::Data::Type(SCRIPT_READ_UINT8(Media::Data::TYPE_UNKNOWN));
+		Media::Data::Type type = Media::Data::ToType(SCRIPT_READ_STRING(""));
 		SCRIPT_READ_PACKET(packet);
 		source.writeData(type, packet, SCRIPT_NEXT_READABLE ? SCRIPT_READ_UINT8(track) : track);
 	SCRIPT_CALLBACK_RETURN

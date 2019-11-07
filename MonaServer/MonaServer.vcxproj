@@ -232,6 +232,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="sources\LUABit.h" />
     <ClInclude Include="sources\LUAIPAddress.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>
@@ -257,6 +258,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     <ClInclude Include="sources\Service.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="sources\LUABit.cpp" />
     <ClCompile Include="sources\LUAIPAddress.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|Win32'">false</ExcludedFromBuild>

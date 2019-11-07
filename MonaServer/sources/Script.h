@@ -97,8 +97,8 @@ extern "C" {
 #define SCRIPT_WRITE_PTR(VALUE)									lua_pushlightuserdata(__pState,VALUE);
 #define SCRIPT_WRITE_PACKET(PACKET)								Script::NewObject(__pState,new Packet(PACKET));
 
-#define SCRIPT_TABLE_BEGIN										{ lua_newtable(__pState); int __top = lua_gettop(__pState);
-#define SCRIPT_TABLE_END										while(lua_gettop(__pState)>__top) { if((lua_gettop(__pState)-1)==__top) lua_rawseti(__pState, __top, lua_objlen(__pState, __top)+1); else lua_rawset(__pState, __top);} }				
+#define SCRIPT_TABLE_BEGIN(index)								{ bool __new = index==0; if(__new) lua_newtable(__pState); else lua_pushvalue(pState, index); int __top = lua_gettop(__pState);
+#define SCRIPT_TABLE_END										while(lua_gettop(__pState)>__top) { if((lua_gettop(__pState)-1)==__top) lua_rawseti(__pState, __top, lua_objlen(__pState, __top)+1); else lua_rawset(__pState, __top);} if(!__new) lua_pop(pState, 1); }				
 
 #define SCRIPT_DEFINE(NAME, ...)								{ lua_pushliteral(__pState, NAME); __VA_ARGS__; }
 #define SCRIPT_DEFINE_FUNCTION(NAME, VALUE)						{ lua_pushliteral(__pState, NAME); SCRIPT_WRITE_FUNCTION(VALUE); }

@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Script.h"
+#include "LUABit.h"
 
 using namespace std;
 
@@ -185,7 +186,7 @@ bool Script::Resolve(lua_State *pState, const char* value, string& file, bool wi
 }
 
 struct LogWriter : String::Writer<std::string>, virtual Object {
-	LogWriter(lua_State* pState) : _pState(pState), _top(lua_gettop(pState)), _args(0) {}
+	LogWriter(lua_State* pState, int skips=0) : _pState(pState), _top(lua_gettop(pState)), _args(skips) {}
 	bool write(std::string& out) {
 		if(_args++ < _top) {
 			Script::PushString(_pState, _args);
@@ -260,6 +261,20 @@ static int Log(lua_State *pState) {
 	SCRIPT_END
 	return 0;
 }
+static int lError(lua_State *pState) {
+	LogWriter writer(pState);
+	string error;
+	while (writer.write(error));
+	return luaL_error(pState, error.c_str());
+}
+static int lAssert(lua_State *pState) {
+	if (lua_toboolean(pState, 1))
+		return 0;
+	LogWriter writer(pState, 1);
+	string error;
+	while (writer.write(error));
+	return luaL_error(pState, error.c_str());
+}
 
 const char* Script::LastError(lua_State *pState) {
 	size_t size;
@@ -306,6 +321,12 @@ lua_State* Script::CreateState() {
 	lua_pushcfunction(pState, &GetMetatable);
 	lua_setglobal(pState, "getmetatable");
 
+	// redefine error to use variables parameters as LOG function
+	lua_pushcfunction(pState, &lError);
+	lua_setglobal(pState, "error");
+	lua_pushcfunction(pState, &lAssert);
+	lua_setglobal(pState, "assert");
+
 	// set require, loadFile, dofile to fix relative path!
 	lua_getglobal(pState, "require");
 	lua_pushcclosure(pState, &Require, 1);
@@ -316,6 +337,12 @@ lua_State* Script::CreateState() {
 	lua_setglobal(pState, "loadfile");
 	lua_pushcclosure(pState, &DoFile, 1);
 	lua_setglobal(pState, "dofile");
+
+	// fix binary operations to work on 64bits number
+	lua_getglobal(pState, "bit");
+	if (lua_istable(pState, -1))
+		LUABit::AddOperators(pState);
+	lua_pop(pState, 1);
 	
 	return pState;
 }

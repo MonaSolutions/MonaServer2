@@ -50,6 +50,16 @@ static int sub(lua_State *pState) {
 			lua_pushvalue(pState, 1); // push itself!
 	SCRIPT_CALLBACK_RETURN
 }
+static int byte(lua_State *pState) {
+	SCRIPT_CALLBACK(Packet, packet)
+		UInt32 index = SCRIPT_READ_UINT32(0);
+		UInt32 size = SCRIPT_NEXT_READABLE ? SCRIPT_READ_UINT32(packet.size()) : packet.size();
+		if (!index || index > packet.size())
+			SCRIPT_ERROR(index, " out of string range 1-", packet.size())
+		else if(--index<size)
+			SCRIPT_WRITE_INT(packet.data()[index])
+	SCRIPT_CALLBACK_RETURN
+}
 static int len(lua_State *pState) {
 	SCRIPT_CALLBACK(Packet, packet)
 		SCRIPT_WRITE_INT(packet.size());
@@ -74,6 +84,7 @@ template<> void Script::ObjInit(lua_State *pState, Packet& packet) {
 		SCRIPT_DEFINE_FUNCTION("len", &len); // to be compatible with a string
 		SCRIPT_DEFINE_FUNCTION("__tostring", &__tostring);
 		SCRIPT_DEFINE_FUNCTION("sub", &sub); // to be compatible with a string
+		SCRIPT_DEFINE_FUNCTION("byte", &byte); // to be compatible with a string
 		SCRIPT_DEFINE_FUNCTION("shrink", &shrink);
 		SCRIPT_DEFINE_FUNCTION("clip", &clip);
 	SCRIPT_END;

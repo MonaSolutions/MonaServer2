@@ -65,7 +65,7 @@ struct Crypto : virtual Static {
 		static UInt8* SHA1(const void* data, size_t size, UInt8* value) { return Compute(EVP_sha1(), data, size, value); }
 		static UInt8* SHA256(UInt8* value, size_t size) { return Compute(EVP_sha256(), value, size, value); }
 		static UInt8* SHA256(const void* data, size_t size, UInt8* value) { return Compute(EVP_sha256(), data, size, value); }
-	private:
+
 		static UInt8* Compute(const EVP_MD* evp, const void* data, size_t size, UInt8* value);
 	};
 
@@ -76,7 +76,7 @@ struct Crypto : virtual Static {
 		static UInt8* SHA1(const void* key, int keySize, const void* data, size_t size, UInt8* value) { return Compute(EVP_sha1(), key, keySize, data, size, value); }
 		static UInt8* SHA256(const void* key, int keySize, UInt8* value, size_t size) { return Compute(EVP_sha256(), key, keySize, value, size, value); }
 		static UInt8* SHA256(const void* key, int keySize, const void* data, size_t size, UInt8* value) { return Compute(EVP_sha256(), key, keySize, data, size, value); }
-	private:
+
 		static UInt8* Compute(const EVP_MD* evp, const void* key, int keySize, const void* data, size_t size, UInt8* value);
 	};
 

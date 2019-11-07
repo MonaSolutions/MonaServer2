@@ -10,7 +10,7 @@ endif
 CXX?=g++
 
 # Variables extendable
-override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -W-no-exceptions 
+override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-exceptions 
 override INCLUDES+=-I./include/ -I/usr/local/opt/openssl/include/
 override LIBS+=-lcrypto -lssl
 ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")

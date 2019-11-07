@@ -38,6 +38,9 @@
     <ClInclude Include="sources\LUAWriter.h">
       <Filter>LUAClass</Filter>
     </ClInclude>
+    <ClInclude Include="sources\LUABit.h">
+      <Filter>LUAClass</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\LUAClient.cpp">
@@ -122,6 +125,9 @@
       <Filter>LUAClass</Filter>
     </ClCompile>
     <ClCompile Include="sources\LUAWSClient.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\LUABit.cpp">
       <Filter>LUAClass</Filter>
     </ClCompile>
   </ItemGroup>
