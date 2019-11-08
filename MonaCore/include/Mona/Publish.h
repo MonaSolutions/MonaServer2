@@ -80,16 +80,15 @@ private:
 	void flush() { flush(0); }
 
 	struct Publishing : Runner, virtual Object {
-		NULLABLE(_failed)
+		NULLABLE(_failed || !api.running())
 		Publishing(ServerAPI& api, const char* name) : _failed(false), Runner("Publishing"), name(name), api(api) {}
 		Publishing(ServerAPI& api, Source& source) : _failed(false), _pSource(&source), Runner(NULL), name(source.name()), api(api) {}
 
 		const std::string name;
-		bool isPublication() const { return Runner::name && !_failed; }
 
 		ServerAPI& api;
-		explicit operator Source*() { return _failed ? NULL : _pSource; }
-		explicit operator Publication*() { return _failed || !Runner::name ? NULL : (Publication*)_pSource; }
+		Source&			source() { return *_pSource; }
+		Publication*	publication() { return !Runner::name ? NULL : (Publication*)_pSource; }
 
 	private:
 		bool run(Exception& ex);
@@ -105,13 +104,14 @@ private:
 	private:
 		virtual void run(Publication& publication) { run((Source&)publication); }
 		virtual void run(Source& source) { ERROR(name," empty run for ", source.name()); }
-		bool run(Exception& ex) { 
-			if (!_pPublishing->isPublication()) {
-				Source* pSource(*_pPublishing);
-				if (pSource)
-					run(*pSource);
-			} else
-				run(*(Publication*)*_pPublishing);
+		bool run(Exception& ex) {
+			if (!*_pPublishing)
+				return true;
+			Publication* pPublication = _pPublishing->publication();
+			if (pPublication)
+				run(*pPublication);
+			else
+				run(_pPublishing->source());
 			return true;
 		}
 		shared<Publishing> _pPublishing;

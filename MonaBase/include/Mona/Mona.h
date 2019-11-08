@@ -65,12 +65,13 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #if defined(_MSC_VER)
 // disable the "throw noexception" warning because Mona has its own exception and can use everywhere std throw on FATAL problem (unexpected behavior)
 #pragma warning(disable: 4297)
+	#pragma comment(lib, "crypt32.lib")
 #if defined(_DEBUG)
-	#pragma comment(lib, "libeayd.lib")
-	#pragma comment(lib, "ssleayd.lib")
+	#pragma comment(lib, "libcryptod.lib")
+	#pragma comment(lib, "libssld.lib")
 #else
-	#pragma comment(lib, "libeay.lib")
-	#pragma comment(lib, "ssleay.lib")
+	#pragma comment(lib, "libcrypto.lib")
+	#pragma comment(lib, "libssl.lib")
 #endif
 #endif
 

@@ -31,7 +31,7 @@ struct Service {
 		virtual void onUnload(Service& service) = 0;
 	};
 	Service(lua_State* pState, const std::string& wwwPath, Handler& handler, IOFile& ioFile);
-	Service(lua_State* pState, const std::string& wwwPath, Service& parent, const char* name);
+	Service(lua_State* pState, Service& parent, const char* name);
 	virtual ~Service();
 
 	int					reference() const { return _reference; }
@@ -43,7 +43,6 @@ struct Service {
 	Service*			get(Exception& ex, const std::string& path) { return get(ex, path.c_str()); }
 	Service*			get(Exception& ex, const char* path);
 
-	
 
 private:
 	void		init();
@@ -68,7 +67,6 @@ private:
 
 
 	std::map<std::string, Service>	_services;
-	const std::string&				_wwwPath;
 	Handler&						_handler;
 	shared<const FileWatcher>		_pWatcher;
 };

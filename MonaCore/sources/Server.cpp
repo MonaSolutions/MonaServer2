@@ -142,14 +142,25 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 		FATAL("Server, unknown error");
 	}
 #endif
-	Thread::stop(); // to set running() to false (and not more allows to handler to queue Runner)
 	// Stop onManage (useless now)
 	_timer.set(onManage, 0);
 
 	// Close server sockets to stop reception
 	_protocols.stop();
+	
+	// do a handler flush here too because few MediaStream like MediaLogger can have tasks to do after 
+	_handler.flush();
+	Thread::stop(); // to set running() to false (usefull for new _handler.flush() and Publish => cancel task!)
 
-	// TODO? terminate relay server ((RelayServer&)relayer).stop();
+	// clean and unsubscribe subscriptions => before onStop to get onUnsubscribe event before onStop!
+	for (const auto& it : _iniStreams) {
+		if (it.second)
+			unsubscribe(*it.second);
+	}
+	_iniStreams.clear(); // before onStop because MediaStream::onDelete can call unpublish!
+	// unsubscribe streamSubscriptions  => before onStop to get onUnsubscribe event before onStop!
+	for (const auto& it : _streamSubscriptions)
+		unsubscribe(*it.second);
 
 	// stop event to unload children resource (before to release sockets, threads, and buffers)
 	onStop();
@@ -163,25 +174,18 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	// empty handler!
 	_handler.flush();
 
-	// clean init streams and unsubscribe subscriptions
-	for (const auto& it : _iniStreams) {
-		if(it.second)
-			unsubscribe(*it.second);
-	}
-	_iniStreams.clear();
 	// clean and unsubscribe streamSubscriptions
 	UInt32 alives = 0;
 	for (const auto& it : _streamSubscriptions) {
 		if (!it.first.unique())
 			++alives;
-		unsubscribe(*it.second);
 	}
 	if (alives)
-		ERROR(alives, " intern media stream target not released on stop");
+		CRITIC(alives, " intern media stream target not released on stop"); // can cause a subscribe on start, see MediaStream::onNewTarget
 	_streamSubscriptions.clear();
 	// clean and unpublish streamSubscriptions
 	if (!_streamPublications.empty()) {
-		ERROR(_streamPublications.size(), " intern media stream source not released on stop");
+		CRITIC(_streamPublications.size(), " intern media stream source not released on stop");  // can cause an unpublish after onStop (see MediaStream::onDelete below)
 		_streamPublications.clear();
 	}
 	// release publications remaining (can happen when using Publish extern way)

@@ -237,7 +237,7 @@ static int hash(lua_State *pState) {
 		EVP_MD* pEVP = (EVP_MD*)lua_touserdata(pState, SCRIPT_READ_NEXT(1));
 		if(pEVP) {
 			SCRIPT_READ_PACKET(packet);
-			shared<Buffer> pBuffer(SET, pEVP->md_size);
+			shared<Buffer> pBuffer(SET, EVP_MD_size(pEVP));
 			Crypto::Hash::Compute(pEVP, packet.data(), packet.size(), pBuffer->data());
 			SCRIPT_WRITE_PACKET(pBuffer);
 		} else
@@ -250,7 +250,7 @@ static int hmac(lua_State *pState) {
 		if(pEVP) {
 			SCRIPT_READ_PACKET(key);
 			SCRIPT_READ_PACKET(packet);
-			shared<Buffer> pBuffer(SET, pEVP->md_size);
+			shared<Buffer> pBuffer(SET, EVP_MD_size(pEVP));
 			Crypto::HMAC::Compute(pEVP, key.data(), key.size(), packet.data(), packet.size(), pBuffer->data());
 			SCRIPT_WRITE_PACKET(pBuffer);
 		} else

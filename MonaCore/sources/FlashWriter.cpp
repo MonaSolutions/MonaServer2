@@ -50,6 +50,12 @@ void FlashWriter::closing(Int32 error, const char* reason) {
 		case Session::ERROR_IDLE:
 			writeAMFError("NetConnection.Connect.IdleTimeout", reason ? reason : "Client idle timeout");
 			break;
+		case Session::ERROR_UNFOUND:
+			writeAMFError("NetConnection.Connect.InvalidApp", reason ? reason : "Application unfound");
+			break;
+		case Session::ERROR_APPLICATION:
+			writeAMFError("NetConnection.Connect.Failed", reason ? reason : "Application error");
+			break;
 		case Session::ERROR_PROTOCOL:
 			writeAMFError("NetConnection.Connect.Failed", reason ? reason : "Protocol error");
 			break;

@@ -80,7 +80,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 		(bool&)writer.isMain = true;
 		peer.onConnection(ex, writer, netStats, message, response);
 		if (ex) {
-			if (ex.cast<Ex::Application::Unfound>())
+			if (ex.cast<Ex::Unfound>())
 				writer.writeAMFError("NetConnection.Connect.InvalidApp", ex);
 			else if(ex.cast<Ex::Application::Error>())
 				writer.writeAMFError("NetConnection.Connect.Rejected", ex);

@@ -28,12 +28,11 @@ namespace Mona {
 	};
 	/*!
 	Application exception, error from user side */
-	struct Ex::Application						: Ex { struct Argument; struct Config; struct Error; struct Invalid; struct Unfound; };
+	struct Ex::Application						: Ex { struct Argument; struct Config; struct Error; struct Invalid; };
 		struct Ex::Application::Argument			: Application {}; // Application argument given error
 		struct Ex::Application::Config				: Application {}; // Application configuration error
 		struct Ex::Application::Error				: Application {}; // error during application execution
 		struct Ex::Application::Invalid				: Application {}; // Invalid
-		struct Ex::Application::Unfound				: Application {}; // Application non existent
 	/*!
 	Extern exception, error from library dependency or from outside code like STD */
 	struct Ex::Extern							: Ex { struct Crypto; struct Math; struct Net; };

@@ -36,7 +36,7 @@ Publish::~Publish() {
 	private:
 		void run(Publication& publication) { api().unpublish(publication); }
 	};
-	if(_pPublishing->isPublication() && _pPublishing->api.running())
+	if(_pPublishing->publication())
 		queue<Unpublishing>();
 }
 

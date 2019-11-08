@@ -57,6 +57,9 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, const shared<WSDec
 						// no permission
 						close(ERROR_REJECTED);
 						break;
+					case WS::CODE_RESERVED_ABNORMAL_CLOSE:
+						close(ERROR_APPLICATION);
+						break;
 					case WS::CODE_PROTOCOL_ERROR:
 					case WS::CODE_PAYLOAD_NOT_ACCEPTABLE:
 					case WS::CODE_MALFORMED_PAYLOAD:

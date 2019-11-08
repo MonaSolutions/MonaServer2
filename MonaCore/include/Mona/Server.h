@@ -81,8 +81,8 @@ private:
 	std::string			_www;
 
 	std::map<shared<MediaStream>, unique<Subscription>>				_iniStreams;
-	std::multimap<const char*, Publication*, String::Comparator>	_streamPublications; // contains publications initiated by autoStreams
-	std::map<shared<Media::Target>, unique<Subscription>>			_streamSubscriptions; // contains susbscriptions created by auto streams target
+	std::multimap<const char*, Publication*, String::Comparator>	_streamPublications; // contains publications initiated by ::stream
+	std::map<shared<Media::Target>, unique<Subscription>>			_streamSubscriptions; // contains susbscriptions created by ::stream target
 	std::map<std::string, Publication>								_publications;
 };
 

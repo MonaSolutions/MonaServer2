@@ -29,20 +29,21 @@ class Session : public virtual Object {
 public:
 	enum : Int32 {
 		// Int32 0 =>  Normal close (Client close properly)
-		// Int32 Positive => Can send a last message
-		ERROR_UNEXPECTED = 1, // Unexpected CLIENT close, will display a error log
-		ERROR_SERVER = 2, // server shutdown, always possible to send a message to the client!
-		ERROR_IDLE = 3,
-		ERROR_REJECTED = 4, // close requested by the client
-		ERROR_PROTOCOL = 5,
-		ERROR_UNSUPPORTED = 6,
-		ERROR_UNAVAILABLE = 7,
-		ERROR_UNFOUND = 8,
-		ERROR_UPDATE = 9, // update of one application
-		// Int32 Negative => no possible to distribute a message
-		ERROR_SOCKET = -1,
-		ERROR_CONGESTED = -2,
-		ERROR_ZOMBIE = -3 // is already died indeed, impossible to send a message!
+		// Int32 Positive => Can send a last message (>=100 to avoid conflict with user code and stays compatible with a Int8 encoding)
+		ERROR_UNEXPECTED = 100, // Unexpected CLIENT close, will display a error log
+		ERROR_SERVER = 101, // server shutdown, always possible to send a message to the client!
+		ERROR_IDLE = 102,
+		ERROR_REJECTED = 103, // close requested by the client
+		ERROR_PROTOCOL = 104,
+		ERROR_APPLICATION = 105, // user-application error
+		ERROR_UNSUPPORTED = 106,
+		ERROR_UNAVAILABLE = 107,
+		ERROR_UNFOUND = 108,
+		ERROR_UPDATE = 109, // update of one application
+		// Int32 Negative => no possible to distribute a message (<=100 to avoid conflict with user code and stays compatible with a Int8 encoding)
+		ERROR_SOCKET = -100,
+		ERROR_CONGESTED = -101,
+		ERROR_ZOMBIE = -102 // is already died indeed, impossible to send a message!
 	};
 
 	static Int32 ToError(const Exception& ex);

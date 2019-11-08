@@ -203,12 +203,12 @@ void MonaServer::onAddressChanged(Client& client,const SocketAddress& oldAddress
 
 bool MonaServer::onInvocation(Exception& ex, Client& client, const string& name, DataReader& reader, UInt8 responseType) {
 	static const char* const OnMessage("onMessage");
-	size_t sizeName = name.size();
+	const char* method = name.empty() ? OnMessage : name.c_str();
 	SCRIPT_BEGIN(_pState)
-		SCRIPT_MEMBER_FUNCTION_BEGIN(client, sizeName ? name.c_str() : OnMessage, OnMessage)
-			if(sizeName && SCRIPT_FUNCTION_NAME == OnMessage)
+		SCRIPT_MEMBER_FUNCTION_BEGIN(client, method, OnMessage)
+			if(!name.empty() && SCRIPT_FUNCTION_NAME == OnMessage)
 				SCRIPT_WRITE_STRING(name); // if method is not found, pass it as argument!
-			sizeName = 0; 
+			method = NULL;
 			ScriptWriter writer(_pState);
 			reader.read(writer);
 			SCRIPT_FUNCTION_CALL
@@ -218,7 +218,7 @@ bool MonaServer::onInvocation(Exception& ex, Client& client, const string& name,
 				SCRIPT_READ_NEXT(ScriptReader(_pState, SCRIPT_NEXT_READABLE).read(client.writer().writeResponse(responseType)));
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
-	if(!sizeName)
+	if(!method)
 		return true;
 	ex.set<Ex::Application>("Method client ", name, " not found in application ", client.path);
 	return false;

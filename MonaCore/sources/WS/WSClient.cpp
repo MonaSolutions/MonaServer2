@@ -105,10 +105,6 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& p
 				string error(STR reader.current(), reader.available());
 				Exception ex;
 				switch (code) {
-					case 0: // no error code
-					case WS::CODE_NORMAL_CLOSE: // normal error
-						if(error.empty())
-							break;
 					case WS::CODE_ENDPOINT_GOING_AWAY: // client is dying
 						ex.set<Ex::Net::Socket>(error);
 						break;
@@ -124,8 +120,13 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& p
 					case WS::CODE_EXTENSION_REQUIRED: // Unsupported
 						ex.set<Ex::Unsupported>(error);
 						break;
-					default:; // unexpected
-						ex.set<Ex::Intern>(error);
+					case 0: // no error code
+					case WS::CODE_NORMAL_CLOSE: // normal error
+						if (error.empty())
+							break;
+					case WS::CODE_RESERVED_ABNORMAL_CLOSE:
+					default:; // user code
+						ex.set<Ex::Application>(error);
 						break;
 				}
 				if (ex)

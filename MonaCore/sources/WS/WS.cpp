@@ -32,6 +32,8 @@ UInt16 WS::ErrorToCode(Int32 error) {
 		case Session::ERROR_UPDATE:
 		case Session::ERROR_SERVER:
 			return WS::CODE_ENDPOINT_GOING_AWAY;
+		case Session::ERROR_APPLICATION:
+			return WS::CODE_RESERVED_ABNORMAL_CLOSE;
 		case Session::ERROR_REJECTED:
 			return WS::CODE_POLICY_VIOLATION;
 		case Session::ERROR_IDLE:

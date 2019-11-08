@@ -75,7 +75,7 @@ template<> void Script::ObjInit(lua_State *pState, WSClient& client) {
 				message.read(writer);
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
-			if(!name.empty()) // rpc fails
+			if(!name.empty()) // rpc fails just if explicit name given not found!
 				ERROR("Method ", name, " client ", client.address, " not found");
 		SCRIPT_END
 	};
