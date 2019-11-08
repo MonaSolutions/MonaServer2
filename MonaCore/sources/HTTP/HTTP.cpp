@@ -128,7 +128,7 @@ const char* HTTP::ErrorToCode(Int32 error) {
 		case Session::ERROR_PROTOCOL:
 			return HTTP_CODE_400; // Bad Request
 		case Session::ERROR_UNEXPECTED:
-			return HTTP_CODE_417; // Expectation failed
+			return HTTP_CODE_500; // Internal server error
 		case Session::ERROR_UNSUPPORTED:
 			return HTTP_CODE_501; // Not Implemented
 		case Session::ERROR_UNFOUND:
