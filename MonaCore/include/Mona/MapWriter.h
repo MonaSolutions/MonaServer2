@@ -40,12 +40,12 @@ struct MapWriter : DataWriter, virtual Object {
 
 	UInt64 beginObjectArray(UInt32 size) { beginComplex(String(size)); _layers.emplace_back(_key.size(), 0); return 0; }
 
-	void writeString(const char* value, UInt32 size) { set(value, size); }
-	void writeNumber(double value) { set(String(value)); }
-	void writeBoolean(bool value) { set(value ? "true" : "false");}
-	void writeNull() { set(EXPAND("null")); }
-	UInt64 writeDate(const Date& date) { set(String(date)); return 0; }
-	UInt64 writeByte(const Packet& packet) { set(STR packet.data(), packet.size()); return 0; }
+	virtual void writeString(const char* value, UInt32 size) { set(String::Data(value, size)); }
+	virtual void writeNumber(double value) { set(value); }
+	virtual void writeBoolean(bool value) { set(value);}
+	virtual void writeNull() { set(nullptr); }
+	virtual UInt64 writeDate(const Date& date) { set(date); return 0; }
+	virtual UInt64 writeByte(const Packet& packet) { set(packet); return 0; }
 	
 private:
 	UInt64 beginComplex(std::string&& count=std::string()) {
@@ -72,17 +72,24 @@ private:
 		_layers.pop_back();
 	}
 	
-	template <typename ...Args>
-	void set(Args&&... args) {
+	template <typename Type>
+	void set(const Type& data) {
 		if (!_isProperty) {
 			if (_layers.size() < 2) {
-				_map.emplace(std::string(std::forward<Args>(args)...), std::string());
+				String key(data);
+				if(setKey(key))
+					_map.emplace(std::move(key), std::string());
 				return;
 			}
 			String::Assign(_property, _layers.back().second++);
 		} else
 			_isProperty = false;
-		_map.emplace(String(_key, _property), std::string(std::forward<Args>(args)...));
+		String key(_key, _property);
+		if (setKey(key))
+			_map.emplace(key, String(data));
+	}
+	virtual bool setKey(const std::string& key) {
+		return true;
 	}
 
 	MapType&							   _map;
