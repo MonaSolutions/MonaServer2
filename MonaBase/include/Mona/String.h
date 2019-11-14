@@ -422,6 +422,12 @@ struct String : std::string {
 		return Append<OutType>((OutType&)out.append(EXPAND("false")), std::forward<Args>(args)...);
 	}
 
+	/// \brief match "null" case
+	template <typename OutType, typename ...Args>
+	static OutType& Append(OutType& out, std::nullptr_t, Args&&... args) {
+		return Append<OutType>((OutType&)out.append(EXPAND("null")), std::forward<Args>(args)...);
+	}
+
 	/// \brief match pointer case
 	template <typename OutType, typename ...Args>
 	static OutType& Append(OutType& out, const void* value, Args&&... args)	{
