@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/Client.h"
-#include "Mona/SplitReader.h"
 
 using namespace std;
 
@@ -32,10 +31,21 @@ Client::Client(const char* protocol, const SocketAddress& address) : // if broad
 		((IPAddress&)serverAddress.host()).set(address.host());
 }
 
-Parameters::const_iterator Client::setProperty(const string& key, string&& value, DataReader& parameters) {
-	StringReader valueReader(value.data(), value.size());
-	SplitReader reader(valueReader, parameters);
-	return onSetProperty(key, reader) ? _properties.emplace(key, move(value)).first : _properties.end();
+const string* Client::setProperty(const string& key, DataReader& reader) {
+	string value;
+	StringWriter<string> writer(value);
+	reader.read(writer, 1);
+	reader.reset();
+	return onSetProperty(key, &reader) ? &_properties.emplace(key, move(value)).first->second : NULL;
+}
+Int8 Client::eraseProperty(const std::string& key) {
+	auto it = _properties.find(key);
+	if (it != _properties.end())
+		return 0;
+	if (!onSetProperty(key, NULL))
+		return -1;
+	_properties.erase(it);
+	return 1;
 }
 
 UInt16 Client::setPing(UInt64 value) {

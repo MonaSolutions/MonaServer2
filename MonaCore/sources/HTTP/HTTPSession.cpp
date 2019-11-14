@@ -92,10 +92,10 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 				if (!peer && handshake(request)) {
 					if(!peer.onSetProperty) {
 						// subscribe to client.properties(...)
-						peer.onSetProperty = [this](const string& key, DataReader& reader) {
-							if (!reader.available())
+						peer.onSetProperty = [this](const string& key, DataReader* pReader) {
+							if (!pReader)
 								return false; // HTTP can't deleting a client property, just adding (set a cookie to empty value with expiration date to get it on next request!)
-							_pWriter->writeSetCookie(key, reader);
+							_pWriter->writeSetCookie(key, *pReader);
 							return true;
 						};
 					}
