@@ -47,6 +47,7 @@ struct Parameters : String::Object<Parameters> {
 	const_iterator	begin() const { return params().begin(); }
 	const_iterator	end() const { return params().end(); }
 	const_iterator  lower_bound(const std::string& key) const { return params().lower_bound(key); }
+	const_iterator  find(const std::string& key) const { return params().find(key); }
 	ForEach			from(const std::string& prefix) const { return ForEach(params().lower_bound(prefix), params().end()); }
 	ForEach			range(const std::string& prefix) const;
 	UInt32			count() const { return params().size(); }
@@ -84,6 +85,7 @@ struct Parameters : String::Object<Parameters> {
 
 	bool erase(const std::string& key);
 	const_iterator erase(const_iterator first, const_iterator last);
+	const_iterator erase(const_iterator it) { return erase(it, ++it); }
 
 	const std::string& setString(const std::string& key, const std::string& value) { return setParameter(key, value); }
 	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) {
