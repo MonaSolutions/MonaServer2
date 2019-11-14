@@ -259,18 +259,13 @@ static int hmac(lua_State *pState) {
 }
 
 template<> void Script::ObjInit(lua_State *pState, ServerAPI& api) {
-	AddObject(pState, (const Parameters&)api);
-	lua_getmetatable(pState, -1);
-	lua_replace(pState, -2);
-	lua_setmetatable(pState, -4); // metatable of parameters becomes metatable of __index of api object!
-
 	SCRIPT_BEGIN(pState);
+		SCRIPT_DEFINE("__tab", AddObject<const Parameters>(pState, api));
+		SCRIPT_DEFINE_FUNCTION("__call", &(LUAMap<ServerAPI, const Parameters>::Call<>));
 		if(Byte::ORDER_NATIVE == Byte::ORDER_BIG_ENDIAN)
 			SCRIPT_DEFINE_BOOLEAN("bigEndian", true)
 		else
 			SCRIPT_DEFINE_BOOLEAN("littleEndian", true)
-		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<const Parameters>::Call<LUAMap<const Parameters>::Mapper<ServerAPI>>);
-		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<const Parameters>::Pairs<LUAMap<const Parameters>::Mapper<ServerAPI>>);
 		SCRIPT_DEFINE_FUNCTION("time", &time);
 		SCRIPT_DEFINE_FUNCTION("newPath", &newPath);
 		SCRIPT_DEFINE_FUNCTION("newIPAddress", &newIPAddress);
@@ -318,7 +313,7 @@ template<> void Script::ObjInit(lua_State *pState, ServerAPI& api) {
 	SCRIPT_END;
 }
 template<> void Script::ObjClear(lua_State *pState, ServerAPI& api) {
-	RemoveObject(pState, (const Parameters&)api);
+	RemoveObject<const Parameters>(pState, api);
 	RemoveObject(pState, Util::Environment());
 	RemoveObject(pState, api.publications());
 }

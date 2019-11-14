@@ -76,55 +76,80 @@ static int Require(lua_State *pState) {
 	return lua_gettop(pState) - top;
 }
 
-// fix luajit which doesn't support __pairs methametods without lua 5.2 activation
-int Pairs(lua_State* pState) {
+// fix next for custom iteration
+int Next(lua_State* pState) {
 	// 1 table
-	if (lua_getmetatable(pState, 1)) {
-		lua_pushliteral(pState, "__pairs");
-		lua_rawget(pState, -2);
-		lua_replace(pState, -2); // replace metatable!
-		if (lua_isfunction(pState, -1)) {
-			lua_pushvalue(pState, 1);
-			lua_call(pState, 1, 3); // lua_call rather lua_pcall because is called from LUA (callback, not CPP) => stop the script proprely without execute the rest (useless)
-			return 3;
-		}
-		lua_pop(pState, 1); // remove __pairs value
+	// 2 key
+	SCRIPT_BEGIN(pState)
+	if (!lua_equal(pState, 1, lua_upvalueindex(1))) {
+		lua_pushvalue(pState, 1);
+		lua_replace(pState, lua_upvalueindex(1)); // new table!
+		if (lua_getmetatable(pState, 1)) {
+			lua_pushliteral(pState, "__next");
+			lua_rawget(pState, -2);
+			lua_replace(pState, -2); // remove metatable
+			if (!lua_isfunction(pState, -1)) {
+				if(!lua_isnil(pState, -1))
+					SCRIPT_ERROR("__next must be a function");
+				lua_pushvalue(pState, lua_upvalueindex(3)); // next
+				lua_replace(pState, -2);
+			} // else __next
+		} else
+			lua_pushvalue(pState, lua_upvalueindex(3)); // next
+		lua_replace(pState, lua_upvalueindex(2)); // __next
 	}
-	lua_getglobal(pState, "next");
-	lua_pushvalue(pState, 1);
-	lua_pushnil(pState);
-	return 3;
+	lua_pushvalue(pState, lua_upvalueindex(2)); // __next function
+	lua_pushvalue(pState, 1); // table
+	lua_pushvalue(pState, 2); // key
+	lua_call(pState, 2, 2); // lua_call rather lua_pcall because is called from LUA (callback, not CPP) => stop the script proprely without execute the rest (useless)
+	SCRIPT_END
+	return 2;
+}
+// fix pairs for custom iteration
+int Pairs(lua_State* pState) {
+	lua_getglobal(pState, "next"); // next function
+	lua_pushvalue(pState, 1); // table
+	return 2;
 }
 
-// Change 'getmetatable' when __metatable is set to flat __index + __metatable array (forbid __index + __metatable table and allows to list meta methods)
-int GetMetatable(lua_State* pState) {
+// fix inext for usage with "in inext, table" without index!
+int INext(lua_State* pState) {
+	// table
+	// index
+	lua_Integer i = lua_tointeger(pState, 2);
+	if (++i <= 0)
+		i = 1;
+	lua_pushinteger(pState, i);
+	lua_rawgeti(pState, 1, i);
+	return lua_isnil(pState, -1) ? 0 : 2;
+}
+int IPairs(lua_State* pState) {
+	lua_pushcfunction(pState, &INext);
+	lua_pushvalue(pState, 1); // table
+	return 2;
+}
+
+
+// list meta methods (metatable + __index if is array!)
+int Metatable(lua_State* pState) {
 	// 1 table
 	// [2 table response]
-	lua_settop(pState, 2);
-	if (!lua_istable(pState, 2)) {
-		lua_newtable(pState);
-		lua_replace(pState, 2);
-	}
-
 	if (!lua_getmetatable(pState, 1))
 		return 0;
 
-	lua_pushliteral(pState, "__metatable");
-	lua_rawget(pState, 3);
-	if (!lua_istable(pState, -1)) {
-		if (lua_isnil(pState, -1)) {
-			// normal behavior!
-			lua_pop(pState, 1); // remove __metatable table
-			return 1; // return metatable
-		}
-		lua_pop(pState, 1); // remove __metatable table
+	// create the second option argument (output table) if no exists!
+	if (!lua_istable(pState, 2)) {
+		lua_newtable(pState);
+		lua_replace(pState, 2); // set in second argument!
 	}
 
+	// get all __index table (__index of __index etc...)
 	for(;;) {
 		lua_pushliteral(pState, "__index");
-		lua_rawget(pState, 3);
+		lua_rawget(pState, -2);
 		if (!lua_istable(pState, -1)) {
 			if (lua_isfunction(pState, -1)) {
+				// if __index is a function, a call without parameter can return a methods array to document available methods
 				lua_pcall(pState, 0, 1, 0);
 				if (!lua_istable(pState, -1))
 					lua_pop(pState, 1);
@@ -134,22 +159,57 @@ int GetMetatable(lua_State* pState) {
 		}
 		if (!lua_getmetatable(pState, -1))
 			break;
-		lua_replace(pState, 3);
+		lua_replace(pState, -2);
 	}
 
-	// flat __metatable + __index
-	while (lua_gettop(pState) > 3) {
+	// flat content of all table from index 3 to last in the stack
+	while (lua_gettop(pState) > 2) {
 		lua_pushnil(pState);  // first key 
 		while (lua_next(pState, -2)) {
 			// uses 'key' (at index -2) and 'value' (at index -1) 
 			// remove the raw!
+			if (strcmp(lua_tostring(pState, -2), "__index") == 0) {
+				lua_pop(pState, 1);
+				continue;
+			}
 			lua_pushvalue(pState, -2); // duplicate key
 			lua_insert(pState, -2);
 			lua_rawset(pState, 2);
 		}
 		lua_pop(pState, 1);
-	};
-	lua_pop(pState, 1); // remove metatable!
+	}
+	return 1;
+}
+
+/*!
+Return a table representation of the object */
+static int Tab(lua_State *pState) {
+	// 1- global operator "table" (useless)
+	// 2- table parameter
+	SCRIPT_BEGIN(pState);
+	if (lua_getmetatable(pState, 2)) {
+		lua_pushliteral(pState, "__tab");
+		lua_rawget(pState, -2);
+		lua_replace(pState, -2); // remove metatable
+		if (lua_istable(pState, -1))
+			return 1;
+		if (!lua_isnil(pState, -1)) {
+			lua_pop(pState, 1);
+			SCRIPT_ERROR("__tab requires a table");
+			return 0;
+		}
+		lua_pop(pState, 1);
+	} else if (!lua_istable(pState, 2)) {
+		SCRIPT_ERROR("requires a table as first argument");
+		return 0;
+	}
+	// 2 is a generic table
+	Script::NewObject<Object>(pState, new Object());
+	lua_getmetatable(pState, -1);
+	lua_pushvalue(pState, -3);
+	lua_rawseti(pState, -2, 0);
+	lua_pop(pState, 1); // remove metatable
+	SCRIPT_END
 	return 1;
 }
 
@@ -316,10 +376,30 @@ lua_State* Script::CreateState() {
 	lua_setglobal(pState, "LOG_DEBUG");
 	lua_pushinteger(pState, LOG_TRACE);
 	lua_setglobal(pState, "LOG_TRACE");
+	lua_pushnil(pState); // table
+	lua_pushnil(pState); // __next function
+	lua_getglobal(pState, "next"); // next function
+	lua_pushcclosure(pState, &Next, 3);
+	lua_setglobal(pState, "next");
 	lua_pushcfunction(pState, &Pairs);
 	lua_setglobal(pState, "pairs");
-	lua_pushcfunction(pState, &GetMetatable);
-	lua_setglobal(pState, "getmetatable");
+	lua_pushcfunction(pState, &INext);
+	lua_setglobal(pState, "inext");
+	lua_pushcfunction(pState, &IPairs);
+	lua_setglobal(pState, "ipairs");
+	lua_pushcfunction(pState, &Metatable);
+	lua_setglobal(pState, "metatable");
+
+	// debug function redirection to DEBUG log
+	lua_getglobal(pState, "debug");
+	if (!lua_getmetatable(pState, -1)) {
+		lua_newtable(pState);
+		lua_pushvalue(pState, -1);
+		lua_setmetatable(pState, -3);
+	}
+	lua_pushcfunction(pState, &Debug);
+	lua_setfield(pState, -2, "__call");
+	lua_pop(pState, 2);
 
 	// redefine error to use variables parameters as LOG function
 	lua_pushcfunction(pState, &lError);
@@ -344,6 +424,17 @@ lua_State* Script::CreateState() {
 		LUABit::AddOperators(pState);
 	lua_pop(pState, 1);
 	
+	// table global function used to represent mona parameters as table
+	lua_getglobal(pState, "table");
+	if (!lua_getmetatable(pState, -1)) {
+		lua_newtable(pState);
+		lua_pushvalue(pState, -1);
+		lua_setmetatable(pState, -3);
+	}
+	lua_pushcfunction(pState, &Tab);
+	lua_setfield(pState, -2, "__call");
+	lua_pop(pState, 2);
+
 	return pState;
 }
 

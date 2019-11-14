@@ -25,12 +25,12 @@ namespace Mona {
 
 bool ScriptReader::writeNext(DataWriter& writer) {
 	Util::Scoped<UInt32> scopedCur(_current, range<UInt32>(lua_gettop(_pState)));
-	Util::Scoped<UInt32> scopedEnd(_end, 0); // _end can't be equal to 0!
+	Util::Scoped<UInt32> scopedEnd(_end, _current+1);
 	return readNext(writer);
 }
 
 UInt8 ScriptReader::followingType() {
-	if (_current == _end) // == to allow _end=0 (see writeNext)
+	if (_current >= _end)
 		return END;
 
 	switch (lua_type(_pState, _current)) {
@@ -71,7 +71,7 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 
 	UInt64 reference = UInt64(lua_topointer(_pState, _current));
 	if (reference && tryToRepeat(writer, reference)) {
-		++_current;
+		++_current; // always in last to allow on write call a right position() call (see LUAMap.h usage for example)
 		return true;
 	}
 
@@ -83,22 +83,23 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 			const char* value = lua_tolstring(_pState, -1, &size);
 			writer.writeString(value, size);
 			lua_pop(_pState, 1);
-			++_current;
+			++_current; // always in last to allow on write call a right position() call (see LUAMap.h usage for example)
 			return true;
 		}
 		case BOOLEAN:
-			writer.writeBoolean(lua_toboolean(_pState,_current++)==0 ? false : true);
+			writer.writeBoolean(lua_toboolean(_pState,_current)==0 ? false : true);
+			++_current; // always in last to allow on write call a right position() call (see LUAMap.h usage for example)
 			return true;
 		case NUMBER:
-			writer.writeNumber(lua_tonumber(_pState,_current++));
+			writer.writeNumber(lua_tonumber(_pState,_current));
+			++_current; // always in last to allow on write call a right position() call (see LUAMap.h usage for example)
 			return true;
 		case NIL:
 			writer.writeNull();
-			++_current;
+			++_current; // always in last to allow on write call a right position() call (see LUAMap.h usage for example)
 			return true;
 
 		case BYTE:
-			++_current;
 			if(!_pPacket) {
 				lua_getfield(_pState, _current, "__bin");
 				size_t size;
@@ -107,13 +108,15 @@ bool ScriptReader::readOne(UInt8 type,DataWriter& writer) {
 				lua_pop(_pState, 1);
 			} else
 				writeByte(writer, reference, *_pPacket);
+			++_current; // always in last to allow on write call a right position() call (see LUAMap.h usage for example)
 			return true;
 
 		case DATE: {
-			lua_getfield(_pState, _current++, "__time");
+			lua_getfield(_pState, _current, "__time");
 			Date date((Int64)lua_tonumber(_pState, -1));
 			writeDate(writer,reference,date);
 			lua_pop(_pState,1);
+			++_current; // always in last to allow on write call a right position() call (see LUAMap.h usage for example) 
 			return true;
 		}
 

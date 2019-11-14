@@ -82,15 +82,11 @@ static int latency(lua_State *pState) {
 template<> void Script::ObjInit(lua_State *pState, Publication& publication) {
 	AddType<Media::Source>(pState, publication);
 
-	// properties
-	lua_pushliteral(pState, "properties");
-	AddObject(pState, (Parameters&)publication);
-	lua_getmetatable(pState, -1);
-	lua_setmetatable(pState, -6); // metatable of properties becomes metatable of __index of publication object!
-
 	SCRIPT_BEGIN(pState);
-		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<Parameters>::Call<LUAMap<Parameters>::Mapper<Publication>>);
-		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<Parameters>::Pairs<LUAMap<Parameters>::Mapper<Publication>>);
+		SCRIPT_DEFINE("properties", AddObject<Parameters>(pState, publication));
+		SCRIPT_DEFINE("__tab", lua_pushvalue(pState, -2));
+		SCRIPT_DEFINE_FUNCTION("__call", &(LUAMap<Publication>::Call<>));
+
 		SCRIPT_DEFINE_STRING("name", publication.name())
 		SCRIPT_DEFINE("audios", AddObject(pState, publication.audios));
 		SCRIPT_DEFINE("videos", AddObject(pState, publication.videos));
@@ -103,7 +99,7 @@ template<> void Script::ObjInit(lua_State *pState, Publication& publication) {
 template<> void Script::ObjClear(lua_State *pState, Publication& publication) {
 	RemoveType<Media::Source>(pState, publication);
 
-	RemoveObject(pState, (Parameters&)publication);
+	RemoveObject<Parameters>(pState, publication);
 	RemoveObject(pState, publication.audios);
 	RemoveObject(pState, publication.videos);
 	RemoveObject(pState, publication.datas);

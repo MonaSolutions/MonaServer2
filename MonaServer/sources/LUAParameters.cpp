@@ -26,22 +26,14 @@ namespace Mona {
 
 
 template<> void Script::ObjInit(lua_State *pState, const Parameters& parameters) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_DEFINE_FUNCTION("__index", &LUAMap<const Parameters>::Index);
-		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<const Parameters>::Call);
-		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<const Parameters>::Pairs);
-	SCRIPT_END
+	LUAMap<const Parameters>::Define(pState, -1);
 }
 template<> void Script::ObjClear(lua_State *pState, const Parameters& parameters) {
 
 }
 
 template<> void Script::ObjInit(lua_State *pState, Parameters& parameters) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_DEFINE_FUNCTION("__index", &LUAMap<Parameters>::Index);
-		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<Parameters>::Call);
-		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<Parameters>::Pairs);
-	SCRIPT_END
+	LUAMap<Parameters>::Define(pState, -1);
 }
 template<> void Script::ObjClear(lua_State *pState, Parameters& parameters) {
 

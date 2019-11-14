@@ -130,5 +130,8 @@
     <ClCompile Include="sources\LUABit.cpp">
       <Filter>LUAClass</Filter>
     </ClCompile>
+    <ClCompile Include="sources\LUATable.cpp">
+      <Filter>LUAClass</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

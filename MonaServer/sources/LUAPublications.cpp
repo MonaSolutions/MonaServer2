@@ -24,16 +24,11 @@ using namespace std;
 namespace Mona {
 
 template<> void Script::ObjInit(lua_State *pState, const map<string, Publication>& publications) {
-	struct Mapper : LUAMap<const map<string, Publication>>::Mapper<>, virtual Object {
-		using LUAMap<const std::map<string, Publication>>::Mapper<>::Mapper;
-		void pushValue(const std::map<string, Publication>::const_iterator& it) { Script::FromObject(pState, it->second); }
+	struct Mapper : LUAMap<const map<string, Publication>>::Mapper<Mapper>, virtual Object {
+		using LUAMap<const std::map<string, Publication>>::Mapper<Mapper>::Mapper;
+		static void PushValue(lua_State *pState, const Publication& publication) { Script::FromObject(pState, publication); }
 	};
-
-	SCRIPT_BEGIN(pState)
-		SCRIPT_DEFINE_FUNCTION("__index", &(LUAMap<const map<string, Publication>>::Index));
-		SCRIPT_DEFINE_FUNCTION("__call", &(LUAMap<const map<string, Publication>>::Call<Mapper>));
-		SCRIPT_DEFINE_FUNCTION("__pairs", &(LUAMap<const map<string, Publication>>::Pairs<Mapper>));
-	SCRIPT_END
+	LUAMap<const map<string, Publication>>::Define<Mapper>(pState, -1);
 }
 template<> void Script::ObjClear(lua_State *pState, const map<string, Publication>& parameters) {
 }

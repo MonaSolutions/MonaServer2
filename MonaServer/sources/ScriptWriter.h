@@ -29,6 +29,8 @@ struct ScriptWriter : DataWriter, virtual Object {
 	ScriptWriter(lua_State *pState);
 	virtual ~ScriptWriter();
 
+	lua_State* lua() { return _pState; }
+
 	UInt64	beginObject(const char* type=NULL);
 	void	writePropertyName(const char* name) { lua_pushstring(_pState, name); }
 	void	endObject() { endComplex(); }

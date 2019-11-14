@@ -23,22 +23,15 @@ using namespace std;
 
 namespace Mona {
 
+
 template<> void Script::ObjInit(lua_State *pState, const map<string,string>& values) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_DEFINE_FUNCTION("__index", &(LUAMap<const map<string, string>>::Index));
-		SCRIPT_DEFINE_FUNCTION("__call", &(LUAMap<const map<string, string>>::Call));
-		SCRIPT_DEFINE_FUNCTION("__pairs", &(LUAMap<const map<string, string>>::Pairs));
-	SCRIPT_END
+	LUAMap<const map<string, string>>::Define(pState, -1);
 }
 template<> void Script::ObjClear(lua_State *pState, const map<string, string>& values) {
 }
 
 template<> void Script::ObjInit(lua_State *pState, map<string, string>& values) {
-	SCRIPT_BEGIN(pState)
-		SCRIPT_DEFINE_FUNCTION("__index", &(LUAMap<map<string, string>>::Index));
-		SCRIPT_DEFINE_FUNCTION("__call", &(LUAMap<map<string, string>>::Call));
-		SCRIPT_DEFINE_FUNCTION("__pairs", &(LUAMap<map<string, string>>::Pairs));
-	SCRIPT_END
+	LUAMap<map<string, string>>::Define(pState, -1);
 }
 template<> void Script::ObjClear(lua_State *pState, map<string, string>& values) {
 }

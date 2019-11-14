@@ -236,7 +236,7 @@ struct Script : virtual Static {
 		return object;
 	}
 
-	template<int index = 0, typename Type>
+	template<typename Type, int index = 0>
 	static void RemoveObject(lua_State *pState, Type& object) {
 		//NOTE("remove ", typeof<Type>(), " " , &object);
 		if (index)
@@ -537,7 +537,7 @@ private:
 	static int DeleteObject(lua_State *pState) {
 		Type* pObject = ToObject<Type>(pState, lua_upvalueindex(1));
 		if(pObject) // else already manually removed!
-			RemoveObject<lua_upvalueindex(1)>(pState, *pObject);
+			RemoveObject<Type, lua_upvalueindex(1)>(pState, *pObject);
 		pObject = (Type*)lua_touserdata(pState, lua_upvalueindex(2));
 		if (pObject)
 			delete pObject;

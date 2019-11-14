@@ -30,12 +30,21 @@ struct ScriptReader : ReferableReader, virtual Object {
 	ScriptReader(lua_State *pState) : _pState(pState), _end(range<UInt32>(lua_gettop(pState))+1), _begin(1), _current(1) {}
 	/*!
 	Read LUA stack from count elements before the end */
-	ScriptReader(lua_State *pState, UInt32 count) : _pState(pState), _end(range<UInt32>(lua_gettop(pState))+1) {
-		_begin = _current = count>_end ? 1 : (_end - count);
+	ScriptReader(lua_State *pState, UInt32 available) : _pState(pState), _end(range<UInt32>(lua_gettop(pState))+1) {
+		_begin = _current = available>_end ? 1 : (_end - available);
 	}
-
+	ScriptReader(lua_State *pState, UInt32 available, UInt32 count) : _pState(pState), _end(range<UInt32>(lua_gettop(pState)) + 1) {
+		_begin = _current = available>_end ? 1 : (_end - available);
+		if ((_end -_begin) > count)
+			_end = _begin + count;
+	}
+	lua_State* lua() { return _pState; }
 	UInt32	position() const { return _current-_begin; }
+	UInt32	current() const { return _current; }
+	UInt32  available() const { return _end - _current; }
 	void	reset() { _current = _begin; }
+
+	static ScriptReader&	Null() { static ScriptReader Null; return Null; }
 
 #if defined(_DEBUG)
 	UInt32 read(DataWriter& writer, UInt32 count = END) {
@@ -46,7 +55,10 @@ struct ScriptReader : ReferableReader, virtual Object {
 	}
 #endif
 
+
 private:
+	ScriptReader() : _pState(NULL), _end(0), _begin(0), _current(0) {}
+
 	UInt8	followingType();
 	bool	readOne(UInt8 type, DataWriter& writer);
 

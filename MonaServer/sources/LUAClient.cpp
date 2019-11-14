@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "LUAMap.h"
+#include "Mona/SplitReader.h"
 #include "Mona/Client.h"
 #include "LUASocketAddress.h"
 #include "LUAWriter.h"
@@ -46,29 +47,40 @@ static int rto(lua_State *pState) {
 template<> Mona::Writer& LUAWriter<Client>::Writer(Client& client) { return client.writer(); }
 
 template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
-	struct Mapper : LUAMap<const Parameters>::Mapper<Mona::Client>, virtual Object {
-		Mapper(Mona::Client& client, lua_State* pState) : LUAMap<const Parameters>::Mapper<Mona::Client>(client, client.properties(), pState) {}
-		Parameters::const_iterator set(const string& key, string&& value, DataReader& parameters) { return obj.setProperty(key, move(value), parameters); }
-		bool erase(const Parameters::const_iterator& first, const Parameters::const_iterator& last) {
-			for (auto it = first; it != last; ++it) {
-				if (!obj.eraseProperty(it->first))
-					return false;
+	struct Mapper : LUAMap<const Parameters>::Mapper<>, virtual Object {
+		Mapper(Mona::Client& client, lua_State* pState) : LUAMap<const Parameters>::Mapper<>(client.properties(), pState), _client(client) {}
+		Int8 erase(const string& key) { return _client.eraseProperty(key); }
+		int clear(string* pPrefix) {
+			const auto& itBegin = pPrefix ? map.lower_bound(*pPrefix) : map.begin();
+			if (pPrefix)
+				++pPrefix->back();
+			const auto& itEnd = pPrefix ? map.lower_bound(*pPrefix) : map.end();
+			auto it = itBegin;
+			while (it != itEnd) {
+				if(_client.eraseProperty((it++)->first)<0)
+					return -distance(itBegin, it); // removed elements + 1
 			}
+			return distance(itBegin, it);
+		}
+		bool set(const string& key, ScriptReader& reader, DataReader& parameters) {
+			SplitReader splitReader(reader, parameters);
+			const string* pValue = _client.setProperty(key, splitReader);
+			if (!pValue)
+				return false;
+			Script::PushValue(pState, pValue->data(), pValue->size()); // push set value!
 			return true;
 		}
+	private:
+		Mona::Client& _client;
 	};
 	AddType<Net::Stats>(pState, client);
 	AddComparator<Mona::Client>(pState);
 
-	// properties
-	lua_pushliteral(pState, "properties");
-	AddObject(pState, client.properties());
-	lua_getmetatable(pState, -1);
-	lua_setmetatable(pState, -6); // metatable of parameters becomes metatable of __index of client object!
-
 	SCRIPT_BEGIN(pState)
-		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<const Parameters>::Call<Mapper>);
-		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<const Parameters>::Pairs<Mapper>);
+		SCRIPT_DEFINE("properties", AddObject(pState, client.properties()));
+		SCRIPT_DEFINE("__tab", lua_pushvalue(pState, -2));
+		SCRIPT_DEFINE_FUNCTION("__call", &(LUAMap<Mona::Client, const Parameters>::Call<Mapper>));
+		
 		SCRIPT_DEFINE_DATA("id", client.id, Entity::SIZE)
 		SCRIPT_DEFINE_STRING("protocol", client.protocol);
 		SCRIPT_DEFINE_DOUBLE("connection", client.connection);
@@ -85,8 +97,8 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 	SCRIPT_END
 }
 template<> void Script::ObjClear(lua_State *pState, Mona::Client& client) {
-	RemoveType<Net::Stats>(pState, client);
 	RemoveObject(pState, client.properties());
+	RemoveType<Net::Stats>(pState, client);
 }
 
 }

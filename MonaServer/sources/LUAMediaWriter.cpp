@@ -27,8 +27,7 @@ namespace Mona {
 
 static const MediaWriter::OnWrite& OnWrite(lua_State *pState) {
 	lua_getmetatable(pState, 1);
-	lua_pushliteral(pState, "|onWrite");
-	lua_rawget(pState, -2);
+	lua_rawgeti(pState, -1, 0);
 	MediaWriter::OnWrite* pOnWrite = (MediaWriter::OnWrite*)lua_touserdata(pState, -1);
 	lua_pop(pState, 2);
 	return *pOnWrite;
@@ -96,7 +95,6 @@ static int endMedia(lua_State *pState) {
 
 template<> void Script::ObjInit(lua_State *pState, MediaWriter& writer) {
 	SCRIPT_BEGIN(pState)
-		lua_pushliteral(pState, "|onWrite");
 		lua_pushlightuserdata(pState, new MediaWriter::OnWrite([pState, &writer](const Packet& packet) {
 			SCRIPT_BEGIN(pState)
 				SCRIPT_MEMBER_FUNCTION_BEGIN(writer, "onWrite")
@@ -105,7 +103,7 @@ template<> void Script::ObjInit(lua_State *pState, MediaWriter& writer) {
 				SCRIPT_FUNCTION_END
 			SCRIPT_END
 		}));
-		lua_rawset(pState, -4);
+		lua_rawseti(pState, -3, 0);
 
 		SCRIPT_DEFINE_STRING("format", writer.format());
 		string buffer;
@@ -123,8 +121,9 @@ template<> void Script::ObjInit(lua_State *pState, MediaWriter& writer) {
 }
 template<> void Script::ObjClear(lua_State *pState, MediaWriter& writer) {
 	lua_getmetatable(pState, -1);
-	lua_rawgeti(pState, -1, 1);
+	lua_rawgeti(pState, -1, 0);
 	delete (MediaWriter::OnWrite*)lua_touserdata(pState, -1);
+	lua_pop(pState, 2);
 }
 
 }

@@ -105,15 +105,11 @@ static int target(lua_State *pState) {
 template<> void Script::ObjInit(lua_State *pState, Subscription& subscription) {
 	AddType<Media::Source>(pState, subscription);
 
-	// parameters
-	lua_pushliteral(pState, "parameters");
-	AddObject(pState, (Parameters&)subscription);
-	lua_getmetatable(pState, -1);
-	lua_setmetatable(pState, -6); // metatable of parameters becomes metatable of __index of subscription object!
-
 	SCRIPT_BEGIN(pState);
-		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<const Parameters>::Call<LUAMap<const Parameters>::Mapper<Subscription>>);
-		SCRIPT_DEFINE_FUNCTION("__pairs", &LUAMap<const Parameters>::Pairs<LUAMap<const Parameters>::Mapper<Subscription>>);
+		SCRIPT_DEFINE("parameters", AddObject<Parameters>(pState, subscription));
+		SCRIPT_DEFINE("__tab", lua_pushvalue(pState, -2));
+		SCRIPT_DEFINE_FUNCTION("__call", &LUAMap<Subscription>::Call<>);
+
 		SCRIPT_DEFINE_STRING("name", subscription.name());
 		SCRIPT_DEFINE_FUNCTION("target", &target);
 		SCRIPT_DEFINE_FUNCTION("ejected", &ejected);
@@ -127,7 +123,7 @@ template<> void Script::ObjInit(lua_State *pState, Subscription& subscription) {
 template<> void Script::ObjClear(lua_State *pState, Subscription& subscription) {
 	RemoveType<Media::Source>(pState, subscription);
 
-	RemoveObject(pState, (Parameters&)subscription);
+	RemoveObject<Parameters>(pState, subscription);
 	RemoveObject(pState, subscription.audios);
 	RemoveObject(pState, subscription.videos);
 	RemoveObject(pState, subscription.datas);
