@@ -341,14 +341,6 @@ public:
 };
 
 
-template <typename Type>
-class has_count : virtual Static {
-	template<typename C> static char(&B(typename std::enable_if< std::is_same<decltype(&C::count), UInt32(C::*)() const>::value, void >::type*))[1];
-	template<typename C> static char(&B(...))[2];
-public:
-	static bool const value = sizeof(B<Type>(0)) == 1;
-};
-
 /*!
 enum mathematics constant (base and others) */
 enum Math {
