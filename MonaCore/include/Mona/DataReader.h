@@ -55,7 +55,7 @@ struct DataReader : Packet, virtual Object {
 ////////////////////
 
 	template <typename BufferType>
-	bool			readString(BufferType& buffer) { StringWriter<BufferType> writer(buffer); return read(STRING, writer); }
+	bool			readString(BufferType& buffer) { StringWriter<BufferType> writer(buffer, false); return read(STRING, writer); }
 	template <typename NumberType>
 	bool			readNumber(NumberType& value) {  NumberWriter<NumberType> writer(value); return read(NUMBER, writer); }
 	bool			readBoolean(bool& value) {  BoolWriter writer(value); return read(BOOLEAN, writer); }

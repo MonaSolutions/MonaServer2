@@ -26,8 +26,8 @@ namespace Mona {
 template<typename BufferType=Buffer>
 struct StringWriter : DataWriter, virtual Object {
 
-	StringWriter(Buffer& buffer) : DataWriter(buffer), _buffer(Buffer::Null()) {}
-	StringWriter(typename std::conditional<std::is_same<BufferType, Buffer>::value, std::nullptr_t, BufferType>::type& buffer) : _buffer(buffer) {}
+	StringWriter(Buffer& buffer, bool append=true) : DataWriter(buffer), _buffer(Buffer::Null()), _append(append) {}
+	StringWriter(typename std::conditional<std::is_same<BufferType, Buffer>::value, std::nullptr_t, BufferType>::type& buffer, bool append = true) : _buffer(buffer), _append(append) {}
 
 	void   writePropertyName(const char* name) { append(name, std::strlen(name));  }
 
@@ -39,12 +39,13 @@ struct StringWriter : DataWriter, virtual Object {
 	UInt64 writeByte(const Packet& bytes) { append(bytes.data(), bytes.size()); return 0; }
 
 	virtual void clear() { _buffer.clear(); writer.clear(); }
-	virtual StringWriter& append(const void* value, UInt32 size) { _buffer.append(STR value, size); writer.append(value, size); return self; }
+	virtual StringWriter& append(const void* value, UInt32 size) { if (!_append) clear(); _buffer.append(STR value, size); writer.append(value, size); return self; }
 
 protected:
 	StringWriter() : _buffer(Buffer::Null()) {}
 private:
 	BufferType& _buffer;
+	bool		_append;
 };
 
 } // namespace Mona
