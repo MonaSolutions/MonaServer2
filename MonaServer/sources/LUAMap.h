@@ -42,7 +42,7 @@ struct LUAMap : virtual Static {
 		}
 
 		bool get(const std::string& key) {
-			static MapType::key_compare Less;
+			static typename MapType::key_compare Less;
 			const auto& it = map.lower_bound(key);
 			if (it == map.end() || Less(key, it->first))
 				return false;
@@ -51,7 +51,7 @@ struct LUAMap : virtual Static {
 		}
 
 		bool next(const char* key, std::string* pPrefix) {
-			static MapType::key_compare Less;
+			static typename MapType::key_compare Less;
 			auto it = key ? map.lower_bound(key) : map.begin();
 			if (it == map.end() || (key && ++it == map.end()))
 				return false;

@@ -316,8 +316,12 @@ static int Trace(lua_State *pState) {
 static int Log(lua_State *pState) {
 	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		UInt8 level = (UInt8)max(min(UInt8(LOG_TRACE), lua_tointeger(pState, 1)), LOG_ERROR);
-		SCRIPT_LOG(level ? level : LOG_DEFAULT, false, writer);
+		UInt8 level = range<UInt8>(min(LOG_TRACE, lua_tointeger(pState, 1))); // <= 8
+		if(level)
+			level = max(level, LOG_ERROR); // >= 3
+		else
+			level = LOG_DEFAULT;
+		SCRIPT_LOG(level, false, writer);
 	SCRIPT_END
 	return 0;
 }

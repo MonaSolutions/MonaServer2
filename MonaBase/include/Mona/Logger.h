@@ -23,7 +23,7 @@ namespace Mona {
 
 typedef UInt8 LOG_LEVEL;
 
-enum {
+enum : UInt8 {
 	LOG_FATAL = 1,
 	LOG_CRITIC = 2,
 	LOG_ERROR = 3,
