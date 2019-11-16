@@ -33,6 +33,8 @@ struct CCaption : virtual Object {
 	CCaption();
 
 	typedef std::function<void(UInt8 channel, shared<Buffer>& pBuffer)>				OnText;
+	/*!
+	Channel will of 1 to 4 */
 	typedef std::function<void(UInt8 channel, const char* lang)>					OnLang;
 
 	UInt32 extract(const Media::Video::Tag& tag, const Packet& packet, const CCaption::OnText& onText, const CCaption::OnLang& onLang);

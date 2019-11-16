@@ -95,7 +95,14 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 
 	const Time& streaming() const { return _streaming; }
 
+	/*!
+	Push audio packet, an empty audio "isConfig" packet is required by some protocol to signal "audio end".
+	Good practice would be to send an audio empty "isConfig" packet for publishers which can stop "dynamically" just audio track.
+	/!\ Audio timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
 	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1);
+	/*!
+	Push video packet, an empty video "config" packet can serve to keep alive a data stream (SRT/VTT subtitle stream for example)
+	Video timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
 	void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1);
 	void writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0);
 	void writeProperties(const Media::Properties& properties);

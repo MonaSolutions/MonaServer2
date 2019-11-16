@@ -131,8 +131,6 @@ void Publication::reset() {
 		pSubscription->pPublication = this;
 		pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 	}
-
-	// onEnd();
 }
 
 void Publication::stop() {
@@ -160,9 +158,6 @@ void Publication::stop() {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 	}
-
-	// onFlush();
-	// onEnd();
 }
 
 void Publication::flush(UInt16 ping) {
@@ -198,7 +193,6 @@ void Publication::flush() {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->flush();
 	}
-	// onFlush();
 }
 
 
@@ -226,8 +220,7 @@ void Publication::writeAudio(const Media::Audio::Tag& tag, const Packet& packet,
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeAudio(tag, packet, track);
 	}
-	// onAudio(track, tag, packet);
-	
+
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
 	if (pAudio && tag.isConfig)
 		pAudio->config.set(tag, packet);
@@ -260,6 +253,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 				writeData(Media::Data::TYPE_TEXT, Packet(pBuffer), (track - 1) * 4 + channel);
 			});
 			CCaption::OnLang onLang([this, track](UInt8 channel, const char* lang) {
+				// 1 <= channel <= 4
 				if (lang) {
 					DEBUG("Subtitle lang ", lang);
 					setString(String((track - 1) * 4 + channel, ".textLang"), lang);
@@ -268,7 +262,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 			});
 			offsetCC = pVideo->cc.extract(tag, packet, onText, onLang);
 		}
-	} else
+	} else if(packet) // if empty it's config packet to maintain subtitle alive!
 		DEBUG("Video configuration received on publication ", _name, " (size=", packet.size(), ")");
 
 
@@ -278,7 +272,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 	_byteRate += packet.size() + sizeof(tag);
 	_videos.byteRate += packet.size() + sizeof(tag);
 	_new = true;
-	//	INFO(name(), " video ", tag.time, " (", tag.frame, ")");
+	//INFO(name(), " video ", tag.time, " (", tag.frame, ")");
 
 	for (Subscription* pSubscription : subscriptions) {
 		if (pSubscription->pPublication != this && pSubscription->pPublication)
@@ -289,14 +283,9 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		} else
 			pSubscription->writeVideo(tag, packet, track); // with CC
 	}
-	/*if (offsetCC && onData) {
-		if(offsetCC<packet.size())
-			this->onVideo(track, tag, packet + offsetCC); // without CC
-	} else
-		this->onVideo(track, tag, packet); // with CC*/
 
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
-	if (pVideo && tag.frame == Media::Video::FRAME_CONFIG)
+	if (pVideo && tag.frame == Media::Video::FRAME_CONFIG && packet) // don't save the config "empty" (keep alive data stream!)
 		pVideo->config.set(tag, packet);
 }
 
@@ -314,7 +303,8 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
 				return addProperties(track, type, packet + (*pReader)->position());
 		}
-	}
+	} else
+		DEBUG(track, " => ", packet);
 
 	// create track
 	if(track) {
@@ -338,7 +328,6 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeData(type, packet, track);
 	}
-	//onData(track, type, packet);
 }
 
 void Publication::onParamChange(const string& key, const string* pValue) {
@@ -377,7 +366,6 @@ void Publication::flushProperties() {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeProperties(self);
 	}
-	//onProperties(self);
 }
 
 } // namespace Mona

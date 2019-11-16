@@ -96,7 +96,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	/!\ Audio timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
 	void							writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1);
 	/*!
-	Push video packet
+	Push video packet, an empty video "config" packet can serve to keep alive a data stream (SRT/VTT subtitle stream for example)
 	Video timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
 	void							writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1);
 	/*!

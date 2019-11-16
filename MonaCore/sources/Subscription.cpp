@@ -428,7 +428,7 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	VideoTrack* pVideo = track ? &_videos[track] : NULL;
 
 	// Sync audio/video/data subscription (data can be subtitle)
-	if (_waitingFirstVideoSync)
+	if (packet && _waitingFirstVideoSync)
 		_waitingFirstVideoSync.update(); // video is coming, wait more time
 
 	bool isConfig(tag.frame == Media::Video::FRAME_CONFIG);
@@ -454,7 +454,8 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 			DEBUG(typeof(_target), " video key frame waiting from ", name());
 			return;
 		}
-	}
+	} else if (!packet) // special case of video config empty to keep alive a data stream input (SRT/VTT subtitle for example)
+		return;
 
 	UInt32 congestion = _congestion();
 	if (congestion) {
