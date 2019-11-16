@@ -68,8 +68,8 @@ bool MediaStream::start(const Parameters& parameters) {
 bool MediaStream::run() {
 	if (_state == STATE_RUNNING)
 		return true;
-	if (!_state && !_params.onUnfound)
-		return false; // is not called inside starting()!
+	if (!_params.onUnfound)
+		return false; // is stopped!
 	_state = STATE_RUNNING;
 	++_runCount;
 	INFO(description(), " started");
@@ -77,9 +77,9 @@ bool MediaStream::run() {
 	return true;
 }
 void MediaStream::stop() {
-	if (!_state && !_params.onUnfound) // if _params.onUnfound we are inside start(), stop() is possible!
+	if (!_params.onUnfound) // already stopped!
 		return;
-	_params.onUnfound = nullptr; // to avoid a "run()" which works whereas we are stopped and not inside starting()!
+	_params.onUnfound = nullptr;
 	stopping();
 	for (const auto& it : _targets)
 		(MediaStream::OnStop&)it->onStop = nullptr; // unsuscribe because children pTarget can continue to live alone!
