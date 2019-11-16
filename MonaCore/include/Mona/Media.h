@@ -180,19 +180,15 @@ struct Media : virtual Static {
 			UInt16				 compositionOffset;
 		};
 		struct Config : Tag, Packet, virtual Object {
-			NULLABLE(frame != FRAME_CONFIG)
-			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
-			explicit Config() {}
-			explicit Config(const Tag& tag, const Packet& packet) { set(tag, packet); }
-			void reset() {
-				frame = FRAME_UNSPECIFIED;
-				Packet::reset();
-			}
+			NULLABLE(!Packet::operator bool())
+			explicit Config() { frame = FRAME_CONFIG; }
+			explicit Config(const Tag& tag, const Packet& packet) { frame = FRAME_CONFIG; set(tag, packet); }
+			void reset() { Packet::reset(); }
 			Config& set(const Tag& tag, const Packet& packet) {
-				frame = FRAME_CONFIG;
+				time = 0; // always time=0 for config save, because will be the first packet given (subscription starts to 0)
 				codec = tag.codec;
 				Packet::set(std::move(packet));
-				return *this;
+				return self;
 			}
 		};
 
@@ -249,22 +245,21 @@ struct Media : virtual Static {
 			UInt32				rate;
 		};
 		struct Config : Tag, Packet, virtual Object {
-			NULLABLE(!isConfig)
-			// always time=0 for config save, because will be the first packet given (subscription starts to 0)
-			explicit Config() { time = 0;  }
-			explicit Config(const Tag& tag, const Packet& packet) { time = 0; set(tag, packet); }
+			NULLABLE(time!=0)
+			explicit Config() { isConfig = true; time = 1;  }
+			explicit Config(const Tag& tag, const Packet& packet) { isConfig = true; set(tag, packet); }
 
 			void reset() {
-				isConfig = false;
+				time = 1;
 				Packet::reset();
 			}
 			Config& set(const Tag& tag, const Packet& packet=Packet::Null()) {
-				isConfig = true;
+				time = 0; // always time=0 for config save, because will be the first packet given (subscription starts to 0)
 				codec = tag.codec;
 				channels = tag.channels;
 				rate = tag.rate;
 				Packet::set(std::move(packet));
-				return *this;
+				return self;
 			}
 		};
 
