@@ -112,7 +112,7 @@ bool MediaSocket::Reader::initSocket(const Parameters& parameters) {
 			if (!_httpAnswer)
 				return stop<Ex::Protocol>(LOG_ERROR, "HTTP request on a stream source (only HTTP response is expected)");
 				// send HTTP Header answer!
-			if (request && !SendHTTPHeader(HTTP::TYPE_UNKNOWN, _pSocket, path, _pReader? _pReader->mime() : MIME::TYPE_UNKNOWN, _pReader? _pReader->subMime() : nullptr, source.name().c_str(), description()))
+			if (request && !SendHTTPHeader(HTTP::TYPE_UNKNOWN, _pSocket, path, _pReader ? _pReader->mime() : MIME::TYPE_UNKNOWN, _pReader? _pReader->subMime() : nullptr, source.name().c_str(), description()))
 				return stop();
 		}
 		writeMedia(request);
@@ -238,6 +238,10 @@ bool MediaSocket::Writer::initSocket(const Parameters& parameters) {
 }
 
 bool MediaSocket::Writer::starting(const Parameters& parameters) {
+	if (!_pWriter) {
+		stop<Ex::Intern>(LOG_ERROR, "Unknown format type to write");
+		return false;
+	}
 	if (!initSocket(parameters)) {
 		stop();
 		return false;

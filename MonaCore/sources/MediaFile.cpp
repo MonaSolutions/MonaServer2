@@ -36,7 +36,7 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	if (!_pReader || _pReader.unique())
 		return 0;
 	_mediaTimeGotten = false;
-	_pReader->read(packet, *this);
+	_pReader->read(packet, self);
 	if (end)
 		_pReader.reset(); // no flush, because will be done by the main thread!
 	else if(!_mediaTimeGotten)
@@ -45,60 +45,68 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	return 0;
 }
 
+static bool ReadMediaTime(Media::Base& media, UInt32& time) {
+	switch (media.type) {
+		case Media::TYPE_AUDIO: {
+			const Media::Audio& audio = (const Media::Audio&)media;
+			if (audio.tag.isConfig)
+				return false; // skip config unrendered packet because its time is sometimes unprecise
+			time = audio.tag.time;
+			return true;
+		}
+		case Media::TYPE_VIDEO: {
+			const Media::Video& video = (const Media::Video&)media;
+			if (video.tag.frame == Media::Video::FRAME_CONFIG && video)
+				return false; // skip config unrendered packet because its time is sometimes unprecise (excepting when is the special empty packet to maintain subtitle)
+			time = video.tag.time;
+			return true;
+		}
+		default:;
+	}
+	return false;
+}
+
 MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io) :
 	MediaStream(TYPE_FILE, path, source), io(io), _pReader(move(pReader)), timer(timer), _pMedias(SET),
 		_onTimer([this, &source](UInt32 delay) {
-			unique<Media::Base> pMedia;
+			UInt32 size = _pMedias->size();
 			while (!_pMedias->empty()) {
-				pMedia = move(_pMedias->front());
-				_pMedias->pop_front();
-				if (pMedia) {
-					if (*pMedia || typeid(*pMedia) != typeid(Lost)) {
-						source.writeMedia(*pMedia);
+				if (_pMedias->front()) {
+					Media::Base& media(*_pMedias->front());
+					if (media || typeid(media) != typeid(Lost)) {
 						UInt32 time;
-						switch (pMedia->type) {
-							default: continue;
-							case Media::TYPE_AUDIO: {
-								const Media::Audio& audio = (const Media::Audio&)*pMedia;
-								if (audio.tag.isConfig)
-									continue; // skip this unrendered packet and where time is sometimes unprecise
-								time = audio.tag.time;
-								break;
-							}
-							case Media::TYPE_VIDEO: {
-								const Media::Video& video = (const Media::Video&)*pMedia;
-								if (video.tag.frame == Media::Video::FRAME_CONFIG)
-									continue; // skip this unrendered packet and where time is sometimes unprecise
-								time = ((const Media::Video&)*pMedia).tag.time;
-								break;
-							}
+						if(ReadMediaTime(media, time)){
+							if (_realTime) {
+								Int32 delta = range<Int32>(time - _realTime.elapsed());
+								if (delta > 20) { // 20 ms for timer performance reason (to limit timer raising), not more otherwise not progressive (and player load data by wave)
+									// wait delta time!
+									if(_pMedias->size()<size)
+										source.flush();
+									return delta;
+								}
+								if (delta < -1000) {
+									// more than 1 fps means certainly a timestamp progression error due to a CPU latency..
+									WARN(description(), " resets horloge (delta time of ", -delta, "ms)");
+									_realTime.update(Time::Now() - time);
+								}
+							} else
+								_realTime.update(Time::Now() - time);
 						}
-						if (!_realTime) {
-							_realTime.update(Time::Now() - time);
-							continue;
-						}
-						Int32 delta = Int32(time - _realTime.elapsed());
-						if (abs(delta) > 1000) {
-							// more than 1 fps means certainly a timestamp progression error..
-							WARN(description(), " resets horloge (delta time of ", delta, "ms)");
-							_realTime.update(Time::Now() - time);
-							continue;
-						}
-						if (delta<20) // 20 ms for timer performance reason (to limit timer raising), not more otherwise not progressive (and player load data by wave)
-							continue;
-						source.flush();
-						return delta;
-					}
-					source.reportLost(pMedia->type, (Lost&)(*pMedia), pMedia->track);
-				} else if(!_pReader.unique()) // else reset will be done on stop!
+						source.writeMedia(media);
+					} else
+						source.reportLost(media.type, (Lost&)media, media.track);
+				} else
 					source.reset();
-			}
+				_pMedias->pop_front();
+			} // end of while medias
+
+			// Here _pMedias is empty!
 			if (_pReader.unique()) {
 				// end of file!
 				stop();
 				return 0;
 			}
-			if(pMedia)
+			if(_pMedias->size()<size)
 				source.flush(); // flush before because reading can take time (and to avoid too large amout of data transfer)
 			this->io.read(_pFile); // continue to read immediatly
 			return 0;
@@ -107,6 +115,10 @@ MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaR
 }
 
 bool MediaFile::Reader::starting(const Parameters& parameters) {
+	if(!_pReader) {
+		stop<Ex::Intern>(LOG_ERROR, "Unknown format type to read");
+		return false;
+	}
 	_realTime =	0; // reset realTime
 	Decoder* pDecoder = new Decoder(io.handler, _pReader, path, source.name(), _pMedias);
 	pDecoder->onFlush = _onFlush = [this]() { timer.set(_onTimer, _onTimer()); };
@@ -119,13 +131,18 @@ bool MediaFile::Reader::starting(const Parameters& parameters) {
 void MediaFile::Reader::stopping() {
 	timer.set(_onTimer, 0);
 	io.unsubscribe(_pFile);
+	// reset _pReader because could be used by different thread by new Socket and its decoding thread
+	if (_pReader.unique()) { // else always used by the decoder, impossible to flush!
+		_onFlush(); // flush possible current media remaining
+		if(_pMedias->empty())
+			_pReader->flush(source); // reset + flush!
+		else
+			source.reset();
+	} else
+		source.reset(); // because _pReader could be used always by the decoder (parallel!)
+	// new resource for next start
 	_onFlush = nullptr;
 	_pMedias.set();
-	// reset _pReader because could be used by different thread by new Socket and its decoding thread
-	if (_pReader.unique())
-		_pReader->flush(source);
-	else
-		source.reset(); // because the source.reset of _pReader->flush() can't be called (parallel!)
 	_pReader = MediaReader::New(_pReader->subMime());
 }
 
@@ -144,8 +161,7 @@ MediaFile::Writer::File::File(const string& name, const Path& path, const shared
 	onWrite([this, address = String(path.parent(), path.name())](const Packet& packet) {
 		DUMP_REQUEST(this->name.c_str(), packet.data(), packet.size(), address);
 		write(packet);
-		//Exception ex;
-		//_pFile->write(ex, packet.data(), packet.size());
+		// Exception ex; _pFile->write(ex, packet.data(), packet.size()); // Just usefull to test!
 	}) {
 	if (pPlaylist) {
 		setExtension(pWriter->format());// change path to match pWriter
@@ -179,6 +195,10 @@ MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFil
 }
 
 bool MediaFile::Writer::starting(const Parameters& parameters) {
+	if (!_pWriter) {
+		stop<Ex::Intern>(LOG_ERROR, "Unknown format type to write");
+		return false;
+	}
 	// pulse starting, nothing todo (wait beginMedia to create _pFile)
 	parameters.getBoolean("append", _append);
 	if (parameters.getNumber<UInt8>("sequences", _sequences)) {
