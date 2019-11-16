@@ -26,7 +26,9 @@ namespace Mona {
 /*!
 SRT subtitles compatible VTT */
 struct SRTWriter : MediaWriter, virtual Object {
-	SRTWriter(const char* timeFormat = "%TH:%M:%S,%i") : _timeFormat(timeFormat) {}
+	SRTWriter() : timeFormat("%TH:%M:%S,%i") {}
+
+	const char*	 timeFormat;
 
 	void beginMedia(const OnWrite& onWrite);
 	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { _time = tag.time; }
@@ -36,7 +38,6 @@ struct SRTWriter : MediaWriter, virtual Object {
 private:
 	UInt32			_index;
 	UInt32			_time;
-	const char*		_timeFormat;
 };
 
 

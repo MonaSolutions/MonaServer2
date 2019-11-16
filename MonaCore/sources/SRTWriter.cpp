@@ -31,7 +31,7 @@ void SRTWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& pac
 	if (Media::Data::TYPE_TEXT != type || !onWrite)
 		return;
 	shared<Buffer>	pBuffer(SET);
-	String::Append(*pBuffer, ++_index, '\n', String::Date(_time, _timeFormat), " --> ", String::Date(Date(_time + (UInt32)min(max(packet.size() / 20.0, 3) * 1000, 10000)), _timeFormat));
+	String::Append(*pBuffer, ++_index, '\n', String::Date(_time, timeFormat), " --> ", String::Date(Date(_time + (UInt32)min(max(packet.size() / 20.0, 3) * 1000, 10000)), timeFormat));
 	String::Append(*pBuffer, '\n', packet, "\n\n");
 	onWrite(Packet(pBuffer));
 	DEBUG("cc", track, "(", _time,") => ", packet);

@@ -26,7 +26,6 @@ namespace Mona {
 /*!
 SRT subtitles compatible VTT */
 struct VTTWriter : SRTWriter, virtual Object {
-	VTTWriter() : SRTWriter("%TH:%M:%S.%i") {}
 	void beginMedia(const OnWrite& onWrite) { SRTWriter::beginMedia(onWrite);  if (onWrite) onWrite(Packet(EXPAND("WEBVTT \n\n"))); } // on space after WEBVTT is required
 };
 

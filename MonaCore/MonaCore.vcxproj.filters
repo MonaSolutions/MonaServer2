@@ -379,6 +379,12 @@
     <ClInclude Include="include\Mona\ByteWriter.h">
       <Filter>Serializers</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\SRTReader.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\VTTReader.h">
+      <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sources\Protocols.cpp">
@@ -644,6 +650,9 @@
     </ClCompile>
     <ClCompile Include="sources\WS\WSClient.cpp">
       <Filter>Protocols\WS</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\SRTReader.cpp">
+      <Filter>Multimedia\Serializers</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

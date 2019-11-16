@@ -61,7 +61,7 @@ struct MediaTrackReader : virtual Object, MediaReader {
 	}
 
 protected:
-	MediaTrackReader(UInt8 track=1) : track(track ? track : 1), time(0),compositionOffset(0) {}
+	MediaTrackReader(UInt8 track) : track(track ? track : 1), time(0),compositionOffset(0) {}
 
 	void	onFlush(Packet& buffer, Media::Source& source) {} // no reset and flush for track, container will do it rather
 };

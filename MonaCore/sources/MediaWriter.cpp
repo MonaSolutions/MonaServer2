@@ -24,7 +24,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/NALNetWriter.h"
 #include "Mona/ADTSWriter.h"
 //#include "Mona/MP3Writer.h"
-#include "Mona/SRTWriter.h"
 #include "Mona/VTTWriter.h"
 #include "Mona/DATWriter.h"
 #include "Mona/MonaWriter.h"
@@ -57,7 +56,7 @@ static const map<size_t, Format> _Formats({
 	{ typeid(NALNetWriter<HEVC>).hash_code(), Format("h265", MIME::TYPE_VIDEO, "hevc") },
 	{ typeid(ADTSWriter).hash_code(), Format("adts", MIME::TYPE_AUDIO, "aac") },
 	// { typeid(MP3Writer).hash_code(), Format("mp3", MIME::TYPE_AUDIO, "mp3") },
-	{ typeid(SRTWriter).hash_code(), Format("srt", MIME::TYPE_APPLICATION, "application/x-subrip; charset=utf-8") },
+	{ typeid(SRTWriter).hash_code(), Format("srt", MIME::TYPE_APPLICATION, "x-subrip; charset=utf-8") },
 	{ typeid(VTTWriter).hash_code(), Format("vtt", MIME::TYPE_TEXT, "vtt; charset=utf-8") },
 	{ typeid(DATWriter).hash_code(), Format("dat", MIME::TYPE_TEXT, "plain; charset=utf-8") },
 	{ typeid(MonaWriter).hash_code(), Format("mona", MIME::TYPE_VIDEO, "mona") },
@@ -89,7 +88,7 @@ unique<MediaWriter> MediaWriter::New(const char* subMime) {
 		return make_unique<ADTSWriter>();
 //	if (String::ICompare(subMime, EXPAND("mp3")) == 0)
 //		return make_unique<MP3Writer>();
-	if (String::ICompare(subMime, EXPAND("x-subrip")) == 0)
+	if (String::ICompare(subMime, EXPAND("srt")) == 0 || String::ICompare(subMime, EXPAND("x-subrip")) == 0)
 		return make_unique<SRTWriter>();
 	if (String::ICompare(subMime, EXPAND("vtt")) == 0)
 		return make_unique<VTTWriter>();

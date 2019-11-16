@@ -30,6 +30,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/RTP_H264.h"
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
+#include "Mona/VTTReader.h"
 
 #include "Mona/Logs.h"
 
@@ -54,6 +55,8 @@ static const map<size_t, Format> _Formats({
 	{ typeid(ADTSReader).hash_code(), Format("adts", MIME::TYPE_AUDIO, "aac") },
 	{ typeid(MP3Reader).hash_code(), Format("mp3", MIME::TYPE_AUDIO, "mp3") },
 	{ typeid(MonaReader).hash_code(), Format("mona", MIME::TYPE_VIDEO, "mona") },
+	{ typeid(SRTReader).hash_code(), Format("srt", MIME::TYPE_APPLICATION, "x-subrip; charset=utf-8") },
+	{ typeid(VTTReader).hash_code(), Format("vtt", MIME::TYPE_TEXT, "vtt; charset=utf-8") },
 	{ typeid(RTPReader<RTP_MPEG>).hash_code(), Format("rtp_mpeg", MIME::TYPE_VIDEO, NULL) }, // Keep NULL to force RTPReader to redefine subMime()!
 	{ typeid(RTPReader<RTP_H264>).hash_code(), Format("rtp_h264", MIME::TYPE_VIDEO, NULL) } // Keep NULL to force RTPReader to redefine subMime()!
 });
@@ -84,6 +87,10 @@ unique<MediaReader> MediaReader::New(const char* subMime) {
 		return make_unique<MP3Reader>();
 	if (String::ICompare(subMime, EXPAND("mona")) == 0)
 		return make_unique<MonaReader>();
+	if (String::ICompare(subMime, EXPAND("srt")) == 0 || String::ICompare(subMime, EXPAND("x-subrip")) == 0)
+		return make_unique<SRTReader>();
+	if (String::ICompare(subMime, EXPAND("vtt")) == 0)
+		return make_unique<VTTReader>();
 	return nullptr;
 }
 

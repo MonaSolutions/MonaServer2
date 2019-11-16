@@ -262,6 +262,7 @@
     <ClInclude Include="include\Mona\SocketSession.h" />
     <ClInclude Include="include\Mona\SplitReader.h" />
     <ClInclude Include="include\Mona\SplitWriter.h" />
+    <ClInclude Include="include\Mona\SRTReader.h" />
     <ClInclude Include="include\Mona\SRTWriter.h" />
     <ClInclude Include="include\Mona\SRT\SRTProtocol.h" />
     <ClInclude Include="include\Mona\SRT\SRTSession.h" />
@@ -273,6 +274,7 @@
     <ClInclude Include="include\Mona\TSReader.h" />
     <ClInclude Include="include\Mona\TSWriter.h" />
     <ClInclude Include="include\Mona\UDProtocol.h" />
+    <ClInclude Include="include\Mona\VTTReader.h" />
     <ClInclude Include="include\Mona\VTTWriter.h" />
     <ClInclude Include="include\Mona\Writer.h" />
     <ClInclude Include="include\Mona\Protocol.h" />
@@ -358,6 +360,7 @@
     <ClCompile Include="sources\MediaSocket.cpp" />
     <ClCompile Include="sources\Segments.cpp" />
     <ClCompile Include="sources\SocketSession.cpp" />
+    <ClCompile Include="sources\SRTReader.cpp" />
     <ClCompile Include="sources\SRTWriter.cpp" />
     <ClCompile Include="sources\SRT\SRTProtocol.cpp" />
     <ClCompile Include="sources\SRT\SRTSession.cpp" />
