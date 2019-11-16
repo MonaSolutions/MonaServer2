@@ -486,13 +486,15 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 			else
 				--optional;
 			continue;
-		} else if (c == ']') {
+		}
+		if (c == ']') {
 			if (optional > 0)
 				--optional;
 			else
 				++optional;
 			continue;
-		} else if (c != '%') {
+		}
+		if (c != '%') {
 			if (c == '?') {} 
 			else if (optional<0)
 				continue;
@@ -501,23 +503,24 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 					optional = -optional;
 					continue;
 				}
-			} else if (!CAN_READ || c != *current)
+			} else if (!CAN_READ || c != *current) {
+				ex.set<Ex::Format>("Doesn't match char ", c, " with ", *current);
 				return false;
+			}
 			READ;
 			continue;
 		}
-			
-		if (!(*format))
+		
+		c = *format;
+		if (!c)
 			break;
 
-		switch (*format) {
+		switch (*format++) {
 			default:
-				if (optional == 0)
-				ex.set<Ex::Format>("Unknown date ",*format," pattern");
-				break;
-			case '%': // to catch %% case
-				if (c != '%')
+				if (!optional) {
+					ex.set<Ex::Format>("Unknown date ", c, " pattern");
 					return false;
+				}
 				break;
 			case 'w':
 			case 'W':
@@ -538,8 +541,10 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 						}
 					}
 				}
-				if (month == 0 && optional == 0)
+				if (!month && !optional) {
 					ex.set<Ex::Format>("Impossible to parse ", value, " as a valid month");
+					return false;
+				}
 				break;
 			}
 			case 'd':
@@ -579,8 +584,8 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 				break;
 			case 'T': {
 				UInt32 factor(1);
-				if (CAN_READ && isalpha(READ)) {
-					switch (tolower(*current)) {
+				if (isalpha(*format)) {
+					switch (tolower(*format++)) {
 						case 'h':
 							factor = 3600000;
 							break;
@@ -597,6 +602,10 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 				while (CAN_READ && isdigit(*current)) {
 					READ;
 					++count;
+				}
+				if (!count && !optional) {
+					ex.set<Ex::Format>("No time value to parse");
+					return false;
 				}
 				_time += String::ToNumber<Int64, 0>(times, count) * factor;
 				break;
@@ -615,8 +624,10 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 				} else if (String::ICompare(ampm, count, "PM")==0) {
 					if (hour < 12)
 						hour += 12;
-				} else if (optional==0)
+				} else if (!optional) {
 					ex.set<Ex::Format>("Impossible to parse ", ampm, " as a valid AM/PM information");
+					return false;
+				}
 				break;
 			}
 			case 'M':
@@ -677,7 +688,6 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 				}			
 				break;
 		}
-		++format;
 	}
 
 	update(year,month,day,hour,minute,second,millisecond,offset);
@@ -732,12 +742,14 @@ bool Date::parseAuto(Exception& ex, const char* data, size_t count) {
 		// length >= 10
 		
 		if (length == 10) {
-			if(!digit)
-				return false;
+			if (!digit)
+				break;
 			if (c == ' ')
 				return update(ex, data, count, FORMAT_SORTABLE);
-			if (!tPos)
-				return false;
+			if (!tPos) {
+				digit = false;
+				break;
+			}
 		}
 	
 		if (c == '.' || c == ',') {
@@ -750,14 +762,15 @@ bool Date::parseAuto(Exception& ex, const char* data, size_t count) {
 		++length;
 	}
 
-	if (!digit)
-		return false;
-	if (length == 10)
-		return update(ex, data, count, FORMAT_SORTABLE);
-	if (tPos==10)
-		return update(ex, data, count, "%Y-%m-%dT%H:%M:%S[%z]"); //  FORMAT_ISO8601
-	if (tPos==8) // compact format (20050108T123000, 20050108T123000Z, 20050108T123000.123+0200)
-		return update(ex, data, count, "%Y%m%dT%H%M%s[%z]");
+	if (digit) {
+		if (length == 10)
+			return update(ex, data, count, FORMAT_SORTABLE);
+		if (tPos==10)
+			return update(ex, data, count, "%Y-%m-%dT%H:%M:%S[%z]"); //  FORMAT_ISO8601
+		if (tPos==8) // compact format (20050108T123000, 20050108T123000Z, 20050108T123000.123+0200)
+			return update(ex, data, count, "%Y%m%dT%H%M%s[%z]");
+	}
+	ex.set<Ex::Format>("Impossible to determine automatically format of date ", String::Data(data, count));
 	return false;
 }
 
