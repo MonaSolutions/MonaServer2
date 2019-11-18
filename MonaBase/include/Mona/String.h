@@ -97,6 +97,7 @@ struct String : std::string {
 			if(_end)
 				*(char*)_end = _c;
 		}
+		operator char() const { return _end ? _c : 0; }
 	private:
 		const char* _end;
 		char		_c;

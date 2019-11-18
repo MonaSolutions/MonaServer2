@@ -28,7 +28,7 @@ namespace Mona {
 
 struct Service {
 	struct Handler {
-		virtual void onUnload(Service& service) = 0;
+		virtual void onStop(Service& service) = 0;
 	};
 	Service(lua_State* pState, const std::string& wwwPath, Handler& handler, IOFile& ioFile);
 	Service(lua_State* pState, Service& parent, const char* name);
@@ -63,7 +63,8 @@ private:
 	int						_reference;
 	Service*				_pParent;
 	lua_State*				_pState;
-	Time					_lastCheck;
+	bool					_started;
+
 
 
 	std::map<std::string, Service>	_services;

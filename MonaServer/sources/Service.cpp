@@ -26,7 +26,7 @@ namespace Mona {
 
 
 Service::Service(lua_State* pState, const string& wwwPath, Handler& handler, IOFile& ioFile) :
-	_handler(handler), _reference(LUA_REFNIL), _pParent(NULL), _pState(pState),
+	_handler(handler), _reference(LUA_REFNIL), _pParent(NULL), _pState(pState), _started(false),
 	_pWatcher(SET, Path(wwwPath, "*"), FileSystem::MODE_HEAVY), file(wwwPath, "/main.lua"),
 	_onUpdate([this, &wwwPath](const Path& file, bool firstWatch) {
 		if(!file.isFolder() && file.name() != "main.lua")
@@ -85,7 +85,7 @@ Service* Service::get(Exception& ex, const char* path) {
 	const auto& it = _services.find(name);
 	if (it != _services.end())
 		return it->second.get(ex, subPath ? subPath : "");
-	ex.set<Ex::Unfound>("Application ", this->path, '/', name, " doesn't exist");
+	ex.set<Ex::Unavailable>("Application ", this->path, '/', name, " doesn't exist");
 	return NULL;
 }
 Service& Service::open(const char* path) {
@@ -99,7 +99,7 @@ Service& Service::open(const char* path) {
 	auto it = _services.lower_bound(path);
 	if (it == _services.end() || path != it->first)
 		it = _services.emplace_hint(it, SET, forward_as_tuple(path), forward_as_tuple(_pState, self, path));
-	return *subPath ? it->second.open(subPath+1) : it->second;
+	return scoped ? it->second.open(subPath+1) : it->second;
 }
 Service* Service::close(const char* path) {
 	if (*path == '/')
@@ -117,7 +117,7 @@ Service* Service::close(const char* path) {
 }
 
 void Service::update() {
-	if(!_ex)
+	if(_started)
 		start(); // restart!
 	for (auto& it : _services)
 		it.second.update();
@@ -125,7 +125,6 @@ void Service::update() {
 
 
 void Service::init() {
-	_ex.set<Ex::Unavailable>(); // not loaded!
 	//// create environment
 
 	// table environment
@@ -188,6 +187,7 @@ void Service::start() {
 			lua_pushvalue(_pState, -2);
 			lua_setfenv(_pState, -2);
 			if (lua_pcall(_pState, 0, 0, 0) == 0) {
+				_started = true;
 				SCRIPT_FUNCTION_BEGIN("onStart", _reference)
 					SCRIPT_WRITE_DATA(path.data(), path.size())
 					SCRIPT_FUNCTION_CALL
@@ -195,19 +195,18 @@ void Service::start() {
 				INFO("Application www", path, " started")
 			} else
 				SCRIPT_ERROR(_ex.set<Ex::Application::Error>(Script::LastError(_pState)));
-		} else if (error==LUA_ERRFILE) // can happen on update when a parent directory is deleted!
-			_ex.set<Ex::Unfound>(Script::LastError(_pState));
-		else
+		} else if (error!=LUA_ERRFILE) // else file doesn't exist anymore (can happen on "update()" when a parent directory is deleted)
 			SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)));
 		lua_pop(_pState, 1); // remove environment
 		if(_ex)
-			stop();
+			stop(); // to release possible ressource loaded by luaL_loadfile
 	SCRIPT_END
 }
 
 void Service::stop() {
 
-	if (!_ex) { // loaded!
+	if (_started) {
+		_started = false;
 		SCRIPT_BEGIN(_pState)
 			SCRIPT_FUNCTION_BEGIN("onStop", _reference)
 				SCRIPT_WRITE_DATA(path.data(), path.size())
@@ -217,8 +216,7 @@ void Service::stop() {
 		INFO("Application www", path, " stopped");
 
 		// update signal, after onStop because will disconnects clients
-		_handler.onUnload(self);
-		_ex.set<Ex::Unavailable>(); // not loaded!
+		_handler.onStop(self);
 	}
 
 	// Clear environment (always do, super can assign value on this app even if empty)

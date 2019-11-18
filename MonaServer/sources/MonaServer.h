@@ -51,7 +51,7 @@ private:
 	void					onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient);
 
 	// Application handler
-	void					onUnload(Service& service);
+	void					onStop(Service& service);
 
 	lua_State*				_pState;
 	TerminateSignal&		_terminateSignal;

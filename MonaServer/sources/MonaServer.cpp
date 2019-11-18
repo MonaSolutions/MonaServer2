@@ -108,7 +108,7 @@ void MonaServer::onManage() {
 	SCRIPT_END
 }
 
-void MonaServer::onUnload(Service& service) {
+void MonaServer::onStop(Service& service) {
 	// When a application is reloaded, the resource are released (to liberate port for example of one lua socket)
 	// So client which have record their member function with the onConnection of this application can not more interact with, we have to close them!
 	// All client in the inheritance application branch have to be disconnected. Ex: "/live" is updating, clients with path "/", "/live", "/live/sub" have to reconnect, clients with path "/live2" can stay alive!

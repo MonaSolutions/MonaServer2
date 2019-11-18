@@ -24,13 +24,14 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct Util : virtual Static {
-	template<typename Value>
+	template<typename Type>
 	struct Scoped {
-		Scoped(Value& value, const Value& tempValue) : _value(value), _oldValue(value) { value = tempValue; }
+		Scoped(Type& value, const Type& tempValue) : _value(value), _oldValue(value) { value = tempValue; }
 		~Scoped() { _value = _oldValue; }
+		operator const Type&() const { return _oldValue; }
 	private:
-		const Value _oldValue;
-		Value& _value;
+		const Type _oldValue;
+		Type& _value;
 	};
 
 	static void Dump(const UInt8* data, UInt32 size, Buffer& buffer);
