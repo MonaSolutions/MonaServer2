@@ -131,9 +131,10 @@ bool MediaFile::Reader::starting(const Parameters& parameters) {
 void MediaFile::Reader::stopping() {
 	timer.set(_onTimer, 0);
 	io.unsubscribe(_pFile);
+	_onFlush = nullptr;
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if (_pReader.unique()) { // else always used by the decoder, impossible to flush!
-		_onFlush(); // flush possible current media remaining
+		_onTimer(); // flush possible current media remaining
 		if(_pMedias->empty())
 			_pReader->flush(source); // reset + flush!
 		else
@@ -141,7 +142,6 @@ void MediaFile::Reader::stopping() {
 	} else
 		source.reset(); // because _pReader could be used always by the decoder (parallel!)
 	// new resource for next start
-	_onFlush = nullptr;
 	_pMedias.set();
 	_pReader = MediaReader::New(_pReader->subMime());
 }
