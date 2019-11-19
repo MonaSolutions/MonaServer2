@@ -43,6 +43,13 @@ deque<MP4Writer::Frame> MP4Writer::Frames::flush() {
 	return frames;
 }
 
+MP4Writer::MP4Writer(UInt16 bufferTime) : bufferTime(bufferTime) {
+	if (bufferTime < 100) {
+		WARN("bufferTime ", bufferTime, " fixed to 100ms which is the minimum accepted for MP4Writer");
+		bufferTime = 100;
+	}
+}
+
 void MP4Writer::beginMedia(const OnWrite& onWrite) {
 	_buffering = true;
 	_sequence = 0;
@@ -147,8 +154,13 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 		_timeFront = _timeBack;
 	}
 	Int32 delta = Util::Distance(_timeFront, _timeBack);
-	if (!reset && delta < (_buffering ? bufferTime : 100)) // wait one second to get at less one video frame the first time (1fps is the min possibe for video)
-		return;
+	
+	if (!reset) {
+		// wait one second to get at less one video frame the first time (1fps is the min possibe for video)
+		if (delta < (_buffering ? bufferTime : 100))
+			return;
+	} else if (reset < 0)
+		DEBUG("MP4 dynamic configuration change");
 
 	// Search if there is empty track => MSE requires to get at less one media by track on each segment
 	// In same time compute sizeMoof!
@@ -159,10 +171,10 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 		if(_sequence<14) // => trick to delay firefox play and bufferise more than 2 seconds before to start playing (when hasKey flags absent firefox starts to play! doesn't impact other browsers)
 			videos.hasKey = true;
 		if (videos.empty()) {
+			_buffering = true; // reset is necessary set here
 			if (delta < bufferTime)
 				return; // wait bufferTime to get at less one media on this track!
 			videos = nullptr;
-			_buffering = true;
 		} else
 			sizeMoof += videos.sizeTraf();
 	}
@@ -170,10 +182,10 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 		if (!audios)
 			continue;
 		if (audios.empty()) {
+			_buffering = true; // reset is necessary set here
 			if (delta < bufferTime)
 				return; // wait bufferTime to get at less one media on this track!
 			audios = nullptr;
-			_buffering = true;
 		} else
 			sizeMoof += audios.sizeTraf();
 	}
@@ -189,7 +201,6 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	UInt16 track(0);
 
 	if (_buffering) {
-		_buffering = false;
 		// fftyp box => iso5....iso6mp41
 		writer.write(EXPAND("\x00\x00\x00\x18""ftyp\x69\x73\x6F\x35\x00\x00\x02\x00""iso6mp41"));
 
@@ -437,6 +448,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 
 		BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 	}
+	_buffering = reset ? true : false;
 
 	//////////// MOOF /////////////
 	writer.write32(sizeMoof+=24);
@@ -471,11 +483,6 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			mediaFrames[track++] = audios.flush();
 	}
 	_timeFront = _timeBack; // set timestamp progression
-	if (reset) {
-		_buffering = true;
-		if (reset > 0)
-			DEBUG("MP4 dynamic configuration change");
-	}
 
 	// onWrite in last to avoid possible recursivity (for example if onWrite call flush again: _videos or _audios not flushed!)
 	if (!onWrite)
