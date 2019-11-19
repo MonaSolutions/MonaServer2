@@ -36,7 +36,7 @@ struct MP4Writer : MediaWriter, virtual Object {
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
 	// ffmpeg -re -i Sintel.ts -c copy -listen 1 -f mp4 -frag_duration 100000 -movflags empty_moov+default_base_moof http://127.0.0.1:80/test.mp4
 
-	MP4Writer(UInt16 bufferTime);
+	MP4Writer(UInt16 bufferTime = 1000);
 
 	const UInt16 bufferTime;
 
