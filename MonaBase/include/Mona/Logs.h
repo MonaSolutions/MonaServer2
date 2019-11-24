@@ -20,6 +20,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/ConsoleLogger.h"
 #include "Mona/String.h"
 #include "Mona/Thread.h"
+#include "Mona/Util.h"
 #include <atomic>
 
 namespace Mona {
@@ -62,8 +63,9 @@ struct Logs : virtual Static {
 
 	static void			SetDumpLimit(Int32 limit) { std::lock_guard<std::mutex> lock(_Mutex); _DumpLimit = limit; }
 	static void			SetDump(const char* name); // if null, no dump, otherwise dump name, and if name is empty everything is dumped
-	static bool			IsDumping() { return _IsDumping; }
+	static const char*	GetDump();
 
+	static bool			Dumping() { return _Dumping; }
 	static bool			Logging() { return _Logging; }
 	
 	static bool			LastCritic(std::string& critic);
@@ -94,13 +96,13 @@ struct Logs : virtual Static {
 
 	template <typename ...Args>
 	static void Dump(const char* name, const UInt8* data, UInt32 size, Args&&... args) {
-		if (!_IsDumping)
+		if (!_Dump || _Dumping)
 			return;
-		_Logging = true;
+		_Dumping = true;
 		std::lock_guard<std::mutex> lock(_Mutex);
-		if (_Dump.empty() || String::ICompare(_Dump, name) == 0)
+		if (_DumpFilter.empty() || String::ICompare(_DumpFilter, name) == 0)
 			Dump(String(std::forward<Args>(args)...), data, size);
-		_Logging = false;
+		_Dumping = false;
 	}
 	template <typename ...Args>
 	static void Dump(const std::string& name, const UInt8* data, UInt32 size, Args&&... args) { Dump(name.c_str(), data, size, std::forward<Args>(args)...); }
@@ -124,26 +126,31 @@ struct Logs : virtual Static {
 #if defined(_DEBUG)
 	// To dump easly during debugging => no name filter = always displaid even if no dump argument
 	static void Dump(const UInt8* data, UInt32 size) {
-		_Logging = true;
+		if (_Dumping)
+			return;
+		_Dumping = true;
 		std::lock_guard<std::mutex> lock(_Mutex);
 		Dump(String::Empty(), data, size);
-		_Logging = false;
+		_Dumping = false;
 	}
 #endif
 
 	struct Disable : virtual Object {
-		Disable(bool disable=true) : _logging(disable ? _Logging : true) { if(!_logging) _Logging = true; }
-		~Disable() { if(!_logging) _Logging = false; }
+		Disable(bool log = false, bool dump = false);
+		~Disable();
 	private:
-		bool _logging;
+		bool	_logging;
+		bool	_dumping;
 	};
 
 private:
 	static void		Dump(const std::string& header, const UInt8* data, UInt32 size);
 
 	static std::mutex				_Mutex;
-	static thread_local bool		_Logging;
 	static std::string				_Critic;
+
+	static thread_local bool		_Logging;
+	static thread_local bool		_Dumping;
 
 	static std::atomic<LOG_LEVEL>	_Level;
 	static struct Loggers : std::map<std::string, unique<Logger>, String::IComparator>, virtual Object {
@@ -154,24 +161,24 @@ private:
 		std::vector<Logger*> _failed;
 	}								_Loggers;
 
-	static volatile bool	_IsDumping;
-	static std::string		_Dump; // empty() means all dump, otherwise is a dump filter
+	static std::string			_DumpFilter; // empty() means all dump, otherwise is a dump filter
+	static volatile bool		_Dump;
 
-	static volatile bool	_DumpRequest;
-	static volatile bool	_DumpResponse;
-	static Int32			_DumpLimit; // -1 means no limit
+	static volatile bool		_DumpRequest;
+	static volatile bool		_DumpResponse;
+	static Int32				_DumpLimit; // -1 means no limit
 };
 
 #undef ERROR
 #undef DEBUG
 #undef TRACE
 
-#define DUMP(NAME,...) { if(Mona::Logs::IsDumping()) Mona::Logs::Dump(NAME,__VA_ARGS__); }
+#define DUMP(NAME,...) { if(Mona::Logs::GetDump()) Mona::Logs::Dump(NAME,__VA_ARGS__); }
 
-#define DUMP_REQUEST(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::IsDumping()) Mona::Logs::DumpRequest(NAME, DATA, SIZE, NAME, " <= ", ADDRESS); }
+#define DUMP_REQUEST(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::GetDump()) Mona::Logs::DumpRequest(NAME, DATA, SIZE, NAME, " <= ", ADDRESS); }
 #define DUMP_REQUEST_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= Mona::LOG_DEBUG) DUMP_REQUEST(NAME, DATA, SIZE, ADDRESS)
 
-#define DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::IsDumping()) Mona::Logs::DumpResponse(NAME, DATA, SIZE, NAME, " => ", ADDRESS); }
+#define DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS) { if(Mona::Logs::GetDump()) Mona::Logs::DumpResponse(NAME, DATA, SIZE, NAME, " => ", ADDRESS); }
 #define DUMP_RESPONSE_DEBUG(NAME, DATA, SIZE, ADDRESS) if(Logs::GetLevel() >= Mona::LOG_DEBUG) DUMP_RESPONSE(NAME, DATA, SIZE, ADDRESS)
 
 #define LOG(LEVEL, ...)  { if(Mona::Logs::GetLevel()>=(LEVEL)) { Mona::Logs::Log((LEVEL), __FILE__,__LINE__, __VA_ARGS__); } }

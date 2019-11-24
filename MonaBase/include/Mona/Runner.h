@@ -24,16 +24,17 @@ namespace Mona {
 
 
 struct Runner : virtual Object {
-	Runner(const char* name) : name(name), noLogs(Logs::Logging())  {}
+	Runner(const char* name) : name(name), noLog(Logs::Logging()), noDump(Logs::Dumping())  {}
 
 	const char* name;
-	bool noLogs;
+	bool noLog;
+	bool noDump;
 
 	template <typename ...Args>
 	void run(Args&&... args) {
 		Thread::ChangeName newName(std::forward<Args>(args)...);
 		Exception ex;
-		Logs::Disable disableLogs(noLogs);
+		Logs::Disable logs(!noLog, !noDump);
 		AUTO_ERROR(run(ex), newName);
 	}
 

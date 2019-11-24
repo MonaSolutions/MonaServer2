@@ -24,16 +24,30 @@ namespace Mona {
 
 mutex					Logs::_Mutex;
 
-volatile bool			Logs::_IsDumping(false);
-string					Logs::_Dump;
+thread_local bool		Logs::_Dumping(false);
+thread_local bool		Logs::_Logging(false);
 
+volatile bool			Logs::_Dump;
+std::string				Logs::_DumpFilter;
 Int32					Logs::_DumpLimit(-1);
 volatile bool			Logs::_DumpRequest(true);
 volatile bool			Logs::_DumpResponse(true);
+
 atomic<LOG_LEVEL>		Logs::_Level(LOG_DEFAULT); // default log level
 Logs::Loggers			Logs::_Loggers;
-thread_local bool		Logs::_Logging(false);
+
 std::string				Logs::_Critic;
+
+Logs::Disable::Disable(bool log, bool dump) : _logging(_Logging), _dumping(_Dumping) {
+	if (!log)
+		_Logging = true;
+	if (!dump)
+		_Dumping = true;
+}
+Logs::Disable::~Disable() {
+	_Logging = _logging;
+	_Dumping = _dumping;
+}
 
 bool Logs::LastCritic(string& critic) {
 	lock_guard<mutex> lock(_Mutex);
@@ -43,25 +57,33 @@ bool Logs::LastCritic(string& critic) {
 	return true;
 }
 
+const char* Logs::GetDump() {
+	if (!_Dump)
+		return NULL;
+	thread_local string DumpFilter;
+	lock_guard<mutex> lock(_Mutex);
+	return (DumpFilter = _DumpFilter).c_str();
+}
+
 void Logs::SetDump(const char* name) {
 	lock_guard<mutex> lock(_Mutex);
 	_DumpResponse = _DumpRequest = true;
 	if (!name) {
-		_IsDumping = false;
-		_Dump.clear();
-		_Dump.shrink_to_fit();
+		_Dump = false;
+		_DumpFilter.clear();
+		_DumpFilter.shrink_to_fit();
 		return;
 	}
-	_IsDumping = true;
-	_Dump = name;
-	if (_Dump.empty())
+	_Dump = true;
+	_DumpFilter = name;
+	if (_DumpFilter.empty())
 		return;
-	if (_Dump.back() == '>') {
+	if (_DumpFilter.back() == '>') {
 		_DumpRequest = false;
-		_Dump.pop_back();
-	} else if (_Dump.back() == '<') {
+		_DumpFilter.pop_back();
+	} else if (_DumpFilter.back() == '<') {
 		_DumpResponse = false;
-		_Dump.pop_back();
+		_DumpFilter.pop_back();
 	}
 }
 
