@@ -47,7 +47,7 @@ struct FileReader : virtual Object {
 	}
 	/*!
 	Read data */
-	void		read(UInt32 size = 0xFFFF) { FATAL_CHECK(_pFile);  io.read(_pFile, size); }
+	void		read(UInt32 size = 0xFFFF) { DEBUG_ASSERT(_pFile);  io.read(_pFile, size); }
 	void		close() { if (_pFile) io.unsubscribe(_pFile); }
 
 private:

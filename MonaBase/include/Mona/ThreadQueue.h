@@ -31,7 +31,7 @@ struct ThreadQueue : Thread, virtual Object {
 
 	template<typename RunnerType>
 	void queue(RunnerType&& pRunner) {
-		FATAL_CHECK(pRunner); // more easy to debug that if it fails in the thread!
+		DEBUG_ASSERT(pRunner); // more easy to debug that if it fails in the thread!
 		std::lock_guard<std::mutex> lock(_mutex);
 		start(_priority);
 		_runners.emplace_back(std::forward<RunnerType>(pRunner));

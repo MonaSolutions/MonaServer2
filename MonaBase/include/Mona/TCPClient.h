@@ -59,7 +59,7 @@ struct TCPClient : private StreamData<>, virtual Object {
 	Runner example to send data with custom process in parallel thread */
 	struct Sender : Runner {
 		Sender(const shared<Socket>& pSocket, const Packet& packet, int flags = 0) :
-			Runner("TCPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)) { FATAL_CHECK(pSocket); }
+			Runner("TCPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)) { DEBUG_ASSERT(pSocket); }
 	private:
 		bool run(Exception& ex) { return _pSocket->write(ex, _packet, _flags) != -1; }
 		shared<Socket>	_pSocket;

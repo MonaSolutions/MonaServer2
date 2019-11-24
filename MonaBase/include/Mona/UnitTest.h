@@ -81,11 +81,12 @@ private:
 };
 
 /// Macro for assert true function
-#define CHECK(CONDITION) FATAL_CHECK(CONDITION)
 
 #if defined(_DEBUG)
-#define DEBUG_CHECK(CONDITION) CHECK(CONDITION)
+#define CHECK(CONDITION)		DEBUG_ASSERT(CONDITION)
+#define DEBUG_CHECK(CONDITION)	DEBUG_ASSERT(CONDITION)
 #else
+#define CHECK(CONDITION)		{ if(!(ASSERT)) {throw std::runtime_error( #ASSERT " assertion, " __FILE__ "[" LINE_STRING "]");} }
 #define DEBUG_CHECK(CONDITION) {}
 #endif
 

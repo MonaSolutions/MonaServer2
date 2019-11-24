@@ -57,9 +57,9 @@ struct UDPSocket : virtual Object {
 	Runner example to send data with custom process in parallel thread */
 	struct Sender : Runner {
 		Sender(const shared<Socket>& pSocket, const Packet& packet, int flags = 0) :
-			Runner("UDPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)) { FATAL_CHECK(pSocket); }
+			Runner("UDPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)) { DEBUG_ASSERT(pSocket); }
 		Sender(const shared<Socket>& pSocket, const Packet& packet, const SocketAddress& address, int flags = 0) :
-			Runner("UDPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)), _address(address) { FATAL_CHECK(pSocket); }
+			Runner("UDPSender"), _pSocket(pSocket), _flags(flags), _packet(std::move(packet)), _address(address) { DEBUG_ASSERT(pSocket); }
 	private:
 		bool run(Exception& ex) { _pSocket->write(ex, _packet, _address, _flags);  return true; } // UDP socket error is a WARN
 		shared<Socket>	_pSocket;

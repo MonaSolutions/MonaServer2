@@ -52,8 +52,8 @@ struct FileWriter : virtual Object {
 	}
 	/*!
 	Write data, if queueing wait onFlush event for large data transfer*/
-	void		write(const Packet& packet) { FATAL_CHECK(_pFile);  io.write(_pFile, packet); }
-	void		erase() { FATAL_CHECK(_pFile); io.erase(_pFile); }
+	void		write(const Packet& packet) { DEBUG_ASSERT(_pFile);  io.write(_pFile, packet); }
+	void		erase() { DEBUG_ASSERT(_pFile); io.erase(_pFile); }
 	void		close() { if(_pFile) io.unsubscribe(_pFile); }
 
 	static void	Erase(const Path& path, IOFile& io) { io.erase(std::make_shared<File>(path, File::MODE_DELETE)); }
