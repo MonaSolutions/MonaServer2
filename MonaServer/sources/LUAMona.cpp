@@ -112,10 +112,19 @@ static int setTimer(lua_State *pState) {
 	SCRIPT_CALLBACK(ServerAPI, api)
 		int arg = SCRIPT_READ_NEXT(1); // LUA function for a new event OR TimerID to modify/remove timer
 		UInt32 timeout = SCRIPT_READ_UINT32(0);
-		LUATimer* pTimer = NULL;;
+		LUATimer* pTimer;
 		if (lua_isfunction(pState, arg)) {
-			if (timeout)
-				Script::NewObject(pState, pTimer = new LUATimer(pState, api.timer, arg)); // push the timer on the stack!
+			pTimer = new LUATimer(pState, api.timer, arg);
+			if (!timeout) {
+				// execute now!
+				timeout = (*pTimer)();
+				if (!timeout) {
+					delete pTimer;
+					pTimer = NULL;
+				}
+			}
+			if(pTimer)
+				Script::NewObject(pState, pTimer); // push the timer on the stack!
 		} else {
 			pTimer = Script::ToObject<LUATimer>(pState, arg);
 			if (pTimer)
