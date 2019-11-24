@@ -19,25 +19,24 @@ details (or else see http://www.gnu.org/licenses/).
 #pragma once
 
 #include "Mona/Mona.h"
-#include "Mona/ServerAPI.h"
-#include "Mona/Media.h"
+#include "Mona/Server.h"
 
 namespace Mona {
 
 /*!
 Publish a publication by the code, externally to the server:
-1 - Publish* pPublish = server.publish(name)
+1 - shared<Publish> pPublish = server.action<Publish>(name);
 2 - Use pPublish methods to write medias and flush
 3 - Check *pPublish to test if publication is still active (not failed)
 4 - Start again at point 2 or delete pPublish to terminate publication	*/
-struct Publish : Media::Source, virtual Object {
-	NULLABLE(!_pPublishing->api.running() || !*_pPublishing) // Test if publication is always valid (not failed)
+struct Publish : Media::Source, Server::Action, virtual Object {
+	NULLABLE(!_api.running() || !*_ppSource) // Test if publication is always valid (not failed)
 	Publish(ServerAPI& api, const char* name);
 	Publish(ServerAPI& api, Media::Source& source);
 	~Publish();
 	/*!
 	Publication name */
-	const std::string& name() const { return _pPublishing->name; }
+	const std::string& name() const { return _pName ? *_pName : (*_ppSource)->name(); }
 	/*!
 	Write audio packet */
 	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track=1) { queue<Write<Media::Audio>>(tag, packet, track); }
@@ -52,97 +51,64 @@ struct Publish : Media::Source, virtual Object {
 	void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { queue<Write<Media::Data>>(type, packet, track, true); }
 	/*!
 	Report lost detection, allow to displays stats and repair the stream in waiting next key frame when happen */
-	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0) { queue<Lost>(type, lost, track); }
+	void reportLost(Media::Type type, UInt32 lost, UInt8 track = 0);
 	/*!
 	Flush writing, call one time writing queue empty (with optional publisher current ping to give publication latency information) */
-	void flush(UInt16 ping=0);
+	void flush(UInt16 ping);
+	void flush() { flush(0); } // overrides Media::Source::flush()
 	/*!
 	Reset the stream, usefull when a new stream will start on same publication */
 	void reset();
 
 	struct Logger : virtual Object, Mona::Logger {
 		Logger(Publish& publish) : _publish(publish) {}
-		bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message) { return writeData(String::Log(Logs::LevelToString(level), file, line, message, Thread::CurrentId())); }
-		bool dump(const  std::string& header, const UInt8* data, UInt32 size) { return writeData(String::Date("%d/%m %H:%M:%S.%c  "), header, '\n'); }
+		bool log(LOG_LEVEL level, const Path& file, long line, const std::string& message) { writeData(String::Log(Logs::LevelToString(level), file, line, message, Thread::CurrentId())); return true;	}
+		bool dump(const  std::string& header, const UInt8* data, UInt32 size) { writeData(header, '\n', String::Data(data, size)); return true; }
 	private:
 		template<typename ...Args>
-		bool writeData(Args&&... args) {
+		void writeData(Args&&... args) {
 			if (!_publish)
-				return true;
+				return;
 			shared<Buffer> pBuffer(SET);
 			String::Append(*pBuffer, std::forward<Args>(args)...);
 			_publish.writeData(Media::Data::TYPE_TEXT, Packet(pBuffer));
-			return true;
+			_publish.flush();
 		}
 		Publish& _publish;
 	};
 private:
-	void flush() { flush(0); }
 
-	struct Publishing : Runner, virtual Object {
-		NULLABLE(_failed || !api.running())
-		Publishing(ServerAPI& api, const char* name) : _failed(false), Runner("Publishing"), name(name), api(api) {}
-		Publishing(ServerAPI& api, Source& source) : _failed(false), _pSource(&source), Runner(NULL), name(source.name()), api(api) {}
-
-		const std::string name;
-
-		ServerAPI& api;
-		Source&			source() { return *_pSource; }
-		Publication*	publication() { return !Runner::name ? NULL : (Publication*)_pSource; }
-
-	private:
-		bool run(Exception& ex);
-
-		Source* _pSource;
-		volatile bool _failed;
-	};
+	void run(ServerAPI& api) { Exception ex; *_ppSource = api.publish(ex, name()); }
 
 	struct Action : Runner, virtual Object {
-		Action(const char* name, const shared<Publishing>& pPublishing) : Runner(name), _pPublishing(pPublishing) {}
-	protected:
-		ServerAPI& api() { return _pPublishing->api; }
+		Action(const char* name, const shared<Source*>& ppSource, bool isPublication=false) : Runner(name), _ppSource(ppSource), _isPublication(isPublication) {}
 	private:
 		virtual void run(Publication& publication) { run((Source&)publication); }
-		virtual void run(Source& source) { ERROR(name," empty run for ", source.name()); }
-		bool run(Exception& ex) {
-			if (!*_pPublishing)
-				return true;
-			Publication* pPublication = _pPublishing->publication();
-			if (pPublication)
-				run(*pPublication);
-			else
-				run(_pPublishing->source());
-			return true;
-		}
-		shared<Publishing> _pPublishing;
+		virtual void run(Source& source) { ERROR(name, " empty run for ", source.name()); }
+
+		bool				run(Exception& ex);
+		shared<Source*>		_ppSource;
+		bool				_isPublication;
 	};
 
 	template<typename MediaType>
 	struct Write : Action, private MediaType, virtual Object {
 		template<typename ...Args>
-		Write(const shared<Publishing>& pPublishing, Args&&... args) : Action(typeof<Write<MediaType>>().c_str(), pPublishing), MediaType(args ...) {}
-	private:
+		Write(const shared<Source*>& ppSource, Args&&... args) : Action(typeof<Write<MediaType>>().c_str(), ppSource), MediaType(std::forward<Args>(args)...) {}
 		void run(Source& source) { source.writeMedia(self); }
 	};
 
-	struct Lost : Action, private Media::Base, virtual Object {
-		Lost(const shared<Publishing>& pPublishing, Media::Type type, UInt32 lost, UInt8 track = 0) : Action("Publish::Lost", pPublishing), Media::Base(type, Packet::Null(), track), _lost(lost)  {}
-	private:
-		void run(Source& source) { source.reportLost(type, _lost, track); }
-		UInt32			_lost;
-	};
-
-
 	template<typename Type, typename ...Args>
 	void queue(Args&&... args) {
-		if (!*_pPublishing) {
-			ERROR("Publication ", _pPublishing->name, " has failed, impossible to ", typeof<Type>());
-			return;
-		}
-		_pPublishing->api.queue<Type>(_pPublishing, std::forward<Args>(args)...);
+		if (!*_ppSource)
+			ERROR("Publish ", name(), " has failed, impossible to ", typeof<Type>())
+		else if (!_api.handler.tryQueue<Type>(_ppSource, std::forward<Args>(args)...))
+			ERROR("Server stopped, impossible to ", typeof<Type>(), " ", name());
 	}
 
-	shared<Publishing> _pPublishing;
+	unique<std::string>	_pName; // if is set => source is a publication (otherwise _ppSource points to source constructor argument)
+	shared<Source*>		_ppSource; // if Source*==NULL => failed (always set otherwise)
+	ServerAPI&			_api;
 };
 
 

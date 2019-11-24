@@ -26,7 +26,7 @@ using namespace std;
 namespace Mona {
 
 
-Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_www, _publications, _handler, _protocols, _timer, cores), _protocols(*this), _handler(wakeUp) {
+Server::Server(UInt16 cores) : Thread("Server"), ServerAPI(_www, _publications, _handler, _protocols, _timer, cores), _protocols(*this) {
 	DEBUG(threadPool.threads(), " threads in server threadPool");
 }
  
@@ -56,13 +56,6 @@ Parameters& Server::start(const Parameters& parameters) {
 	return self;
 }
 
-Publish* Server::publish(const char* name) {
-	if (running())
-		return new Publish(self, name);
-	ERROR("Start ", typeof(self), " before to publish ", name);
-	return NULL;
-}
-
 bool Server::run(Exception&, const volatile bool& requestStop) {
 	if (getBoolean<true>("poolBuffers"))
 		Buffer::Allocator::Set<BufferPool>();
@@ -73,7 +66,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	try
 #endif
 	{ // Encapsulate sessions!
-
+		_handler.reset(wakeUp);
 		Exception ex;
 		// SSL client
 		AUTO_ERROR(TLS::Create(ex, pTLSClient), "SSL Client");
@@ -171,8 +164,8 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	// finish writing file before to detach buffer allocator
 	ioFile.join();
 
-	// empty handler!
-	_handler.flush();
+	// last handler!
+	_handler.flush(true);
 
 	// clean and unsubscribe streamSubscriptions
 	UInt32 alives = 0;

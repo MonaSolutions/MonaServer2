@@ -24,50 +24,59 @@ using namespace std;
 namespace Mona {
 
 
-Publish::Publish(ServerAPI& api, const char* name) : _pPublishing(SET, api, name) {
-	api.queue(_pPublishing);
+bool Publish::Action::run(Exception& ex) {
+	// if "Publish" is always alive + not failed
+	if (_ppSource.unique() || !*_ppSource)
+		return false;
+	if(_isPublication)
+		run((Publication&)**_ppSource);
+	else
+		run(**_ppSource);
+	return true;
 }
-Publish::Publish(ServerAPI& api, Media::Source& source) : _pPublishing(SET, api, source) {
+
+Publish::Publish(ServerAPI& api, const char* name) : Server::Action(api, "Publish"), _pName(SET, name), _api(api), _ppSource(SET, &Source::Null()) {
+}
+Publish::Publish(ServerAPI& api, Source& source) : Server::Action(api, "Publish"), _api(api), _ppSource(SET, &source) {
 }
  
 Publish::~Publish() {
+	if (!_pName || !*_ppSource)
+		return; // _ppSource is not a publication OR publication has failed
 	struct Unpublishing : Action, virtual Object {
-		Unpublishing(const shared<Publishing>& pPublishing) : Action("Unpublishing", pPublishing) {}
-	private:
-		void run(Publication& publication) { api().unpublish(publication); }
+		Unpublishing(const shared<Source*>& ppSource, ServerAPI& api) : _api(api), Action("Unpublish", ppSource, true) {}
+		void run(Publication& publication) { _api.unpublish(publication); }
+		ServerAPI& _api;
 	};
-	if(_pPublishing->publication())
-		queue<Unpublishing>();
+	queue<Unpublishing>(_api);
 }
 
-void Publish::reset() {
-	struct Reset : Action, virtual Object {
-		Reset(const shared<Publishing>& pPublishing) : Action("Publish::Reset", pPublishing) {}
-	private:
-		void run(Source& source) { source.reset(); }
+void Publish::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
+	struct Lost : Action, private Media::Base, virtual Object {
+		Lost(const shared<Source*>& ppSource, Media::Type type, UInt32 lost, UInt8 track = 0) : Action("Publish::Lost", ppSource), Media::Base(type, Packet::Null(), track), _lost(lost) {}
+		void run(Source& source) { source.reportLost(type, _lost, track); }
+		UInt32			_lost;
 	};
-	queue<Reset>();
+	queue<Lost>(type, lost, track);
 }
 
 void Publish::flush(UInt16 ping) {
 	struct Flush : Action, virtual Object {
-		Flush(const shared<Publishing>& pPublishing, UInt16 ping) : Action("Publish::Flush", pPublishing), _ping(ping) {}
-	private:
+		Flush(const shared<Source*>& ppSource, UInt16 ping, bool isPublication) : Action("Publish::Flush", ppSource, isPublication), _ping(ping) {}
 		void run(Publication& publication) { publication.flush(_ping); }
 		void run(Source& source) { source.flush(); }
 		UInt16			_ping;
 	};
-	queue<Flush>(ping);
+	queue<Flush>(ping, _pName ? true : false);
 }
 
-bool Publish::Publishing::run(Exception& ex) {
-	if (_failed)
-		return false;
-	_pSource = api.publish(ex, name);
-	if (_pSource)
-		return true;
-	_failed = true;
-	return false;
+void Publish::reset() {
+	struct Reset : Action, virtual Object {
+		Reset(const shared<Source*>& ppSource) : Action("Publish::Reset", ppSource) {}
+	private:
+		void run(Source& source) { source.reset(); }
+	};
+	queue<Reset>();
 }
 
 

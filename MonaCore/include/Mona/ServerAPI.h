@@ -49,18 +49,6 @@ struct ServerAPI : virtual Object, Parameters {
 	shared<TLS>				pTLSClient;
 	shared<TLS>				pTLSServer;
 
-	template<typename RunnerType>
-	bool queue(RunnerType&& pRunner) {
-		if (running()) {
-			handler.queue(std::forward<RunnerType>(pRunner));
-			return true;
-		}
-		ERROR("Start ", typeof(self), " before to queue ", pRunner->name);
-		return false;
-	}
-	template <typename RunnerType, typename ...Args>
-	void queue(Args&&... args) { queue(shared<RunnerType>(SET, std::forward<Args>(args)...)); }
-
 	/*!
 	Publish a publication
 	Query parameters will be passed to publication properties (metadata)

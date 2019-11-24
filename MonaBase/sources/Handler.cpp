@@ -22,22 +22,20 @@ using namespace std;
 
 namespace Mona {
 
-void Handler::queue(const Event<void()>& onResult) const {
-	struct Result : Runner, virtual Object {
-		Result(const Event<void()>& onResult) : _onResult(move(onResult)), Runner(typeof(onResult).c_str()) {}
-		bool run(Exception& ex) { _onResult(); return true; }
-	private:
-		Event<void()>	_onResult;
-	};
-	queue<Result>(onResult);
+void Handler::reset(Signal& signal) {
+	std::lock_guard<std::mutex> lock(_mutex);
+	_runners.clear();
+	_pSignal = &signal;
 }
 
-UInt32 Handler::flush() {
+UInt32 Handler::flush(bool last) {
 	// Flush all what is possible now, and not dynamically in real-time (in rechecking _runners)
 	// to keep the possibility to do something else between two flushs!
 	deque<shared<Runner>> runners;
 	{
 		lock_guard<mutex> lock(_mutex);
+		if(last)
+			_pSignal = NULL;
 		runners = move(_runners);
 	}
 	for (shared<Runner>& pRunner : runners) {
@@ -45,6 +43,16 @@ UInt32 Handler::flush() {
 		pRunner.reset(); // release resources
 	}
 	return runners.size();
+}
+
+bool Handler::tryQueue(const Event<void()>& onResult) const {
+	struct Result : Runner, virtual Object {
+		Result(const Event<void()>& onResult) : _onResult(move(onResult)), Runner(typeof(onResult).c_str()) {}
+		bool run(Exception& ex) { _onResult(); return true; }
+	private:
+		Event<void()>	_onResult;
+	};
+	return tryQueue<Result>(onResult);
 }
 
 

@@ -132,7 +132,7 @@ ADD_TEST(UDP_Proxy) {
 	server.onPacket = nullptr;
 
 	_ThreadPool.join();
-	handler.flush();
+	handler.flush(true);
 	CHECK(!io.subscribers());
 }
 
@@ -272,7 +272,7 @@ ADD_TEST(TCP_Proxy) {
 	server.onError = nullptr;
 
 	_ThreadPool.join();
-	handler.flush();
+	handler.flush(true);
 	CHECK(!io.subscribers());
 }
 

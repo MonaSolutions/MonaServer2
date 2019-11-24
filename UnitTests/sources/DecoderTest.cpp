@@ -27,18 +27,18 @@ using namespace std;
 namespace DecoderTest {
 
 static ThreadPool _ThreadPool;
-static struct MainHandler : Handler {
+struct MainHandler : Handler {
 	MainHandler() : Handler(_signal) {}
 	UInt32 join(UInt32 min) {
 		UInt32 count(0);
 		while ((count += Handler::flush()) < min && _signal.wait(14000));
-		return count;
+		return count += Handler::flush(true);
 	}
 
 private:
 	void flush() {}
 	Signal _signal;
-} _Handler;
+};
 
 struct Decoded : virtual Object, Packet {
 	Decoded(const Packet& packet, const SocketAddress& address) : address(address), Packet(move(packet)) {}
@@ -48,7 +48,7 @@ struct Decoded : virtual Object, Packet {
 struct Decoder : virtual Object, Socket::Decoder {
 	typedef Event<void(Decoded&)> ON(Decoded);
 
-	Decoder() : count(0) {}
+	Decoder(const Handler& handler) : count(0), _handler(handler) {}
 	UInt8	count;
 
 	void decode(Packet& packet, const SocketAddress& address) {
@@ -56,9 +56,9 @@ struct Decoder : virtual Object, Socket::Decoder {
 		CHECK(!count);
 		do {
 			if (count++)
-				_Handler.queue(onDecoded, Packet(packet, packet.data() + 2, 3), address);  // second time
+				_handler.queue(onDecoded, Packet(packet, packet.data() + 2, 3), address);  // second time
 			else
-				_Handler.queue(onDecoded, Packet(packet, packet.data(), 5), address);  // first time
+				_handler.queue(onDecoded, Packet(packet, packet.data(), 5), address);  // first time
 		} while (packet += 5);
 	}
 private:
@@ -66,13 +66,14 @@ private:
 		Packet packet(pBuffer);
 		decode(packet, address);
 	}
+	const Handler& _handler;
 };
 
 
 ADD_TEST(Manual) {
-
+	MainHandler handler;
 	Exception ex;
-	Decoder decoder;
+	Decoder decoder(handler);
 
 	UInt8 count(0);
 	SocketAddress address(IPAddress::Loopback(), Util::Random<UInt16>());
@@ -86,14 +87,14 @@ ADD_TEST(Manual) {
 		Packet packet(EXPAND("hello10msg"));
 		decoder.decode(packet, address); }
 	).join();
-	CHECK(_Handler.join(2)==2 && count == 2 && decoder.count == count);
+	CHECK(handler.join(2)==2 && count == 2 && decoder.count == count);
 }
 
 
 ADD_TEST(Socket) {
-
+	MainHandler handler;
 	Exception ex;
-	IOSocket io(_Handler,_ThreadPool);
+	IOSocket io(handler,_ThreadPool);
 	Socket sender(Socket::TYPE_DATAGRAM);
 
 	struct UDPReceiver : UDPSocket {
@@ -107,7 +108,7 @@ ADD_TEST(Socket) {
 		~UDPReceiver() { _onDecoded = nullptr; }
 	private:
 		Socket::Decoder* newDecoder() {
-			Decoder* pDecoder = new Decoder();
+			Decoder* pDecoder = new Decoder(io.handler);
 			pDecoder->onDecoded = _onDecoded;
 			return pDecoder;
 		}
@@ -119,7 +120,7 @@ ADD_TEST(Socket) {
 
 	CHECK(sender.sendTo(ex, EXPAND("hello10msg"), SocketAddress(IPAddress::Loopback(), receiver->address().port())) == 10 && !ex)
 
-	CHECK(_Handler.join(3)==3); // 3 with IOSocket::Write of UDPReceiver
+	CHECK(handler.join(3)==3); // 3 with IOSocket::Write of UDPReceiver
 }
 
 
@@ -131,16 +132,18 @@ ADD_TEST(File) {
 	};
 	struct Decoder : File::Decoder {
 		typedef Event<void(Decoded&)> ON(Decoded);
+		Decoder(const Handler& handler) : _handler(handler) {}
 	private:
 		UInt32 decode(shared<Buffer>& pBuffer, bool end) {
 			CHECK(Thread::CurrentId() != Thread::MainId);
 			Packet packet(pBuffer);
-			_Handler.queue(onDecoded, packet, end);
+			_handler.queue(onDecoded, packet, end);
 			if (end)
 				return 0;
 			CHECK(packet.size() == 0xFFFF);
 			return packet.size();
 		}
+		const Handler& _handler;
 	};
 	struct Reader : FileReader {
 		Reader(IOFile& io) :FileReader(io), count(0),
@@ -156,15 +159,16 @@ ADD_TEST(File) {
 
 	private:
 		File::Decoder* newDecoder() {
-			Decoder* pDecoder = new Decoder();
+			Decoder* pDecoder = new Decoder(io.handler);
 			pDecoder->onDecoded = _onDecoded;
 			return pDecoder;
 		}
 		Decoder::OnDecoded _onDecoded;
 	};
 
+	MainHandler handler;
 	Exception ex;
-	IOFile io(_Handler, _ThreadPool);
+	IOFile io(handler, _ThreadPool);
 	Reader reader(io);
 	reader.onError = [](const Exception& ex) { FATAL_ERROR(ex); };
 
@@ -173,7 +177,7 @@ ADD_TEST(File) {
 	io.join();
 
 	UInt32 min(UInt32(Path::CurrentApp().size() / 0xFFFF));
-	CHECK(_Handler.join(min) == reader.count && reader.count >= min);
+	CHECK(handler.join(min) == reader.count && reader.count >= min);
 }
 
 }

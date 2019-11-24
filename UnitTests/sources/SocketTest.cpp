@@ -297,7 +297,7 @@ ADD_TEST(UDP_NonBlocking) {
 	CHECK(!client.connected())
 
 	_ThreadPool.join();
-	handler.flush();
+	handler.flush(true);
 	CHECK(!io.subscribers());
 }
 
@@ -420,7 +420,7 @@ void TestTCPNonBlocking(const shared<TLS>& pClientTLS = nullptr, const shared<TL
 	CHECK(handler.join([&server]()->bool { return !server.count(); }));
 
 	_ThreadPool.join();
-	handler.flush();
+	handler.flush(true);
 	CHECK(!io.subscribers());
 }
 
@@ -463,7 +463,7 @@ ADD_TEST(TestTCPLoad) {
 	CHECK(handler.join([&server]()->bool { return !server.count(); }));
 
 	_ThreadPool.join();
-	handler.flush();
+	handler.flush(true);
 	CHECK(!io.subscribers());
 }
 

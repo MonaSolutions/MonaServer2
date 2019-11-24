@@ -20,19 +20,11 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/Sessions.h"
-#include "Mona/Publish.h"
+#include "Mona/ServerAPI.h"
 
 namespace Mona {
 
 struct Server : protected ServerAPI, private Thread {
-	struct Action : Runner {
-		Action(const char* name, ServerAPI& api) : Runner(name), _api(api) {}
-	private:
-		virtual void run(ServerAPI& api) = 0;
-		bool run(Exception& ex) { run(_api); return true; }
-		ServerAPI& _api;
-	};
-
 	Server(UInt16 cores=0);
 	virtual ~Server();
 
@@ -41,12 +33,27 @@ struct Server : protected ServerAPI, private Thread {
 	void stop() { Thread::stop(); }
 	bool running() { return Thread::running(); }
 
-	template<typename ActionType>
-	bool queue(const shared<ActionType>& pAction) { return ServerAPI::queue(pAction); }
-
+	
+	struct Action : Runner {
+		Action(ServerAPI& api, const char* name) : Runner(name), _api(api) {}
+	private:
+		virtual void run(ServerAPI& api) = 0;
+		bool run(Exception& ex) { run(_api); return true; }
+		ServerAPI& _api;
+	};
 	/*!
-	Publish a publication, stays valid until !*Publish */
-	Publish* publish(const char* name);
+	Start a custom action with handle on API on server thread, returns nullptr if failed
+	The action has finished when pAction.unique() */
+	template<typename ActionType, typename ...Args>
+	shared<ActionType> action(Args&&... args) {
+		shared<ActionType> pAction(SET, api(), std::forward<Args>(args)...);
+		if (handler.tryQueue(pAction))
+			return std::move(pAction);
+		ERROR("Start ", typeof(self), " before to ", typeof<ActionType>());
+		return nullptr;
+	}
+
+protected:
 	/*!
 	Create a media stream target */
 	unique<MediaStream> stream(const std::string& description) { return stream(Media::Source::Null(), description); }
@@ -54,16 +61,10 @@ struct Server : protected ServerAPI, private Thread {
 	Create a media stream source
 	Trick: use '!' in description to create a "logs" publication */
 	unique<MediaStream> stream(Media::Source& source, const std::string& description);
-	
-
-protected:
 	/*!
 	Create a media stream source or target automatically linked to a publication,
 	Trick: use '!' in description to create a "logs" publication */
 	shared<MediaStream> stream(const std::string& publication, const std::string& description, bool isSource = false);
-
-	template<typename  ...Args>
-	Publication* publish(Exception& ex, Args&&... args) { return ServerAPI::publish(ex, args ...); }
 
 	ServerAPI& api() { return self; }	
 private:
