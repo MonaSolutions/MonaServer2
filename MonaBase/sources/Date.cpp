@@ -504,7 +504,7 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 					continue;
 				}
 			} else if (!CAN_READ || c != *current) {
-				ex.set<Ex::Format>("Doesn't match char ", c, " with ", *current);
+				ex.set<Ex::Format>(*current, " doesn't match with ", c);
 				return false;
 			}
 			READ;
@@ -519,6 +519,12 @@ bool Date::update(Exception& ex, const char* current, size_t size, const char* f
 			default:
 				if (!optional) {
 					ex.set<Ex::Format>("Unknown date ", c, " pattern");
+					return false;
+				}
+				break;
+			case '%': // Allow % in the string in catching %% case
+				if (*current != '%') {
+					ex.set<Ex::Format>("% doesn't match with ", *current);
 					return false;
 				}
 				break;
