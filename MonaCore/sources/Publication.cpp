@@ -303,7 +303,7 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
 				return addProperties(track, type, packet + (*pReader)->position());
 		}
-	} else
+	} else if(track)
 		DEBUG(track, " => ", packet);
 
 	// create track

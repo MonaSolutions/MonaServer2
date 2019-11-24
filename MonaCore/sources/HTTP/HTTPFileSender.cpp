@@ -36,12 +36,14 @@ bool HTTPFileSender::load(Exception& ex) {
 	if (File::load(ex)) {
 		/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
 		if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
-			if (send(HTTP_CODE_304)) // NOT MODIFIED
+			if (send(HTTP_CODE_304)) {// NOT MODIFIED 
+				DEBUG("GET 304 ", pRequest->path, '/', File::name());
 				ex.set<Ex::Unfound>(); // to detect end!
-			else
+			} else
 				ex.set<Ex::Net::Socket>();
 			return false;
 		}
+		DEBUG("GET 200 ", pRequest->path, '/', File::name());
 		return true;
 	}
 

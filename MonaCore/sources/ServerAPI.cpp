@@ -235,6 +235,7 @@ bool ServerAPI::subscribe(Exception& ex, Publication& publication, Subscription&
 		unsubscribe(subscription, subscription.setNext(&publication), pClient); // publication switch (MBR) + cancel possible previous next!
 	else
 		subscription.pPublication = &publication;
+	DEBUG((pClient ? pClient->address : typeof(self)), " subscribes to ", publication.name());
 	return true;
 }
 
@@ -251,6 +252,7 @@ void ServerAPI::unsubscribe(Subscription& subscription, Publication* pPublicatio
 		return;
 	if (!((set<Subscription*>&)pPublication->subscriptions).erase(&subscription))
 		return; // no subscription
+	DEBUG((pClient ? pClient->address : typeof(self)), " unsubscribes to ", pPublication->name());
 	if (pClient && !pClient->connection)
 		ERROR(pPublication->name()," unsubscription before client connection")
 	else

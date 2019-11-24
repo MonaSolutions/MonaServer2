@@ -176,6 +176,7 @@ void Thread::stop() {
 	_requestStop = true; // advise thread (intern)
 	if (_Me == this) {
 		// In the unique case were the caller is the thread itself, set _stop to true to allow to an extern caller to restart it!
+		// Not set it before otherwise a deadlock is possible if one thread request a start after a list lock, one other is stopping on _thread.join(), and the process thread is waiting unlock list
 		_stop = true;
 		return;
 	}
