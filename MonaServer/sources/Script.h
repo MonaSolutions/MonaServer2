@@ -109,7 +109,8 @@ extern "C" {
 #define SCRIPT_DEFINE_INT(NAME, VALUE)							{ lua_pushliteral(__pState, NAME); SCRIPT_WRITE_INT(VALUE); }
 
 #define SCRIPT_NEXT_READABLE									(__lastArg-__arg)
-#define SCRIPT_NEXT_TYPE										(lua_type(__pState,__arg+1))
+#define SCRIPT_NEXT_ARG											((__lastArg-__arg) ? (__arg+1) : 0)
+#define SCRIPT_NEXT_TYPE										((__lastArg-__arg) ? lua_type(__pState,__arg+1) : LUA_TNONE)
 #define SCRIPT_NEXT_SHRINK(COUNT)								{ int __count=COUNT; while((__lastArg-__arg) > __count--) { lua_remove(__pState, __lastArg--); }}
 
 #define SCRIPT_READ_NEXT(COUNT)									( (__arg += COUNT) > __lastArg ? 0 : __arg)
@@ -118,7 +119,7 @@ extern "C" {
 #define SCRIPT_READ_STRING(DEFAULT)								((__lastArg-__arg++)>0 && lua_isstring(__pState,__arg) ? lua_tostring(__pState,__arg) : DEFAULT)
 #define SCRIPT_READ_UINT8(DEFAULT)								Mona::range<UInt8>((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)
 #define SCRIPT_READ_UINT16(DEFAULT)								Mona::range<UInt16>((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)
-#define SCRIPT_READ_UINT32(DEFAULT)								((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)
+#define SCRIPT_READ_UINT32(DEFAULT)								Mona::range<UInt32>((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)
 #define SCRIPT_READ_INT8(DEFAULT)								Mona::range<Int8>((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)
 #define SCRIPT_READ_INT16(DEFAULT)								Mona::range<Int16>((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)
 #define SCRIPT_READ_INT32(DEFAULT)								((__lastArg-__arg++)>0 && lua_isnumber(__pState,__arg) ? lua_tointeger(__pState,__arg) : DEFAULT)

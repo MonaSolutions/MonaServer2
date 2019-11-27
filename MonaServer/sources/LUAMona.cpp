@@ -111,20 +111,10 @@ static int newMediaReader(lua_State *pState) {
 static int setTimer(lua_State *pState) {
 	SCRIPT_CALLBACK(ServerAPI, api)
 		int arg = SCRIPT_READ_NEXT(1); // LUA function for a new event OR TimerID to modify/remove timer
-		UInt32 timeout = SCRIPT_READ_UINT32(0);
 		LUATimer* pTimer;
 		if (lua_isfunction(pState, arg)) {
-			pTimer = new LUATimer(pState, api.timer, arg);
-			if (!timeout) {
-				// execute now!
-				timeout = (*pTimer)();
-				if (!timeout) {
-					delete pTimer;
-					pTimer = NULL;
-				}
-			}
-			if(pTimer)
-				Script::NewObject(pState, pTimer); // push the timer on the stack!
+			// new timer!
+			Script::NewObject(pState, pTimer = new LUATimer(pState, api.timer, arg)); // return timer!
 		} else {
 			pTimer = Script::ToObject<LUATimer>(pState, arg);
 			if (pTimer)
@@ -133,6 +123,17 @@ static int setTimer(lua_State *pState) {
 				SCRIPT_ERROR("Require a callback LUA function or a timer to modify");
 		}
 		if (pTimer) {
+			// a mona:setTimer(timer) execute the timer immediatly, just an explicit setTimer(timer, 0) stop it!
+			UInt32 timeout;
+			if (!lua_isnumber(pState, SCRIPT_NEXT_ARG)) {
+				// execute now
+				lua_pushvalue(pState, arg); // function
+				lua_pushinteger(pState, 0); // delay = 0
+				lua_call(pState, 1, 1); // return timeout
+				timeout = Mona::range<UInt32>(lua_tointeger(pState, -1));
+				lua_pop(pState, 1); //remove timeout
+			} else
+				timeout = Mona::range<UInt32>(lua_tointeger(pState, SCRIPT_READ_NEXT(1)));
 			api.timer.set(*pTimer, timeout);
 			pTimer->pin(-1);
 		}
