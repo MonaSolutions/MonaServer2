@@ -146,6 +146,9 @@ void Service::init() {
 	lua_pushliteral(_pState, "path");
 	lua_pushlstring(_pState, path.data(), path.size());
 	lua_rawset(_pState, -3);
+	lua_pushliteral(_pState, "__tostring");
+	lua_pushlstring(_pState, path.data(), path.size());
+	lua_rawset(_pState, -3);
 
 	// set this
 	lua_pushliteral(_pState, "this");
@@ -195,8 +198,11 @@ void Service::start() {
 				INFO("Application www", path, " started")
 			} else
 				SCRIPT_ERROR(_ex.set<Ex::Application::Error>(Script::LastError(_pState)));
-		} else if (error!=LUA_ERRFILE) // else file doesn't exist anymore (can happen on "update()" when a parent directory is deleted)
-			SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(Script::LastError(_pState)));
+		} else {
+			const char* message = Script::LastError(_pState); // always pop the error message of stack!
+			if (error != LUA_ERRFILE) // else file doesn't exist anymore (can happen on "update()" when a parent directory is deleted)
+				SCRIPT_ERROR(_ex.set<Ex::Application::Invalid>(message));
+		}
 		lua_pop(_pState, 1); // remove environment
 		if(_ex)
 			stop(); // to release possible ressource loaded by luaL_loadfile
