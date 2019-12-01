@@ -28,8 +28,6 @@ using namespace Mona;
 
 struct ServerApp : ServerApplication  {
 
-	ServerApp() { setString("description", "MonaServer"); }
-
 	const char* defineVersion() { return VERSION; }
 
 private:
