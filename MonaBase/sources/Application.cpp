@@ -83,7 +83,10 @@ bool Application::init(int argc, const char* argv[]) {
 	if (configPath) {
 		--argc;
 		// Set the current directory to the configuration file => forced to work with "dir/file.ini" argument (and win32 double click on ini file)
-		_name = configPath.baseName(); // not make configuration "name" in ini file otherwise in service mode impossible to refind the correct ini file to load: service name must stay the base name of ini file!
+		if(configPath.isFolder())
+			configPath.set(configPath, _name, ".ini");
+		else
+			_name = configPath.baseName(); // not make configuration "name" in ini file otherwise in service mode impossible to refind the correct ini file to load: service name must stay the base name of ini file!
 		if (!SetCurrentDirectory(configPath.parent().c_str()))
 			FATAL_ERROR("Cannot set current directory of ", name()); // useless to continue, the application could not report directory error (no logs, no init, etc...)
 	} else
@@ -158,8 +161,8 @@ bool Application::init(int argc, const char* argv[]) {
 
 void Application::displayHelp() {
 	HelpFormatter::Description description(_file.name().c_str(), _options);
-	String::Append(description.usage, " [", _file.baseName(), ".ini]");
-	description.header = getString("description");
+	String::Append(description.usage, " [/currentDir/[", _file.baseName(), ".ini]]");
+	description.header = getString("description", name().c_str());
 	HelpFormatter::Format(std::cout, description);
 }
 

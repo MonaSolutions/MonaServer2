@@ -108,7 +108,7 @@ struct SocketAddress : private IPAddress, virtual Object {
 	bool operator >  (const SocketAddress& address) const { return !operator<=(address); }
 	bool operator >= (const SocketAddress& address) const { return operator==(address) || operator>(address); }
 
-	// Returns a wildcard IPv4 or IPv6 address (0.0.0.0)
+	// Returns a wildcard IPv4 or IPv6 address (0.0.0.0) with port to 0
 	static const SocketAddress& Wildcard(IPAddress::Family family = IPAddress::IPv4);
 
 	static UInt16 SplitLiteral(const char* value, std::string& host);
