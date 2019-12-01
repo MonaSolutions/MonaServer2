@@ -28,7 +28,7 @@ using namespace std;
 namespace Mona {
 
 MonaServer::MonaServer(const Parameters& configs, TerminateSignal& terminateSignal) : _starting(false),
-	Server(configs.getNumber<UInt16>("cores")), _terminateSignal(terminateSignal), _dataPath(configs.getString("data.dir", "data/")) {
+	Server(configs.getNumber<UInt16>("cores")), _terminateSignal(terminateSignal), _dataPath(configs.getString("dataDir", "data/")) {
 
 }
 

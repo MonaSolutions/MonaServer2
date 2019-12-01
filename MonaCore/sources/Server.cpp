@@ -40,7 +40,7 @@ Parameters& Server::start(const Parameters& parameters) {
 
 	// copy and load parametes
 	for (auto& it : parameters) {
-		if (_www.empty() && String::ICompare(it.first, "www.dir") == 0)
+		if (_www.empty() && String::ICompare(it.first, "wwwDir") == 0)
 			_www = it.second;
 		setParameter(it.first, it.second);
 	}
@@ -48,7 +48,7 @@ Parameters& Server::start(const Parameters& parameters) {
 		_www.assign(EXPAND("www/"));
 	else
 		FileSystem::MakeFolder(_www);
-	setString("www.dir", _www);
+	setString("wwwDir", _www);
 	Exception ex;
 	AUTO_ERROR(FileSystem::CreateDirectory(ex, _www), "Application directory creation");
 
