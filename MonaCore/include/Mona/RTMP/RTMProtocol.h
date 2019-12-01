@@ -24,8 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-class RTMProtocol : public TCProtocol, public virtual Object {
-public:
+struct RTMProtocol : TCProtocol, virtual Object {
 	RTMProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS=nullptr) : TCProtocol(name, api, sessions, pTLS) {
 
 		setNumber("port", pTLS ? 8443 : 1935);

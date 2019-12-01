@@ -69,7 +69,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			UInt32 keySize;
 			const UInt8* key = RTMP::ValidateClient(buffer.data(), buffer.size(), middle, keySize); // size = HMAC_KEY_SIZE
 
-			bool encrypted(type==6);
+			bool encrypted(type==6); // RTMPE?
 
 			shared<Buffer> pBuffer(SET);
 			BinaryWriter writer(*pBuffer);

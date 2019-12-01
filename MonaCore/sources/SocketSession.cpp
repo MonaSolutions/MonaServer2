@@ -34,9 +34,7 @@ SocketSession::SocketSession(Protocol& protocol, const shared<Socket>& pSocket, 
 
 void SocketSession::onParameters(const Parameters& parameters) {
 	Session::onParameters(parameters);
-	Exception ex;
-	AUTO_WARN(_pSocket->processParams(ex, parameters), name(), " socket configuration");
-	DEBUG(name(), " socket buffers set to ", _pSocket->recvBufferSize(), "B in reception and ", _pSocket->sendBufferSize(), "B in sends");
+	protocol().initSocket(*_pSocket);
 }
 
 void SocketSession::kill(Int32 error, const char* reason) {

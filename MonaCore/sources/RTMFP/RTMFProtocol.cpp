@@ -105,18 +105,15 @@ void RTMFProtocol::manage() {
 	if (++_manageTimes < 5)
 		return;
 	_manageTimes = 0;
-	SocketAddress address(socket()->address());
-	if (!address)
-		return; // RTMFP protocol disabled
-	address.host().set(IPAddress::Loopback());
 	Exception ex;
-	socket()->sendTo(ex, NULL, 0, address);
+	AUTO_ERROR(socket()->sendTo(ex, NULL, 0, address)>=0,"RTMFP manage");
 }
 
-bool RTMFProtocol::load(Exception& ex) {
+SocketAddress RTMFProtocol::load(Exception& ex) {
 
-	if (!UDProtocol::load(ex))
-		return false;
+	SocketAddress address = UDProtocol::load(ex);
+	if (!address)
+		return address;
 
 	if (getNumber<UInt16, 10>("keepalivePeer") < 5) {
 		WARN("Value of RTMFP.keepalivePeer can't be less than 5 sec")
@@ -127,23 +124,18 @@ bool RTMFProtocol::load(Exception& ex) {
 		setNumber("keepaliveServer", 5);
 	}
 
-
-	const char* addresses = getString("addresses");
-
-	if (!addresses)
-		return true;
-
-	String::ForEach forEach([this](UInt32 index, const char* value) {
-		SocketAddress address;
-		Exception ex;
-		if (!address.set(ex, value) && !address.set(ex, value, 1935))
+	if (const char* addresses = getString("addresses")) {
+		String::ForEach forEach([this](UInt32 index, const char* value) {
+			SocketAddress address;
+			Exception ex;
+			if (!address.set(ex, value) && !address.set(ex, value, 1935))
+				return true;
+			this->addresses.emplace(address);
 			return true;
-		this->addresses.emplace(address);
-		return true;
-	});
-	String::Split(addresses, ";", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
-
-	return true;
+		});
+		String::Split(addresses, ";", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
+	}
+	return address;
 }
 
 

@@ -58,7 +58,7 @@ RTMFPSession::RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, shared<Peer>&
 void RTMFPSession::init(const shared<RTMFP::Session>& pSession) {
 	memcpy(BIN peer.id, pSession->peerId, Entity::SIZE);
 	_pSession = pSession;
-	_pSenderSession.set(pSession, protocol().socket());
+	_pSenderSession.set(pSession, protocol<RTMFProtocol>().socket());
 
 	_pSession->onAddress = [this](SocketAddress& address) {
 		// onAddress is defined on _pSession so 

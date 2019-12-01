@@ -28,7 +28,7 @@ struct RTMFProtocol : UDProtocol, virtual Object  {
 	RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions);
 	~RTMFProtocol();
 	
-	bool load(Exception& ex);
+	SocketAddress load(Exception& ex);
 
 	Entity::Map<RTMFP::Group>	groups;
 

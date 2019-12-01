@@ -27,7 +27,7 @@ struct SRTProtocol : Protocol, virtual Object {
 	SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions);
 	virtual ~SRTProtocol() {}
 
-	bool load(Exception& ex);
+	SocketAddress load(Exception& ex);
 
 	struct Params : private DataReader, virtual Object {
 		NULLABLE(!_ok)
@@ -57,7 +57,8 @@ struct SRTProtocol : Protocol, virtual Object {
 		UInt8		_type;
 	};
 
-protected:
+private:
+
 	SRT::Server	_server;
 };
 

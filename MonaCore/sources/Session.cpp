@@ -64,7 +64,7 @@ Session::Session(Protocol& protocol, Session& session) : _pPeer(session._pPeer),
 
 void Session::init(Session& session) {
 	if(!peer.serverAddress) // set serverAddress if not already set
-		peer.setServerAddress(_protocol.address);
+		peer.setServerAddress(_protocol.publicAddress);
 	peer.onParameters = [this, &session](Parameters& parameters) {
 		struct Params : Parameters {
 			Params(Protocol& protocol, Parameters& parameters) : protocol(protocol), Parameters(move(parameters)) {}

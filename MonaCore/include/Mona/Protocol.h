@@ -28,25 +28,30 @@ struct ServerAPI;
 struct Protocol : virtual Object, Parameters {
 	const char*			name;
 
-	const SocketAddress	address; // protocol address
+	const SocketAddress	address; // bind address before load, local address after load
+	const SocketAddress	publicAddress; // public address after load
 
 	ServerAPI&		api;
 	Sessions&		sessions;
 
-	bool load(Exception& ex);
-
-	virtual void  manage() {}
-	virtual const shared<Socket>& socket() { return _pSocket; }
-
+	/*!
+	Any master protocol (not build with gateway) have to overload it and returning its local address */
+	virtual SocketAddress	load(Exception& ex); // =0 excepts for Protocol build from gateway
+	virtual void			manage() {}
+	/*!
+	Params socket */
+	Socket& initSocket(Socket& socket);
 
 protected:
 	Protocol(const char* name, ServerAPI& api, Sessions& sessions);
 	Protocol(const char* name, Protocol& gateway);
-
+	
 private:
+	
+
 	const std::string* onParamUnfound(const std::string& key) const;
 
-	shared<Socket>	_pSocket;
+	Protocol*	_pGateway;
 };
 
 

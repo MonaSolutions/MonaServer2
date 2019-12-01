@@ -24,29 +24,33 @@ using namespace std;
 namespace Mona {
 
 Protocol::Protocol(const char* name, ServerAPI& api, Sessions& sessions) :
-	name(name), api(api), sessions(sessions) {
+	name(name), api(api), sessions(sessions), _pGateway(NULL) {
 }
 
 Protocol::Protocol(const char* name, Protocol& gateway) :
-	name(name), api(gateway.api), sessions(gateway.sessions), _pSocket(gateway.socket()) {
+	name(name), api(gateway.api), sessions(gateway.sessions), _pGateway(&gateway) {
 	// copy parameters from gateway (publicHost, publicPort,  etc...)
-	for (auto& it : gateway)
-		setString(it.first, it.second);
-	// if gateway is disabled, disabled this protocol too
+	for (const auto& it : gateway)
+		setParameter(it.first, it.second);
 }
-
 
 const string* Protocol::onParamUnfound(const string& key) const {
 	return api.getParameter(key);
 }
 
-bool Protocol::load(Exception& ex) {
-	if (_pSocket) {
-		Exception ex;
-		AUTO_ERROR(_pSocket->processParams(ex, self), name, " socket configuration");
-		DEBUG(name, " socket buffers set to ", _pSocket->recvBufferSize(), "B in reception and ", _pSocket->sendBufferSize(),"B in sends");
-	}
-	return true;
+
+SocketAddress Protocol::load(Exception& ex) {
+	if (_pGateway)
+		return _pGateway->address;
+	ERROR(typeof(self)," must overload Protocol::load method");
+	return SocketAddress::Wildcard();
+}
+
+Socket& Protocol::initSocket(Socket& socket) {
+	Exception ex;
+	AUTO_WARN(socket.processParams(ex, self), name, " socket");
+	DEBUG(name, " set ", socket, " socket buffers set to ", socket.recvBufferSize(), "B in reception and ", socket.sendBufferSize(),"B in sends");
+	return socket;
 }
 
 

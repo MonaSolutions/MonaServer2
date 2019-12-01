@@ -126,10 +126,9 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 	};
 }
 
-bool SRTProtocol::load(Exception& ex) {
-	if (!Protocol::load(ex))
-		return false;
-	return _server.start(ex, address);
+SocketAddress SRTProtocol::load(Exception& ex) {
+	initSocket(*_server);
+	return _server.start(ex, address) ? _server->address() : SocketAddress::Wildcard();
 }
 
 } // namespace Mona

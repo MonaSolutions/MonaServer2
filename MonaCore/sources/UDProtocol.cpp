@@ -32,5 +32,10 @@ UDProtocol::UDProtocol(const char* name, ServerAPI& api, Sessions& sessions) : U
 	};
 }
 
+SocketAddress UDProtocol::load(Exception& ex) {
+	initSocket(*self);
+	return bind(ex, address) ? self->address() : SocketAddress::Wildcard();
+}
+
 
 } // namespace Mona

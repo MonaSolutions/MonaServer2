@@ -28,10 +28,9 @@ struct UDProtocol : Protocol, private UDPSocket, virtual Object {
 	UDPSocket::OnPacket& onPacket;
 	UDPSocket::OnError   onError;
 
-	bool load(Exception& ex) { return Protocol::load(ex) ? bind(ex, address) : true; }
+	SocketAddress load(Exception& ex);
 
-	const shared<Socket>&	socket() { return UDPSocket::socket(); }
-
+	const shared<Socket>& socket() { return UDPSocket::socket(); }
 protected:
 	UDProtocol(const char* name, ServerAPI& api, Sessions& sessions);
 };

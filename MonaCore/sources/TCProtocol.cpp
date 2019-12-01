@@ -30,15 +30,13 @@ TCProtocol::TCProtocol(const char* name, ServerAPI& api, Sessions& sessions, con
 			return onError(ex);
 		WARN("Protocol ", this->name, ", ", ex); // onError by default!
 	};
-
 }
 
-bool TCProtocol::load(Exception& ex) {
-	if (!Protocol::load(ex))
-		return false;
+SocketAddress TCProtocol::load(Exception& ex) {
+	initSocket(*_server);
 	if (!hasKey("timeout"))
-		WARN("Protocol ", name, " has no TCP connection timeout");
-	return _server.start(ex, address);
+		ex.set<Ex::Intern>("no TCP connection timeout");
+	return _server.start(ex, address) ? _server->address() : SocketAddress::Wildcard();
 }
 
 

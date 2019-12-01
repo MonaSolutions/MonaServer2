@@ -117,11 +117,11 @@ private:
 		SocketAddress& address((SocketAddress&)pProtocol->address); // address is wildcard here!
 
 		// Build address
-		bool success;
 		buffer.clear();
 		pProtocol->getString("host", buffer);
 		if (!buffer.empty()) {
 			// Build host address
+			bool success;
 			AUTO_ERROR(success = address.host().setWithDNS(ex, buffer), "Impossible to resolve host ", buffer, " of ", name, " server")
 			if (!success) {
 				// 0.0.0.0 is a valid host!
@@ -134,8 +134,8 @@ private:
 
 		// Load protocol and read its address
 		
-		AUTO_ERROR(success = pProtocol->load(ex), name, " server");
-		if (!success) {
+		AUTO_ERROR(address = pProtocol->load(ex), name, " server");
+		if (!address) {
 			delete pProtocol;
 			_params.setBoolean(name, false); // to warn on protocol absence
 			return NULL;
@@ -143,24 +143,29 @@ private:
 		_protocols.emplace_hint(it, name, pProtocol);
 
 		// Fix address after binding
-		if (pProtocol->socket())
-			address = pProtocol->socket()->address();
+		if (!address.host())
+			address.host().set(IPAddress::Loopback());
 		pProtocol->setString("host", address.host());
 		pProtocol->setNumber("port", address.port());
 		pProtocol->setString("address", address);
 
 
 		// Build public address (protocol.address)
+		SocketAddress& publicAddress((SocketAddress&)pProtocol->publicAddress);
+		publicAddress.set(address);
 		buffer.clear();
 		pProtocol->getString("publicHost", buffer);
-		if (!buffer.empty())
-			AUTO_WARN(address.host().setWithDNS(ex, buffer), "Impossible to resolve publicHost ", buffer, " of ", name, " server");
+		if (!buffer.empty()) {
+			AUTO_WARN(publicAddress.host().setWithDNS(ex, buffer), "Impossible to resolve publicHost ", buffer, " of ", name, " server");
+			if (!publicAddress.host())
+				publicAddress.host().set(IPAddress::Loopback());
+		}
 		UInt16 port;
 		if (pProtocol->getNumber("publicPort", port))
-			address.setPort(port);
-		pProtocol->setString("publicHost", address.host());
-		pProtocol->setNumber("publicPort", address.port());
-		pProtocol->setString("publicAddress", address);
+			publicAddress.setPort(port);
+		pProtocol->setString("publicHost", publicAddress.host());
+		pProtocol->setNumber("publicPort", publicAddress.port());
+		pProtocol->setString("publicAddress", publicAddress);
 
 		// Copy protocol params to api params! (to get defaults protocol params + configs params on api)
 		for (auto& it : *pProtocol)

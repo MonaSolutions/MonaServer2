@@ -28,9 +28,7 @@ struct TCProtocol : Protocol , virtual Object {
 	TCPServer::OnConnection& onConnection;
 	TCPServer::OnError		 onError;
 
-	const shared<Socket>&	socket() { return _server.socket(); }
-
-	bool load(Exception& ex);
+	SocketAddress load(Exception& ex);
 
 protected:
 	TCProtocol(const char* name, ServerAPI& api, Sessions& sessions, const shared<TLS>& pTLS = nullptr);
