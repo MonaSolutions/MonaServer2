@@ -50,14 +50,14 @@ struct MediaStream : virtual Object {
 	};
 	static const char* TypeToString(Type type) { static const char* Strings[] = { "logs", "file", "tcp", "srt", "udp", "http" }; return Strings[UInt8(type) + 1]; }
 	/*!
-	New Stream target => [host:port][?path] [type/TLS][/MediaFormat] [parameter]
+	New Stream target => host[:port][?path] [type/TLS][/MediaFormat] [parameter]
 	Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
-	File => file[.format][?path] [MediaFormat] [parameter] */
+	File => file[.format][?query] [MediaFormat] [parameter] */
 	static unique<MediaStream> New(Exception& ex, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr) { return New(ex, Media::Source::Null(), description, timer, ioFile, ioSocket, pTLS); }
 	/*!
-	New Stream source =>  [host:port][?path] [type/TLS][/MediaFormat] [parameter]
+	New Stream source =>  [host:port][/path?query] [type/TLS][/MediaFormat] [parameter]
 	Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
-	File => file[.format][?path] [MediaFormat] [parameter] */
+	File => [/path/]file[.format][?query] [MediaFormat] [parameter] */
 	static unique<MediaStream> New(Exception& ex, Media::Source& source, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr);
 
 
