@@ -398,6 +398,8 @@ private:
 	template<typename Type>
 	static void AddType(lua_State* pState, Type& object) {
 		//DEBUG("ADD ", typeof<Type>(),' ', &object);
+		if (FromObject(pState, object))
+			FATAL_ERROR("A LUA", typeof<Type>() ,' ', &object, " was not released properly");
 		DEBUG_ASSERT(!FromObject(pState, object));
 		DEBUG_ASSERT(_AddTop != 0); // else is a call in a bad location (not encapsulated in AddObject)
 		int top = abs(_AddTop);

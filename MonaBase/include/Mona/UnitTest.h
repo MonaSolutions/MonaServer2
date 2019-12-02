@@ -83,11 +83,11 @@ private:
 /// Macro for assert true function
 
 #if defined(_DEBUG)
-#define CHECK(CONDITION)		DEBUG_ASSERT(CONDITION)
-#define DEBUG_CHECK(CONDITION)	DEBUG_ASSERT(CONDITION)
+#define CHECK(ASSERT)		DEBUG_ASSERT(ASSERT)
+#define DEBUG_CHECK(ASSERT)	DEBUG_ASSERT(ASSERT)
 #else
-#define CHECK(CONDITION)		{ if(!(ASSERT)) {throw std::runtime_error( #ASSERT " assertion, " __FILE__ "[" LINE_STRING "]");} }
-#define DEBUG_CHECK(CONDITION) {}
+#define CHECK(ASSERT)		{ if(!(ASSERT)) throw std::runtime_error( #ASSERT " assertion, " __FILE__ "[" LINE_STRING "]"); }
+#define DEBUG_CHECK(ASSERT) {}
 #endif
 
 /// Macro for adding new tests in a Test cpp

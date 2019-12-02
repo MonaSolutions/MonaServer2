@@ -66,18 +66,30 @@ struct Handler : virtual Object {
 	/*!
 	Queue a shared RunnerType, returns false if failed */
 	template<typename RunnerType, typename = typename std::enable_if<std::is_constructible<shared<Runner>, RunnerType>::value>::type>
-	void queue(RunnerType&& pRunner) const { DEBUG_ASSERT(tryQueue(std::forward<RunnerType>(pRunner))); }
+	void queue(RunnerType&& pRunner) const {
+		if (!tryQueue(std::forward<RunnerType>(pRunner)))
+			FATAL_ERROR("Impossible to queue ", typeof<RunnerType>());
+	}
 	/*!
 	Build and queue a RunnerType, returns false if failed */
 	template <typename RunnerType, typename ...Args>
-	void queue(Args&&... args) const { DEBUG_ASSERT(tryQueue(std::make_shared<RunnerType>(std::forward<Args>(args)...))); }
+	void queue(Args&&... args) const {
+		if(!tryQueue(std::make_shared<RunnerType>(std::forward<Args>(args)...)))
+			FATAL_ERROR("Impossible to queue ", typeof<RunnerType>());
+	}
 	/*!
 	Queue an event with arguments call, returns false if failed */
 	template<typename ResultType, typename ...Args>
-	void queue(const Event<void(ResultType)>& onResult, Args&&... args) const { DEBUG_ASSERT(tryQueue(onResult, std::forward<Args>(args)...)); }
+	void queue(const Event<void(ResultType)>& onResult, Args&&... args) const {
+		if(!tryQueue(onResult, std::forward<Args>(args)...))
+			FATAL_ERROR("Impossible to queue ", typeof(onResult));
+	}
 	/*!
 	Queue an event without argument, returns false if failed */
-	void queue(const Event<void()>& onResult) const { DEBUG_ASSERT(tryQueue(onResult)); }
+	void queue(const Event<void()>& onResult) const {
+		if(!tryQueue(onResult))
+			FATAL_ERROR("Impossible to queue ", typeof(onResult));
+	}
 
 private:
 
