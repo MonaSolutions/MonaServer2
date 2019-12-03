@@ -29,7 +29,7 @@ struct AMFWriter : DataWriter, virtual Object {
 	AMFWriter(Buffer& buffer, bool amf0=false);
 
 	bool repeat(UInt64 reference);
-	void clear();
+	void reset();
 
 	UInt64 beginObject(const char* type=NULL);
 	void   writePropertyName(const char* value);

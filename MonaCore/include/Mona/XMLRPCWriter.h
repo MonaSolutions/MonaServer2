@@ -44,7 +44,7 @@ struct XMLRPCWriter : DataWriter, virtual Object {
 	UInt64 writeDate(const Date& date);
 	UInt64 writeByte(const Packet& bytes) { Util::ToBase64(bytes.data(), bytes.size(), beginValue("base64"),true); endValue("base64"); return 0; }
 
-	void clear();
+	void   reset();
 	
 
 private:

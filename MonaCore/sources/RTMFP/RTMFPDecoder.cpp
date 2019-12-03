@@ -293,7 +293,7 @@ void RTMFPDecoder::decode(shared<Buffer>& pData, const SocketAddress& address, c
 		if (address.host().isLoopback() && address.port() == pSocket->address().port()) {
 			// itself messages! events mechanism!
 			if(!pBuffer->size()) {
-				// clean obsolete handshakes and receivers
+				// clean obsolete handshakes and receivers, sends by RTMFProtocol::manage!
 				Time now; // get time just once for performance
 				/// remove obsolete handshakes
 				auto it = _handshakes.begin();

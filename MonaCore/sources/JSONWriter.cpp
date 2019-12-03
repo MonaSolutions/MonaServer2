@@ -36,10 +36,10 @@ JSONWriter::~JSONWriter() {
 		WARN(_layers, " JSON container not closed");
 }
 
-void JSONWriter::clear() {
+void JSONWriter::reset() {
 	_first=true;
 	_layers=0;
-	DataWriter::clear();
+	DataWriter::reset();
 	writer.write("[]");
 }
 

@@ -33,9 +33,9 @@ XMLRPCWriter::XMLRPCWriter(Buffer& buffer) : DataWriter(buffer) {
 	String::Append(writer, RESPONSE_HEADER, RESPONSE_FOOTER);
 }
 
-void XMLRPCWriter::clear() {
+void XMLRPCWriter::reset() {
 	_layers.clear();
-	DataWriter::clear();
+	DataWriter::reset();
 	String::Append(writer, RESPONSE_HEADER, RESPONSE_FOOTER);
 }
 

@@ -54,7 +54,7 @@ struct DataWriter : virtual Object {
 	virtual UInt64 beginMap(Exception& ex, UInt32 size, bool weakKeys = false) { ex.set<Ex::Format>(typeof(*this)," doesn't support map type, a object will be written rather");  return beginObject(); }
 	virtual void   endMap() { endObject(); }
 
-	virtual void   clear() { writer.clear(); }
+	virtual void   reset() { writer.clear(); }
 	virtual bool   repeat(UInt64 reference) { return false; }
 
 ////////////////////

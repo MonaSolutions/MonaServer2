@@ -24,7 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 struct ByteWriter : DataWriter {
-	ByteWriter(Packet& bytes) : _bytes(bytes) {}
+	ByteWriter(Packet& bytes) : _bytes(bytes), _initBytes(bytes) {}
 	void			writePropertyName(const char* value) { writeString(value, std::strlen(value)); }
 	UInt64			writeDate(const Date& date) { Int64 time = date; writeByte(Packet(&time, sizeof(time))); return 0; }
 	void			writeNumber(double value) { writeByte(Packet(&value, sizeof(value))); }
@@ -32,8 +32,10 @@ struct ByteWriter : DataWriter {
 	void			writeBoolean(bool value) { writeByte(value ? Packet(EXPAND("1")) : Packet(EXPAND("0"))); }
 	void			writeNull() { writeByte(Packet(EXPAND("\0"))); }
 	virtual UInt64	writeByte(const Packet& bytes) { _bytes = std::move(bytes); return 0; }
+	void			reset() { _bytes = _initBytes; }
 private:
 	Packet&  _bytes;
+	Packet	 _initBytes;
 };
 
 } // namespace Mona

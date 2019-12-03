@@ -28,13 +28,13 @@ AMFWriter::AMFWriter(Buffer& buffer, bool amf0) : _amf0References(0),_amf3(false
 
 }
 
-void AMFWriter::clear() {
+void AMFWriter::reset() {
 	_amf3 = false;
 	_levels.clear();
 	_references.clear();
 	_amf0References = 0;
 	_stringReferences.clear();
-	DataWriter::clear();
+	DataWriter::reset();
 }
 
 bool AMFWriter::repeat(UInt64 reference) {

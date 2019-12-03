@@ -24,10 +24,10 @@ using namespace std;
 
 namespace Mona {
 
-void QueryWriter::clear() {
+void QueryWriter::reset() {
 	_isProperty = false;
 	_first = true;
-	DataWriter::clear();
+	DataWriter::reset();
 }
 
 void QueryWriter::writePropertyName(const char* value) {

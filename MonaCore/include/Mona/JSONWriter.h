@@ -42,7 +42,7 @@ struct JSONWriter : DataWriter, virtual Object {
 	UInt64 writeDate(const Date& date);
 	UInt64 writeByte(const Packet& bytes);
 
-	void clear();
+	void reset();
 	
 
 private:

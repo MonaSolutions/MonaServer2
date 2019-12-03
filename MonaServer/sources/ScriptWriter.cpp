@@ -34,7 +34,7 @@ ScriptWriter::~ScriptWriter() {
 		luaL_unref(_pState, LUA_REGISTRYINDEX, reference);
 }
 
-void ScriptWriter::clear() {
+void ScriptWriter::reset() {
 	lua_pop(_pState, lua_gettop(_pState) - _top);
 	_layers.clear();
 	// clear references

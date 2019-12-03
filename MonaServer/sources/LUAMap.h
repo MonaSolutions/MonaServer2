@@ -82,7 +82,7 @@ struct LUAMap : virtual Static {
 		/*!
 		Clear all or a prefix part of the collection, returns number of removed elements in a positive sign if full success, otherwise negative (removed elements+1) */
 		template<typename T = MapType, typename std::enable_if<std::is_const<T>::value, int>::type = 0>
-		int clear(const std::string* pPrefix) { return -1; }
+		int clear(std::string* pPrefix) { return -1; }
 		template<typename T = MapType, typename std::enable_if<!std::is_const<T>::value, int>::type = 0>
 		int clear(std::string* pPrefix) {
 			if (!pPrefix) {
@@ -168,8 +168,25 @@ struct LUAMap : virtual Static {
 					// complex type, add properties!
 					struct Writer : MapWriter<Writer> {
 						NULLABLE(_failed)
-						Writer(M& m, ScriptReader& reader, DataReader& parameters) : _failed(false), _reader(reader), _parameters(parameters), MapWriter<Writer>(self), _m(m) {}
+						Writer(M& m, std::string* pPrefix, ScriptReader& reader, DataReader& parameters) : _pPrefix(pPrefix), _failed(false), _reader(reader), _parameters(parameters), MapWriter<Writer>(self), _m(m) {
+							if (!pPrefix)
+								return;
+							beginObject();
+							writePropertyName(pPrefix->c_str());
+						}
+						~Writer() {
+							if (_pPrefix)
+								endObject();
+						}
 						void emplace(const std::string& key, std::string&& value) {}
+						void clear() {
+							if (_m.clear(_pPrefix) < 0) {
+								_failed = true;
+								SCRIPT_BEGIN(_reader.lua())
+									SCRIPT_ERROR("Impossible to clear ", typeof<ObjType>())
+								SCRIPT_END
+							}
+						}
 					private:
 						bool setKey(const std::string& key) {
 							if (!_m.set(key, _reader.nextType() < DataReader::OTHER ? _reader : ScriptReader::Null(), _parameters)) {
@@ -183,28 +200,17 @@ struct LUAMap : virtual Static {
 							return false; // block useless String build in MapWriter!
 						}
 
-						M&			_m;
-						ScriptReader& _reader;
-						DataReader&   _parameters;
-						bool _failed;
-					} writer(m, reader, parameters);
-					if (!std::is_const<MapType>::value) {
-						if (keying) {
-							writer.beginObject();
-							writer.writePropertyName(key.c_str());
-						}
-						lua_pushvalue(pState, reader.current()); /// myself = complex value!
-						reader.read(writer);
-						if (keying) {
-							keying = false;
-							writer.endObject();
-						}
-						if (!writer) {
-							lua_pop(pState, 1);
-							SCRIPT_WRITE_NIL
-						}
-					} else {
-						keying = false;
+						M&					_m;
+						ScriptReader&		_reader;
+						DataReader&			_parameters;
+						bool				_failed;
+						std::string*		_pPrefix;
+					} writer(m, keying ? &key : NULL, reader, parameters);
+					keying = false;
+					lua_pushvalue(pState, reader.current()); /// myself = complex value!
+					reader.read(writer);
+					if (!writer) {
+						lua_pop(pState, 1);
 						SCRIPT_WRITE_NIL
 					}
 				} else {

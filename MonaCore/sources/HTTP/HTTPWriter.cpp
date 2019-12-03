@@ -63,7 +63,7 @@ struct RawWriter : DataWriter, virtual Object {
 	UInt64 writeDate(const Date& date) { append(String::Date(date, Date::FORMAT_HTTP));  return 0; }
 	UInt64 writeByte(const Packet& bytes) { append(bytes); return 0; }
 
-	void   clear() { _header = false; _first = true; _level = 0; DataWriter::clear(); }
+	void   reset() { _header = false; _first = true; _level = 0; DataWriter::reset(); }
 private:
 	template<typename ValueType>
 	void append(ValueType&& value) {

@@ -53,7 +53,7 @@ struct SplitWriter : DataWriter, virtual Object {
 	UInt64 beginMap(Exception& ex, UInt32 size, bool weakKeys = false)		{ for (DataWriter* pWriter : _writers) pWriter->beginMap(ex, size,weakKeys); return 0; }
 	void   endMap()															{ for (DataWriter* pWriter : _writers) pWriter->endMap(); }
 
-	void   clear()															{ for (DataWriter* pWriter : _writers) pWriter->clear(); }
+	void   reset()															{ for (DataWriter* pWriter : _writers) pWriter->reset(); }
 
 private:
 	void addWriter() {}

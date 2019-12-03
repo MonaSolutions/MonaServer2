@@ -50,7 +50,7 @@ struct ScriptWriter : DataWriter, virtual Object {
 	UInt64	beginMap(Exception& ex, UInt32 size, bool weakKeys = false);
 	void	endMap() { endComplex(); }
 
-	void	clear();
+	void	reset();
 
 	bool	repeat(UInt64 reference);
 

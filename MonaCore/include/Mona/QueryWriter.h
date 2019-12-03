@@ -44,7 +44,7 @@ struct QueryWriter : DataWriter, virtual Object {
 	UInt64 writeDate(const Date& date) { write(String::Date(date, dateFormat)); return 0; }
 	UInt64 writeByte(const Packet& bytes);
 
-	void clear();
+	void reset();
 
 
 private:

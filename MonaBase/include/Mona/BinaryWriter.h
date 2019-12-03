@@ -28,8 +28,8 @@ struct BinaryWriter : Binary, virtual Object {
 	BinaryWriter(Buffer& buffer, Byte::Order byteOrder = Byte::ORDER_NETWORK);
 	virtual ~BinaryWriter();
 
-	BinaryWriter& append(const void* data, UInt32 size) { _pBuffer->append(data, size); return *this; }
-	BinaryWriter& append(UInt32 count, UInt8 value) { _pBuffer->append(count, value); return *this; }
+	BinaryWriter& append(const void* data, UInt32 size) { _pBuffer->append(data, size); return self; }
+	BinaryWriter& append(UInt32 count, UInt8 value) { _pBuffer->append(count, value); return self; }
 	BinaryWriter& write(const void* data, UInt32 size) {return append(data, size); }
 	BinaryWriter& write(const char* value) { return write(value, strlen(value)); }
 	BinaryWriter& write(const std::string& value) { return write(value.data(), (UInt32)value.size()); }

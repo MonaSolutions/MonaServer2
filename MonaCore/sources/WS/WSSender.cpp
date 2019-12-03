@@ -49,7 +49,7 @@ bool WSSender::run(Exception&) {
 				++_packet;
 			} else {
 				WARN("Creation of one useless header buffer");
-				_pWriter->clear();
+				_pWriter->reset();
 			}
 		}
 	}

@@ -26,14 +26,13 @@ namespace Mona {
 
 template<typename MapType>
 struct MapWriter : DataWriter, virtual Object {
-
+	/*!
+	Beware on DataWriter::reset map is fully-erased */
 	MapWriter(MapType& map) : _layers({{0,0}}), _map(map), _isProperty(false) {}
 
 	UInt64 beginObject(const char* type = NULL) { return beginComplex(); }
 	void   writePropertyName(const char* value) { _property = value; _isProperty = true; }
 	void   endObject() { endComplex(); }
-
-	void  clear() { _isProperty = false; _property.clear(); _key.clear(); _layers.assign({ {0,0} }); _map.clear(); }
 
 	UInt64 beginArray(UInt32 size) { return beginComplex(String(size)); }
 	void   endArray() { endComplex();  }
@@ -47,6 +46,14 @@ struct MapWriter : DataWriter, virtual Object {
 	virtual UInt64 writeDate(const Date& date) { set(date); return 0; }
 	virtual UInt64 writeByte(const Packet& packet) { set(packet); return 0; }
 	
+	void   reset() {
+		_isProperty = false;
+		_property.clear();
+		_key.clear();
+		_layers.assign({ { 0,0 } });
+		// Impossible to reset map as was on build, so erase it!
+		_map.clear();
+	}
 private:
 	UInt64 beginComplex(std::string&& count=std::string()) {
 		_layers.emplace_back(_key.size(), 0);
