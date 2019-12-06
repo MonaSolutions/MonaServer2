@@ -171,12 +171,12 @@ struct LUAMap : virtual Static {
 						Writer(M& m, std::string* pPrefix, ScriptReader& reader, DataReader& parameters) : _pPrefix(pPrefix), _failed(false), _reader(reader), _parameters(parameters), MapWriter<Writer>(self), _m(m) {
 							if (!pPrefix)
 								return;
-							beginObject();
-							writePropertyName(pPrefix->c_str());
+							MapWriter<Writer>::beginObject();
+							MapWriter<Writer>::writePropertyName(pPrefix->c_str());
 						}
 						~Writer() {
 							if (_pPrefix)
-								endObject();
+								MapWriter<Writer>::endObject();
 						}
 						void emplace(const std::string& key, std::string&& value) {}
 						void clear() {
