@@ -54,6 +54,10 @@ struct StringWriter : DataWriter, virtual Object {
 			_buffer.append(STR value, size);
 		return self;
 	}
+protected:
+	/*!
+	Allow to inherit from StringWriter and stringify something with a custom target other than Buffer or string for example */
+	StringWriter() : _buffer(Buffer::Null()), _initSize(0), _append(true) {} // append=true to avoid a call to reset if append is not overloaded
 
 private:
 	BufferType& _buffer;
