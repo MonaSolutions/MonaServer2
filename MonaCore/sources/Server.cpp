@@ -53,6 +53,7 @@ Parameters& Server::start(const Parameters& parameters) {
 	AUTO_ERROR(FileSystem::CreateDirectory(ex, _www), "Application directory creation");
 
 	Thread::start(); // start
+	_handler.reset(wakeUp); // here to accept any new action after a call to start
 	return self;
 }
 
@@ -66,7 +67,6 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	try
 #endif
 	{ // Encapsulate sessions!
-		_handler.reset(wakeUp);
 		Exception ex;
 		// SSL client
 		AUTO_ERROR(TLS::Create(ex, pTLSClient), "SSL Client");
