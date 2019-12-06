@@ -28,8 +28,8 @@ struct ServerAPI;
 struct Protocol : virtual Object, Parameters {
 	const char*			name;
 
-	const SocketAddress	address; // bind address before load, local address after load
-	const SocketAddress	publicAddress; // public address after load
+	const SocketAddress	address; // bind protocol address
+	const SocketAddress	publicAddress; // public protocol address
 
 	ServerAPI&		api;
 	Sessions&		sessions;

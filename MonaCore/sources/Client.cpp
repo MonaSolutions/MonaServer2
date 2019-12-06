@@ -27,8 +27,7 @@ Client::Client(const char* protocol, const SocketAddress& address) : // if broad
 	protocol(protocol), _pData(NULL), connection(!address.port() && address.host().isBroadcast() ? Time::Now() : 0),
 	_pNetStats(&Net::Stats::Null()), _pWriter(&Writer::Null()), disconnection(Time::Now()), // disconnection has to be on Now value to be used as a timeout reference without onConnection call
 	_rttvar(0), _rto(Net::RTO_INIT), _ping(0), address(address) {
-	if(address.host().isLoopback())
-		((IPAddress&)serverAddress.host()).set(address.host());
+	((IPAddress&)serverAddress.host()).set(address.host()); // Try to determine serverAddress.host with address
 }
 
 const string* Client::setProperty(const string& key, DataReader& reader) {

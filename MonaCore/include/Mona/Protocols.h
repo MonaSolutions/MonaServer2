@@ -142,9 +142,7 @@ private:
 		}
 		_protocols.emplace_hint(it, name, pProtocol);
 
-		// Fix address after binding
-		if (!address.host())
-			address.host().set(IPAddress::Loopback());
+		// Fix bind addres
 		pProtocol->setString("host", address.host());
 		pProtocol->setNumber("port", address.port());
 		pProtocol->setString("address", address);
@@ -155,11 +153,8 @@ private:
 		publicAddress.set(address);
 		buffer.clear();
 		pProtocol->getString("publicHost", buffer);
-		if (!buffer.empty()) {
+		if (!buffer.empty())
 			AUTO_WARN(publicAddress.host().setWithDNS(ex, buffer), "Impossible to resolve publicHost ", buffer, " of ", name, " server");
-			if (!publicAddress.host())
-				publicAddress.host().set(IPAddress::Loopback());
-		}
 		UInt16 port;
 		if (pProtocol->getNumber("publicPort", port))
 			publicAddress.setPort(port);

@@ -40,8 +40,8 @@ Peer::~Peer() {
 void Peer::setAddress(const SocketAddress& address) {
 	if (this->address == address)
 		return;
-	// Try to determine serverAddress.host with address: if address.host is loopback => serverAddress.host certainly too
-	if (!serverAddress.host() && address.host().isLoopback())
+	// Try to determine serverAddress.host with address
+	if (!serverAddress.host() && address.host())
 		((IPAddress&)serverAddress.host()).set(address.host());
 	// Change peer address
 	SocketAddress oldAddress(this->address);

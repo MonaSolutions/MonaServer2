@@ -105,8 +105,12 @@ void RTMFProtocol::manage() {
 	if (++_manageTimes < 5)
 		return;
 	_manageTimes = 0;
+	// Trick: sends a empty loopback packet to RTMFPDecoder, which on reception manage its ressource
+	SocketAddress address(this->address);
+	if (!address.host())
+		address.host().set(IPAddress::Loopback(address.family()));
 	Exception ex;
-	AUTO_ERROR(socket()->sendTo(ex, NULL, 0, address)>=0,"RTMFP manage");
+	AUTO_ERROR(socket()->sendTo(ex, NULL, 0, address) >= 0, "RTMFP manage");
 }
 
 SocketAddress RTMFProtocol::load(Exception& ex) {
