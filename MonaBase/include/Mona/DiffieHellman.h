@@ -19,7 +19,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/Exceptions.h"
-#include <openssl/dh.h>
+#include OpenSSL(dh.h)
 
 
 namespace Mona {

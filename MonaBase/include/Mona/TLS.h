@@ -20,7 +20,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "Mona/Crypto.h"
 #include "Mona/Socket.h"
-#include <openssl/ssl.h>
+#include OpenSSL(ssl.h)
 
 
 namespace Mona {

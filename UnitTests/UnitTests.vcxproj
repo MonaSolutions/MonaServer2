@@ -121,7 +121,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../External/include64;../MonaBase/include;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;..</AdditionalIncludeDirectories>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -162,7 +162,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>../External/lib;../MonaBase/lib;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>MonaBase.lib; %(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>MonaBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\hooks" (copy /Y "$(ProjectDir)..\hooks\pre-commit" "$(ProjectDir)..\.git\hooks\pre-commit")</Command>
@@ -180,7 +180,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../External/include64;../MonaBase/include;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;..</AdditionalIncludeDirectories>
       <SDLCheck>
       </SDLCheck>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>

@@ -59,20 +59,28 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #endif
 
 
+#if defined(_WIN64)
+#define OpenSSL(FILE) <openssl64/FILE>
+#else
+#define OpenSSL(FILE) <openssl/FILE>
+#endif
+
 //
 // Automatically link Base library.
 //
 #if defined(_MSC_VER)
 // disable the "throw noexception" warning because Mona has its own exception and can use everywhere std throw on FATAL problem (unexpected behavior)
 #pragma warning(disable: 4297)
-	#pragma comment(lib, "crypt32.lib")
+
+#pragma comment(lib, "crypt32.lib")
 #if defined(_DEBUG)
-	#pragma comment(lib, "libcryptod.lib")
-	#pragma comment(lib, "libssld.lib")
+#pragma comment(lib, "libcryptod.lib")
+#pragma comment(lib, "libssld.lib")
 #else
-	#pragma comment(lib, "libcrypto.lib")
-	#pragma comment(lib, "libssl.lib")
+#pragma comment(lib, "libcrypto.lib")
+#pragma comment(lib, "libssl.lib")
 #endif
+
 #endif
 
 

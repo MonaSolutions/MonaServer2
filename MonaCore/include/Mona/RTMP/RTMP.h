@@ -23,7 +23,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Packet.h"
 #include "Mona/Time.h"
 #include "Mona/AMF.h"
-#include <openssl/rc4.h>
+#include OpenSSL(rc4.h)
 
 namespace Mona {
 

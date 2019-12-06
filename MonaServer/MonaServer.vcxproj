@@ -124,7 +124,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>../External/include64;../MonaBase/include;../MonaCore/include;./External/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;..;./External/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -138,9 +138,9 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
       <DisableSpecificWarnings>4267;4244;4800</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>lua51_64.lib;MonaBase64d.lib;MonaCore64d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>MonaBase64d.lib;MonaCore64d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
-      <AdditionalLibraryDirectories>../External/lib;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>./External/lib64;../External/lib64;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
@@ -159,7 +159,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\External\include;..\MonaCore\include;..\MonaBase\include;..;./External/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;..;./External/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -175,7 +175,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
       <PrecompiledHeaderOutputFile />
     </ClCompile>
     <Link>
-      <AdditionalDependencies>lua51.lib;MonaCore.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>MonaBase.lib;MonaCore.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>./External/lib;../External/lib;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
@@ -198,7 +198,7 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\External\include64;..\MonaCore\include;..\MonaBase\include;./External/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;..;./External/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -218,8 +218,8 @@ copy /Y "$(ProjectDir)External\lib\lua51.dll" "$(OutDir)"</Command>
       <DisableSpecificWarnings>4267;4244;4800</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>lua51_64.lib;MonaBase64.lib;MonaCore64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../External/lib;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>MonaBase64.lib;MonaCore64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>./External/lib64;../External/lib64;../MonaBase/lib;../MonaCore/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>

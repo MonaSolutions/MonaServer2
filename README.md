@@ -11,6 +11,22 @@ We recommend you to clone the github version from the sources for production use
 
 In order to use it you need to install the [C++ vc_redist.x86 Visual Studio 2015 package](https://www.microsoft.com/it-it/download/details.aspx?id=48145).
 
+
+# Installation
+
+# Windows
+[openSSL](https://www.openssl.org/) and [luajit](http://luajit.org/) dependencies are full included in the project, simply:
+- download and install [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads).
+- [download](https://codeload.github.com/MonaSolutions/MonaServer2/zip/master) or [clone](https://github.com/MonaSolutions/MonaServer2) MonaServer sources
+- open **Mona.sln** project file, right clic on **MonaServer** then clic on **Build**.
+
+
+## Requirements
+[OpenSSL](https://www.openssl.org/) is requi
+Following are our system prerequisites:
+ - g++ 5 (or compliant clang ...)
+ - OpenSSL lib (with headers) (e.g dev-packages `libssl-dev` / `openssl-devel`)
+
 # Fast compilation
 
 You can compile *MonaTiny* using the following procedures.
@@ -19,7 +35,7 @@ You can compile *MonaTiny* using the following procedures.
 
 On Windows you have to install [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads).
 
-Then clone this repository, open the **Mona.sln** project file, right clic on "MonaTiny" then clic on "Build".
+Then clone this repository, open the **Mona.sln** project file, right clic on **MonaServer** then clic on **Build**.
 
 You can then start MonaTiny (CTRL+F5 or F5 in debug mode) or MonaServer.
 

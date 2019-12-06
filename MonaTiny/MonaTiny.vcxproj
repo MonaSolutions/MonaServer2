@@ -125,7 +125,7 @@
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>../External/include64;../MonaBase/include;../MonaCore/include;sources;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;sources;..</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -198,7 +198,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>../External/include64;../MonaBase/include;../MonaCore/include;sources;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../External/include;../MonaBase/include;../MonaCore/include;sources;..</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>

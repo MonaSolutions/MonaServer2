@@ -19,8 +19,8 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Mona.h"
 #include "BinaryReader.h"
 #include "Mona/Exceptions.h"
-#include <openssl/hmac.h>
-#include <openssl/err.h>
+#include OpenSSL(hmac.h)
+#include OpenSSL(err.h)
 
 namespace Mona {
 
