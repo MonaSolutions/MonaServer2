@@ -30,7 +30,7 @@ template<typename BufferType=Buffer>
 struct StringWriter : DataWriter, virtual Object {
 
 	StringWriter(BufferType& buffer, bool append=true) :
-		DataWriter(std::is_same<BufferType, Buffer>::value ? (Buffer&)buffer : Buffer::Null()), _buffer(buffer), _append(append), _initSize(buffer.size()) {}
+		DataWriter(std::is_same<BufferType, Buffer>::value ? (Buffer&)buffer : Buffer::Null()), _buffer(buffer), _append(append), _initSize(append ? buffer.size() : 0) {}
 
 	void   writePropertyName(const char* name) { append(name, std::strlen(name));  }
 
@@ -48,8 +48,10 @@ struct StringWriter : DataWriter, virtual Object {
 			_buffer.resize(_initSize);
 	}
 	virtual StringWriter& append(const void* value, UInt32 size) {
-		if (!_append)
+		if (!_append) {
+			_append = true; // first time just, to clear default value!
 			reset();
+		}
 		if(!writer.append(value, size))
 			_buffer.append(STR value, size);
 		return self;

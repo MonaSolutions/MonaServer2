@@ -48,7 +48,7 @@ struct Buffer : Binary, virtual Object {
 
 	UInt32			capacity() const { return _capacity; }
 
-	static Buffer&   Null() { static Buffer Null(nullptr, 0); return Null; } // usefull for Writer Serializer for example (and can't be encapsulate in a shared<Buffer>)
+	static Buffer&   Null() { static Buffer Null(0, nullptr); return Null; } // usefull for Writer Serializer for example (and can't be encapsulate in a shared<Buffer>)
 
 
 	struct Allocator : virtual Object {
