@@ -44,6 +44,10 @@ ADD_TEST(Buffer) {
 	CHECK(buffer.size()>0);
 	buffer.clear();
 	CHECK(buffer.size()==0);
+
+	Buffer& nullBuffer(Buffer::Null());
+	nullBuffer.append(EXPAND("zyxwvutsrqp"));
+	CHECK(nullBuffer.size() == 0);
 }
 
 ADD_TEST(BufferPool) {
