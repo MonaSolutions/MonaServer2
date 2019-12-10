@@ -97,7 +97,7 @@ MonaServer is licensed under the **[GNU General Public License]** and mainly **[
 [Download]: https://codeload.github.com/MonaSolutions/MonaServer2/zip/master
 [clone]: https://github.com/MonaSolutions/MonaServer2
 [GNU General Public License]: http://www.gnu.org/licenses/
-[contact_mail]: https://services.nexodyne.com/email/customicon/CUlFO7mGlaQmRdvbwDkob5dSi6L7Gw%3D%3D/FzgjAUw%3D/000000/ffffff/000000/0/image.png
+[contact_mail]: https://chxo.com/labelgen/labelgen.php?textval=contact%40monaserver.ovh&font=ARIAL.TTF&size=12&bgcolor=%23ffffff&textcolor=%23000000&submit=create+image
 
 
 
