@@ -44,10 +44,8 @@ Start MonaServer developments by [reading the documentation](#Documentation)
 ```
 
 ## Start
-Start MonaServer:
-```
-    ./MonaServer/MonaServer
-```
+Start executable file *./MonaServer/MonaServer*
+
 
 # Windows setup
 
@@ -68,10 +66,7 @@ Start MonaServer by selecting *MonaServer* project and pressing *F5*.
 
 # MonaTiny
 MonaTiny is a version of MonaServer without LUA script applications.
-Setup is identical excepting that there is no LuaJIT dependency, and start it simply with:
-```
-    ./MonaTiny/MonaTiny
-```
+Setup is identical excepting that there is no LuaJIT dependency, just start executable file *./MonaTiny/MonaTiny*
 
 # Documentation
 
