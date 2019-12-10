@@ -1,4 +1,4 @@
-[Unix setup](#"Unix-setup") | [Windows setup](#Windows-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
+[Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
 
 # MonaServer
 
