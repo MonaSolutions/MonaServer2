@@ -1,6 +1,5 @@
-[Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
-
 # MonaServer
+[Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
 
 *Temporary project planned to replace [MonaServer](https://github.com/MonaSolutions/MonaServer).*
 
@@ -25,9 +24,9 @@ MonaServer supports advanced features for the following media containers:
 
 Start MonaServer developments by [reading the documentation](#Documentation)
 
-# Unix setup
+## Unix setup
 
-## Requirements
+### Requirements
 - [g++](https://gcc.gnu.org/) version >=5 (or compliant clang...)
 - [OpenSSL](https://www.openssl.org/) libraries with headers, usually dev-package named `libssl-dev` or `openssl-devel`
 - [LuaJIT](http://luajit.org/) library with headers, dev-package named libluajit-5.1-dev or prefer luajit 2.1 beta by building from sources:
@@ -38,7 +37,7 @@ Start MonaServer developments by [reading the documentation](#Documentation)
 ```
 ***Note:*** Mac-OSX target can require a MACOSX_DEPLOYMENT_TARGET definition with *make MACOSX_DEPLOYMENT_TARGET=10.6 && make install*, see this [LuaJIT issue](https://github.com/LuaJIT/LuaJIT/issues/484) for more details.
 
-## Build
+### Build
 [Download] or [clone] MonaServer sources and compile everything simply with make:
 ```
     git clone https://github.com/MonaSolutions/MonaServer2.git
@@ -46,33 +45,32 @@ Start MonaServer developments by [reading the documentation](#Documentation)
     make
 ```
 
-## Start
+### Start
 Start executable file *./MonaServer/MonaServer*
 
 
-# Windows setup
+## Windows setup
 
-## Binaries
+### Binaries
 A [Windows 32-bit](https://sourceforge.net/projects/monaserver/files/MonaServer/MonaServer_Win32.zip/download) and a [ Windows 64-bit](https://sourceforge.net/projects/monaserver/files/MonaServer/MonaServer_Win64.zip/download) zipped packages are provided to test MonaServer. However we recommend to build the github version from the sources for production use.
 
-## Requirements
+### Requirements
 - [C++ vc_redist.x86 Visual Studio 2015 package](https://www.microsoft.com/it-it/download/details.aspx?id=48145)
 - [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads).
 
 ***Note:*** [OpenSSL](https://www.openssl.org/) and [LuaJIT](http://luajit.org/) dependencies are already included in the project.
 
-## Build
+### Build
 [Download] or [clone] MonaServer sources, open *Mona.sln* project file with Visual Studio, right clic on *MonaServer* project and clic on *Build*.
 
-## Start
+### Start
 Start MonaServer by selecting *MonaServer* project and pressing *F5*.
 
-# MonaTiny
+## MonaTiny
 MonaTiny is a version of MonaServer without LUA script applications.
 Setup is identical excepting that there is no LuaJIT dependency, just start executable file *./MonaTiny/MonaTiny*
 
-# Documentation
-
+## Documentation
 - Overview (in progress...)
 - [Configuration](https://github.com/MonaSolutions/MonaServer2/blob/master/MonaServer/MonaServer.ini)
 - Script application (in progress...)
@@ -83,8 +81,7 @@ Setup is identical excepting that there is no LuaJIT dependency, just start exec
 - RTMP(E) and RTMFP protocols (in progress...)
 
 
-# About
-
+## About
 Asks your __questions or feedbacks__ relating MonaServer usage on the [MonaServer forum](https://groups.google.com/forum/#!forum/monaserver).
 
 For all __issues problem__ with MonaServer please create an issue on the [github issues page](https://github.com/MonaSolutions/MonaServer2/issues).
