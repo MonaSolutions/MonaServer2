@@ -1,5 +1,6 @@
-# MonaServer
 [Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
+
+# MonaServer
 
 *Temporary project planned to replace [MonaServer](https://github.com/MonaSolutions/MonaServer).*
 
