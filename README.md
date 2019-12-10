@@ -1,4 +1,7 @@
+[Unix setup](#"Unix-setup") | [Windows setup](#Windows-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
+
 # MonaServer
+
 *Temporary project planned to replace [MonaServer](https://github.com/MonaSolutions/MonaServer).*
 
 MonaServer is a lightweight web and media server customizable by [LUA](https://www.lua.org/) script applications.
@@ -80,7 +83,7 @@ Setup is identical excepting that there is no LuaJIT dependency, just start exec
 - RTMP(E) and RTMFP protocols (in progress...)
 
 
-# Contact
+# About
 
 Asks your __questions or feedbacks__ relating MonaServer usage on the [MonaServer forum](https://groups.google.com/forum/#!forum/monaserver).
 
