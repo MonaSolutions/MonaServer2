@@ -20,7 +20,7 @@ MonaServer supports advanced features for the following media containers:
 - TS
 - HLS
 - ADTS, AAC, MP3
-- SRT, VTT
+- SubRip, VTT
 - Mona
 
 Start MonaServer developments by [reading the documentation](#Documentation)
@@ -38,12 +38,18 @@ Start MonaServer developments by [reading the documentation](#Documentation)
 ```
 ***Note:*** Mac-OSX target can require a MACOSX_DEPLOYMENT_TARGET definition with *make MACOSX_DEPLOYMENT_TARGET=10.6 && make install*, see this [LuaJIT issue](https://github.com/LuaJIT/LuaJIT/issues/484) for more details.
 
+- To enable [SRT Protocol] install [SRT]
+
 ### Build
 [Download] or [clone] MonaServer sources and compile everything simply with make:
 ```
     git clone https://github.com/MonaSolutions/MonaServer2.git
     cd MonaServer2
     make
+```
+To enable [SRT Protocol] define *ENABLE_SRT* variable
+```
+    make ENABLE_SRT=1
 ```
 
 ### Start
@@ -57,7 +63,15 @@ A [Windows 32-bit](https://sourceforge.net/projects/monaserver/files/MonaServer/
 
 ### Requirements
 - [C++ vc_redist.x86 Visual Studio 2015 package](https://www.microsoft.com/it-it/download/details.aspx?id=48145)
-- [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads).
+- [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads)
+- To enable [SRT Protocol] download and build [SRT], put the header files in *External/include* and the libraries in *External/lib* and *External/lib64* (with a *d* sufix for the debug librairies):
+```
+MonaServer/External/lib>dir /B
+    pthread_lib.lib
+    pthread_libd.lib
+    srt_static.lib
+    srt_staticd.lib
+```
 
 ***Note:*** [OpenSSL](https://www.openssl.org/) and [LuaJIT](http://luajit.org/) dependencies are already included in the project.
 
@@ -89,7 +103,8 @@ For all __issues problem__ with MonaServer please create an issue on the [github
 
 MonaServer is licensed under the **[GNU General Public License]** and mainly **[powered by Haivision](https://www.haivision.com/)**, for any commercial questions or licence please contact us at ![contact_mail].
 
-
+[SRT]: https://github.com/Haivision/srt
+[SRT protocol]: https://www.srtalliance.org/
 [Download]: https://codeload.github.com/MonaSolutions/MonaServer2/zip/master
 [clone]: https://github.com/MonaSolutions/MonaServer2
 [GNU General Public License]: http://www.gnu.org/licenses/

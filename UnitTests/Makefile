@@ -16,6 +16,10 @@ override INCLUDES+=-I../MonaBase/include/ -I../ -I/usr/local/opt/openssl/include
 override LIBDIRS+=-L../MonaBase/lib/
 override LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/"
 override LIBS+=-pthread -lMonaBase -lcrypto -lssl
+ifdef ENABLE_SRT
+	override CFLAGS += -DENABLE_SRT
+	override LIBS += -lsrt
+endif
 ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
     override LIBDIRS+=-L/usr/local/opt/openssl/lib/
 endif
@@ -51,6 +55,9 @@ debug:
 	mkdir -p tmp/debug/
 	@$(MAKE) -k $(OBJECTD)
 	@echo creating debug executable $(EXEC)
+ifdef SRT_API
+	$$(info undefined)
+endif
 	@$(CXX) -g -D_DEBUG $(CFLAGS) -Og $(LDFLAGS) $(LIBDIRS) -o $(EXEC) $(OBJECTD) $(LIBS)
 
 $(OBJECT): tmp/release/%.o: sources/%.cpp

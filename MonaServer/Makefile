@@ -16,6 +16,10 @@ override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I../ -I/usr/lo
 override LIBDIRS+=-L../MonaBase/lib/ -L../MonaCore/lib/
 override LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,../MonaCore/lib/,-rpath,/usr/local/lib/"
 override LIBS+=-pthread -lMonaBase -lMonaCore -lcrypto -lssl -lluajit-5.1
+ifdef ENABLE_SRT
+	override CFLAGS += -DENABLE_SRT
+	override LIBS += -lsrt
+endif
 ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
     override LIBDIRS+=-L/usr/local/opt/openssl/lib/
 endif
