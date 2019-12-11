@@ -92,7 +92,7 @@ Setup is identical excepting that there is no LuaJIT dependency, just start exec
 - Media streaming (in progress...)
 - HTTP protocol (in progress...)
 - WebSocket protocol (in progress...)
-- [SRT protocol](https://docs.google.com/presentation/d/1p6SpXUyXApOfVtG5s3K07Wygtgjh91wspkOc7XbfUNw/edit?usp=sharing)
+- [SRT protocol](https://docs.google.com/document/d/1Uu9hf9SgSwjUAf1zt0IUvs2HuhTBqfNWkATg2n0o-Cw/edit?usp=sharing)
 - RTMP(E) and RTMFP protocols (in progress...)
 
 
