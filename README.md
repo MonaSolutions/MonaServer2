@@ -89,7 +89,7 @@ Setup is identical excepting that there is no LuaJIT dependency, just start exec
 - Overview (in progress...)
 - [Configuration](https://github.com/MonaSolutions/MonaServer2/blob/master/MonaServer/MonaServer.ini)
 - Script application (in progress...)
-- Media streaming (in progress...)
+- [Media streaming](https://docs.google.com/document/d/1cFhsGHtlALM3AajktEhVzXzfn5rfa5_e7djUYWawsrM/edit?usp=sharing)
 - HTTP protocol (in progress...)
 - WebSocket protocol (in progress...)
 - [SRT protocol](https://docs.google.com/document/d/1Uu9hf9SgSwjUAf1zt0IUvs2HuhTBqfNWkATg2n0o-Cw/edit?usp=sharing)
