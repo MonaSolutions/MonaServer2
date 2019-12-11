@@ -65,13 +65,23 @@ A [Windows 32-bit](https://sourceforge.net/projects/monaserver/files/MonaServer/
 - [C++ vc_redist.x86 Visual Studio 2015 package](https://www.microsoft.com/it-it/download/details.aspx?id=48145)
 - [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads)
 - To enable [SRT Protocol] download and build [SRT], put the header files in *External/include* and the libraries in *External/lib* and *External/lib64* (with a *d* sufix for the debug librairies):
-```
-MonaServer/External/lib>dir /B
+
+<table><tr><td><pre>
+MonaServer/External/lib>dir
+    srt/srt.h
+    srt/logging_api.h
+    srt/platform_sys.h
+    srt/srt4udt.h
+    srt/version.h
+    win/syslog_defs.h
+</pre></td><td><pre>
+MonaServer/External/lib>dir
     pthread_lib.lib
     pthread_libd.lib
     srt_static.lib
     srt_staticd.lib
-```
+<br \>
+</pre></td></tr></table>
 
 ***Note:*** [OpenSSL](https://www.openssl.org/) and [LuaJIT](http://luajit.org/) dependencies are already included in the project.
 
