@@ -134,19 +134,20 @@ int IPairs(lua_State* pState) {
 int Metatable(lua_State* pState) {
 	// 1 table
 	// [2 table response]
-	if (!lua_getmetatable(pState, 1))
-		return 0;
 
 	// create the second option argument (output table) if no exists!
 	if (!lua_istable(pState, 2)) {
 		lua_newtable(pState);
-		lua_replace(pState, 2); // set in second argument!
+		if(lua_gettop(pState) > 2)
+			lua_replace(pState, 2); // set in second argument!
 	}
-
-	// get all __index table (__index of __index etc...)
-	for(;;) {
+	// get metatable of object + all its __index table (__index of __index etc...)
+	int index = 1;
+	while(lua_getmetatable(pState, index)) {
 		lua_pushliteral(pState, "__index");
 		lua_rawget(pState, -2);
+		if(index<0)
+			lua_replace(pState, -2); // remove metatable!
 		if (!lua_istable(pState, -1)) {
 			if (lua_isfunction(pState, -1)) {
 				// if __index is a function, a call without parameter can return a methods array to document available methods
@@ -157,9 +158,7 @@ int Metatable(lua_State* pState) {
 				lua_pop(pState, 1); // remove __index table
 			break;
 		}
-		if (!lua_getmetatable(pState, -1))
-			break;
-		lua_replace(pState, -2);
+		index = -1;
 	}
 
 	// flat content of all table from index 3 to last in the stack
@@ -168,7 +167,8 @@ int Metatable(lua_State* pState) {
 		while (lua_next(pState, -2)) {
 			// uses 'key' (at index -2) and 'value' (at index -1) 
 			// remove the raw!
-			if (strcmp(lua_tostring(pState, -2), "__index") == 0) {
+			if (lua_type(pState, -2) != LUA_TSTRING || strcmp(lua_tostring(pState, -2), "__index") == 0) {
+				// remove not metamethod (key is not a string) and __index table!
 				lua_pop(pState, 1);
 				continue;
 			}
