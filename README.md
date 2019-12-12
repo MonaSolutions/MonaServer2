@@ -88,14 +88,16 @@ MonaTiny is a version of MonaServer without LUA script applications.
 Setup is identical excepting that there is no LuaJIT dependency, just start executable file *./MonaTiny/MonaTiny*
 
 ## Documentation
-- Overview (in progress...)
+- [General (in progress...)](https://docs.google.com/document/d/1SS_mdvzDxkKZ7M1264BFGPMYXPjaV3yGUqqCzJEDs4g/edit?usp=sharing)
 - [Configuration](https://github.com/MonaSolutions/MonaServer2/blob/master/MonaServer/MonaServer.ini)
-- Script application (in progress...)
-- [Media streaming](https://docs.google.com/document/d/1cFhsGHtlALM3AajktEhVzXzfn5rfa5_e7djUYWawsrM/edit?usp=sharing)
-- HTTP protocol (in progress...)
-- WebSocket protocol (in progress...)
-- [SRT protocol](https://docs.google.com/document/d/1Uu9hf9SgSwjUAf1zt0IUvs2HuhTBqfNWkATg2n0o-Cw/edit?usp=sharing)
-- RTMP(E) and RTMFP protocols (in progress...)
+- [Script application (in progress...)](https://docs.google.com/document/d/1CwgbPv8iIgIC8Z_hYEVa8eSzRUSz1O8EpH6ZzYq7YxA/edit?usp=sharing)
+- [Media streaming(in progress...)](https://docs.google.com/document/d/1cFhsGHtlALM3AajktEhVzXzfn5rfa5_e7djUYWawsrM/edit?usp=sharing)
+- [Script API (in progress...)](https://docs.google.com/document/d/1MJRvLOUW6i9aQEun7-67IQUm3j_veg2-r127i37n7GM/edit?usp=sharing)
+- By protocols
+    - HTTP protocol (in progress...)
+    - WebSocket protocol (in progress...)
+    - [SRT protocol](https://docs.google.com/presentation/d/1WB_K4omIQ6LFW-dIoK77MNy8LcQL28sTknD6DFfUXvI/edit?usp=sharing)
+    - RTMP(E) and RTMFP protocols (in progress...)
 
 
 ## About
