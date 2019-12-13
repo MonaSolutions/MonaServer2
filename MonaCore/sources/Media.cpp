@@ -179,8 +179,7 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 
 			value = reader.read8();
 			audio.rate = Rates[value>>3];
-			if (value & 2)
-				audio.isConfig = true;
+			audio.isConfig = value & 2 ? true : false;
 
 			track = ((value & 1) && reader.available()) ? reader.read8() : 1;
 			audio.time = reader.read32();
@@ -198,8 +197,7 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 			video.codec = Video::Codec(value & 0x3F);
 			value = reader.read8();
 			video.frame = Video::Frame(value >> 3);
-			if (value & 2)
-				video.compositionOffset = reader.read16();
+			video.compositionOffset = value & 2 ? reader.read16() : 0;
 			track = ((value & 1) && reader.available()) ? reader.read8() : 1;
 			video.time = reader.read32();
 			return Media::TYPE_VIDEO;
