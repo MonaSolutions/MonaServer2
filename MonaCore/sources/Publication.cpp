@@ -100,11 +100,30 @@ MediaFile::Writer* Publication::recorder() {
 }
 
 void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
-	if (!_publishing) {
+	if (_publishing) {
+		// reset!
+		_audios.clear();
+		_videos.clear();
+		_datas.clear();
+		_latency = 0;
+		_new = _newLost = false;
+
+		// Erase track metadata just!
+		clearTracks();
+
+		auto it = subscriptions.begin();
+		while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
+			Subscription* pSubscription(*it++);
+			if (pSubscription->pPublication != this && pSubscription->pPublication)
+				continue; // subscriber not yet subscribed
+			pSubscription->pPublication = this;
+			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
+		}
+	} else {
 		_publishing = true;
 		INFO("Publication ", _name, " started");
-		_timeProperties = Media::Properties::timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	}
+	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	if(pRecorder)
 		startRecording(move(pRecorder), append);
 	// no flush here, wait first flush or first media to allow to subscribe to onProperties event for a publisher!
@@ -114,50 +133,7 @@ void Publication::reset() {
 	if (!_publishing)
 		return;
 	INFO("Publication ", _name, " reseted");
-
-	_audios.clear();
-	_videos.clear();
-	_datas.clear();
-
-	// Erase track metadata just!
-	clearTracks();
-	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
-
-	auto it = subscriptions.begin();
-	while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
-		Subscription* pSubscription(*it++);
-		if (pSubscription->pPublication != this && pSubscription->pPublication)
-			continue; // subscriber not yet subscribed
-		pSubscription->pPublication = this;
-		pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
-	}
-}
-
-void Publication::stop() {
-	if(!_publishing)
-		return; // already done
-
-	stopRecording();
-
-	_publishing =false;
-
-	// release resources!
-	_audios.clear();
-	_videos.clear();
-	_datas.clear();
-	Media::Properties::clear();
-
-	_latency = 0;
-	_new = false;
-
-	INFO("Publication ", _name, " stopped")
-
-	auto it = subscriptions.begin();
-	while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
-		Subscription* pSubscription(*it++);
-		if (pSubscription->pPublication == this || !pSubscription->pPublication)
-			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
-	}
+	start();
 }
 
 void Publication::flush(UInt16 ping) {

@@ -76,6 +76,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	}
 
 	if (onPublish(ex, publication, pClient)) {
+		INFO("Publication ", publication.name(), " started");
 		if(ext) {
 			// RECORD!
 			Path path(MAKE_FILE(www), pClient ? pClient->path : "", "/", stream,'.', ext);
@@ -111,16 +112,19 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 
 
 void ServerAPI::unpublish(Publication& publication, Client* pClient) {
-	publication.stop();
 	const auto& it = _publications.find(publication.name());
-	if(it == _publications.end()) {
-		WARN("Publication ", publication.name()," unfound");
+	if (it == _publications.end()) {
+		ERROR("Publication ", publication.name(), " unfound");
 		return;
 	}
-	if (pClient && !pClient->connection)
-		ERROR("Unpublication client before connection")
-	else
-		onUnpublish(publication, pClient);
+	if (publication.publishing()) {
+		publication.start(); // = reset without logs: keep publication.running() until its deletion which must happen AFTER onUnpublish (otherwise a unsubscribe could erase too the publication)
+		if (pClient && !pClient->connection)
+			ERROR("Unpublication client before connection")
+		else
+			onUnpublish(publication, pClient);
+		INFO("Publication ", publication.name(), " stopped");
+	}
 	if(publication.subscriptions.empty())
 		_publications.erase(it);
 }
