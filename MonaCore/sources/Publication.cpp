@@ -119,10 +119,8 @@ void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 			pSubscription->pPublication = this;
 			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 		}
-	} else {
+	} else
 		_publishing = true;
-		INFO("Publication ", _name, " started");
-	}
 	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	if(pRecorder)
 		startRecording(move(pRecorder), append);
