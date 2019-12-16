@@ -41,7 +41,8 @@ struct MediaStream : virtual Object {
 		TYPE_TCP = 1, // to match MediaServer::Type
 		TYPE_SRT = 2, // to match MediaServer::Type
 		TYPE_UDP = 3,
-		TYPE_HTTP = 4
+		TYPE_HTTP = 4,
+		TYPE_OTHER = 5
 	};
 	enum State {
 		STATE_STOPPED = 0,
