@@ -26,7 +26,7 @@ namespace Mona {
 
 Publication::Publication(const string& name): _latency(0),
 	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate),
-	_publishing(false),_new(false), _newLost(false), _name(name) {
+	_publishing(0),_new(false), _newLost(false), _name(name) {
 	DEBUG("New publication ",name);
 }
 
@@ -100,8 +100,12 @@ MediaFile::Writer* Publication::recorder() {
 }
 
 void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
-	if (_publishing) {
+	if (!_publishing) {
+		INFO("Publication ", _name, " started");
+		_publishing = 1;
+	} else if(_publishing>0) {
 		// reset!
+		_publishing = -1;
 		_audios.clear();
 		_videos.clear();
 		_datas.clear();
@@ -119,8 +123,7 @@ void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 			pSubscription->pPublication = this;
 			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 		}
-	} else
-		_publishing = true;
+	}
 	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	if(pRecorder)
 		startRecording(move(pRecorder), append);
@@ -128,10 +131,20 @@ void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 }
 
 void Publication::reset() {
-	if (!_publishing)
-		return;
+	if (_publishing<=0)
+		return; // already reseted!
 	INFO("Publication ", _name, " reseted");
 	start();
+}
+
+void Publication::stop() {
+	if (!_publishing)
+		return;
+	stopRecording();
+	Media::Properties::clear();
+	INFO("Publication ", _name, " stopped");
+	if (_publishing > 0)
+		start(); // reset!
 }
 
 void Publication::flush(UInt16 ping) {
@@ -145,6 +158,7 @@ void Publication::flush() {
 		ERROR("Publication flush called on publication ", _name, " stopped");
 		return;
 	}
+	_publishing = 1;
 	flushProperties(); // to send metadata if need!
 	if (!_new)
 		return;
@@ -205,6 +219,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		ERROR("Video packet on stopped ", _name, " publication");
 		return;
 	}
+	_publishing = 1;
 	_videos.lastTime = tag.time;
 
 	// create track
@@ -268,6 +283,7 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 		ERROR("Data packet on ", _name, " publication stopped");
 		return;
 	}
+	_publishing = 1;
 
 	if (type != Media::Data::TYPE_TEXT) { // else has no handler!
 		unique<DataReader> pReader(Media::Data::NewReader(type, packet));

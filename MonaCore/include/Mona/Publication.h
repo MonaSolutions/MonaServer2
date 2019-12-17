@@ -82,7 +82,8 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 	void							start(unique<MediaFile::Writer>&& pRecorder = nullptr, bool append = false);
 	void							reset();
-	bool							publishing() const { return _publishing; }
+	void							stop();
+	bool							publishing() const { return _publishing ? true : false; }
 
 	MediaFile::Writer*				recorder();
 	bool							recording() const { return _pRecording && _pRecording->target<MediaFile::Writer>().state()>0; }
@@ -129,7 +130,7 @@ private:
 
 	UInt16							_latency;
 
-	bool							_publishing;
+	Int8							_publishing;
 	std::string						_name;
 
 	bool							_new;

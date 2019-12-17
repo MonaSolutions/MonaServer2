@@ -76,7 +76,6 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	}
 
 	if (onPublish(ex, publication, pClient)) {
-		INFO("Publication ", publication.name(), " started");
 		if(ext) {
 			// RECORD!
 			Path path(MAKE_FILE(www), pClient ? pClient->path : "", "/", stream,'.', ext);
@@ -123,7 +122,7 @@ void ServerAPI::unpublish(Publication& publication, Client* pClient) {
 			ERROR("Unpublication client before connection")
 		else
 			onUnpublish(publication, pClient);
-		INFO("Publication ", publication.name(), " stopped");
+		publication.stop();
 	}
 	if(publication.subscriptions.empty())
 		_publications.erase(it);
