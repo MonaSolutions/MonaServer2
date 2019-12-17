@@ -146,6 +146,10 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 			_pSubscription = NULL;
 			return;
 		}
+		// support a format data!
+		const char* format = _pSubscription->getString("format");
+		if (format)
+			_pSubscription->setFormat(format);
 
 		onStart(id, writer); // stream begin
 		writer.writeAMFStatus("NetStream.Play.Reset", "Playing and resetting " + _name); // for entiere playlist

@@ -125,10 +125,12 @@ void WSSession::kill(Int32 error, const char* reason) {
 void WSSession::subscribe(Exception& ex, string& stream, WSWriter& writer) {
 	if(!_pSubscription)
 		_pSubscription = new Subscription(writer);
-	if (api.subscribe(ex, peer, stream, *_pSubscription))
-		return;
-	delete _pSubscription;
-	_pSubscription = NULL;
+	if (!api.subscribe(ex, peer, stream, *_pSubscription)) {
+		delete _pSubscription;
+		_pSubscription = NULL;
+	}
+	// support a format data!
+	_pSubscription->setFormat(_pSubscription->getString("format"));
 }
 void WSSession::unsubscribe(){
 	if (!_pSubscription)

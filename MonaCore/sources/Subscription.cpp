@@ -86,8 +86,6 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 		_videos.reliable = pValue && String::IsFalse(*pValue) ? false : true;
 	else if (String::ICompare(key, "dataReliable") == 0)
 		_datas.reliable = pValue && String::IsFalse(*pValue) ? false : true;
-	else if (String::ICompare(key, "format") == 0)
-		setFormat(pValue ? pValue->data() : NULL);
 	else if (String::ICompare(key, "mbr") == 0) {
 		if (pValue)
 			String::Split(*pValue, "|", _streams);
@@ -134,7 +132,6 @@ void Subscription::onParamClear() {
 	setMediaSelection(pPublication ? &pPublication->audios : NULL, NULL, _audios);
 	setMediaSelection(pPublication ? &pPublication->videos : NULL, NULL, _videos);
 	_datas.pSelection.reset();
-	setFormat(NULL);
 	// not change time on remove to keep time progressive
 	Media::Properties::onParamClear();
 }
@@ -189,7 +186,8 @@ bool Subscription::start() {
 
 	if (_pMediaWriter && !_onMediaWrite) {
 		_onMediaWrite = [this](const Packet& packet) {
-			writeToTarget(_datas, 0, Media::Data::TYPE_MEDIA, packet);
+			if(!writeToTarget(_datas, 0, Media::Data::TYPE_MEDIA, packet))
+				_ejected = EJECTED_ERROR;
 		};
 		_pMediaWriter->beginMedia(_onMediaWrite);
 	}

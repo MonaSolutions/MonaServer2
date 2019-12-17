@@ -93,6 +93,8 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	bool							subscribed(const Publication& publication) const { return pPublication == &publication || _pNextPublication == &publication; }
 	const std::string&				name() const;
 
+	void							setFormat(const char* format);
+
 	const Time& streaming() const { return _streaming; }
 
 	/*!
@@ -118,8 +120,6 @@ private:
 	void setTime(const char* time = NULL);
 	
 	void clear(); // block father Parameters:clear call, and usefull in private!
-
-	void setFormat(const char* format);
 
 	// Media::Properties overrides
 	void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::addProperties(track, type, packet); }
