@@ -140,11 +140,12 @@ void Publication::reset() {
 void Publication::stop() {
 	if (!_publishing)
 		return;
-	stopRecording();
 	Media::Properties::clear();
-	INFO("Publication ", _name, " stopped");
 	if (_publishing > 0)
 		start(); // reset!
+	stopRecording(); // after the reset to call the endWriter!
+	_publishing = 0;
+	INFO("Publication ", _name, " stopped");
 }
 
 void Publication::flush(UInt16 ping) {
