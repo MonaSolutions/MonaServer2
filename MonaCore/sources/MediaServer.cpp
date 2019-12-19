@@ -46,6 +46,7 @@ MediaServer::Reader::Reader(MediaServer::Type type, const Path& path, Media::Sou
 
 bool MediaServer::Reader::starting(const Parameters& parameters) {
 	// can subscribe after bind + listen for server, no risk to miss an event
+	_pReader->setParams(parameters);
 	if (initSocket(_pSocket, parameters, _pTLS)) {
 		bool success;
 		Exception ex;

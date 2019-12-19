@@ -119,6 +119,7 @@ bool MediaFile::Reader::starting(const Parameters& parameters) {
 		stop<Ex::Intern>(LOG_ERROR, "Unknown format type to read");
 		return false;
 	}
+	_pReader->setParams(parameters);
 	_realTime =	0; // reset realTime
 	Decoder* pDecoder = new Decoder(io.handler, _pReader, path, source.name(), _pMedias);
 	pDecoder->onFlush = _onFlush = [this]() { timer.set(_onTimer, _onTimer()); };

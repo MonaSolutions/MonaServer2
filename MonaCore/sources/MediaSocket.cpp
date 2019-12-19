@@ -147,6 +147,7 @@ void MediaSocket::Reader::writeMedia(const HTTP::Message& message) {
 }
 
 bool MediaSocket::Reader::starting(const Parameters& parameters) {
+	_pReader->setParams(parameters);
 	if (!_pSocket && !initSocket(parameters)) {
 		stop();
 		return false;
