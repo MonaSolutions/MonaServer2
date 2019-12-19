@@ -14,7 +14,10 @@ override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D
 override INCLUDES+=-I./include/ -I/usr/local/opt/openssl/include/
 override LIBS+=-lcrypto -lssl
 ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
-    override LIBDIRS+=-L/usr/local/opt/openssl/lib/
+	override LIBDIRS+=-L/usr/local/opt/openssl/lib/
+endif
+ifdef ENABLE_SRT
+	override CFLAGS += -DENABLE_SRT
 endif
 
 # Variables fixed

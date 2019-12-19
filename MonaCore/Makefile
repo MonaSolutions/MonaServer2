@@ -15,7 +15,10 @@ override INCLUDES+=-I./../MonaBase/include/ -I./include/ -I/usr/local/opt/openss
 override LIBDIRS+=-L./../MonaBase/lib/
 override LIBS+=-lMonaBase -lcrypto -lssl
 ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
-    override LIBDIRS+=-L/usr/local/opt/openssl/lib/
+	override LIBDIRS+=-L/usr/local/opt/openssl/lib/
+endif
+ifdef ENABLE_SRT
+	override CFLAGS += -DENABLE_SRT
 endif
 
 # Variables fixed
