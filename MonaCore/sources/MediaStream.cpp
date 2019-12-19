@@ -26,6 +26,8 @@ using namespace std;
 
 namespace Mona {
 
+map<string, MediaStream::OnNewStream, String::IComparator> MediaStream::_OtherStreams;
+
 MediaStream::MediaStream(Type type, const Path& path, Media::Source& source) : _firstStart(true),
 	_state(STATE_STOPPED), targets(_targets), _runCount(0),
 	type(type), path(path), source(source) {
@@ -160,10 +162,19 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 		size = line - first;
 
 	Type type(TYPE_FILE);
+	const char* other=NULL;
 	bool isSecure(false);
 	bool isFile(false);
 	string format;
+	map<string, OnNewStream, String::IComparator>::const_iterator itOtherStream;
 	String::ForEach forEach([&](UInt32 index, const char* value) {
+		itOtherStream = _OtherStreams.find(value);
+		if (itOtherStream != _OtherStreams.end()) {
+			other = itOtherStream->first.c_str();
+			isFile = false;
+			type = TYPE_OTHER;
+			return true;
+		}
 		if (String::ICompare(value, "UDP") == 0) {
 			isFile = false;
 			type = TYPE_UDP;
@@ -242,9 +253,9 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 				return nullptr;
 			}
 			isFile = true;
-			type = TYPE_FILE;
 		}
 		default: // is a file!
+			type = TYPE_FILE;
 			path.set(String::Data(first, size));
 			if (path.isFolder()) {
 				ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
@@ -284,9 +295,9 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 				if (!isTarget && type == TYPE_HTTP)
 					break; // HTTP source allow empty format (will be determinate with content-type)
 				if(path.extension().empty())
-					ex.set<Ex::Format>(TypeToString(type), " stream description have to indicate a media format");
+					ex.set<Ex::Format>(other ? other : TypeToString(type), " stream description have to indicate a media format");
 				else
-					ex.set<Ex::Format>(TypeToString(type), " stream path has a format ", path.extension(), " unknown or not supported");
+					ex.set<Ex::Format>(other ? other : TypeToString(type), " stream path has a format ", path.extension(), " unknown or not supported");
 				return nullptr;
 			}
 		}
@@ -303,24 +314,27 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 			type = String::ICompare(format, "RTP") == 0 ? TYPE_UDP : TYPE_TCP;
 
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-		if (type != TYPE_UDP && (isAddress<0 || !address.host())) { // MediaServer, UDP is always a MediaSocket!
+		bool toBind = isAddress < 0 || !address.host();
+		if (type != TYPE_UDP && toBind) { // MediaServer if not UDP (UDP is always a MediaSocket) or if addresss to bind!
 			if (isTarget)
 				pStream = MediaServer::Writer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 			else
 				pStream = MediaServer::Reader::New(MediaServer::Type(type), path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
-		} else if (isTarget) {
-			if (!address.host() && isAddress) { // explicit 0.0.0.0 is an error here!
-				// necessary UDP here (else give a MediaServer)
-				ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream ", (isTarget ? "target " : "source "), TypeToString(type));
-				return nullptr;
-			}
-			pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+		} else if (type < TYPE_OTHER) {
+			if (isTarget) {
+				if (!address.host() && isAddress) { // explicit 0.0.0.0 is an error here!
+					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream UDP target");
+					return nullptr;
+				}
+				pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+			} else
+				pStream = MediaSocket::Reader::New(type, path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
 		} else
-			pStream = MediaSocket::Reader::New(type, path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+			pStream = itOtherStream->second(path, format.c_str(), address, toBind, isTarget ? &source : NULL);
 	}
 
 	if (!pStream) {
-		ex.set<Ex::Unsupported>(isTarget ? "Target stream " : "Source stream ", TypeToString(type), " format ", format, " not supported");
+		ex.set<Ex::Unsupported>(isTarget ? "Target stream " : "Source stream ", other ? other : TypeToString(type), " format ", format, " not supported");
 		return nullptr;
 	}
 	pStream->_params.setParams(move(params));

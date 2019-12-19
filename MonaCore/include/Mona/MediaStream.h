@@ -44,12 +44,19 @@ struct MediaStream : virtual Object {
 		TYPE_HTTP = 4,
 		TYPE_OTHER = 5
 	};
+
+
+	typedef std::function<unique<MediaStream>(const Path& path, const char* subMime, const SocketAddress& address, bool toBind, Media::Source* pSource)> OnNewStream;
+	/*!
+	Add a custom Type, reutrn false if this type exists already!  */
+	static bool AddType(std::string&& type, const OnNewStream& onNewStream) { return _OtherStreams.emplace(move(type), onNewStream).second; }
+
 	enum State {
 		STATE_STOPPED = 0,
 		STATE_STARTING,
 		STATE_RUNNING
 	};
-	static const char* TypeToString(Type type) { static const char* Strings[] = { "logs", "file", "tcp", "srt", "udp", "http" }; return Strings[UInt8(type) + 1]; }
+	static const char* TypeToString(Type type) { static const char* Strings[] = { "logs", "file", "tcp", "srt", "udp", "http", "other" }; return Strings[UInt8(type) + 1]; }
 	/*!
 	New Stream target => host[:port][?path] [type/TLS][/MediaFormat] [parameter]
 	Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
@@ -152,6 +159,8 @@ private:
 	bool								_firstStart;
 	State								_state;
 	Parameters							_params;
+
+	static std::map<std::string, OnNewStream, String::IComparator>	_OtherStreams;
 };
 
 
