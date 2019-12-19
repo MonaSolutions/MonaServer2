@@ -127,7 +127,7 @@ BinaryWriter& Media::Pack(BinaryWriter& writer, const Audio::Tag& tag, UInt8 tra
 	if (track==1)
 		writer.write8(value);
 	else
-		writer.write8(value & 1).write8(track);
+		writer.write8(value | 1).write8(track);
 	return writer.write32(tag.time); // in last to be removed easly if protocol has already time info in its protocol header
 }
 
