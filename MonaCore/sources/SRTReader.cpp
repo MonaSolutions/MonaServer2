@@ -118,7 +118,7 @@ UInt32 SRTReader::parse(Packet& buffer, Media::Source& source) {
 			case STAGE_TEXT: {
 				if ((end - cur) < 2)
 					break;
-				if (memcmp(cur, EXPAND("\n\n")) == 0) {
+				if (memcmp(cur, EXPAND("\n\n")) == 0 || memcmp(cur, EXPAND("\r\n\r\n")) == 0) {
 					// time begin
 					source.writeVideo(_config, _config, track);
 					// text
