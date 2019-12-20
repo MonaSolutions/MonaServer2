@@ -267,7 +267,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 	for (Subscription* pSubscription : subscriptions) {
 		if (pSubscription->pPublication != this && pSubscription->pPublication)
 			continue; // subscriber not yet subscribed
-		if (offsetCC && (pSubscription->datas.pSelection || pSubscription->datas.multiTracks)) { // if a data track is selected (or data track is disabled when track data=0) => send without CC!
+		if (offsetCC && ((pSubscription->datas.pSelection && *pSubscription->datas.pSelection) || pSubscription->datas.multiTracks)) { // if a data track is selected (or data track is disabled when track data=0) => send without CC!
 			if (offsetCC<packet.size())
 				pSubscription->writeVideo(tag, packet + offsetCC, track); // without CC
 		} else
