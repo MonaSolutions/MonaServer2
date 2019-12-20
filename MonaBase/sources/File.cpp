@@ -18,6 +18,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include <sys/types.h>
 #include <sys/stat.h>
 #if !defined(_WIN32)
+#include <fcntl.h>
 #include <sys/file.h>
 #define INVALID_HANDLE_VALUE -1
 #include <unistd.h>
