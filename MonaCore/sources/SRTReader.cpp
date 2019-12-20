@@ -116,24 +116,53 @@ UInt32 SRTReader::parse(Packet& buffer, Media::Source& source) {
 				continue;
 			}
 			case STAGE_TEXT: {
-				if ((end - cur) < 2)
+				UInt32 available = end - cur;
+				if (available < 2)
 					break;
-				if (memcmp(cur, EXPAND("\n\n")) == 0 || memcmp(cur, EXPAND("\r\n\r\n")) == 0) {
-					// time begin
-					source.writeVideo(_config, _config, track);
-					// text
-					source.writeData(Media::Data::TYPE_TEXT, Packet(buffer, buffer.data(), cur - buffer.data()), track);
-					// send one video packet for every second of video to maintain subtitle!
-					for (_config.time += 1000; _config.time < _endTime; _config.time += 1000)
-						source.writeVideo(_config, _config, track);
-					// time end
-					_config.time = _endTime;
-					source.writeVideo(_config, _config, track);
-					_stage = STAGE_NEXT;
-					_pos = 0;
-					buffer.set(buffer, cur += 2);
-				} else
+				UInt8 index = 0;
+				if (*cur == '\r') {
+					// search \r\n\n or \r\n\r\n
+					if (available < 3)
+						break; // wait one more byte
+					if (cur[++index] != '\n') {
+						++cur;
+						continue; // was always text, continue!
+					}
+					/// here we have \r\n
+				}
+				if (cur[index++] == '\n') {
+					// search \n\n or \n\r\n
+					if (cur[index] == '\r') {
+						/// we have here \n\r
+						if (available < (2 + index))
+							break; // wait one more byte
+						if (cur[++index] != '\n') {
+							/// we have here \n\r!\n, we can skip 2 chars
+							cur += index;
+							continue; // was always text, continue!
+						}
+					} else if (cur[index++] != '\n') {
+						/// we have here \n#, we can skip 2 chars
+						cur += index;
+						continue; // was always text, continue!
+					}
+				} else {
 					++cur;
+					continue; // was always text, continue!
+				}
+				// time begin
+				source.writeVideo(_config, _config, track);
+				// text
+				source.writeData(Media::Data::TYPE_TEXT, Packet(buffer, buffer.data(), cur - buffer.data()), track);
+				// send one video packet for every second of video to maintain subtitle!
+				for (_config.time += 1000; _config.time < _endTime; _config.time += 1000)
+					source.writeVideo(_config, _config, track);
+				// time end
+				_config.time = _endTime;
+				source.writeVideo(_config, _config, track);
+				_stage = STAGE_NEXT;
+				_pos = 0;
+				buffer.set(buffer, cur += 2);
 				continue;
 			}
 		}
