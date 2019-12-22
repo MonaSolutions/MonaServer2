@@ -18,6 +18,7 @@ ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
 endif
 ifdef ENABLE_SRT
 	override CFLAGS += -DENABLE_SRT
+	override LIBS += -lsrt
 endif
 
 # Variables fixed
