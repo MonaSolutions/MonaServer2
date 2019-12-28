@@ -134,7 +134,7 @@ UInt32 SRTReader::parse(Packet& buffer, Media::Source& source) {
 					// search \n\n or \n\r\n
 					if (cur[index] == '\r') {
 						/// we have here \n\r
-						if (available < (2 + index))
+						if (available < (2u + index))
 							break; // wait one more byte
 						if (cur[++index] != '\n') {
 							/// we have here \n\r!\n, we can skip 2 chars
