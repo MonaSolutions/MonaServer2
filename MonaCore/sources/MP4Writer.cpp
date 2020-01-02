@@ -148,6 +148,19 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	videos.push(tag, packet);
 }
 
+void MP4Writer::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
+	if (!track)
+		++track; // 1 based!
+
+	if (track > _datas.size())
+		_datas.emplace_back();
+
+	Frames& datas = _datas[track - 1];
+	// flush before emplace_back
+	flush(onWrite, !_buffering);
+	datas.push(type, packet); // TODO: Add size on 16 bits and styl?
+}
+
 void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	if (!_started) {
 		_started = true;
@@ -188,6 +201,18 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			audios = nullptr;
 		} else
 			sizeMoof += audios.sizeTraf();
+	}
+	for (Frames& datas : _datas) {
+		if (!datas)
+			continue;
+		if (datas.empty()) {
+			_buffering = true; // reset is necessary set here
+			if (delta < bufferTime)
+				return; // wait bufferTime to get at less one media on this track!
+			datas = nullptr;
+		}
+		else
+			sizeMoof += datas.sizeTraf();
 	}
 	if (!sizeMoof) {
 		// nothing to write!
@@ -436,6 +461,86 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 		} // AUDIOS
 
+		// DATAS
+		for (Frames& datas : _datas) {
+			if (!datas)
+				continue;
+			// trak
+			UInt32 sizePos = writer.size();
+			writer.next(4); // skip size!
+			writer.write(EXPAND("trak"));
+			{ // tkhd
+				writer.write(EXPAND("\x00\x00\x00\x5c""tkhd\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00"));
+				writer.write32(++track);
+				writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+			}
+			{ // mdia
+				UInt32 sizePos = writer.size();
+				writer.next(4); // skip size!
+				writer.write(EXPAND("mdia"));
+				{	// mdhd
+					writer.write(EXPAND("\x00\x00\x00\x20""mdhd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+					writer.write32(1000); // timescale, precision 1ms
+					writer.write(EXPAND("\x00\x00\x00\x00")); // duration
+					writer.write16(0x55C4); // TODO lang (0x55C4 = undefined)
+					writer.write16(0); // predefined
+				}
+				{	// hdlr
+					writer.write(EXPAND("\x00\x00\x00\x21""hdlr\x00\x00\x00\x00\x00\x00\x00\x00""vide\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+				}
+				{ // minf + smhd + dinf + dref + url + stbl + stsd + stts + stsc + stsz + stco
+					UInt32 sizePos = writer.size();
+					writer.next(4); // skip size!
+					writer.write(EXPAND("minf\x00\x00\x00\x14""vmhd\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x24""dinf\x00\x00\x00\x1C""dref\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x0C""url \x00\x00\x00\x01"));
+					{ // stbl
+						UInt32 sizePos = writer.size();
+						writer.next(4); // skip size!
+						writer.write(EXPAND("stbl"));
+						{ // stsd
+							UInt32 sizePos = writer.size();
+							writer.next(4); // skip size!
+							writer.write(EXPAND("stsd\x00\x00\x00\x00\x00\x00\x00\x01"));
+
+							// tx3g
+							writer.write(EXPAND("tx3g\x00\x00\x00\x00\x00\x00\x00\x01"));
+
+							/*
+							* For now, we'll use a fixed default style. When we add styling
+							* support, this will be generated from the ASS style.
+							*/
+							writer.write(EXPAND("\x00\x00\x00\x00")); // uint32_t displayFlags
+							writer.write(EXPAND("\x01")); // int8_t horizontal-justification
+							writer.write(EXPAND("\xFF")); // int8_t vertical-justification
+							writer.write(EXPAND("\x00\x00\x00\x00")); // uint8_t background-color-rgba[4]
+							writer.write(EXPAND("\x00\x00")); // int16_t top
+							writer.write(EXPAND("\x00\x00")); // int16_t left
+							writer.write(EXPAND("\x00\x00")); // int16_t bottom
+							writer.write(EXPAND("\x00\x00")); // int16_t right
+							writer.write(EXPAND("\x00\x00")); // uint16_t startChar
+							writer.write(EXPAND("\x00\x00")); // uint16_t endChar
+							writer.write(EXPAND("\x00\x01")); // uint16_t font-ID
+							writer.write(EXPAND("\x00")); // uint8_t face-style-flags
+							writer.write(EXPAND("\x12")); // uint8_t font-size
+							writer.write(EXPAND("\xFF\xFF\xFF\xFF")); // uint8_t text-color-rgba[4]
+							writer.write(EXPAND("\x00\x00\x00\x12")); // uint32_t size
+							writer.write(EXPAND("ftab")); // uint8_t name[4]
+							writer.write(EXPAND("\x00\x01")); // uint16_t entry-count
+							writer.write(EXPAND("\x00\x01")); // uint16_t font-ID
+							writer.write(EXPAND("\x05")); // uint8_t font-name-length
+							writer.write(EXPAND("Serif"));	// uint8_t font[font-name-length]
+							BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
+						} // stsd
+						  // stts + stsc + stsz + stco =>
+						writer.write(EXPAND("\x00\x00\x00\x10""stts\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10""stsc\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x14""stsz\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10""stco\x00\x00\x00\x00\x00\x00\x00\x00"));
+						BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
+					}
+					BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
+				}  // minf + smhd + dinf + dref + url + stbl + stsd + stts + stsc + stsz + stco
+				BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
+			} // mdia
+			BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
+		} // DATAS
+
 		// MVEX is required by spec => https://www.w3.org/TR/mse-byte-stream-format-isobmff/
 		writer.write32(8 + (track * 32)); // size of mvex
 		writer.write(EXPAND("mvex")); // mvex
@@ -455,7 +560,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	writer.write(EXPAND("moof"));
 	{	// mfhd
 		writer.write(EXPAND("\x00\x00\x00\x10""mfhd\x00\x00\x00\x00"));
-		writer.write32(++_sequence); // starts to 1!
+		writer.write32(++_sequence); // starts from 1!
 	}
 
 	UInt32 dataOffset(sizeMoof + 8); // 8 for [size]mdat
@@ -466,6 +571,10 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	for (Frames& audios : _audios) {
 		if(audios)
 			writeTrack(writer, ++track, audios, dataOffset);
+	}
+	for (Frames& datas : _datas) {
+		if (datas)
+			writeTrack(writer, ++track, datas, dataOffset);
 	}
 
 	// MDAT
@@ -481,6 +590,10 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	for (Frames& audios : _audios) {
 		if (audios)
 			mediaFrames[track++] = audios.flush();
+	}
+	for (Frames& datas : _datas) {
+		if (datas)
+			mediaFrames[track++] = datas.flush();
 	}
 	_timeFront = _timeBack; // set timestamp progression
 
