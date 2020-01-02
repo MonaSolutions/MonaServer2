@@ -78,6 +78,7 @@ private:
 			Type() : _type(Media::TYPE_NONE) {}
 			Type(Media::Audio::Codec codec) : _type(Media::TYPE_AUDIO), audio(codec) {}
 			Type(Media::Video::Codec codec) : _type(Media::TYPE_VIDEO), video(codec) {}
+			Type(Media::Data::Type type) : _type(Media::TYPE_DATA), data(type) {}
 			~Type() {}
 			operator Media::Type() const { return _type; }
 			Type& operator=(std::nullptr_t) { _type = Media::TYPE_NONE; return *this; }
@@ -85,6 +86,7 @@ private:
 			union {
 				Media::Audio::Tag audio;
 				Media::Video::Tag video;
+				Media::Data::Tag data;
 			};
 		private:
 			Media::Type _type;

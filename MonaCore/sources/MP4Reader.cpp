@@ -349,11 +349,11 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					if (memcmp(typeName, EXPAND("avc1")) == 0) {
 						track.types.emplace_back(Media::Video::CODEC_H264);
 						// see https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html#//apple_ref/doc/uid/TP40000939-CH205-74522
-						description.next(70); // slip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
+						description.next(70); // skip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
 					}
 					else if (memcmp(typeName, EXPAND("hev1")) == 0) {
 						track.types.emplace_back(Media::Video::CODEC_HEVC);
-						description.next(70); // slip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
+						description.next(70); // skip version, revision level, vendor, quality, width, height, resolution, data size, frame count, compressor name, depth and color ID
 
 					} else if (memcmp(typeName, EXPAND("mp4a")) == 0 || memcmp(typeName, EXPAND(".mp3")) == 0) {
 						track.types.emplace_back(*typeName=='.' ? Media::Audio::CODEC_MP3 : Media::Audio::CODEC_AAC);
@@ -373,6 +373,10 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							if (version) // version = 1
 								description.next(16);
 						}
+					} 
+					else if (memcmp(typeName, EXPAND("tx3g")) == 0) { // mov_text subtitles
+						track.types.emplace_back(Media::Data::TYPE_TEXT);
+						description.next(description.available()); // skip all (TODO: read styles)
 					} else {
 						if (memcmp(typeName, EXPAND("rtp")) != 0) // RTP hint track is a doublon, useless here, so display warn just for really unsupported type!
 							WARN("Unsupported ", string(typeName, 4) , " media type");
@@ -856,6 +860,13 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								else
 									frameToMedias<HEVC>(track, time, Packet(packet, reader.current(), size));
 								break;
+							}
+							case Media::TYPE_DATA: {
+								BinaryReader mov_text(reader.current(), size);
+								UInt16 length = mov_text.read16();
+								if (length && length <= mov_text.available())
+									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(packet, mov_text.current(), length), 1)));
+								// TODO: Extract "styl" and others boxes types (hlit, hclr, twrp)
 							}
 							default:; // ignored!
 						}
