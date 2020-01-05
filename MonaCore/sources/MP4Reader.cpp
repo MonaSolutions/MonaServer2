@@ -864,8 +864,8 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 							case Media::TYPE_DATA: {
 								BinaryReader mov_text(reader.current(), size);
 								UInt16 length = mov_text.read16();
-								if (length && length <= mov_text.available())
-									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(packet, mov_text.current(), length), 1)));
+								if (length && length <= mov_text.available()) // TODO: Use a reference to "packet" like in Media::Audio above
+									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(mov_text.current(), length), 1)));
 								// TODO: Extract "styl" and others boxes types (hlit, hclr, twrp)
 							}
 							default:; // ignored!

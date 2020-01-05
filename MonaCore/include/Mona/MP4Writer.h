@@ -53,17 +53,17 @@ private:
 	struct Frame : virtual Object {
 		NULLABLE(!_pMedia)
 
-		Frame(const Media::Video::Tag& tag, const Packet& packet) : isSync(tag.frame == Media::Video::FRAME_KEY) { _pMedia.set<Media::Video>(tag, packet); }
-		Frame(const Media::Audio::Tag& tag, const Packet& packet) : isSync(true) { _pMedia.set<Media::Audio>(tag, packet); }
-		Frame(const Media::Data::Tag& tag, const Packet& packet) : isSync(true) { _pMedia.set<Media::Data>(tag, packet); }
-		Frame(const Packet& packet) : isSync(false) { _pMedia.set(Media::TYPE_NONE, packet); }
+		Frame(const Media::Video::Tag& tag, const Packet& packet) : isSync(tag.frame == Media::Video::FRAME_KEY), time(tag.time) { _pMedia.set<Media::Video>(tag, packet); }
+		Frame(const Media::Audio::Tag& tag, const Packet& packet) : isSync(true), time(tag.time) { _pMedia.set<Media::Audio>(tag, packet); }
+		Frame(const Media::Data::Tag& tag, const Packet& packet, UInt32 time) : time(time), isSync(true) { _pMedia.set<Media::Data>(tag, packet); }
+		Frame(const Packet& packet) : isSync(false), time(0) { _pMedia.set(Media::TYPE_NONE, packet); }
 
 		const bool			isSync;
+		const UInt32		time;
 		const Media::Base*	operator->() const { return _pMedia.get(); }
 		const Media::Base&	operator*() const { return *_pMedia; }
 	private:
 		unique<Media::Base> _pMedia;
-		
 	};
 
 	struct Frames : virtual Object, std::deque<Frame> {
@@ -90,8 +90,8 @@ private:
 
 		Frames& operator=(std::nullptr_t);
 
-		void push(const Media::Data::Tag& tag, const Packet& packet) {
-			emplace_back(tag, packet);
+		void push(const Media::Data::Tag& tag, const Packet& packet, UInt32 time) {
+			emplace_back(tag, packet, time);
 			_started = true;
 		}
 
@@ -99,7 +99,7 @@ private:
 		void push(const TagType& tag, const Packet& packet) {
 			emplace_back(tag, packet);
 			if (!codec) // necessary first usage, tag.codec>0 by control in entry from writeAudio/writeVideo
-				lastTime = front()->time(); // delta = lastDuration - (front().time() - lastTime) = 0
+				lastTime = front().time; // delta = lastDuration - (front().time - lastTime) = 0
 			codec = tag.codec;
 			_started = true;
 		}
