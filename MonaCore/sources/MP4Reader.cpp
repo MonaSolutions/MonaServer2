@@ -377,8 +377,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					else if (memcmp(typeName, EXPAND("tx3g")) == 0) { // mov_text subtitles
 						track.types.emplace_back(Media::Data::TYPE_TEXT);
 						description.next(description.available()); // skip all (TODO: read styles)
-					}
-					else {
+					} else {
 						if (memcmp(typeName, EXPAND("rtp")) != 0) // RTP hint track is a doublon, useless here, so display warn just for really unsupported type!
 							WARN("Unsupported ", string(typeName, 4) , " media type");
 						track.types.emplace_back();
@@ -879,7 +878,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								BinaryReader mov_text(reader.current(), size);
 								UInt16 length = mov_text.read16();
 								if (length && length <= mov_text.available()) // TODO: Use a reference to "packet" like in Media::Audio above
-									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(mov_text.current(), length), 1)));									
+									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(mov_text.current(), length), 1)));
 								// TODO: Extract "styl" and others boxes types (hlit, hclr, twrp)
 							}
 							default:; // ignored!
