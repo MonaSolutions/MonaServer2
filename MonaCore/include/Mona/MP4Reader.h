@@ -31,7 +31,7 @@ struct MP4Reader : virtual Object, MediaReader {
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
 	// https://w3c.github.io/media-source/isobmff-byte-stream-format.html
 	// With fragments box = > http://l.web.umkc.edu/lizhu/teaching/2016sp.video-communication/ref/mp4.pdf
-	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _firstMoov(true), _sequence(0) {}
+	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _datas(0), _firstMoov(true), _sequence(0) {}
 
 private:
 	UInt32  parse(Packet& buffer, Media::Source& source);
@@ -130,6 +130,7 @@ private:
 	bool													_failed;
 	UInt8													_audios;
 	UInt8													_videos;
+	UInt8													_datas;
 
 	std::map<UInt64, Track*>								_chunks; // stco
 	std::deque<Box>											_boxes;

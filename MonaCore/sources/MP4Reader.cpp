@@ -233,7 +233,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				} else
 					_firstMoov = false;
 				_sequence = 0;
-				_audios = _videos = 0;
+				_datas = _audios = _videos = 0;
 				_pTrack = NULL;
 				_tracks.clear();
 				_chunks.clear();
@@ -377,7 +377,8 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					else if (memcmp(typeName, EXPAND("tx3g")) == 0) { // mov_text subtitles
 						track.types.emplace_back(Media::Data::TYPE_TEXT);
 						description.next(description.available()); // skip all (TODO: read styles)
-					} else {
+					}
+					else {
 						if (memcmp(typeName, EXPAND("rtp")) != 0) // RTP hint track is a doublon, useless here, so display warn just for really unsupported type!
 							WARN("Unsupported ", string(typeName, 4) , " media type");
 						track.types.emplace_back();
@@ -862,10 +863,23 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								break;
 							}
 							case Media::TYPE_DATA: {
+								if (&type != track.pType) {
+									// has changed!
+									track.pType = &type;
+									if (_datas < 0xFF)
+										track = ++_datas;
+									else {
+										WARN("Data track ", _datas, " ignored because Mona doesn't accept more than 255 tracks");
+										track = 0;
+									}
+								}
+								if (!track || !size) // no size => silence!
+									break; // ignored!
+
 								BinaryReader mov_text(reader.current(), size);
 								UInt16 length = mov_text.read16();
 								if (length && length <= mov_text.available()) // TODO: Use a reference to "packet" like in Media::Audio above
-									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(mov_text.current(), length), 1)));
+									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(mov_text.current(), length), 1)));									
 								// TODO: Extract "styl" and others boxes types (hlit, hclr, twrp)
 							}
 							default:; // ignored!
