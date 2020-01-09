@@ -52,13 +52,13 @@ struct Server : SRT::Socket, private Thread {
 	Server() : _signal(false), Thread("Server") {}
 	~Server() { stop(); }
 
-	const SocketAddress& bind(const SocketAddress& address) {
+	const SocketAddress& bindTest(const SocketAddress& address) {
 		Exception ex;
 		CHECK(Socket::bind(ex, address) && !ex && Socket::address() && !Socket::address().host());
 		CHECK(Socket::listen(ex) && !ex);
 		return Socket::address();
 	}
-	void accept() {
+	void acceptTest() {
 		stop();
 		_signal.reset();
 		start();
@@ -99,8 +99,8 @@ ADD_TEST(TestBlocking) {
 	Exception ex;
 
 	
-	unique<Socket> pClient(new SRT::Socket());
-	unique<Server> pServer(SET);
+	Mona::unique<Socket> pClient(new SRT::Socket());
+	Mona::unique<Server> pServer(SET);
 
 	// Test a connection refused
 	SocketAddress unknown(IPAddress::Loopback(), 62434);
@@ -115,8 +115,8 @@ ADD_TEST(TestBlocking) {
 
 	// Test a IPv4 server
 	SocketAddress address;
-	UInt16 port = pServer->bind(address).port();
-	pServer->accept();
+	UInt16 port = pServer->bindTest(address).port();
+	pServer->acceptTest();
 	
 	// Test IPv6 client refused by IPv4 server
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
@@ -132,17 +132,17 @@ ADD_TEST(TestBlocking) {
 	
 	// Test a IPv6 server (with a new port)
 	address.set(IPAddress::Wildcard(IPAddress::IPv6), 0);
-	port = pServer->bind(address).port();
+	port = pServer->bindTest(address).port();
 
 	// Test IPv4 client accepted by IPv6 server
-	pServer->accept();
+	pServer->acceptTest();
 	address.set(IPAddress::Loopback(), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
 	pClient.set<SRT::Socket>();
 
 	// Test IPv6 client accepted by IPv6 server
-	pServer->accept();
+	pServer->acceptTest();
 	address.set(IPAddress::Loopback(IPAddress::IPv6), port);
 	CHECK(pClient->connect(ex, address) && !ex && pClient->address() && pClient->peerAddress() == address);
 	CHECK(pServer->connection().peerAddress() == pClient->address() && pClient->peerAddress() == pServer->connection().address());
@@ -325,8 +325,8 @@ ADD_TEST(TestLoad) {
 ADD_TEST(TestOptions) {
 
 
-	unique<SRT::Socket> pClient(SET);
-	unique<Server> pServer(SET);
+	Mona::unique<SRT::Socket> pClient(SET);
+	Mona::unique<Server> pServer(SET);
 
 	UInt32 uint32;
 	Exception ex;
@@ -352,9 +352,9 @@ ADD_TEST(TestOptions) {
 
 	// Connect client
 	SocketAddress source(IPAddress::Wildcard(), 0);
-	source.setPort(pServer->bind(source).port());
+	source.setPort(pServer->bindTest(source).port());
 	SocketAddress target(IPAddress::Loopback(), source.port());
-	pServer->accept();
+	pServer->acceptTest();
 	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
 
 	// It's impossible to set options after connexion with SRT
@@ -401,8 +401,8 @@ ADD_TEST(TestOptions) {
 	// Connect
 	CHECK(pServer->setEncryptionSize(ex, 16));
 	CHECK(pServer->setPassphrase(ex, EXPAND("This is a pass")) && !ex);
-	CHECK(pServer->bind(source));
-	pServer->accept();
+	CHECK(pServer->bindTest(source));
+	pServer->acceptTest();
 	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
 	pServer->stop();
 
@@ -421,8 +421,8 @@ ADD_TEST(TestOptions) {
 }
 
 ADD_TEST(ListenCallback) {
-	unique<SRT::Socket> pClient(SET);
-	unique<Server> pServer(SET);
+	Mona::unique<SRT::Socket> pClient(SET);
+	Mona::unique<Server> pServer(SET);
 
 	Exception ex;
 	const char* streamId("#!::r=stream");
@@ -430,9 +430,9 @@ ADD_TEST(ListenCallback) {
 
 	// Connect client
 	SocketAddress source(IPAddress::Wildcard(), 0);
-	source.setPort(pServer->bind(source).port());
+	source.setPort(pServer->bindTest(source).port());
 	SocketAddress target(IPAddress::Loopback(), source.port());
-	pServer->accept();
+	pServer->acceptTest();
 	CHECK(pClient->connect(ex, target) && !ex && pClient->peerAddress() == target);
 	const SRT::Socket& socket((SRT::Socket&)pServer->connection());
 	CHECK(socket.streamId() == streamId);

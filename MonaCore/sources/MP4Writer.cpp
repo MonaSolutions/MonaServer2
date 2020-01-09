@@ -87,7 +87,7 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 		_audios.emplace_back();
 
 	Frames& audios = _audios[track - 1];
-	if (Util::Distance(audios.empty() ? audios.lastTime : audios.back()->time(), tag.time)<0) {
+	if (Util::Distance(audios.empty() ? audios.lastTime : audios.back().time, tag.time)<0) {
 		WARN("Non-monotonic audio timestamp, packet ignored");
 		return;
 	}
@@ -125,8 +125,8 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 		_videos.emplace_back();
 
 	Frames& videos = _videos[track - 1];
-	// NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.frame, ' ', tag.time, " (", tag.time - (videos.empty() ? videos.lastTime : videos.back()->time()), ")");
-	if (Util::Distance(videos.empty() ? videos.lastTime : videos.back()->time(), tag.time) < 0) {
+	// NOTE(tag.frame == Media::Video::FRAME_CONFIG ? "Video config " : "Video ", tag.frame, ' ', tag.time, " (", tag.time - (videos.empty() ? videos.lastTime : videos.back().time), ")");
+	if (Util::Distance(videos.empty() ? videos.lastTime : videos.back().time, tag.time) < 0) {
 		WARN("Non-monotonic video timestamp, packet ignored");
 		return;
 	}
@@ -146,6 +146,27 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	if (tag.compositionOffset)
 		videos.hasCompositionOffset = true;
 	videos.push(tag, packet);
+}
+
+void MP4Writer::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
+	if (type != Media::Data::TYPE_TEXT)
+		return; // only subtitles are allowed
+
+	if (!track)
+		++track; // 1 based!
+
+	if (track > _datas.size())
+		_datas.emplace_back();
+
+	Frames& datas = _datas[track - 1];
+	// flush before emplace_back
+	flush(onWrite, !_buffering);
+	shared<Buffer> pBuffer(SET);
+	BinaryWriter writer(*pBuffer);
+	writer.write16(packet.size()); // subtitle size on 2 bytes
+	writer.write(*packet.buffer());
+	datas.push(type, Packet(pBuffer), _timeBack); // TODO: this is an approximation of time, add a new type Subtitles with time?
+	// TODO: Add styl from ASS styles?
 }
 
 void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
@@ -188,6 +209,18 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			audios = nullptr;
 		} else
 			sizeMoof += audios.sizeTraf();
+	}
+	for (Frames& datas : _datas) {
+		if (!datas || !datas.size())
+			continue;
+		if (datas.empty()) {
+			_buffering = true; // reset is necessary set here
+			if (delta < bufferTime)
+				return; // wait bufferTime to get at less one media on this track!
+			datas = nullptr;
+		}
+		else
+			sizeMoof += datas.sizeTraf();
 	}
 	if (!sizeMoof) {
 		// nothing to write!
@@ -436,6 +469,77 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 		} // AUDIOS
 
+		// DATAS
+		for (Frames& datas : _datas) {
+			if (!datas || !datas.size())
+				continue;
+			// trak
+			writer.write32(385);
+			writer.write(EXPAND("trak"));
+			{ // tkhd
+				writer.write(EXPAND("\x00\x00\x00\x5c""tkhd\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00"));
+				writer.write32(++track);
+				writer.write(EXPAND("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+			}
+			{ // mdia
+				writer.write32(285);
+				writer.write(EXPAND("mdia"));
+				{	// mdhd
+					writer.write(EXPAND("\x00\x00\x00\x20""mdhd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+					writer.write32(1000); // timescale, precision 1ms
+					writer.write(EXPAND("\x00\x00\x00\x00")); // duration
+					writer.write16(0x55C4); // TODO lang (0x55C4 = undefined)
+					writer.write16(0); // predefined
+				}
+				{	// hdlr
+					writer.write(EXPAND("\x00\x00\x00\x21""hdlr\x00\x00\x00\x00\x00\x00\x00\x00""sbtl\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"));
+				}
+				{ // minf + smhd + dinf + dref + url + stbl + stsd + stts + stsc + stsz + stco
+					writer.write32(212);
+					writer.write(EXPAND("minf\x00\x00\x00\x0C""nmhd\x00\x00\x00\x00\x00\x00\x00\x24""dinf\x00\x00\x00\x1C""dref\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x0C""url \x00\x00\x00\x01"));
+					{ // stbl
+						writer.write32(156);
+						writer.write(EXPAND("stbl"));
+						{ // stsd
+							writer.write32(80);
+							writer.write(EXPAND("stsd\x00\x00\x00\x00\x00\x00\x00\x01"));
+
+							// tx3g
+							writer.write32(64);
+							writer.write(EXPAND("tx3g\x00\x00\x00\x00\x00\x00\x00\x01"));
+
+							/*
+							* For now, we'll use a fixed default style. When we add styling
+							* support, this will be generated from the ASS style.
+							*/
+							writer.write(EXPAND("\x00\x00\x00\x00")); // uint32_t displayFlags
+							writer.write(EXPAND("\x01")); // int8_t horizontal-justification
+							writer.write(EXPAND("\xFF")); // int8_t vertical-justification
+							writer.write(EXPAND("\x00\x00\x00\x00")); // uint8_t background-color-rgba[4]
+							writer.write(EXPAND("\x00\x00")); // int16_t top
+							writer.write(EXPAND("\x00\x00")); // int16_t left
+							writer.write(EXPAND("\x00\x00")); // int16_t bottom
+							writer.write(EXPAND("\x00\x00")); // int16_t right
+							writer.write(EXPAND("\x00\x00")); // uint16_t startChar
+							writer.write(EXPAND("\x00\x00")); // uint16_t endChar
+							writer.write(EXPAND("\x00\x01")); // uint16_t font-ID
+							writer.write(EXPAND("\x00")); // uint8_t face-style-flags
+							writer.write(EXPAND("\x12")); // uint8_t font-size
+							writer.write(EXPAND("\xFF\xFF\xFF\xFF")); // uint8_t text-color-rgba[4]
+							writer.write(EXPAND("\x00\x00\x00\x12")); // uint32_t size
+							writer.write(EXPAND("ftab")); // uint8_t name[4]
+							writer.write(EXPAND("\x00\x01")); // uint16_t entry-count
+							writer.write(EXPAND("\x00\x01")); // uint16_t font-ID
+							writer.write(EXPAND("\x05")); // uint8_t font-name-length
+							writer.write(EXPAND("Serif"));	// uint8_t font[font-name-length]
+						} // stsd
+						  // stts + stsc + stsz + stco =>
+						writer.write(EXPAND("\x00\x00\x00\x10""stts\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10""stsc\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x14""stsz\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10""stco\x00\x00\x00\x00\x00\x00\x00\x00"));
+					}
+				}  // minf + smhd + dinf + dref + url + stbl + stsd + stts + stsc + stsz + stco
+			} // mdia
+		} // DATAS
+
 		// MVEX is required by spec => https://www.w3.org/TR/mse-byte-stream-format-isobmff/
 		writer.write32(8 + (track * 32)); // size of mvex
 		writer.write(EXPAND("mvex")); // mvex
@@ -455,7 +559,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	writer.write(EXPAND("moof"));
 	{	// mfhd
 		writer.write(EXPAND("\x00\x00\x00\x10""mfhd\x00\x00\x00\x00"));
-		writer.write32(++_sequence); // starts to 1!
+		writer.write32(++_sequence); // starts from 1!
 	}
 
 	UInt32 dataOffset(sizeMoof + 8); // 8 for [size]mdat
@@ -466,6 +570,10 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	for (Frames& audios : _audios) {
 		if(audios)
 			writeTrack(writer, ++track, audios, dataOffset);
+	}
+	for (Frames& datas : _datas) {
+		if (datas && datas.size())
+			writeTrack(writer, ++track, datas, dataOffset);
 	}
 
 	// MDAT
@@ -481,6 +589,10 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	for (Frames& audios : _audios) {
 		if (audios)
 			mediaFrames[track++] = audios.flush();
+	}
+	for (Frames& datas : _datas) {
+		if (datas && datas.size())
+			mediaFrames[track++] = datas.flush();
 	}
 	_timeFront = _timeBack; // set timestamp progression
 
@@ -505,15 +617,15 @@ void MP4Writer::writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, U
 		writer.write(EXPAND("\x00\x00\x00\x10""tfhd\x00\x02\x00\x00")); // 020000 => default_base_is_moof
 		writer.write32(track);
 	}
-	// frames.front()->time() is necessary a more upper time than frames.lastTime because non-monotonic packet are removed in writeAudio/writeVideo
-	Int32 delta = (frames.front()->time() - frames.lastTime) - frames.lastDuration;
+	// frames.front().time is necessary a more upper time than frames.lastTime because non-monotonic packet are removed in writeAudio/writeVideo
+	Int32 delta = (frames.front().time - frames.lastTime) - frames.lastDuration;
 	if (abs(delta) > 4)
-		WARN("Timestamp delta ",delta, " superior to 4 (", frames.front()->time(),"-", frames.lastTime , "-", frames.lastDuration,")");
+		WARN("Timestamp delta ",delta, " superior to 4 (", frames.front().time,"-", frames.lastTime , "-", frames.lastDuration,")");
 	{ // tfdt => required by https://w3c.github.io/media-source/isobmff-byte-stream-format.html
 	  // http://www.etsi.org/deliver/etsi_ts/126200_126299/126244/10.00.00_60/ts_126244v100000p.pdf
 	  // when any 'tfdt' is used, the 'elst' box if present, shall be ignored => tfdt time manage the offset!
 		writer.write(EXPAND("\x00\x00\x00\x10""tfdt\x00\x00\x00\x00"));
-		writer.write32(frames.front()->time() - delta);
+		writer.write32(frames.front().time - delta);
 	}
 	{ // trun
 		writer.write32(sizeTraf - (writer.size()- position));
@@ -534,17 +646,17 @@ void MP4Writer::writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, U
 				pFrame = &nextFrame;
 				continue;
 			}
-			// medias is already a list sorted by time, so useless to check here if pMedia->tag.time inferior to pNext->time()
+			// medias is already a list sorted by time, so useless to check here if pMedia->tag.time inferior to pNext.time
 			delta = writeFrame(writer, frames, size += (*pFrame)->size(), pFrame->isSync,
-				nextFrame->time() - (*pFrame)->time(),
+				nextFrame.time - (*pFrame).time,
 				(*pFrame)->compositionOffset(), delta);
 			dataOffset += size;
 			size = 0;
 			pFrame = &nextFrame;
 		}
 		// write last
-		frames.lastTime = (*pFrame)->time() - writeFrame(writer, frames, size += (*pFrame)->size(), pFrame->isSync,
-			frames.lastDuration ? frames.lastDuration : (_timeBack - (*pFrame)->time()),
+		frames.lastTime = (*pFrame).time - writeFrame(writer, frames, size += (*pFrame)->size(), pFrame->isSync,
+			frames.lastDuration ? frames.lastDuration : (_timeBack - (*pFrame).time),
 			(*pFrame)->compositionOffset(), delta);
 		dataOffset += size;
 	}

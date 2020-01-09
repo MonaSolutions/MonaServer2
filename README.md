@@ -1,4 +1,4 @@
-[Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
+[Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [macOS setup](#macOS-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
 
 # MonaServer
 
@@ -32,29 +32,27 @@ Start MonaServer developments by [reading the documentation](#Documentation)
 - [OpenSSL](https://www.openssl.org/) libraries with headers, usually dev-package named `libssl-dev` or `openssl-devel`
 - [LuaJIT](http://luajit.org/) library with headers, dev-package named libluajit-5.1-dev or prefer luajit 2.1 beta by building from sources:
 ```
-    git clone https://github.com/LuaJIT/LuaJIT.git
-    cd LuaJIT
-    make && sudo make install
+git clone https://github.com/LuaJIT/LuaJIT.git
+cd LuaJIT
+make && sudo make install
 ```
-***Note:*** Mac-OSX target can require a MACOSX_DEPLOYMENT_TARGET definition with *make MACOSX_DEPLOYMENT_TARGET=10.6 && make install*, see this [LuaJIT issue](https://github.com/LuaJIT/LuaJIT/issues/484) for more details.
 
 - To enable [SRT Protocol] install [SRT]
 
 ### Build
 [Download] or [clone] MonaServer sources and compile everything simply with make:
 ```
-    git clone https://github.com/MonaSolutions/MonaServer2.git
-    cd MonaServer2
-    make
+git clone https://github.com/MonaSolutions/MonaServer2.git
+cd MonaServer2
+make
 ```
 To enable [SRT Protocol] define *ENABLE_SRT* variable
 ```
-    make ENABLE_SRT=1
+make ENABLE_SRT=1
 ```
 
 ### Start
 Start executable file *./MonaServer/MonaServer*
-
 
 ## Windows setup
 
@@ -82,6 +80,43 @@ MonaServer/External/lib>dir                 MonaServer/External/lib>dir
 
 ### Start
 Start MonaServer by selecting *MonaServer* project and pressing *F5*.
+
+## macOS setup
+
+### Requirements
+- [XCode](https://apps.apple.com/us/app/xcode/id497799835) version >=8 and Xcode dev Tools which you can install using the following command :
+```
+xcode-select --install
+```
+- [OpenSSL](https://www.openssl.org/) libraries with headers. The most simple way to install them is to use [Homebrew](https://brew.sh/index_it):
+
+First, install homebrew :
+```
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+```
+Then install openssl :
+```
+brew install openssl
+```
+- [LuaJIT](http://luajit.org/) library with headers :
+```
+brew install luajit
+```
+Or prefer luajit 2.1 beta by building from sources :
+```
+git clone https://github.com/LuaJIT/LuaJIT.git
+cd LuaJIT
+make MACOSX_DEPLOYMENT_TARGET=10.14 && sudo make install
+```
+***Note:*** Mac-OSX target require a MACOSX_DEPLOYMENT_TARGET definition with *make MACOSX_DEPLOYMENT_TARGET=10.X* where (10.X is your macOS version), see [this LuaJIT issue](https://github.com/LuaJIT/LuaJIT/issues/484) for more details.
+
+- To enable [SRT Protocol] install [SRT] :
+```
+brew install srt
+```
+
+### Build & Start
+See [Unix setup](#Unix-setup) Build and Start chapters
 
 ## MonaTiny
 MonaTiny is a version of MonaServer without LUA script applications.
@@ -113,7 +148,3 @@ MonaServer is licensed under the **[GNU General Public License]** and mainly **[
 [clone]: https://github.com/MonaSolutions/MonaServer2
 [GNU General Public License]: http://www.gnu.org/licenses/
 [contact_mail]: https://services.nexodyne.com/email/customicon/CUlFO7mGlaQmRdvbwDkob5dSi6L7Gw%3D%3D/FzgjAUw%3D/000000/ffffff/ffffff/0/image.png
-
-
-
-
