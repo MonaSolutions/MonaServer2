@@ -88,33 +88,6 @@ ADD_TEST(Generators) {
 		CHECK(ids.emplace(next = (next + Util::UInt8Generators[max]) % max).second);
 }
 
-ADD_TEST(UnpackQuery) {
-	string value;
-	Parameters properties;
-	CHECK(Util::UnpackQuery("name1=value1&name2=value2", properties).count()==2)
-	DEBUG_CHECK(properties.getString("name1", value) && value == "value1");
-	DEBUG_CHECK(properties.getString("name2", value) && value == "value2");
-	properties.clear();
-
-
-	string test("name1=one%20space&name2=%22one double quotes%22&name3=percent:%25&name4=%27simple quotes%27");
-	CHECK(Util::UnpackQuery(test, properties).count()==4); // test "count" + DecodeUrI
-	DEBUG_CHECK(properties.getString("name1", value) && value == "one space");
-	DEBUG_CHECK(properties.getString("name2", value) && value == "\"one double quotes\"");
-	DEBUG_CHECK(properties.getString("name3", value) && value == "percent:%");
-	DEBUG_CHECK(properties.getString("name4", value) && value == "'simple quotes'");
-	CHECK(Util::UnpackQuery("longquery://test;:/one%*$^/fin=value~", properties).count()==5)
-	DEBUG_CHECK(properties.getString("longquery://test;:/one%*$^/fin", value) && value == "value~");
-
-	bool next(true);
-	Util::ForEachParameter forEach([&next](const string& name, const char* value) { return next; });
-	CHECK(Util::UnpackQuery(test.c_str(), forEach) == 4); // test "string::pos" + DecodeUrI
-	CHECK(Util::UnpackQuery("name1=value1&name2=value2", 12, forEach) == 1);
-	next = false;
-	CHECK(Util::UnpackQuery(test, forEach) == 1);
-
-}
-
 ADD_TEST(Base64) {
 	CHECK(TestEncode(EXPAND("\00\01\02\03\04\05"),"AAECAwQF"));
 	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw=="));
