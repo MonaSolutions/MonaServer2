@@ -85,13 +85,13 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 			Parameters parameters;
 			MapWriter<Parameters> properties(parameters);
 			if (onFileAccess(ex, append ? File::MODE_APPEND : File::MODE_WRITE, path, arguments, properties, pClient)) {
-				unique<MediaFile::Writer> pFileWriter = MediaFile::Writer::New(path, ioFile);
+				unique<MediaFile::Writer> pFileWriter = MediaFile::Writer::New(ex, path.c_str(), ioFile);
 				if (pFileWriter) {
 					parameters.getBoolean("append", append);
 					publication.start(move(pFileWriter), append);
 					return &publication;
 				}
-				WARN(ex.set<Ex::Unsupported>(stream, " recording format ", path.extension(), " not supported"));
+				WARN(stream, " impossible to record, ", ex);
 			}
 		}
 		publication.start();

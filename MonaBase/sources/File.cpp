@@ -35,15 +35,15 @@ using namespace std;
 
 namespace Mona {
 
-File::File(const Path& path, Mode mode) : _flushing(0), _loaded(false), pDecoder(NULL),
+File::File(const Path& path, Mode mode) : _flushing(0), _loaded(false), _pDecoder(NULL),
 	_written(0), _readen(0), _path(path), mode(mode), _decodingTrack(0),
-	_queueing(0), _ioTrack(0), _handle(INVALID_HANDLE_VALUE), externDecoder(false) {
+	_queueing(0), _ioTrack(0), _handle(INVALID_HANDLE_VALUE), _externDecoder(false) {
 }
 
 File::~File() {
-	if (externDecoder) {
-		pDecoder->onRelease(self);
-		delete pDecoder;
+	if (_externDecoder) {
+		_pDecoder->onRelease(self);
+		delete _pDecoder;
 	}
 	// No CPU expensive
 	if (_handle == INVALID_HANDLE_VALUE)

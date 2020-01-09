@@ -30,7 +30,8 @@ Socket::Socket(Type type) :
 #if !defined(_WIN32)
 	_pWeakThis(NULL), 
 #endif
-	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0) {
+	_opened(false), _pDecoder(NULL), _externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0),
+	onError(_onError) {
 
 	if (type < TYPE_OTHER) {
 		_id = ::socket(AF_INET6, type, 0);
@@ -47,7 +48,8 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(ad
 #if !defined(_WIN32)
 	_pWeakThis(NULL),
 #endif
-	_opened(false), pDecoder(NULL), externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0) {
+	_opened(false), _pDecoder(NULL), _externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0),
+	onError(_onError) {
 
 	if (type < TYPE_OTHER)
 		init();
@@ -57,9 +59,9 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(ad
 
 
 Socket::~Socket() {
-	if (externDecoder) {
-		pDecoder->onRelease(self);
-		delete pDecoder;
+	if (_externDecoder) {
+		_pDecoder->onRelease(self);
+		delete _pDecoder;
 	}
 	if (_id == NET_INVALID_SOCKET)
 		return;

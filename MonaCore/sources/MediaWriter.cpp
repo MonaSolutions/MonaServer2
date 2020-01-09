@@ -99,6 +99,7 @@ unique<MediaWriter> MediaWriter::New(const char* subMime) {
 	return nullptr;
 }
 
+
 void MediaWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
 	DEBUG(typeof(self), " doesn't support data writing operation");
 }

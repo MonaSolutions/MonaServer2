@@ -230,6 +230,7 @@
     <ClCompile Include="sources\TimerTest.cpp" />
     <ClCompile Include="sources\TimeTest.cpp" />
     <ClCompile Include="sources\SocketTest.cpp" />
+    <ClCompile Include="sources\URLTest.cpp" />
     <ClCompile Include="sources\UtilTest.cpp" />
     <ClCompile Include="sources\XMLParserTest.cpp" />
   </ItemGroup>

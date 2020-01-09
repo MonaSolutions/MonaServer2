@@ -27,7 +27,7 @@ struct FileLogger : Logger, virtual Object {
 		DEFAULT_SIZE_BY_FILE = 1000000,
 		DEFAULT_ROTATION = 10
 	};
-	FileLogger(const std::string dir, UInt32 sizeByFile = DEFAULT_SIZE_BY_FILE, UInt16 rotation = DEFAULT_ROTATION);
+	FileLogger(std::string&& dir, UInt32 sizeByFile = DEFAULT_SIZE_BY_FILE, UInt16 rotation = DEFAULT_ROTATION);
 
 	bool enabled() const { return _pFile ? true : false; }
 

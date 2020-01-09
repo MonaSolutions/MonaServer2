@@ -206,6 +206,9 @@ struct Net : virtual Object {
 
 	static UInt32 GetInterfaceIndex(const SocketAddress& address);
 
+	static UInt16 ResolvePort(Exception& ex, const char* service);
+	static UInt16 ResolvePort(Exception& ex, const std::string& service) { return ResolvePort(ex, service.c_str()); }
+
 #if defined(_WIN32)
 	static int  LastError() { return WSAGetLastError(); }
 #else

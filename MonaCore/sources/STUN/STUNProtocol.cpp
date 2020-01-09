@@ -36,39 +36,39 @@ Socket::Decoder* STUNProtocol::newDecoder() {
 			UInt16 type = reader.read16();
 			reader.next(2); // size
 			switch (type) {
-			case 0x01: { // Binding Request
-				if (reader.available() != 16) {
-					ERROR("Unexpected size ", reader.size(), " received in Binding Request from ", address);
-					return;
+				case 0x01: { // Binding Request
+					if (reader.available() != 16) {
+						ERROR("Unexpected size ", reader.size(), " received in Binding Request from ", address);
+						return;
+					}
+					string transactionId;
+					reader.read(16, transactionId); // cookie & transaction ID
+					DEBUG("STUN ", address, " address resolution ", transactionId);
+
+					shared<Buffer> pBufferOut(SET);
+					BinaryWriter writer(*pBufferOut);
+					writer.write16(0x0101); // Binding Success response
+					writer.write16(address.host().size() + 8); // size of the message
+					writer.write(transactionId);
+
+					writer.write16(0x0020); // XOR Mapped Address
+					writer.write16(address.host().size() + 4); // size
+					writer.write8(0); // reserved
+					writer.write8(address.family() == IPAddress::IPv4 ? 1 : 2); // @ family
+					writer.write16(address.port() ^ ((transactionId[0] << 8) + transactionId[1])); // port XOR 1st bytes of cookie
+
+					const void* pAdd = address.host().data();
+					for (UInt8 i = 0; i < address.host().size(); ++i)
+						writer.write8((*((UInt8*)pAdd + i)) ^ transactionId[i]);
+
+					Exception ex;
+					DUMP_RESPONSE("STUN", pBufferOut->data(), pBufferOut->size(), address);
+					AUTO_WARN(pSocket->write(ex, Packet(pBufferOut), address), "STUN response");
+					break;
 				}
-				string transactionId;
-				reader.read(16, transactionId); // cookie & transaction ID
-				DEBUG("STUN ", address, " address resolution ", transactionId);
-
-				shared<Buffer> pBufferOut(SET);
-				BinaryWriter writer(*pBufferOut);
-				writer.write16(0x0101); // Binding Success response
-				writer.write16(address.host().size() + 8); // size of the message
-				writer.write(transactionId);
-
-				writer.write16(0x0020); // XOR Mapped Address
-				writer.write16(address.host().size() + 4); // size
-				writer.write8(0); // reserved
-				writer.write8(address.family() == IPAddress::IPv4 ? 1 : 2); // @ family
-				writer.write16(address.port() ^ ((transactionId[0] << 8) + transactionId[1])); // port XOR 1st bytes of cookie
-
-				const void* pAdd = address.host().data();
-				for (UInt8 i = 0; i < address.host().size(); ++i)
-					writer.write8((*((UInt8*)pAdd + i)) ^ transactionId[i]);
-
-				Exception ex;
-				DUMP_RESPONSE("STUN", pBufferOut->data(), pBufferOut->size(), address);
-				AUTO_WARN(pSocket->write(ex, Packet(pBufferOut), address), "STUN response");
-				break;
-			}
-			default:
-				WARN("Unknown message type ", type, " from ", address, " (size=", packet.size(), ")");
-				break;
+				default:
+					WARN("Unknown message type ", type, " from ", address, " (size=", packet.size(), ")");
+					break;
 			}
 		}
 	};

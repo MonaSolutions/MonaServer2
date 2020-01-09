@@ -52,7 +52,7 @@ protected:
 		struct ErrorHandle : Handle, virtual Object {
 			ErrorHandle(const char* name, const shared<File>& pFile, Exception& ex) : Handle(name, pFile), _ex(move(ex)) {}
 		private:
-			void handle(File& file) { file.onError(_ex); }
+			void handle(File& file) { file._onError(_ex); }
 			Exception		_ex;
 		};
 		handle<ErrorHandle>(pFile, ex);
@@ -104,8 +104,8 @@ void IOFile::join() {
 }
 
 void IOFile::subscribe(const shared<File>& pFile, const File::OnError& onError, const File::OnFlush& onFlush) {
-	pFile->onError = onError;
-	if ((pFile->onFlush = onFlush) && (pFile->mode==File::MODE_WRITE|| pFile->mode == File::MODE_APPEND))
+	pFile->_onError = onError;
+	if ((pFile->_onFlush = onFlush) && (pFile->mode==File::MODE_WRITE|| pFile->mode == File::MODE_APPEND))
 		onFlush(false); // can start write operation immediatly!
 }
 
@@ -124,7 +124,7 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 			Handle(const char* name, const shared<File>& pFile, shared<Buffer>& pBuffer, bool end) :
 				Action::Handle(name, pFile), _pBuffer(move(pBuffer)), _end(end) {}
 		private:
-			void handle(File& file) { file.onReaden(_pBuffer, _end); }
+			void handle(File& file) { file._onReaden(_pBuffer, _end); }
 			shared<Buffer>	_pBuffer;
 			bool   _end;
 		};
@@ -141,14 +141,14 @@ void IOFile::read(const shared<File>& pFile, UInt32 size) {
 				return false;
 			if ((_size=readen) < pBuffer->size())
 				pBuffer->resize(readen, true);
-			if (pFile->pDecoder) {
+			if (pFile->_pDecoder) {
 				struct Decoding : WAction, virtual Object {
 					Decoding(const shared<File>& pFile, const ThreadPool& threadPool, shared<Buffer>& pBuffer, bool end) :
 						_pThread(ThreadQueue::Current()), _threadPool(threadPool), _end(end), WAction("DecodingFile", *pFile->_pHandler, pFile), _pBuffer(move(pBuffer)) {
 					}
 				private:
 					bool process(Exception& ex, const shared<File>& pFile) {
-						UInt32 decoded = pFile->pDecoder->decode(_pBuffer, _end);
+						UInt32 decoded = pFile->_pDecoder->decode(_pBuffer, _end);
 						if (_pBuffer)
 							handle<ReadFile::Handle>(pFile, _pBuffer, _end);
 						// decoded=wantToRead!
@@ -184,7 +184,7 @@ void IOFile::write(const shared<File>& pFile, const Packet& packet) {
 		private:
 			void handle(File& file) {
 				if(!--file._flushing)
-					file.onFlush(!file.loaded());
+					file._onFlush(!file.loaded());
 			}
 		};
 		bool process(Exception& ex, const shared<File>& pFile) {
@@ -216,7 +216,7 @@ void IOFile::erase(const shared<File>& pFile) {
 		private:
 			void handle(File& file) {
 				if (!--file._flushing)
-					file.onFlush(!file.loaded());
+					file._onFlush(!file.loaded());
 			}
 		};
 		bool process(Exception& ex, const shared<File>& pFile) {

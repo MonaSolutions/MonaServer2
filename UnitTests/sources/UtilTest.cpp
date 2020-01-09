@@ -115,50 +115,6 @@ ADD_TEST(UnpackQuery) {
 
 }
 
-
-ADD_TEST(UnpackUrlPerf) {
-	string address;
-	string path;
-	string query;
-	CHECK(Util::UnpackUrl("rtmp://127.0.0.1:1234/path/file.txt?name1=value1&name2=value2", address, path,query)!=string::npos)
-}
-
-
-ADD_TEST(UnpackUrl) {
-	string address;
-	string path;
-	string query;
-	string file;
-
-	CHECK(Util::UnpackUrl("/path",path,query)!=string::npos && path=="/path");
-	CHECK(Util::UnpackUrl("/",path,query)==string::npos && path=="");
-	CHECK(Util::UnpackUrl("/.",path,query)==string::npos && path=="");
-	CHECK(Util::UnpackUrl("/..",path,query)==string::npos && path=="");
-	CHECK(Util::UnpackUrl("/~",path,query)!=string::npos && path=="/~");
-	CHECK(Util::UnpackUrl("/path/.",path,query)==string::npos && path=="/path");
-	CHECK(Util::UnpackUrl("/path/..",path,query)==string::npos && path=="");
-	CHECK(Util::UnpackUrl("/path/~",path,query)!=string::npos && path=="/path/~");
-	CHECK(Util::UnpackUrl("/path/./sub/",path,query)==string::npos && path=="/path/sub");
-	CHECK(Util::UnpackUrl("/path/../sub/",path,query)==string::npos && path=="/sub");
-	CHECK(Util::UnpackUrl("/path/~/sub/",path,query)==string::npos && path=="/path/~/sub");
-	CHECK(Util::UnpackUrl("//path//sub//.",path,query)==string::npos && path=="/path/sub");
-	CHECK(Util::UnpackUrl("//path//sub//..",path,query)==string::npos && path=="/path");
-	CHECK(Util::UnpackUrl("//path//sub//~",path,query)!=string::npos && path=="/path/sub/~");
-
-	CHECK(Util::UnpackUrl("rtmp://",path,query)==string::npos);
-	CHECK(Util::UnpackUrl("rtmp://127.0.0.1", address, path, query)==string::npos)
-	CHECK(Util::UnpackUrl("rtmp://127.0.0.1:1234/", address, path, query)==string::npos)
-	CHECK(Util::UnpackUrl("rtmp://127.0.0.1:1234/file.txt?", address, path,query)!=string::npos)
-	CHECK(Util::UnpackUrl("rtmp://127.0.0.1:1234/file.txt?name1=value1&name2=value2", address, path, query)!=string::npos)
-	CHECK(Util::UnpackUrl("rtmp://127.0.0.1:1234//path/file.txt?name1=value1&name2=value2", address, path, query)!=string::npos)
-
-	DEBUG_CHECK(query == "?name1=value1&name2=value2");
-	DEBUG_CHECK(path=="/path/file.txt");
-	DEBUG_CHECK(address=="127.0.0.1:1234");
-
-	DEBUG_CHECK(Util::UnpackUrl("srt://www.clubic.com?param=value", address, path, query) == string::npos && address=="www.clubic.com" && query=="?param=value" && path.empty());
-}
-
 ADD_TEST(Base64) {
 	CHECK(TestEncode(EXPAND("\00\01\02\03\04\05"),"AAECAwQF"));
 	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw=="));

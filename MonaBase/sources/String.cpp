@@ -89,16 +89,15 @@ int String::ICompare(const char* data, size_t size, const char* value, size_t co
 	return d - v;
 }
 
-
-const char*	String::TrimLeft(const char* value, size_t size) {
+size_t String::TrimLeft(const char*& value, size_t size) {
 	if (size == string::npos)
 		size = strlen(value);
-	while (size-- && isspace(*value))
+	while (size && isspace(*value)) {
 		++value;
-	return value;
+		--size;
+	}
+	return size;
 }
-
-
 size_t String::TrimRight(const char* value, size_t size) {
 	const char* begin(value);
 	if (size == string::npos)

@@ -24,13 +24,13 @@ using namespace std;
 
 namespace Mona {
 
-bool MediaSocket::SendHTTPHeader(HTTP::Type type, const shared<Socket>& pSocket, const string& path, MIME::Type mime, const char* subMime, const char* name, const string& description) {
+bool MediaSocket::SendHTTPHeader(HTTP::Type type, const shared<Socket>& pSocket, const string& request, MIME::Type mime, const char* subMime, const char* name, const string& description) {
 	shared<Buffer> pBuffer(SET);
 	switch (type) {
 		case HTTP::TYPE_GET:
-			String::Append(*pBuffer, "GET ", path.length() ? path : "/", " HTTP/1.1"); break;
+			String::Append(*pBuffer, "GET ", request.empty() ? "/" : request, " HTTP/1.1"); break;
 		case HTTP::TYPE_POST:
-			String::Append(*pBuffer, "POST ", path.length() ? path : "/", " HTTP/1.1"); break;
+			String::Append(*pBuffer, "POST ", request.empty() ? "/" : request, " HTTP/1.1"); break;
 		default:
 			String::Append(*pBuffer, "HTTP/1.1 200 OK"); break; // by default send a response
 	}
@@ -43,13 +43,6 @@ bool MediaSocket::SendHTTPHeader(HTTP::Type type, const shared<Socket>& pSocket,
 	Exception ex;
 	AUTO_ERROR((sent = pSocket->write(ex, Packet(pBuffer))) >= 0, description);
 	return (sent >= 0);
-}
-
-unique<MediaSocket::Reader> MediaSocket::Reader::New(MediaStream::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
-	if (!*subMime && type == MediaStream::TYPE_HTTP ) // Format can be empty with HTTP source
-		return make_unique<MediaSocket::Reader>(type, path, source, unique<MediaReader>(), address, io, pTLS);
-	unique<MediaReader> pReader(MediaReader::New(subMime));
-	return pReader ? make_unique<MediaSocket::Reader>(type, path, source, move(pReader), address, io, pTLS) : nullptr;
 }
 
 void MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
@@ -72,16 +65,17 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<S
 	return 0;
 }
 
-MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	MediaStream(type, path, source), _streaming(false), io(io), _pTLS(pTLS), _pReader(move(pReader)), _httpAnswer(false),
-	address((!address.host() && type != TYPE_UDP) ? IPAddress::Loopback() : address.host(), address.port()) {
+MediaSocket::Reader::Reader(Type type, string&& request, unique<MediaReader>&& pReader, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
+	request(move(request)), _streaming(false), io(io), _pTLS(pTLS), _pReader(move(pReader)), _httpAnswer(false), address((!address.host() && type != TYPE_UDP) ? IPAddress::Loopback() : address.host(), address.port()),
+	MediaStream(type, "Stream source ", TypeToString(type), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { run(); };
 	_onSocketError = [this](const Exception& ex) { stop(state()==STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
 
-MediaSocket::Reader::Reader(Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const shared<Socket>& pSocket, IOSocket& io) :
-	MediaStream(type, path, source), _streaming(false), io(io), _pReader(move(pReader)), _pSocket(pSocket), address(pSocket->peerAddress()), _httpAnswer(true) {
+MediaSocket::Reader::Reader(Type type, string&& request, unique<MediaReader>&& pReader, Media::Source& source, const shared<Socket>& pSocket, IOSocket& io) :
+	_pSocket(pSocket), request(move(request)), _streaming(false), io(io), _pReader(move(pReader)), _httpAnswer(true), address(pSocket->peerAddress()),
+	MediaStream(type, "Stream source ", TypeToString(type), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { run(); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
@@ -92,7 +86,7 @@ bool MediaSocket::Reader::initSocket(const Parameters& parameters) {
 	MediaStream::initSocket(_pSocket, parameters, _pTLS);
 	bool success;
 	if (type == TYPE_UDP) { // Bind if UDP
-		AUTO_ERROR(success = _pSocket->bind(ex, address), description());
+		AUTO_ERROR(success = _pSocket->bind(ex, address), description);
 		if (!success) {
 			_pSocket.reset();
 			stop();
@@ -112,13 +106,13 @@ bool MediaSocket::Reader::initSocket(const Parameters& parameters) {
 			if (!_httpAnswer)
 				return stop<Ex::Protocol>(LOG_ERROR, "HTTP request on a stream source (only HTTP response is expected)");
 				// send HTTP Header answer!
-			if (request && !SendHTTPHeader(HTTP::TYPE_UNKNOWN, _pSocket, path, _pReader ? _pReader->mime() : MIME::TYPE_UNKNOWN, _pReader? _pReader->subMime() : nullptr, source.name().c_str(), description()))
+			if (request && !SendHTTPHeader(HTTP::TYPE_UNKNOWN, _pSocket, this->request, _pReader ? _pReader->mime() : MIME::TYPE_UNKNOWN, _pReader? _pReader->subMime() : nullptr, source.name().c_str(), description))
 				return stop();
 		}
 		writeMedia(request);
 	};
 	// engine subscription BEFORE connect to be able to detect connection success/failure
-	AUTO_ERROR(success = io.subscribe(ex = nullptr, _pSocket, pDecoder, nullptr, _onSocketFlush, _onSocketError, _onSocketDisconnection), description());
+	AUTO_ERROR(success = io.subscribe(ex = nullptr, _pSocket, pDecoder, nullptr, _onSocketFlush, _onSocketError, _onSocketDisconnection), description);
 	if (!success) {
 		_pSocket.reset();
 		stop();
@@ -161,11 +155,11 @@ bool MediaSocket::Reader::starting(const Parameters& parameters) {
 		return false;
 	}
 	if (ex && ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
-		WARN(description(), ", ", ex);
+		WARN(description, ", ", ex);
 
 	if (state()==STATE_STOPPED && type == TYPE_HTTP && !_httpAnswer) { // HTTP + first time!
 		// send HTTP Header request!
-		if (!SendHTTPHeader(HTTP::TYPE_GET, _pSocket, path, MIME::TYPE_UNKNOWN, nullptr, source.name().c_str(), description())) {
+		if (!SendHTTPHeader(HTTP::TYPE_GET, _pSocket, request, MIME::TYPE_UNKNOWN, nullptr, source.name().c_str(), description)) {
 			stop();
 			return false;
 		}
@@ -191,14 +185,8 @@ void MediaSocket::Reader::stopping() {
 }
 
 
-
-
-unique<MediaSocket::Writer> MediaSocket::Writer::New(MediaStream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) {
-	unique<MediaWriter> pWriter(MediaWriter::New(subMime));
-	return pWriter ? make_unique<MediaSocket::Writer>(type, path, move(pWriter), address, io, pTLS) : nullptr;
-}
-
-MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter) : Runner("MediaSocketSend"), _pSocket(pSocket), pWriter(pWriter), _pName(pName),
+MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const shared<Socket>& pSocket, const shared<MediaWriter>& pWriter) : Runner("MediaSocketSend"),
+	_pSocket(pSocket), pWriter(pWriter), _pName(pName),
 	onWrite([this, type](const Packet& packet) {
 		UInt32 size = 0;
 		Packet chunk(packet);
@@ -206,23 +194,22 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 			size = (type == TYPE_UDP || type == TYPE_SRT) && chunk.size() > Net::MTU_RELIABLE_SIZE ? Net::MTU_RELIABLE_SIZE : chunk.size();
 			DUMP_RESPONSE(_pName->c_str(), chunk.data(), size, _pSocket->peerAddress());
 			Exception ex;
-			int result;
-			AUTO_WARN((result = _pSocket->write(ex, Packet(chunk, chunk.data(), size))) >= 0, "Stream target ", TypeToString(type), "://", _pSocket->peerAddress(), '|', String::Upper(this->pWriter->format()));
+			int result = _pSocket->write(ex, Packet(chunk, chunk.data(), size));
 			if (result < 0) // write has failed, no more reliable!
 				_pSocket->shutdown();
 		};
 	}) {
 }
 
-MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	MediaStream(type, path), io(io), _pTLS(pTLS), address(address.host() ? address.host() : IPAddress::Loopback(), address.port()), _sendTrack(0), 
-	_pWriter(move(pWriter)), _httpAnswer(false), _subscribed(false) {
+MediaSocket::Writer::Writer(Type type, string&& request, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
+	_pTLS(pTLS), request(move(request)), io(io), _sendTrack(0), _pWriter(move(pWriter)), _httpAnswer(false), _subscribed(false), address(address.host() ? address.host() : IPAddress::Loopback(), address.port()),
+	MediaStream(type, "Stream target ", TypeToString(type), "://", address, request, '|', String::Upper(pWriter->format())) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
-MediaSocket::Writer::Writer(Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io) : _pSocket(pSocket),
-	MediaStream(type, path), io(io), address(pSocket->peerAddress()), _sendTrack(0),
-	_pWriter(move(pWriter)), _httpAnswer(true), _subscribed(false) {
+MediaSocket::Writer::Writer(Type type, string&& request, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io) : _pSocket(pSocket),
+	io(io), request(move(request)), _sendTrack(0), _pWriter(move(pWriter)), _httpAnswer(true), _subscribed(false), address(pSocket->peerAddress()),
+	MediaStream(type, "Stream target ", TypeToString(type), "://", address, request, '|', String::Upper(pWriter->format())) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
@@ -232,7 +219,7 @@ bool MediaSocket::Writer::initSocket(const Parameters& parameters) {
 		return true;
 	if (!MediaStream::initSocket(_pSocket, parameters, _pTLS))
 		return false;
-	AUTO_ERROR(_subscribed = io.subscribe(ex, _pSocket, nullptr, nullptr, _onSocketError, _onSocketDisconnection), description());
+	AUTO_ERROR(_subscribed = io.subscribe(ex, _pSocket, nullptr, nullptr, _onSocketError, _onSocketDisconnection), description);
 	if (!_subscribed)
 		_pSocket.reset();
 	return _subscribed;
@@ -255,22 +242,22 @@ bool MediaSocket::Writer::starting(const Parameters& parameters) {
 		return false;
 	}
 	if (ex && ex.cast<Ex::Net::Socket>().code != NET_EWOULDBLOCK)
-		WARN(description(), ", ", ex);
+		WARN(description, ", ", ex);
 	return true; // wait first Media before to run
 }
 
 bool MediaSocket::Writer::beginMedia(const string& name) {
+	bool streaming = _pName.operator bool();
+	_pName.set(name); // to signal begin (before to call start)
 	if (!start())
 		return false;
-	bool streaming = _pName.operator bool();
-	_pName.set(name);
 	if (streaming)
 		return true; // MBR switch!
 
 	send<Send>(); // First media, send the beginMedia!
 	if (type == TYPE_HTTP) { // HTTP
 		// send HTTP Header request!
-		if (!SendHTTPHeader(_httpAnswer? HTTP::TYPE_UNKNOWN : HTTP::TYPE_POST, _pSocket, path, _pWriter->mime(), _pWriter->subMime(), source.name().c_str(), description())) {
+		if (!SendHTTPHeader(_httpAnswer? HTTP::TYPE_UNKNOWN : HTTP::TYPE_POST, _pSocket, request, _pWriter->mime(), _pWriter->subMime(), source.name().c_str(), description)) {
 			stop();
 			return false;
 		}

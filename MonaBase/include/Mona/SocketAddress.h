@@ -88,7 +88,9 @@ struct SocketAddress : private IPAddress, virtual Object {
 	bool setWithDNS(Exception& ex, const std::string& hostAndPort) { return setIntern(ex, hostAndPort.c_str(), true); }
 	bool setWithDNS(Exception& ex, const char* hostAndPort) { return setIntern(ex, hostAndPort, true); }
 	
-	void setPort(UInt16 port) { IPAddress::setPort(port); }
+	SocketAddress&  setPort(UInt16 port) { IPAddress::setPort(port); return self; }
+	bool			setPort(Exception& ex, const char* port);
+	bool			setPort(Exception& ex, const std::string& port) { return setPort(ex, port.c_str()); }
 
 	SocketAddress& reset() { IPAddress::reset(); return self; }
 
@@ -119,7 +121,7 @@ private:
 	bool setIntern(Exception& ex, const char* host, const char* port, bool resolveHost);
 	bool setIntern(Exception& ex, const char* host, UInt16 port, bool resolveHost) { return resolveHost ? IPAddress::setWithDNS(ex, host, port) : IPAddress::set(ex, host, port); }
 
-	UInt16 resolveService(Exception& ex, const char* service);
+	
 
 };
 

@@ -193,6 +193,9 @@
     <ClCompile Include="sources\UnitTest.cpp">
       <Filter>Application</Filter>
     </ClCompile>
+    <ClCompile Include="sources\URL.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\BinaryReader.h">
@@ -396,6 +399,9 @@
     </ClInclude>
     <ClInclude Include="include\Mona\UnitTest.h">
       <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\URL.h">
+      <Filter>Util</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

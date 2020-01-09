@@ -27,15 +27,17 @@ namespace Mona {
 
 struct MediaLogs : MediaStream, virtual Object {
 
-	MediaLogs(std::string&& name, Media::Source& source, ServerAPI& api) : _api(api), MediaStream(MediaStream::TYPE_LOGS, name, source) {}
+	MediaLogs(std::string&& name, Media::Source& source, ServerAPI& api) : _api(api), name(std::move(name)),
+		MediaStream(MediaStream::TYPE_LOGS, source, "Stream logger ", name) {}
 	virtual ~MediaLogs() { stop(); }
+
+	const std::string name;
 
 private:
 	bool starting(const Parameters& parameters);
 	void stopping();
 
-	std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream logger ", path); }
-		
+
 	ServerAPI&		_api;
 	unique<Publish> _pPublish;
 

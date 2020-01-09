@@ -37,8 +37,7 @@ static PersistentData::ForEach	_ForEach([](const string& path, const Packet& pac
 ADD_TEST(Load) {
 	// create base of test
 	Exception ex;
-	FileSystem::MakeFolder(_Path.assign(FileSystem::GetHome("")).append(".MonaTests/"));
-	_Data.load(ex, _Path, _ForEach);
+	_Data.load(ex, _Path.assign(FileSystem::GetHome("")).append(".MonaTests/"), _ForEach);
 	CHECK(!ex)
 }
 

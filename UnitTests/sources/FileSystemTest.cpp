@@ -43,8 +43,6 @@ ADD_TEST(Static) {
 
 ADD_TEST(Resolve) {
 
-	Path parent(Path::CurrentDir().parent());
-
 	// ABSOLUTE
 #if defined(_WIN32)
 	CHECK_FILE("C:/", FileSystem::TYPE_FOLDER, "C:/", "", string::npos);
@@ -85,13 +83,13 @@ ADD_TEST(Resolve) {
 
 
 	// RELATIVE
-	CHECK_FILE("", FileSystem::TYPE_FOLDER, parent, Path::CurrentDir().name(), string::npos);
-	CHECK_FILE("C:", FileSystem::TYPE_FILE, Path::CurrentDir(), "C:", string::npos);
-	CHECK_FILE("salut.txt", FileSystem::TYPE_FILE, Path::CurrentDir(), "salut.txt", 5);
-	CHECK_FILE("../", FileSystem::TYPE_FOLDER, parent.parent(), parent.name(), string::npos);
-	CHECK_FILE("..", FileSystem::TYPE_FILE, parent.parent(), parent.name(), string::npos);
-	CHECK_FILE("./", FileSystem::TYPE_FOLDER, parent, Path::CurrentDir().name(), string::npos);
-	CHECK_FILE(".", FileSystem::TYPE_FILE, parent, Path::CurrentDir().name(), string::npos);
+	CHECK_FILE("", FileSystem::TYPE_FOLDER, "../", "", string::npos);
+	CHECK_FILE("C:", FileSystem::TYPE_FILE, "", "C:", string::npos);
+	CHECK_FILE("salut.txt", FileSystem::TYPE_FILE, "", "salut.txt", 5);
+	CHECK_FILE("../", FileSystem::TYPE_FOLDER, "../../", "", string::npos);
+	CHECK_FILE("..", FileSystem::TYPE_FILE, "../../", "", string::npos);
+	CHECK_FILE("./", FileSystem::TYPE_FOLDER, "../", "", string::npos);
+	CHECK_FILE(".", FileSystem::TYPE_FILE, "../", "", string::npos);
 	CHECK_FILE("../salut", FileSystem::TYPE_FILE, "../", "salut", string::npos);
 
 
@@ -124,7 +122,8 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::MakeAbsolute(Path1.assign("C:/"))=="/C:/");
 #endif
 	CHECK(FileSystem::MakeAbsolute(Path1.assign("C:")) == "/C:");
-
+	CHECK(FileSystem::MakeAbsolute(Path1.assign("/C:")) == "/C:");
+	
 
 	CHECK(FileSystem::MakeRelative(Path1.assign(""))=="");
 	CHECK(FileSystem::MakeRelative(Path1.assign("."))==".");
@@ -135,7 +134,8 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::MakeRelative(Path1.assign("/"))=="");
 	CHECK(FileSystem::MakeRelative(Path1.assign("/f/"))=="f/");
 #if defined(_WIN32)
-	CHECK(FileSystem::MakeRelative(Path1.assign("C:/"))=="");
+	CHECK(FileSystem::MakeRelative(Path1.assign("C:/"))=="./C:/");
+	CHECK(FileSystem::MakeRelative(Path1.assign("/C:")) == "./C:");
 #else
 	CHECK(FileSystem::MakeRelative(Path1.assign("C:/"))=="C:/");
 #endif
@@ -150,6 +150,7 @@ ADD_TEST(Resolve) {
 #else
 	CHECK(FileSystem::Resolve(Path1.assign("C:/")) == Path2.assign(Path::CurrentDir()).append("C:/"));
 #endif
+	Path parent(Path::CurrentDir().parent());
 	CHECK(FileSystem::Resolve(Path1.assign(".")) == FileSystem::MakeFile(Path2.assign(Path::CurrentDir())));
 	CHECK(FileSystem::Resolve(Path1.assign("./")) == Path::CurrentDir());
 	CHECK(FileSystem::Resolve(Path1.assign("..")) == FileSystem::MakeFile(Path2.assign(parent)));
@@ -175,21 +176,26 @@ ADD_TEST(Resolve) {
 
 	CHECK(FileSystem::IsFolder(""));
 	CHECK(FileSystem::IsFolder("/"));
-	CHECK(!FileSystem::IsFolder("."));
+	CHECK(FileSystem::IsFolder("."));
 	CHECK(FileSystem::IsFolder("./"));
-	CHECK(!FileSystem::IsFolder(".."));
+	CHECK(FileSystem::IsFolder(".."));
 	CHECK(FileSystem::IsFolder("../"));
 	CHECK(FileSystem::IsFolder("/./"));
-	CHECK(!FileSystem::IsFolder("/."));
+	CHECK(FileSystem::IsFolder("/."));
 	CHECK(FileSystem::IsFolder("/../"));
-	CHECK(!FileSystem::IsFolder("/.."));
+	CHECK(FileSystem::IsFolder("/.."));
 	CHECK(FileSystem::IsFolder("/f/"));
 	CHECK(FileSystem::IsFolder("C:/"));
-	CHECK(!FileSystem::IsFolder("C:"));
 	CHECK(FileSystem::IsFolder("\\"));
-	CHECK(!FileSystem::IsFolder("\\."));
+	CHECK(FileSystem::IsFolder("\\."));
 	CHECK(FileSystem::IsFolder("./C:/"));
-	CHECK(!FileSystem::IsFolder("C:/."));
+	CHECK(FileSystem::IsFolder("C:/."));
+	CHECK(!FileSystem::IsFolder("c"));
+#if defined(_WIN32)
+	CHECK(FileSystem::IsFolder("C:"));
+#else
+	CHECK(!FileSystem::IsFolder("C:"));
+#endif
 
 	CHECK(FileSystem::MakeFolder(Path1.assign("")).empty());
 	CHECK(FileSystem::MakeFolder(Path1.assign("/"))=="/");
@@ -204,15 +210,15 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::MakeFolder(Path1.assign("/f/"))=="/f/");
 	CHECK(FileSystem::MakeFolder(Path1.assign("C:/"))=="C:/");
 #if defined(_WIN32)
-	CHECK(FileSystem::MakeFolder(Path1.assign("C:"))=="./C:/");
+	CHECK(FileSystem::MakeFolder(Path1.assign("C:"))=="C:"); // Stay a relative path on concatenation with a file
 #else
-	CHECK(FileSystem::MakeFolder(Path1.assign("C:"))=="C:/");
+	CHECK(FileSystem::MakeFolder(Path1.assign("C:")) == "C:/");
 #endif
 	CHECK(FileSystem::MakeFolder(Path1.assign("\\"))=="\\");
 	CHECK(FileSystem::MakeFolder(Path1.assign("\\."))=="\\./");
 
-	CHECK(FileSystem::MakeFile(Path1.assign(""))==".");
-	CHECK(FileSystem::MakeFile(Path1.assign("/"))=="/.");
+	CHECK(FileSystem::MakeFile(Path1.assign(""))=="."); // Stay a relative path on concatenation with a directory
+	CHECK(FileSystem::MakeFile(Path1.assign("/"))==""); // Stay a absolute path on concatenation with a directory
 	CHECK(FileSystem::MakeFile(Path1.assign("."))==".");
 	CHECK(FileSystem::MakeFile(Path1.assign("./"))==".");
 	CHECK(FileSystem::MakeFile(Path1.assign(".."))=="..");
@@ -222,32 +228,28 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::MakeFile(Path1.assign("/../"))=="/..");
 	CHECK(FileSystem::MakeFile(Path1.assign("/.."))=="/..");
 	CHECK(FileSystem::MakeFile(Path1.assign("/f/"))=="/f");
-#if defined(_WIN32)
-	CHECK(FileSystem::MakeFile(Path1.assign("C:/"))=="C:/.");
-#else
 	CHECK(FileSystem::MakeFile(Path1.assign("C:/"))=="C:");
-#endif
 	CHECK(FileSystem::MakeFile(Path1.assign("C:"))=="C:");
-	CHECK(FileSystem::MakeFile(Path1.assign("\\"))=="/.");
+	CHECK(FileSystem::MakeFile(Path1.assign("\\"))=="");
 	CHECK(FileSystem::MakeFile(Path1.assign("\\."))=="\\.");
 
-	CHECK(FileSystem::GetParent("",Path1) == parent);
-	CHECK(FileSystem::GetParent("C:",Path1) == Path::CurrentDir());
+	CHECK(FileSystem::GetParent("",Path1) == "../");
+	CHECK(FileSystem::GetParent("C:",Path1) == "");
 #if defined(_WIN32)
 	CHECK(FileSystem::GetParent("C:/",Path1) == "C:/");
 #else
-	CHECK(FileSystem::GetParent("C:/",Path1) == Path::CurrentDir());
+	CHECK(FileSystem::GetParent("C:/",Path1) == "");
 #endif
-	CHECK(FileSystem::GetParent("f",Path1) == Path::CurrentDir());
-	CHECK(FileSystem::GetParent("f/",Path1) == Path::CurrentDir());
+	CHECK(FileSystem::GetParent("f",Path1) == "");
+	CHECK(FileSystem::GetParent("f/",Path1) == "");
 	CHECK(FileSystem::GetParent("/f",Path1) == "/");
 	CHECK(FileSystem::GetParent("/f/",Path1) == "/");
-	CHECK(FileSystem::GetParent(".",Path1) == parent);
-	CHECK(FileSystem::GetParent("./",Path1) == parent);
-	CHECK(FileSystem::GetParent("..",Path1) == parent.parent());
-	CHECK(FileSystem::GetParent("../",Path1) == parent.parent());
-	CHECK(FileSystem::GetParent("...",Path1) == Path::CurrentDir());
-	CHECK(FileSystem::GetParent(".../",Path1) == Path::CurrentDir());
+	CHECK(FileSystem::GetParent(".",Path1) == "../");
+	CHECK(FileSystem::GetParent("./",Path1) == "../");
+	CHECK(FileSystem::GetParent("..",Path1) == "../../");
+	CHECK(FileSystem::GetParent("../",Path1) == "../../");
+	CHECK(FileSystem::GetParent("...",Path1) == "");
+	CHECK(FileSystem::GetParent(".../",Path1) == "");
 	CHECK(FileSystem::GetParent("/.",Path1) == "/");
 	CHECK(FileSystem::GetParent("/./",Path1) == "/");
 	CHECK(FileSystem::GetParent("/..",Path1) == "/");
@@ -257,10 +259,10 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::GetParent("/.././../test/salut/../..",Path1) == "/");
 	
 
-	CHECK(FileSystem::GetExtension("",Path1) == Path::CurrentDir().extension());
+	CHECK(FileSystem::GetExtension("",Path1).empty());
 	CHECK(FileSystem::GetExtension("f",Path1).empty());
-	CHECK(FileSystem::GetExtension(".",Path1) == Path::CurrentDir().extension());
-	CHECK(FileSystem::GetExtension("..",Path1) == parent.extension());
+	CHECK(FileSystem::GetExtension(".",Path1).empty());
+	CHECK(FileSystem::GetExtension("..",Path1).empty());
 	CHECK(FileSystem::GetExtension("/.",Path1).empty());
 	CHECK(FileSystem::GetExtension("/..",Path1).empty());
 	CHECK(FileSystem::GetExtension("/...",Path1).empty());
@@ -276,10 +278,10 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::GetExtension("/..e/",Path1)=="e");
 	CHECK(FileSystem::GetExtension("C:/",Path1).empty());
 
-	CHECK(FileSystem::GetName("",Path1) == Path::CurrentDir().name());
+	CHECK(FileSystem::GetName("",Path1).empty());
 	CHECK(FileSystem::GetName("f",Path1)=="f");
-	CHECK(FileSystem::GetName(".",Path1) == Path::CurrentDir().name());
-	CHECK(FileSystem::GetName("..",Path1) == parent.name());
+	CHECK(FileSystem::GetName(".",Path1).empty());
+	CHECK(FileSystem::GetName("..",Path1).empty());
 	CHECK(FileSystem::GetName("/.",Path1).empty());
 	CHECK(FileSystem::GetName("/..",Path1).empty());
 	CHECK(FileSystem::GetName("/...",Path1)=="...");
@@ -299,10 +301,10 @@ ADD_TEST(Resolve) {
 	CHECK(FileSystem::GetName("C:/",Path1)=="C:");
 #endif
 
-	CHECK(FileSystem::GetBaseName("",Path1) == Path::CurrentDir().baseName());
+	CHECK(FileSystem::GetBaseName("",Path1).empty());
 	CHECK(FileSystem::GetBaseName("f",Path1)=="f");
-	CHECK(FileSystem::GetBaseName(".",Path1) == Path::CurrentDir().baseName());
-	CHECK(FileSystem::GetBaseName("..",Path1) == parent.baseName());
+	CHECK(FileSystem::GetBaseName(".",Path1).empty());
+	CHECK(FileSystem::GetBaseName("..",Path1).empty());
 	CHECK(FileSystem::GetBaseName("/.",Path1).empty());
 	CHECK(FileSystem::GetBaseName("/..",Path1).empty());
 	CHECK(FileSystem::GetBaseName("/...",Path1)=="..");

@@ -35,11 +35,11 @@ Developer notes:
 
 namespace Mona {
 
-#define MAKE_FOLDER(PATH)	FileSystem::MakeFolder(PATH)
-#define MAKE_FILE(PATH)		FileSystem::MakeFile(PATH)
-#define MAKE_ABSOLUTE(PATH) FileSystem::MakeAbsolute(PATH)
-#define MAKE_RELATIVE(PATH) FileSystem::MakeRelative(PATH)
-#define RESOLVE(PATH)		FileSystem::Resolve(PATH)
+#define MAKE_FOLDER(PATH)		FileSystem::MakeFolder(PATH)
+#define MAKE_FILE(PATH)			FileSystem::MakeFile(PATH)
+#define MAKE_ABSOLUTE(PATH)		FileSystem::MakeAbsolute(PATH)
+#define MAKE_RELATIVE(PATH)		FileSystem::MakeRelative(PATH)
+#define RESOLVE(PATH)			FileSystem::Resolve(PATH)
 
 struct FileSystem : virtual Static {
 	enum Type {
@@ -76,18 +76,22 @@ struct FileSystem : virtual Static {
 	static bool			Exists(const char* path) { return Exists(path, strlen(path)); }
 	static bool			IsAbsolute(const std::string& path) { return IsAbsolute(path.c_str()); }
 	static bool			IsAbsolute(const char* path);
-	static bool			IsFolder(const std::string& path);
+	static bool			IsFolder(const std::string& path) { return IsFolder(path.c_str()); }
 	static bool			IsFolder(const char* path);
 	
+	/*!
+	End the path with a / if not already present */
 	static std::string  MakeFolder(const char* path) { std::string result(path); MakeFolder(result); return result; }
 	static std::string	MakeFolder(const std::string& path) { return MakeFolder(path.c_str()); }
 	static std::string&	MakeFolder(std::string& path);
+	/*!
+	Remove end / if present (not guarantee that isFolder returns false now, if is "." for example it's a folder)  */
 	static std::string	MakeFile(const char* path) { std::string result(path); MakeFile(result); return result; }
 	static std::string	MakeFile(const std::string& path) { return MakeFile(path.c_str()); }
 	static std::string&	MakeFile(std::string& path);
 	static std::string	MakeAbsolute(const char* path) { std::string result(path); MakeAbsolute(result); return result; }
 	static std::string	MakeAbsolute(const std::string& path) { return MakeAbsolute(path.c_str()); }
-	static std::string& MakeAbsolute(std::string& path) { if (!IsAbsolute(path)) path.insert(0, "/"); return path; }
+	static std::string& MakeAbsolute(std::string& path);
 	static std::string	MakeRelative(const char* path) { std::string result(path); MakeRelative(result); return result; }
 	static std::string	MakeRelative(const std::string& path) { return MakeRelative(path.c_str()); }
 	static std::string& MakeRelative(std::string& path);
@@ -98,14 +102,14 @@ struct FileSystem : virtual Static {
 
 	/// extPos = position of ".ext"
 	static Type		GetFile(const char* path, std::string& name) { std::size_t extPos; return GetFile(path,name,extPos); }
-	static Type		GetFile(const char* path, std::string& name, std::size_t& extPos) { return GetFile(path,name,extPos,(std::string&)String::Empty()); }
+	static Type		GetFile(const char* path, std::string& name, std::size_t& extPos) { return GetFile(path, strlen(path),name,extPos); }
 	static Type		GetFile(const char* path, std::string& name, std::string& parent) { std::size_t extPos; return GetFile(path,name,extPos,parent); }
-	static Type		GetFile(const char* path, std::string& name, std::size_t& extPos, std::string& parent) { return GetFile(path, strlen(path), name, extPos, parent); }
+	static Type		GetFile(const char* path, std::string& name, std::size_t& extPos, std::string& parent) { return GetFile(path, strlen(path), name, extPos, &parent); }
 	
 	static Type		GetFile(const std::string& path, std::string& name) { std::size_t extPos; return GetFile(path,name,extPos); }
-	static Type		GetFile(const std::string& path, std::string& name, std::size_t& extPos) { return GetFile(path,name,extPos,(std::string&)String::Empty()); }
+	static Type		GetFile(const std::string& path, std::string& name, std::size_t& extPos) { return GetFile(path.data(), path.size(), name,extPos); }
 	static Type		GetFile(const std::string& path, std::string& name, std::string& parent) { std::size_t extPos;  return GetFile(path,name, extPos, parent); }
-	static Type		GetFile(const std::string& path, std::string& name, std::size_t& extPos, std::string& parent) { return GetFile(path.data(), path.size() , name, extPos, parent); }
+	static Type		GetFile(const std::string& path, std::string& name, std::size_t& extPos, std::string& parent) { return GetFile(path.data(), path.size() , name, extPos, &parent); }
 	
 
 	static std::string& GetName(std::string& value) { return GetName(value,value); }
@@ -179,7 +183,7 @@ private:
 	static UInt64 GetSize(Exception& ex, const char* path, std::size_t size, UInt64 defaultValue);
 	static std::string& GetParent(const char* path, std::size_t size, std::string& value);
 	static const char*  GetFile(const char* path, std::size_t& size, std::size_t& extPos, Type& type, Int32& parentPos);
-	static Type			GetFile(const char* path, std::size_t size, std::string& name, std::size_t& extPos, std::string& parent);
+	static Type			GetFile(const char* path, std::size_t size, std::string& name, std::size_t& extPos, std::string* pParent = NULL);
 };
 
 

@@ -78,14 +78,14 @@ private:
 			const Socket::OnDisconnection& onDisconnection,
 			const Socket::OnAccept& onAccept,
 			const Socket::OnError& onError) {
-		pSocket->externDecoder = pDecoder && pSocket.get() != (SocketType*)pDecoder;
-		pSocket->pDecoder = pDecoder;
+		pSocket->_externDecoder = pDecoder && pSocket.get() != (SocketType*)pDecoder;
+		pSocket->_pDecoder = pDecoder;
 		if (subscribe(ex, pSocket, onReceived, onFlush, onDisconnection, onAccept, onError))
 			return true;
-		if (!pSocket->externDecoder)
+		if (!pSocket->_externDecoder)
 			return false;
 		delete pDecoder;
-		return pSocket->externDecoder = false;
+		return pSocket->_externDecoder = false;
 	}
 
 	bool subscribe(Exception& ex, const shared<Socket>& pSocket,

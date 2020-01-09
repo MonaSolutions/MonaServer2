@@ -27,7 +27,7 @@ namespace Mona {
 struct MediaReader : virtual Object, private StreamData<Media::Source&> {
 	
 	static unique<MediaReader> New(const char* subMime);
-
+	static unique<MediaReader> New(const std::string& subMime) { return New(subMime.c_str()); }
 
 	virtual void setParams(const Parameters& parameters) {}
 

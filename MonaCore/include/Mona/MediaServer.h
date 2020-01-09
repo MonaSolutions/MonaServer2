@@ -27,29 +27,29 @@ namespace Mona {
 
 struct MediaServer : virtual Static {
 	enum Type {
-		TYPE_TCP = 1, // to match MediaStream::Type
 #if defined(SRT_API)
-		TYPE_SRT = 2, // to match MediaStream::Type
+		TYPE_SRT = MediaStream::TYPE_SRT,
 #endif
-		TYPE_HTTP = 4 // to match MediaStream::Type
+		TYPE_TCP = MediaStream::TYPE_TCP,
+		TYPE_HTTP = MediaStream::TYPE_HTTP
+
 	};
 
 	struct Reader : MediaStream, virtual Object {
-		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static unique<MediaServer::Reader> New(MediaServer::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
+		static unique<MediaServer::Reader> New(Exception& ex, MediaStream::Type type, const char* request, Media::Source& source, const SocketAddress& address, IOSocket& io, std::string&& format = "") { return New(ex, type, request, source, address, io, nullptr, std::move(format)); }
+		static unique<MediaServer::Reader> New(Exception& ex, MediaStream::Type type, const char* request, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS, std::string&& format = "");
 
-		Reader(MediaServer::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Reader(MediaServer::Type type, const char* request, unique<MediaReader>&& pReader, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		virtual ~Reader() { stop(); }
 
 		const SocketAddress		address;
+		const std::string		request;
 		IOSocket&				io;
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
 	private:
 		bool starting(const Parameters& parameters);
 		void stopping();
-
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 
 		Socket::OnAccept	_onConnnection;
 		Socket::OnError		_onError;
@@ -61,13 +61,14 @@ struct MediaServer : virtual Static {
 	};
 
 	struct Writer : MediaStream, virtual Object {
-		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static unique<MediaServer::Writer> New(MediaServer::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+		static unique<MediaServer::Writer> New(Exception& ex, MediaStream::Type type, const char* request, const SocketAddress& address, IOSocket& io, std::string&& format = "") { return New(ex, type, request, address, io, nullptr, std::move(format)); }
+		static unique<MediaServer::Writer> New(Exception& ex, MediaStream::Type type, const char* request, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS, std::string&& format = "");
 
-		Writer(MediaServer::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Writer(MediaServer::Type type, const char* request, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
 		virtual ~Writer() { stop(); }
 
 		const SocketAddress		address;
+		const std::string		request;
 		IOSocket&				io;
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
 
@@ -75,15 +76,13 @@ struct MediaServer : virtual Static {
 		bool starting(const Parameters& parameters);
 		void stopping();
 
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream server target ", TypeToString(type), "://", address, path, '|', String::Upper(_format)); }
-
 		Socket::OnAccept		_onConnnection;
-		Socket::OnError		_onError;
+		Socket::OnError			_onError;
 
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
-		const char*						_subMime;
-		const char*						_format;
+		const char*				_subMime;
+		const char*				_format;
 	};
 };
 

@@ -125,7 +125,7 @@ bool Application::init(int argc, const char* argv[]) {
 		setNumber("logs.rotation", rotation);
 		setNumber("logs.maxSize", sizeByFile);
 		// Set Logger after opening _logStream!
-		if (!Logs::AddLogger<FileLogger>(String("file!", name(), " already running?"), logDir, sizeByFile, rotation))
+		if (!Logs::AddLogger<FileLogger>(String("file!", name(), " already running?"), move(logDir), sizeByFile, rotation))
 			FATAL_ERROR(name(), " initLogs can't override file logger");
 	}
 

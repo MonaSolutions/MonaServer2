@@ -553,7 +553,7 @@ void IPAddress::setPort(UInt16 port) {
 
 IPAddress& IPAddress::reset() {
 	_pIPAddress = Wildcard(_pIPAddress->family())._pIPAddress;
-	return *this;
+	return self;
 }
 
 IPAddress& IPAddress::set(const sockaddr& addr) {
@@ -561,20 +561,20 @@ IPAddress& IPAddress::set(const sockaddr& addr) {
 		_pIPAddress.set<IPv4Impl>(addr);
 	else
 		_pIPAddress.set<IPv6Impl>(addr);
-	return *this;
+	return self;
 }
 IPAddress& IPAddress::set(const IPAddress& other, UInt16 port) {
 	_pIPAddress = other._pIPAddress;
 	setPort(port);
-	return *this;
+	return self;
 }
 IPAddress& IPAddress::set(const in_addr& addr, UInt16 port) {
 	_pIPAddress.set<IPv4Impl>(addr, port);
-	return *this;
+	return self;
 }
 IPAddress& IPAddress::set(const in6_addr& addr, UInt32 scope, UInt16 port) {
 	_pIPAddress.set<IPv6Impl>(addr, scope, port);
-	return *this;
+	return self;
 }
 IPAddress& IPAddress::set(BinaryReader& reader, Family family) {
 	UInt8 size;
@@ -635,7 +635,7 @@ bool IPAddress::Resolve(Exception& ex, const char* address, IPAddress& host) {
 
 bool IPAddress::mask(Exception& ex, const IPAddress& mask, const IPAddress& set) {
 	if (family() != IPAddress::IPv4 || mask.family() != IPAddress::IPv4 || set.family() != IPAddress::IPv4) {
-		ex.set<Ex::Net::Address::Ip>("IPAddress mask operation is available just between IPv4 addresses (address=", *this, ", mask=", mask, ", set=", set, ")");
+		ex.set<Ex::Net::Address::Ip>("IPAddress mask operation is available just between IPv4 addresses (address=", self, ", mask=", mask, ", set=", set, ")");
 		return false;
 	}
 	_pIPAddress.set<IPv4Impl>(_pIPAddress->ipv4(), mask._pIPAddress->ipv4(), set._pIPAddress->ipv4(), _pIPAddress->port());

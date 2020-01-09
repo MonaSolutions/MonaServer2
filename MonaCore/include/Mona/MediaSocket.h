@@ -30,22 +30,40 @@ struct MediaSocket : virtual Static {
 	static bool SendHTTPHeader( HTTP::Type type, const shared<Socket>& pSocket, const std::string& path, MIME::Type mime, const char* subMime, const char* name, const std::string& description);
 
 	struct Reader : MediaStream, virtual Object {
-		static unique<MediaSocket::Reader> New(MediaStream::Type type, const Path& path, Media::Source& source, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static unique<MediaSocket::Reader> New(MediaStream::Type type, const Path& path, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, source, path.extension().c_str(), address, io, pTLS); }
-
-		Reader(MediaStream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		Reader(MediaStream::Type type, const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const shared<Socket>& pSocket, IOSocket& io);
+		static unique<MediaSocket::Reader> New(Exception& ex, MediaStream::Type type, std::string&& request, Media::Source& source, const SocketAddress& address, IOSocket& io, std::string&& format = "") { return New(ex, type, std::move(request), std::move(format), source, address, io); }
+		static unique<MediaSocket::Reader> New(Exception& ex, MediaStream::Type type, std::string&& request, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS, std::string&& format = "") { return New(ex, type, std::move(request), std::move(format), source, address, io, pTLS); }
+		static unique<MediaSocket::Reader> New(Exception& ex, MediaStream::Type type, std::string&& request, Media::Source& source, const shared<Socket>& pSocket, IOSocket& io, std::string&& format = "") { return New(ex, type, std::move(request), std::move(format), source, pSocket, io); }
+	
+		Reader(MediaStream::Type type, std::string&& request, unique<MediaReader>&& pReader, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Reader(MediaStream::Type type, std::string&& request, unique<MediaReader>&& pReader, Media::Source& source, const shared<Socket>& pSocket, IOSocket& io);
 		virtual ~Reader() { stop(); }
 
 		const SocketAddress			address;
+		const std::string			request;
 		IOSocket&					io;
 		shared<const Socket>		socket() const { return _pSocket ? _pSocket : nullptr; }
 	
 	private:
+		template<typename ...Args>
+		static unique<MediaSocket::Reader> New(Exception& ex, MediaStream::Type type, std::string&& request, std::string&& format, Args&&... args) {
+			Path path(std::move(format));
+			const char* subMime = MediaStream::Format(ex, type, request, path);
+			if (!subMime) {
+				if (type != MediaStream::TYPE_HTTP || !ex.cast<Ex::Format>())
+					return nullptr;
+				// Format can be empty with HTTP source
+				ex = nullptr;
+				return std::make_unique<MediaSocket::Reader>(type, std::move(request), unique<MediaReader>(), std::forward<Args>(args)...);
+			}
+			unique<MediaReader> pReader = MediaReader::New(subMime);
+			if (!pReader)
+				ex.set<Ex::Unsupported>(TypeToString(type), " stream with unsupported format ", subMime);
+			return std::make_unique<MediaSocket::Reader>(type, std::move(request), std::move(pReader), std::forward<Args>(args)...);
+		}
+
 		bool starting(const Parameters& parameters);
 		void stopping();
 	
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source ", TypeToString(type), "://", address, path, '|', String::Upper(_pReader ? _pReader->format() : "AUTO")); }
 		void writeMedia(const HTTP::Message& message);
 		bool initSocket(const Parameters& parameters = Parameters::Null());
 
@@ -79,14 +97,16 @@ struct MediaSocket : virtual Static {
 
 
 	struct Writer : Media::Target, MediaStream, virtual Object {
-		static unique<MediaSocket::Writer> New(MediaStream::Type type, const Path& path, const char* subMime, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		static unique<MediaSocket::Writer> New(MediaStream::Type type, const Path& path, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr) { return New(type, path, path.extension().c_str(), address, io, pTLS); }
+		static unique<MediaSocket::Writer> New(Exception& ex, MediaStream::Type type, std::string&& request, const SocketAddress& address, IOSocket& io, std::string&& format = "") { return New(ex, type, std::move(request), std::move(format), address, io); }
+		static unique<MediaSocket::Writer> New(Exception& ex, MediaStream::Type type, std::string&& request, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS, std::string&& format = "") { return New(ex, type, std::move(request), std::move(format), address, io, pTLS); }
+		static unique<MediaSocket::Writer> New(Exception& ex, MediaStream::Type type, std::string&& request, const shared<Socket>& pSocket, IOSocket& io, std::string&& format = "") { return New(ex, type, std::move(request), std::move(format), pSocket, io); }
 
-		Writer(MediaStream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
-		Writer(MediaStream::Type type, const Path& path, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io);
+		Writer(MediaStream::Type type, std::string&& request, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS = nullptr);
+		Writer(MediaStream::Type type, std::string&& request, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io);
 		virtual ~Writer() { stop(); }
 
 		const SocketAddress		address;
+		const std::string		request;
 		IOSocket&				io;
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
@@ -99,10 +119,22 @@ struct MediaSocket : virtual Static {
 		bool endMedia();
 		
 	private:
+		template<typename ...Args>
+		static unique<MediaSocket::Writer> New(Exception& ex, MediaStream::Type type, std::string&& request, std::string&& format, Args&&... args) {
+			Path path(std::move(format));
+			const char* subMime = MediaStream::Format(ex, type, request, path);
+			if (!subMime)
+				return nullptr;
+			unique<MediaWriter> pWriter = MediaWriter::New(subMime);
+			if (pWriter)
+				return std::make_unique<MediaSocket::Writer>(type, std::move(request), std::move(pWriter), std::forward<Args>(args)...);
+			ex.set<Ex::Unsupported>(TypeToString(type), " stream with unsupported format ", subMime);
+			return nullptr;
+		}
+
 		bool starting(const Parameters& parameters);
 		void stopping();
 	
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target ", TypeToString(type), "://", address, path, '|', String::Upper(_pWriter->format())); }
 		bool initSocket(const Parameters& parameters = Parameters::Null());
 		
 		template<typename SendType, typename ...Args>
@@ -127,6 +159,7 @@ struct MediaSocket : virtual Static {
 
 			shared<Socket>			_pSocket;
 			shared<std::string>		_pName;
+			Socket::OnError			_onSocketError;
 		};
 
 		template<typename MediaType>

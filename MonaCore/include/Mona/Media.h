@@ -49,6 +49,8 @@ struct Media : virtual Static {
 		return Strings[UInt8(type)];
 	}
 
+	static UInt16 ComputeTextDuration(UInt32 length) { return (UInt16)min(max(length / 20.0, 3) * 1000, 10000); }
+
 	struct Base : Packet, virtual Object {
 		Base() : type(TYPE_NONE), track(0) {}
 		Base(Media::Type type, const Packet& packet, UInt8 track=0) : type(type), track(track), Packet(std::move(packet)) {}

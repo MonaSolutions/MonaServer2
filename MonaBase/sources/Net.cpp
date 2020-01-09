@@ -130,6 +130,13 @@ Net::~Net() {
 #endif
 }
 
+UInt16 Net::ResolvePort(Exception& ex, const char* service) {
+	struct servent* se = getservbyname(service, NULL);
+	if (se)
+		return ntohs(se->s_port);
+	ex.set<Ex::Net::Address::Port>(service, " port service undefined");
+	return 0;
+}
 
 UInt32 Net::GetInterfaceIndex(const SocketAddress& address) {
 	if (!address.host())

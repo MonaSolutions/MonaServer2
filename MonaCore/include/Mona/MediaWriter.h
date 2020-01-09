@@ -27,6 +27,7 @@ struct MediaWriter : virtual Object {
 	/// Media container writer must be able to support a dynamic change of audio/video codec!
 
 	static unique<MediaWriter> New(const char* subMime);
+	static unique<MediaWriter> New(const std::string& subMime) { return New(subMime.c_str()); }
 
 	virtual const char*	format() const;
 	virtual MIME::Type	mime() const;

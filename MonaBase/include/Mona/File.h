@@ -107,11 +107,11 @@ private:
 #endif
 
 	//// Used by IOFile /////////////////////
-	Decoder*					pDecoder;
-	bool						externDecoder;
-	OnReaden					onReaden;
-	OnFlush						onFlush;
-	OnError						onError;
+	Decoder*					_pDecoder;
+	bool						_externDecoder;
+	OnReaden					_onReaden;
+	OnFlush						_onFlush;
+	OnError						_onError;
 
 	std::atomic<UInt64>			_queueing;
 	std::atomic<UInt32>			_flushing;

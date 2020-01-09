@@ -25,9 +25,14 @@ using namespace std;
 
 namespace Mona {
 
-unique<MediaFile::Reader> MediaFile::Reader::New(const Path& path, Media::Source& source, const char* subMime, const Timer& timer, IOFile& io) {
-	unique<MediaReader> pReader(MediaReader::New(subMime));
-	return pReader ? make_unique<MediaFile::Reader>(path, source, move(pReader), timer, io) : nullptr;
+unique<MediaFile::Reader> MediaFile::Reader::New(Exception ex, const char* request, Media::Source& source, const Timer& timer, IOFile& io, string&& format) {
+	Path path(move(format));
+	if (!(request = MediaStream::Format(ex, MediaStream::TYPE_FILE, request, path)))
+		return nullptr;
+	unique<MediaReader> pReader = MediaReader::New(request);
+	if (!pReader)
+		ex.set<Ex::Unsupported>("File stream with unsupported format ", request);
+	return make_unique<MediaFile::Reader>(path, move(pReader), source, timer, io);
 }
 
 UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
@@ -66,8 +71,9 @@ static bool ReadMediaTime(Media::Base& media, UInt32& time) {
 	return false;
 }
 
-MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io) :
-	MediaStream(TYPE_FILE, path, source), io(io), _pReader(move(pReader)), timer(timer), _pMedias(SET),
+MediaFile::Reader::Reader(const Path& path, unique<MediaReader>&& pReader, Media::Source& source, const Timer& timer, IOFile& io) :
+		path(path), io(io), _pReader(move(pReader)), timer(timer), _pMedias(SET),
+		MediaStream(TYPE_FILE, source, "Stream source file://...", Path(path.parent()).name(), '/', path.baseName(), '.', path.extension().empty() ? pReader->format() : path.extension().c_str()),
 		_onTimer([this, &source](UInt32 delay) {
 			UInt32 size = _pMedias->size();
 			while (!_pMedias->empty()) {
@@ -86,7 +92,7 @@ MediaFile::Reader::Reader(const Path& path, Media::Source& source, unique<MediaR
 								}
 								if (delta < -1000) {
 									// more than 1 fps means certainly a timestamp progression error due to a CPU latency..
-									WARN(description(), " resets horloge (delta time of ", -delta, "ms)");
+									WARN(description, " resets horloge (delta time of ", -delta, "ms)");
 									_realTime.update(Time::Now() - time);
 								}
 							} else
@@ -149,13 +155,21 @@ void MediaFile::Reader::stopping() {
 
 
 
-
-
-unique<MediaFile::Writer> MediaFile::Writer::New(const Path& path, const char* subMime, IOFile& io) {
-	if (String::ICompare(subMime, EXPAND("x-mpegURL")) == 0) // just valid for MediaFile::Writer => M3U8 + TSWriter!
-		return make_unique<MediaFile::Writer>(Path(path.parent(), path.baseName(), ".m3u8"), make_unique<TSWriter>(), io);
-	unique<MediaWriter> pWriter(MediaWriter::New(subMime));
-	return pWriter ? make_unique<MediaFile::Writer>(path, move(pWriter), io) : nullptr;
+unique<MediaFile::Writer> MediaFile::Writer::New(Exception ex, const char* request, IOFile& io, string&& format) {
+	bool isM3U8 = String::ICompare(format, EXPAND("x-mpegURL")) == 0;
+	if (isM3U8) // just valid for MediaFile::Writer => M3U8 + TSWriter!
+		format = "ts";
+	Path path(move(format));
+	if (!(request = MediaStream::Format(ex, MediaStream::TYPE_FILE, request, path)))
+		return nullptr;
+	unique<MediaWriter> pWriter = MediaWriter::New(request);
+	if (!pWriter) {
+		ex.set<Ex::Unsupported>("File stream with unsupported format ", request);
+		return nullptr;
+	}
+	if (isM3U8)
+		path.set(path.parent(), path.baseName(), ".m3u8");
+	return make_unique<MediaFile::Writer>(path, move(pWriter), io);
 }
 
 MediaFile::Writer::File::File(const string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylist, UInt8 sequences, IOFile& io) : Path(path), name(name), sequence(0), FileWriter(io), pPlaylist(pPlaylist),
@@ -187,12 +201,13 @@ void MediaFile::Writer::Begin::process(Exception& ex, File& file) {
 	file->beginMedia(file.onWrite);
 }
 
-MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io) : _sequences(1), _append(false),
-	MediaStream(TYPE_FILE, path), io(io), _writeTrack(0), _pWriter(move(pWriter)) {
+MediaFile::Writer::Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io) : 
+	path(path), io(io), _writeTrack(0), _pWriter(move(pWriter)), _sequences(1), _append(false),
+	MediaStream(TYPE_FILE, "Stream target file://...", Path(path.parent()).name(), '/', path.baseName(), '.', path.extension().empty() ? pWriter->format() : path.extension().c_str()) {
 	if (String::ICompare(path.extension(), "m3u8") == 0)
 		_pPlaylist.set<M3U8::Writer>(io);
 	if(_pPlaylist)
-		_pPlaylist->onError = [this](const Exception& ex) { WARN(description(), ", ", ex); };
+		_pPlaylist->onError = [this](const Exception& ex) { WARN(description, ", ", ex); };
 }
 
 bool MediaFile::Writer::starting(const Parameters& parameters) {
@@ -204,7 +219,7 @@ bool MediaFile::Writer::starting(const Parameters& parameters) {
 	parameters.getBoolean("append", _append);
 	if (parameters.getNumber<UInt8>("sequences", _sequences)) {
 		if (!_pPlaylist)
-			WARN(description(), ", sequences usefull just for segments")
+			WARN(description, ", sequences usefull just for segments")
 		else if (_pFile)
 			write<ChangeSequences>(_sequences);
 	}

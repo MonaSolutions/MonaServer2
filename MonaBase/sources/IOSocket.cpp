@@ -57,7 +57,7 @@ protected:
 			if (!pSocket)
 				return true; // socket dies
 			if (_ex)
-				pSocket->onError(_ex); // call onError before handle (ex: onError, onDisconnection)
+				pSocket->_onError(_ex); // call onError before handle (ex: onError, onDisconnection)
 			handle(pSocket);
 			return true;
 		}
@@ -125,11 +125,11 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 		return false;
 	
 	// check duplication
-	pSocket->onError = onError;
-	pSocket->onAccept = onAccept;
-	pSocket->onDisconnection = onDisconnection;
-	pSocket->onReceived = onReceived;
-	pSocket->onFlush = onFlush;
+	pSocket->_onError = onError;
+	pSocket->_onAccept = onAccept;
+	pSocket->_onDisconnection = onDisconnection;
+	pSocket->_onReceived = onReceived;
+	pSocket->_onFlush = onFlush;
 	pSocket->_pHandler = &handler;
 
 	if (pSocket->type < Socket::TYPE_OTHER) {
@@ -147,11 +147,11 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket,
 
 	if (block)
 		pSocket->setNonBlockingMode(ex, false);
-	pSocket->onFlush = nullptr;
-	pSocket->onReceived = nullptr;
-	pSocket->onDisconnection = nullptr;
-	pSocket->onAccept = nullptr;
-	pSocket->onError = nullptr;
+	pSocket->_onFlush = nullptr;
+	pSocket->_onReceived = nullptr;
+	pSocket->_onDisconnection = nullptr;
+	pSocket->_onAccept = nullptr;
+	pSocket->_onError = nullptr;
 	return false;
 }
 
@@ -206,11 +206,11 @@ bool IOSocket::subscribe(Exception& ex, const shared<Socket>& pSocket) {
 
 void IOSocket::unsubscribe(shared<Socket>& pSocket) {
 	// don't touch to pDecoder because can be accessed by receiving thread (thread safety)
-	pSocket->onFlush = nullptr;
-	pSocket->onReceived = nullptr;
-	pSocket->onDisconnection = nullptr;
-	pSocket->onAccept = nullptr;
-	pSocket->onError = nullptr;
+	pSocket->_onFlush = nullptr;
+	pSocket->_onReceived = nullptr;
+	pSocket->_onDisconnection = nullptr;
+	pSocket->_onAccept = nullptr;
+	pSocket->_onError = nullptr;
 
 	if (pSocket->type < Socket::TYPE_OTHER)
 		unsubscribe(pSocket.get());
@@ -289,7 +289,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				}
 			private:
 				void handle(const shared<Socket>& pSocket) {
-					pSocket->onAccept(_pConnection);
+					pSocket->_onAccept(_pConnection);
 					UInt32 receiving = --pSocket->_receiving;
 					if (!_pThread)
 						return;
@@ -338,7 +338,7 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 		private:
 			void handle(const shared<Socket>& pSocket) {
 				UInt32 receiving = _pBuffer->size();
-				pSocket->onReceived(_pBuffer, _address);
+				pSocket->_onReceived(_pBuffer, _address);
 				receiving = pSocket->_receiving -= receiving;
 				if (!_pThread)
 					return;
@@ -385,8 +385,8 @@ void IOSocket::read(const shared<Socket>& pSocket, int error) {
 				pBuffer->resize(received);
 
 				// decode can't happen BEFORE onDisconnection because this call decode + push to _handler in this call!
-				if (pSocket->pDecoder)
-					pSocket->pDecoder->decode(pBuffer, address, pSocket);
+				if (pSocket->_pDecoder)
+					pSocket->_pDecoder->decode(pBuffer, address, pSocket);
 				if(pBuffer)
 					handle<Handle>(pSocket, pBuffer, address, stop);
 			};
@@ -421,7 +421,7 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 		private:
 			void handle(const shared<Socket>& pSocket) {
 				if (!pSocket->queueing()) // check again on handle, "queueing" can had changed
-					pSocket->onFlush();
+					pSocket->_onFlush();
 			}
 		};
 	};
@@ -442,8 +442,8 @@ void IOSocket::close(const shared<Socket>& pSocket, int error) {
 			Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Action::Handle(name, pSocket, ex) {}
 		private:
 			void handle(const shared<Socket>& pSocket) {
-				pSocket->onDisconnection();
-				pSocket->onDisconnection = nullptr; // just one onDisconnection!
+				pSocket->_onDisconnection();
+				pSocket->_onDisconnection = nullptr; // just one onDisconnection!
 			}
 		};
 		bool process(Exception& ex, const shared<Socket>& pSocket) {

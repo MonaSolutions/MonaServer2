@@ -43,7 +43,7 @@ bool SDP::build(Exception& ex, const char* text) {
 		}
 	
 		UInt8 type = line[0];
-		line = String::TrimLeft(line);
+		String::TrimLeft(line);
 
 		// RFC 4566
 		switch(type) {

@@ -280,7 +280,7 @@ shared<MediaStream> Server::stream(const string& publication, const string& desc
 		if (!subscribe(ex, publication, *it->second))
 			_streamSubscriptions.erase(it);
 	};
-	INFO(pStream->description(), " loaded on publication ", publication);
+	INFO(pStream->description, " loaded on publication ", publication);
 	return pStream;
 }
 
@@ -295,7 +295,7 @@ unique<MediaStream> Server::stream(Media::Source& source, const string& descript
 		pStream.set<MediaLogs>(description.c_str()+1, source, api());
 	if (running())
 		return pStream;
-	ERROR(ex.set<Ex::Intern>(pStream->description(), ", start server ", name(), " before"));
+	ERROR(ex.set<Ex::Intern>(pStream->description, ", start server ", name(), " before"));
 	return nullptr;
 }
 

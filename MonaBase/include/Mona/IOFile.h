@@ -42,16 +42,16 @@ struct IOFile : virtual Object, Thread { // Thread is for file watching!
 	Subscribe read */
 	template<typename FileType>
 	void subscribe(const shared<FileType>& pFile, const File::OnReaden& onReaden, const File::OnError& onError) {
-		pFile->onError = onError;
-		pFile->onReaden = onReaden;
+		pFile->_onError = onError;
+		pFile->_onReaden = onReaden;
 	}
 	/*!
 	Subscribe read with decoder*/
 	template<typename FileType>
 	void subscribe(const shared<FileType>& pFile, File::Decoder* pDecoder, const File::OnReaden& onReaden, const File::OnError& onError) {
 		subscribe(pFile, onReaden, onError);
-		pFile->externDecoder = pDecoder && pFile.get() != (FileType*)pDecoder;
-		pFile->pDecoder = pDecoder;
+		pFile->_externDecoder = pDecoder && pFile.get() != (FileType*)pDecoder;
+		pFile->_pDecoder = pDecoder;
 	}
 	/*!
 	Subscribe write/delete */
@@ -60,9 +60,9 @@ struct IOFile : virtual Object, Thread { // Thread is for file watching!
 	Unsubscribe */
 	template<typename FileType>
 	void unsubscribe(shared<FileType>& pFile) {
-		pFile->onFlush = nullptr;
-		pFile->onReaden = nullptr;
-		pFile->onError = nullptr;
+		pFile->_onFlush = nullptr;
+		pFile->_onReaden = nullptr;
+		pFile->_onError = nullptr;
 		pFile.reset();
 	}
 	/*!

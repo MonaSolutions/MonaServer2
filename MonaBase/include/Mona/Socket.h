@@ -29,7 +29,7 @@ namespace Mona {
 struct Socket : virtual Object, Net::Stats {
 	typedef Event<void(shared<Buffer>& pBuffer, const SocketAddress& address)>	  OnReceived;
 	typedef Event<void(const shared<Socket>& pSocket)>							  OnAccept;
-	typedef Event<void(const Exception&)>										  OnError;
+	typedef Event<void(const Exception&)>										  OnError; const OnError& onError;
 	typedef Event<void()>														  OnFlush;
 	typedef Event<void()>														  OnDisconnection;
 
@@ -243,13 +243,13 @@ private:
 	ByteRate					_sendByteRate;
 
 //// Used by IOSocket /////////////////////
-	Decoder*					pDecoder;
-	bool						externDecoder;
-	OnReceived					onReceived;
-	OnAccept					onAccept;
-	OnError						onError;
-	OnFlush						onFlush;
-	OnDisconnection				onDisconnection;
+	Decoder*					_pDecoder;
+	bool						_externDecoder;
+	OnReceived					_onReceived;
+	OnAccept					_onAccept;
+	OnError						_onError;
+	OnFlush						_onFlush;
+	OnDisconnection				_onDisconnection;
 
 	UInt16						_threadReceive;
 	std::atomic<UInt32>			_receiving;

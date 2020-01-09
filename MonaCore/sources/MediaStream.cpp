@@ -20,6 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/MediaSocket.h"
 #include "Mona/MediaFile.h"
 #include "Mona/MediaServer.h"
+#include "Mona/URL.h"
 
 using namespace std;
 
@@ -27,11 +28,6 @@ using namespace std;
 namespace Mona {
 
 map<string, MediaStream::OnNewStream, String::IComparator> MediaStream::_OtherStreams;
-
-MediaStream::MediaStream(Type type, const Path& path, Media::Source& source) : _firstStart(true),
-	_state(STATE_STOPPED), targets(_targets), _runCount(0),
-	type(type), path(path), source(source) {
-}
 
 MediaStream::~MediaStream() {
 	if (_state)
@@ -74,7 +70,7 @@ bool MediaStream::run() {
 		return false; // is stopped!
 	_state = STATE_RUNNING;
 	++_runCount;
-	INFO(description(), " started");
+	INFO(description, " started");
 	onRunning();
 	return true;
 }
@@ -87,7 +83,7 @@ void MediaStream::stop() {
 		(MediaStream::OnStop&)it->onStop = nullptr; // unsuscribe because children pTarget can continue to live alone!
 	_targets.clear(); // to invalid targets!
 	if (_state == STATE_RUNNING)
-		INFO(description(), " stopped");
+		INFO(description, " stopped");
 	_state = STATE_STOPPED;
 	onStop(); // in last to allow possibily a delete this (beware impossible with Subscription usage!)
 }
@@ -112,232 +108,155 @@ bool MediaStream::initSocket(shared<Socket>& pSocket, const Parameters& paramete
 				pSocket.set<SRT::Socket>();
 				break;
 	#else
-				ERROR(description(), "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
+				ERROR(description, "SRT unsupported replacing by UDP (build MonaBase with SRT support before)");
 	#endif
 			default:
 				if (pTLS)
-					pSocket.set<TLS::Socket>(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, pTLS);
+					pSocket.set<TLS::Socket>(type >= TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM, pTLS);
 				else
-					pSocket.set(type == TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
+					pSocket.set(type >= TYPE_UDP ? Socket::TYPE_DATAGRAM : Socket::TYPE_STREAM);
 		}
 	}
 	Exception ex;
-	AUTO_WARN(pSocket->processParams(ex, parameters, "stream."), description());
+	AUTO_WARN(pSocket->processParams(ex, parameters, "stream."), description);
 	return true;
 }
 
-unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
-	// Net => [address] [type/TLS][/MediaFormat] [parameter]
-	// File = > file[.format][MediaFormat][parameter]
-	
-	const char* line = String::TrimLeft(description.c_str());
-
-	// isolate first + capture path and query
-	Path path;
-	const char* first = line;
-	const char* query = NULL;
-	size_t size = 0;
-	while (*line && !isblank(*line)) {
-		switch (*line) {
-			case '?': // query
-				if(!query)
-					query = line;
-			case '/':
-			case '\\': // path
-				if(!size)
-					size = line - first;
-				break;
-			default:;
-		}
-		++line;
+const char* MediaStream::Format(Exception& ex, MediaStream::Type type, const char* request, Path& path) {
+	Path fmt(move(path));
+	URL::ParseRequest(request, path);
+	switch (type) {
+		case TYPE_HTTP:
+		case TYPE_FILE:
+			if (path.isFolder()) {
+				ex.set<Ex::Protocol>(TypeToString(type), " stream can't be a folder");
+				return NULL;
+			}
+		default:;
 	}
-	// query => parameters
+	const char* format = fmt.c_str();
+	if (!*format && !MIME::Read(path, format)) {
+		switch (type) {
+			case MediaStream::TYPE_SRT: // SRT and No Format => TS by default to catch Haivision usage
+			case MediaStream::TYPE_UDP: // UDP and No Format => TS by default to catch with VLC => UDP = TS
+				return "mp2t";
+			default: {
+				if (path.extension().empty())
+					ex.set<Ex::Format>(TypeToString(type), " stream description have to indicate a media format");
+				else
+					ex.set<Ex::Unsupported>(TypeToString(type), " stream path has a format ", path.extension(), " unknown or not supported");
+				return NULL;
+			}
+		}
+	}
+	return format;
+}
+
+
+unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
+
+	// split "main url" and format?query!
+	size_t pos = description.find_last_of(" \t\r\n\v\f");
+	// parse explicit format and parameters
 	Parameters params;
-	if (query)
-		Util::UnpackQuery(query, line - query, params);
-	if (size) {
-		if (first[size] != '?') // size stop on '/', else no path!
-			path.set(String::Data(first + size, query - first - size));
-	} else
-		size = line - first;
+	string format;
+	if (pos != string::npos)
+		URL::ParseQuery(URL::ParseRequest(description.c_str() + pos, format), params);
+	
+	// parse protocol and address
+	string protocol, addr;
+	const char* request = URL::Parse(description.data(), pos, protocol, addr);
 
 	Type type(TYPE_FILE);
-	const char* other=NULL;
 	bool isSecure(false);
-	bool isFile(false);
-	string format;
 	map<string, OnNewStream, String::IComparator>::const_iterator itOtherStream;
-	String::ForEach forEach([&](UInt32 index, const char* value) {
-		itOtherStream = _OtherStreams.find(value);
-		if (itOtherStream != _OtherStreams.end()) {
-			other = itOtherStream->first.c_str();
-			isFile = false;
-			type = TYPE_OTHER;
-			return true;
-		}
-		if (String::ICompare(value, "UDP") == 0) {
-			isFile = false;
-			type = TYPE_UDP;
-			return true;
-		}
-		if (String::ICompare(value, "TCP") == 0) {
-			isFile = false;
-			if (type != TYPE_HTTP)
-				type = TYPE_TCP;
-			return true;
-		}
-		if (String::ICompare(value, "SRT") == 0) {
-			isFile = false;
-			type = TYPE_SRT;
-			return true;
-		}
-		if (String::ICompare(value, "HTTP") == 0) {
-			isFile = false;
-			type = TYPE_HTTP;
-			return true;
-		}
-		if (String::ICompare(value, "TLS") == 0) {
-			isSecure = true;
-			return true;
-		}
-		if (String::ICompare(value, "FILE") == 0) {
-			// force file!
-			isFile = true;
-			type = TYPE_FILE;
-			return true;
-		}
-		format = value;
-		return false;
-	});
-
-	const char* args = strpbrk(line = String::TrimLeft(line), " \t\r\n\v\f");
-	String::Split(line, args ? (line - args) : string::npos, "/", forEach, SPLIT_IGNORE_EMPTY);
-
-#if !defined(SRT_API)
-	if (type == TYPE_SRT) {
-		ex.set<Ex::Unsupported>(TypeToString(type), " stream not supported, build MonaBase with SRT support first");
-		return nullptr;
-	}
+	if (!protocol.empty()) {
+		static map<const char*, pair<Type, bool>, String::IComparator> Types({
+			{ "FILE",{ TYPE_FILE, false } },
+			{ "TCP",{ TYPE_TCP, false } },
+			{ "TLS",{ TYPE_TCP, true } },
+			{ "UDP",{ TYPE_UDP, false } },
+			{ "HTTP",{ TYPE_HTTP, false } },
+			{ "HTTPS",{ TYPE_HTTP, true } }
+#if defined(SRT_API)
+			,{ "SRT",{ TYPE_SRT, false } }
 #endif
+		});
+		const auto& it = Types.find(protocol.c_str());
+		if (it != Types.end()) {
+			type = it->second.first;
+			isSecure = it->second.second;
+		} else {
+			itOtherStream = _OtherStreams.find(protocol);
+			if (itOtherStream == _OtherStreams.end()) {
+				ex.set<Ex::Format>(protocol, " stream not supported");
+				return nullptr;
+			}
+			type = TYPE_OTHER;
+		}
+	}
 
 	bool isTarget(&source == &Media::Source::Null());
 	SocketAddress address;
-	UInt16 port;
-	Int8 isAddress = 0; // -1 if explicit address to bind, 1 if explicit address
-	
+	bool toBind;
+	if (type>0) { // is socket!
+		toBind = addr[0] == '@';
+		if (toBind)
+			addr.erase(0, 1);
 
-	switch (isFile) {
-		case false: {
-			// if is not explicitly a file, test if it's a port
-			isAddress = *first == '@' ? -1 : 0;
-			if (isAddress) {
-				--size;
-				if (*++first == ':') { // is just ":port"
-					++first;
-					--size;
-				}
-			}
-			if (String::ToNumber(first, size, port)) {
-				address.setPort(port);
-				break;
-			}
-			// Test if it's an address
-			String::Scoped scoped(first + size);
-			Exception exc;
-			if (address.set(exc, first)) {
-				isAddress = 1; // if was -1 no pb, 
-				break;
-			}
-			if (type) { // explicitly network protocol (not file) however address invalid!
+		Exception exc;
+		IPAddress host;
+
+		if (!address.host().set(exc, addr)) { // just host? (ipv6 with : for example)
+			// if no ':' => just an host => has failed!
+			size_t portPos = addr.rfind(':');
+			if (portPos==string::npos) {
 				ex = exc;
 				return nullptr;
 			}
-			isFile = true;
-		}
-		default: // is a file!
-			type = TYPE_FILE;
-			path.set(String::Data(first, size));
-			if (path.isFolder()) {
-				ex.set<Ex::Format>("Stream file ", path, " can't be a folder");
+			// has port!
+			addr[portPos] = 0;
+			if (!address.set(ex, addr, addr.c_str() + portPos + 1))
 				return nullptr;
-			}
-			if (!path) {
-				ex.set<Ex::Format>("No file name in stream file description");
+		} else {
+			UInt16 port = Net::ResolvePort(ex, protocol.c_str());
+			if (!port) // no port, search with protocol maybe?
 				return nullptr;
-			}
-	}
-
-	// fix params!
-	if (args) {
-		while (isspace(*args) && *++args);
-		if (*args) {
-			// TODO add to parameters?!
+			address.setPort(port);
 		}
-	}
-
-	if (format.empty()) {
-		switch (type) {
-			case TYPE_SRT: // SRT and No Format => TS by default to catch Haivision usage
-			case TYPE_UDP: // UDP and No Format => TS by default to catch with VLC => UDP = TS
-				format = "mp2t";
-				break;
-			case TYPE_HTTP:
-				if (path.isFolder()) {
-					ex.set<Ex::Format>("A HTTP source or target stream can't be a folder");
-					return nullptr;
-				}
-			default: {
-				const char* subMime;
-				if (MIME::Read(path, subMime)) {
-					format = subMime;
-					break;
-				}
-				if (!isTarget && type == TYPE_HTTP)
-					break; // HTTP source allow empty format (will be determinate with content-type)
-				if(path.extension().empty())
-					ex.set<Ex::Format>(other ? other : TypeToString(type), " stream description have to indicate a media format");
-				else
-					ex.set<Ex::Format>(other ? other : TypeToString(type), " stream path has a format ", path.extension(), " unknown or not supported");
-				return nullptr;
-			}
-		}
+		if (!address.host())
+			toBind = true;
 	}
 	
+	
+	String::Scoped scoped(request+pos);
 	unique<MediaStream> pStream;
-	if (isFile) {
-		if (isTarget)
-			pStream = MediaFile::Writer::New(path, format.c_str(), ioFile);
-		else
-			pStream = MediaFile::Reader::New(path, source, format.c_str(), timer, ioFile);
-	} else {
-		if (!type) // TCP by default excepting if format is RTP where rather UDP by default
-			type = String::ICompare(format, "RTP") == 0 ? TYPE_UDP : TYPE_TCP;
-
+	if (type>0) {
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)
-		bool toBind = isAddress < 0 || !address.host();
-		if (type != TYPE_UDP && toBind) { // MediaServer if not UDP (UDP is always a MediaSocket) or if addresss to bind!
+		if (type < TYPE_UDP && toBind) { // MediaServer if not UDP (UDP is always a MediaSocket) or if addresss to bind!
 			if (isTarget)
-				pStream = MediaServer::Writer::New(MediaServer::Type(type), path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+				pStream = MediaServer::Writer::New(ex, type, request, address, ioSocket, isSecure ? pTLS : nullptr, move(format));
 			else
-				pStream = MediaServer::Reader::New(MediaServer::Type(type), path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
-		} else if (type < TYPE_OTHER) {
+				pStream = MediaServer::Reader::New(ex, type, request, source, address, ioSocket, isSecure ? pTLS : nullptr, move(format));
+		} else {
 			if (isTarget) {
-				if (!address.host() && isAddress) { // explicit 0.0.0.0 is an error here!
+				if (!address.host()) { // explicit 0.0.0.0 is an error here!
 					ex.set<Ex::Net::Address::Ip>("Wildcard binding impossible for a stream UDP target");
 					return nullptr;
 				}
-				pStream = MediaSocket::Writer::New(type, path, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
+				pStream = MediaSocket::Writer::New(ex, type, request, address, ioSocket, isSecure ? pTLS : nullptr, move(format));
 			} else
-				pStream = MediaSocket::Reader::New(type, path, source, format.c_str(), address, ioSocket, isSecure ? pTLS : nullptr);
-		} else
-			pStream = itOtherStream->second(path, format.c_str(), address, toBind, isTarget ? &source : NULL);
-	}
-
-	if (!pStream) {
-		ex.set<Ex::Unsupported>(isTarget ? "Target stream " : "Source stream ", other ? other : TypeToString(type), " format ", format, " not supported");
-		return nullptr;
-	}
-	pStream->_params.setParams(move(params));
+				pStream = MediaSocket::Reader::New(ex, type, request, source, address, ioSocket, isSecure ? pTLS : nullptr, move(format));
+		}
+	} else if(type==TYPE_FILE) {
+		if (isTarget)
+			pStream = MediaFile::Writer::New(ex, request, ioFile, move(format));
+		else
+			pStream = MediaFile::Reader::New(ex, request, source, timer, ioFile, move(format));
+	} else
+			pStream = itOtherStream->second(request, move(format), isTarget ? &source : NULL);
+	if(pStream)
+		pStream->_params.setParams(move(params));
 	return pStream;
 }
 

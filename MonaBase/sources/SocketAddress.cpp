@@ -23,11 +23,36 @@ using namespace std;
 
 namespace Mona {
 
-bool SocketAddress::set(Exception& ex, const IPAddress& host, const char* service) {
-	UInt16 port = resolveService(ex, service);
-	if (!port)
+
+const SocketAddress& SocketAddress::Wildcard(IPAddress::Family family) {
+	if (family == IPv6) {
+		static SocketAddress IPv6Wildcard(IPAddress::IPv6);
+		return IPv6Wildcard;
+	}
+	static SocketAddress IPv4Wildcard(IPAddress::IPv4);
+	return IPv4Wildcard;
+}
+UInt16 SocketAddress::SplitLiteral(const char* value, string& host) {
+	UInt16 port(0);
+	host.assign(value);
+	const char* colon(strchr(value, ':'));
+	if (colon && String::ToNumber(colon + 1, port)) // check if it's really a marker port colon (could be a IPv6 colon)
+		host.resize(colon - value);
+	return port;
+}
+
+bool SocketAddress::setPort(Exception& ex, const char* port) {
+	UInt16 number;
+	if (!String::ToNumber(ex, port, number))
 		return false;
-	set(host, port);
+	IPAddress::setPort(number);
+	return true;
+}
+
+bool SocketAddress::set(Exception& ex, const IPAddress& host, const char* port) {
+	if (!setPort(ex, port))
+		return false;
+	IPAddress::set(host);
 	return true;
 }
 
@@ -37,39 +62,23 @@ SocketAddress& SocketAddress::set(BinaryReader& reader, Family family) {
 	return self;
 }
 
-bool SocketAddress::setIntern(Exception& ex, const char* host, const char* service, bool resolveHost) {
-	if(!service) // to solve the ambiguitis call between set(..., const char* port) and set(..., UInt16 port) when port = 0
+bool SocketAddress::setIntern(Exception& ex, const char* host, const char* port, bool resolveHost) {
+	if(!port) // to solve the ambiguitis call between set(..., const char* port) and set(..., UInt16 port) when port = 0
 		return setIntern(ex, host, UInt16(0), resolveHost);
-	UInt16 port = resolveService(ex, service);
-	if (!port)
+	UInt16 number;
+	if (!String::ToNumber(port, number)) {
+		ex.set<Ex::Net::Address::Port>("Invalid port number ", port);
 		return false;
-	return setIntern(ex, host, port, resolveHost);
+	}
+	return setIntern(ex, host, number, resolveHost);
 }
 
 bool SocketAddress::setIntern(Exception& ex, const char* hostAndPort, bool resolveHost) {
 	const char* colon(strrchr(hostAndPort,':'));
-	if (!colon) {
-		ex.set<Ex::Net::Address::Port>("Missing port number in ", hostAndPort);
-		return false;
-	}
-	if (colon[1] == '/' && colon[2] == '/') {
-		// form http://address
-		UInt16 port = resolveService(ex, string(hostAndPort, colon - hostAndPort).c_str());
-		return port ? setIntern(ex, colon+3, port, resolveHost) : false;
-	}
-	UInt16 port = resolveService(ex, colon+1);
-	return port ? setIntern(ex, string(hostAndPort, colon - hostAndPort).c_str(), port, resolveHost) : false;
-}
-
-UInt16 SocketAddress::resolveService(Exception& ex,const char* service) {
-	UInt16 port=0;
-	if (String::ToNumber(service,port))
-		return port;
-	struct servent* se = getservbyname(service, NULL);
-	if (se)
-		return ntohs(se->s_port);
-	ex.set<Ex::Net::Address::Port>("Service ", service, " unknown");
-	return 0;
+	if (colon)
+		return setIntern(ex, string(hostAndPort, colon - hostAndPort).c_str(), colon+1, resolveHost);
+	ex.set<Ex::Net::Address::Port>("Missing port number in ", hostAndPort);
+	return false;
 }
 
 bool SocketAddress::operator < (const SocketAddress& address) const {
@@ -80,23 +89,5 @@ bool SocketAddress::operator < (const SocketAddress& address) const {
 	return (port() < address.port());
 }
 
-
-const SocketAddress& SocketAddress::Wildcard(IPAddress::Family family) {
-	if (family == IPv6) {
-		static SocketAddress IPv6Wildcard(IPAddress::IPv6);
-		return IPv6Wildcard;
-	}
-	static SocketAddress IPv4Wildcard(IPAddress::IPv4);
-	return IPv4Wildcard;
-}
-
-UInt16 SocketAddress::SplitLiteral(const char* value,string& host) {
-	UInt16 port(0);
-	host.assign(value);
-	const char* colon(strchr(value,':'));
-	if (colon && String::ToNumber(colon+1, port)) // check if it's really a marker port colon (could be a IPv6 colon)
-		host.resize(colon-value);
-	return port;
-}
 
 }	// namespace Mona

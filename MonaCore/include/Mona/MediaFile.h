@@ -31,20 +31,18 @@ namespace Mona {
 struct MediaFile : virtual Static  {
 
 	struct Reader : MediaStream, virtual Object {
-		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const char* subMime, const Timer& timer, IOFile& io);
-		static unique<MediaFile::Reader> New(const Path& path, Media::Source& source, const Timer& timer, IOFile& io) { return New(path, source, path.extension().c_str(), timer, io); }
-
-		Reader(const Path& path, Media::Source& source, unique<MediaReader>&& pReader, const Timer& timer, IOFile& io);
+		static unique<MediaFile::Reader> New(Exception ex, const char* request, Media::Source& source, const Timer& timer, IOFile& io, std::string&& format = "");
+	
+		Reader(const Path& path, unique<MediaReader>&& pReader, Media::Source& source, const Timer& timer, IOFile& io);
 		virtual ~Reader() { stop(); }
 
+		const Path		path;
 		IOFile&			io;
 		const Timer&	timer;
 
 	private:
 		bool starting(const Parameters& parameters);
 		void stopping();
-
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream source file://...", MAKE_FOLDER(Path(path.parent()).name()), path.baseName(), '.', path.extension().empty() ? _pReader->format() : path.extension().c_str()); }
 
 		struct Lost : Media::Base, virtual Object {
 			Lost(Media::Type type, UInt32 lost, UInt8 track) : Media::Base(type, Packet::Null(), track), _lost(lost) {} // lost
@@ -100,12 +98,12 @@ struct MediaFile : virtual Static  {
 
 
 	struct Writer : Media::Target, MediaStream, virtual Object {
-		static unique<MediaFile::Writer> New(const Path& path, const char* subMime, IOFile& io);
-		static unique<MediaFile::Writer> New(const Path& path, IOFile& io) { return New(path, path.extension().c_str(), io); }
+		static unique<MediaFile::Writer> New(Exception ex, const char* request, IOFile& io, std::string&& format = "");
 
 		Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io);
 		virtual ~Writer() { stop(); }
 
+		const Path	path;
 		IOFile&		io;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 
@@ -119,8 +117,6 @@ struct MediaFile : virtual Static  {
 	private:
 		bool starting(const Parameters& parameters);
 		void stopping();
-
-		std::string& buildDescription(std::string& description) { return String::Assign(description, "Stream target file://...", MAKE_FOLDER(Path(path.parent()).name()), path.baseName(), '.', path.extension().empty() ? _pWriter->format() : path.extension().c_str()); }
 
 		template<typename WriteType, typename ...Args>
 		bool write(Args&&... args) {

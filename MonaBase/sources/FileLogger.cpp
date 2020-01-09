@@ -22,7 +22,7 @@ using namespace std;
 
 namespace Mona {
 
-FileLogger::FileLogger(const string dir, UInt32 sizeByFile, UInt16 rotation) : _sizeByFile(sizeByFile), _rotation(rotation),
+FileLogger::FileLogger(string&& dir, UInt32 sizeByFile, UInt16 rotation) : _sizeByFile(sizeByFile), _rotation(rotation),
 	_pFile(SET, Path(MAKE_FOLDER(dir), "0.log"), File::MODE_APPEND) {
 	_written = range<UInt32>(_pFile->size());
 }

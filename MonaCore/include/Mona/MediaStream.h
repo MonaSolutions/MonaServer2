@@ -36,17 +36,25 @@ struct MediaStream : virtual Object {
 	typedef Event<void(const shared<Media::Target>&)>	ON(NewTarget); // valid until pTarget.unique()!
 
 	enum Type {
-		TYPE_LOGS = -1,
-		TYPE_FILE = 0, // > 0 = socket!
-		TYPE_TCP = 1, // to match MediaServer::Type
-		TYPE_SRT = 2, // to match MediaServer::Type
-		TYPE_UDP = 3,
-		TYPE_HTTP = 4,
-		TYPE_OTHER = 5
+		TYPE_LOGS = -2,
+		TYPE_FILE = -1,
+		TYPE_OTHER = 0, // > 0 => socket!
+		TYPE_TCP = 1,
+		TYPE_HTTP = 2,
+		TYPE_SRT = 3,
+		TYPE_UDP = 0x80 // >= 0x80 => socket UDP (without server ability)
 	};
+	static const char* TypeToString(MediaStream::Type type) {
+		static const char *Strings[] = { "logs", "file", "other", "tcp", "http", "srt" }, *Udps[] = { "udp" };
+		return type < TYPE_UDP ? Strings[type - TYPE_LOGS] : Udps[type - TYPE_UDP];
+	}
 
+	/*!
+	Determinate the subMime format considering the media stream type, the request. */
+	static const char* Format(Exception& ex, MediaStream::Type type, const char* request, Path& path);
+	static const char* Format(Exception& ex, MediaStream::Type type, const std::string& request, Path& path) { return Format(ex, type, request.c_str(), path); }
 
-	typedef std::function<unique<MediaStream>(const Path& path, const char* subMime, const SocketAddress& address, bool toBind, Media::Source* pSource)> OnNewStream;
+	typedef std::function<unique<MediaStream>(const char* request, std::string&& format, Media::Source* pSource)> OnNewStream;
 	/*!
 	Add a custom Type, reutrn false if this type exists already!  */
 	static bool AddType(std::string&& type, const OnNewStream& onNewStream) { return _OtherStreams.emplace(move(type), onNewStream).second; }
@@ -56,24 +64,20 @@ struct MediaStream : virtual Object {
 		STATE_STARTING,
 		STATE_RUNNING
 	};
-	static const char* TypeToString(Type type) { static const char* Strings[] = { "logs", "file", "tcp", "srt", "udp", "http", "other" }; return Strings[UInt8(type) + 1]; }
+	
 	/*!
-	New Stream target => host[:port][?path] [type/TLS][/MediaFormat] [parameter]
-	Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
-	File => file[.format][?query] [MediaFormat] [parameter] */
+	New Stream target => [protocol://host:port][/path/file.format] [format?params] */
 	static unique<MediaStream> New(Exception& ex, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr) { return New(ex, Media::Source::Null(), description, timer, ioFile, ioSocket, pTLS); }
 	/*!
-	New Stream source =>  [host:port][/path?query] [type/TLS][/MediaFormat] [parameter]
-	Near of SDP syntax => m=audio 58779 [UDP/TLS/]RTP/SAVPF [111 103 104 9 0 8 106 105 13 126]
-	File => [/path/]file[.format][?query] [MediaFormat] [parameter] */
+	New Stream target => [protocol://host:port][/path/file.format] [format?params]  */
 	static unique<MediaStream> New(Exception& ex, Media::Source& source, const std::string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS = nullptr);
 
 
-	const Type			type;
-	const Path			path;
+	const MediaStream::Type	type;
+	const String			description;
+
 	const Parameters&	params() { _params.onUnfound = nullptr; return _params; }
 	bool				isSource() const { return &source == &Media::Source::Null(); }
-	const std::string&	description() const { return _description.empty() ? ((MediaStream*)this)->buildDescription(_description) : _description; }
 
 	UInt32	runCount() const { return _runCount; };
 	State	state() const { return _state; }
@@ -93,7 +97,18 @@ struct MediaStream : virtual Object {
 
 	~MediaStream();
 protected:
-	MediaStream(Type type, const Path& path, Media::Source& source = Media::Source::Null());
+	template <typename ...Args>
+	MediaStream(Type type, Args&&... args) : _firstStart(true), description(std::forward<Args>(args)...),
+		_state(STATE_STOPPED), targets(_targets), _runCount(0), type(type), source(Media::Source::Null()) {
+		if (description.empty())
+			String::Assign((std::string&)description, "Stream source ", TypeToString(type));
+	}
+	template <typename ...Args>
+	MediaStream(Type type, Media::Source& source, Args&&... args) : _firstStart(true), description(std::forward<Args>(args)...),
+		_state(STATE_STOPPED), targets(_targets), _runCount(0), type(type), source(source) {
+		if (description.empty())
+			String::Assign((std::string&)description, "Stream target ", TypeToString(type));
+	}
 
 	Media::Source& source;
 
@@ -101,12 +116,12 @@ protected:
 	Pass from state "starting" to "running" */
 	bool run();
 	void stop(LOG_LEVEL level, const Exception& exc) {
-		LOG(level, description(), ", ", ex = exc);
+		LOG(level, description, ", ", ex = exc);
 		stop();
 	}
 	template<typename ExType, typename ...Args>
 	void stop(LOG_LEVEL level, Args&&... args) {
-		LOG(level, description(), ", ", ex.set<ExType>(std::forward<Args>(args)...));
+		LOG(level, description, ", ", ex.set<ExType>(std::forward<Args>(args)...));
 		stop();
 	}
 
@@ -115,7 +130,7 @@ protected:
 	template <typename StreamType, typename ...Args>
 	StreamType* addTarget(Args&&... args) {
 		if (!_state) {
-			ERROR(description(), ", child stream target authorized when start");
+			ERROR(description, ", child stream target authorized when start");
 			return NULL;
 		}
 		STATIC_ASSERT(std::is_base_of<Media::Target, StreamType>::value);
@@ -150,9 +165,6 @@ private:
 	virtual bool starting(const Parameters& parameters) = 0;
 	virtual void stopping() = 0;
 
-	virtual std::string& buildDescription(std::string& description) = 0;
-
-	mutable std::string					_description;
 	UInt32								_runCount;
 	std::set<shared<const MediaStream>>	_targets;
 	shared<Media::Target>				_pTarget;

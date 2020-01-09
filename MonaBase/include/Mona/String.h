@@ -139,21 +139,14 @@ struct String : std::string {
 		return values;
 	}
 
-	template<typename Type>
-	static const char*	TrimLeft(const char* value, Type& size) { static_assert(std::is_arithmetic<Type>::value, "size must be a numeric value"); if (size == std::string::npos) size = (Type)strlen(value);  while (size && isspace(*value)) { ++value; --size; } return value; }
-	static const char*	TrimLeft(const char* value, std::size_t size = std::string::npos);
-	template<typename Type>
-	static char*		TrimRight(char* value, Type& size) { static_assert(std::is_arithmetic<Type>::value, "size must be a numeric value"); char* begin(value); if (size == std::string::npos) size = (Type)strlen(begin); value += size; while (value != begin && isspace(*--value)) --size; return begin; }
-	static char*		TrimRight(char* value) { std::size_t size(strlen(value)); return TrimRight<std::size_t>(value, size); }
-	static std::size_t	TrimRight(const char* value, std::size_t size = std::string::npos);
-	template<typename Type>
-	static char*		Trim(char* value, Type& size) { TrimLeft<Type>(value, size); return TrimRight<Type>(value, size); }
-	static char*		Trim(char* value) { TrimLeft(value); return TrimRight(value); }
-	static std::size_t	Trim(const char* value, std::size_t size = std::string::npos) { TrimLeft(value, size); return TrimRight(value, size); }
+	static std::size_t	TrimLeft(const char*& value, std::size_t size = std::string::npos);
+	static std::string&	TrimLeft(std::string& value) { const char* data(value.data()); return value.erase(0, value.size()-TrimLeft(data, value.size())); }
 
-	static std::string&	TrimLeft(std::string& value) { return value.erase(0, TrimLeft(value.data(), value.size()) - value.data()); }
-	static std::string&	TrimRight(std::string& value) { while (!value.empty() && isspace(value.back())) value.pop_back(); return value; }
-	static std::string&	Trim(std::string& value) { TrimLeft(value); return TrimRight(value); }
+	static std::size_t	TrimRight(const char* value, std::size_t size = std::string::npos);
+	static std::string&	TrimRight(std::string& value) { value.resize(TrimRight(value.data(), value.size())); return value; }
+
+	static std::size_t	Trim(const char*& value, std::size_t size = std::string::npos) { return TrimRight(value, TrimLeft(value, size)); }
+	static std::string&	Trim(std::string& value) { return TrimRight(TrimLeft(value)); }
 	
 	static std::string&	ToLower(std::string& value) { for (char& c : value) c = tolower(c); return value; }
 	static std::string&	ToUpper(std::string& value) { for (char& c : value) c = toupper(c); return value; }
@@ -509,6 +502,7 @@ struct String : std::string {
 
 	struct URI : virtual Mona::Object {
 		URI(const char* value, std::size_t size = std::string::npos) : value(value), size(size) {}
+		URI(const std::string& value) : value(value.data()), size(value.size()) {}
 		const char* const value;
 		const std::size_t size;
 	};

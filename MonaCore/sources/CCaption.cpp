@@ -416,7 +416,7 @@ CCaption::Track& CCaption::Track::append(const char* text) {
 	if (!size)
 		return *this;
 	if (!self) {
-		text = String::TrimLeft(text, size);
+		String::TrimLeft(text, size);
 		if (!size)
 			return *this;
 		BUFFER_RESET(_pBuffer,0);

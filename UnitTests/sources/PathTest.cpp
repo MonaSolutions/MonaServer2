@@ -28,15 +28,16 @@ ADD_TEST(Getters) {
 
 	Path path;
 	CHECK(!path);
-	path.set("");
+	string value("/path/file.txt");
+	path = value;
 	CHECK(path);
-	CHECK(!path.length());
-	CHECK(!path.isAbsolute());
-	CHECK(path.name() == Path::CurrentDir().name());
-	CHECK(path.baseName() == Path::CurrentDir().baseName());
-	CHECK(path.extension() == Path::CurrentDir().extension());
-	CHECK(path.parent() == Path::CurrentDir().parent());
-	CHECK(path.isFolder() == Path::CurrentDir().isFolder());
+	CHECK(path.length()==value.size());
+	CHECK(path.isAbsolute());
+	CHECK(path.name() == "file.txt");
+	CHECK(path.baseName() == "file");
+	CHECK(path.extension() == "txt");
+	CHECK(path.parent() == "/path/");
+	CHECK(!path.isFolder());
 	
 }
 
@@ -49,13 +50,13 @@ ADD_TEST(Setters) {
 	CHECK(!path.setBaseName("") && path.name()=="test.");
 	Path file(MAKE_FILE(path));
 	CHECK(!file.isFolder() && file == "home/test.");
-	Path folder(MAKE_FOLDER(path));
-	CHECK(folder.isFolder() && folder == "home/test./");
+	Path directory(MAKE_FOLDER(path));
+	CHECK(directory.isFolder() && directory == "home/test./");
 
 	Path absolute(MAKE_ABSOLUTE(path.parent()));
 	CHECK(absolute.isAbsolute() && absolute.parent()=="/" && absolute=="/home/");
 	Path relative(MAKE_RELATIVE(absolute));
-	CHECK(!relative.isAbsolute() && relative.parent()==Path::CurrentDir() && relative=="home/");
+	CHECK(!relative.isAbsolute() && relative.parent().empty() && relative=="home/");
 	Path resolved(RESOLVE("./../////"));
 	CHECK(resolved == Path::CurrentDir().parent());
 }

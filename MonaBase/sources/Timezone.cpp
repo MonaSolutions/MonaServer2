@@ -520,7 +520,7 @@ Timezone::Timezone() : _offset(0),_dstOffset(3600000) {
 
 	//// LOAD TZ database ////////////////////////
     string path;
-	if (Util::Environment().getString("TZDIR", path) && readTZDatabase(FileSystem::MakeFolder(path).append(_name)))
+	if (Util::Environment().getString("TZDIR", path) && readTZDatabase(MAKE_FOLDER(path).append(_name)))
 		return;
 
 #if !defined(_WIN32)

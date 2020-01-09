@@ -32,7 +32,7 @@ struct Logs : virtual Static {
 	Add a logger target, must implements Logger.h interface
 	If name have a suffix with the form ![error] then the application shutdown on failure and displays error if set */
 	template <typename LoggerType, typename ...Args>
-	static bool			AddLogger(const char* name, Args&&... args) { return AddLogger<LoggerType>(std::string(name), std::forward<Args>(args) ...); }
+	static bool			AddLogger(const std::string& name, Args&&... args) { return AddLogger<LoggerType>(name.c_str(), std::forward<Args>(args) ...); }
 	template <typename LoggerType, typename ...Args>
 	static bool			AddLogger(std::string&& name, Args&&... args) {
 		std::size_t fatalPos = name.find('!');
@@ -49,7 +49,8 @@ struct Logs : virtual Static {
 	}
 	/*!
 	Remove a logger */
-	static void			RemoveLogger(const char* name) { std::lock_guard<std::mutex> lock(_Mutex); _Loggers.erase(name); }
+	static void			RemoveLogger(const char* name) { RemoveLogger(std::string(name)); }
+	static void			RemoveLogger(const std::string& name) { std::lock_guard<std::mutex> lock(_Mutex); _Loggers.erase(name); }
 	/*!
 	Set LOG level */
 	static void			SetLevel(LOG_LEVEL level) { _Level = level; }
