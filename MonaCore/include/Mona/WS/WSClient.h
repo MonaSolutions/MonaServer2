@@ -24,7 +24,7 @@ struct WSClient : TCPClient, Client, virtual Object {
 
 	/*!
 	Connect to the WS server at peer address */
-	bool connect(Exception& ex, const SocketAddress& address, const std::string& pathAndQuery="");
+	bool connect(Exception& ex, const SocketAddress& address, const std::string& request="");
 	void disconnect();
 
 

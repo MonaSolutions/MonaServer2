@@ -21,7 +21,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/SocketAddress.h"
 #include "Mona/SDP.h"
-#include "Mona/Util.h"
 #include "Mona/Time.h"
 #include "Mona/DataReader.h"
 #include <set>

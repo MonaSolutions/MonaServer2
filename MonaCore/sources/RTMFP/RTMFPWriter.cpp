@@ -17,7 +17,6 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/RTMFP/RTMFPWriter.h"
-#include "Mona/Util.h"
 
 
 using namespace std;

@@ -46,11 +46,11 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 			_pWriter->beginRequest(request);
 
 			////  Fill peers infos
-			if (String::ICompare(peer.query, request->query) != 0 || String::ICompare(peer.path, request->path) != 0) {
+			if (String::ICompare(peer.query, request->query) != 0 || String::ICompare(peer.path, request->folder) != 0) {
 				//// Disconnection if path or query changed
 				disconnection();
-				peer.setPath(request->path);
-				peer.setQuery(request->query);
+				peer.setPath(request->folder.c_str());
+				peer.setQuery(request->query.c_str());
 			}
 			peer.setServerAddress(request->host);
 			// properties = version + headers + cookies
@@ -184,7 +184,7 @@ bool HTTPSession::handshake(HTTP::Request& request) {
 	if (!peer.onHandshake(redirection))
 		return true;
 	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_307))
-		HTTP_ADD_HEADER("Location", self->isSecure() ? "https://" : "http://", redirection, request->path, '/', request.path.isFolder() ? "" : request.path.name())
+		HTTP_ADD_HEADER("Location", self->isSecure() ? "https://" : "http://", redirection, request->folder, request.path.isFolder() ? "" : request.path.name())
 	HTTP_END_HEADER
 	kill();
 	return false;

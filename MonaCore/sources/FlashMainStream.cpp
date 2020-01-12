@@ -19,6 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/FlashMainStream.h"
 #include "Mona/MapWriter.h"
 #include "Mona/Logs.h"
+#include "Mona/URL.h"
 
 using namespace std;
 
@@ -59,9 +60,9 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 			const char* url = peer.properties().getString("tcUrl");
 			if (url) {
 				string serverAddress;
-				Util::UnpackUrl(url, serverAddress, (string&)peer.path, (string&)peer.query);
+				peer.setQuery(URL::ParseRequest(URL::Parse(url, serverAddress), (string&)peer.path));
+				URL::ParseQuery(peer.query, peer.properties());
 				peer.setServerAddress(serverAddress);
-				Util::UnpackQuery(peer.query, peer.properties());
 			}
 			if (peer.properties().getNumber<UInt32,3>("objectEncoding")==0) {
 				writer.amf0 = amf0 = true;

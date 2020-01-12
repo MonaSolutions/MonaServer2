@@ -15,6 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 #include "Mona/SRT/SRTProtocol.h"
 #include "Mona/SRT/SRTSession.h"
+#include "Mona/URL.h"
 
 using namespace std;
 
@@ -31,7 +32,7 @@ DataReader& SRTProtocol::Params::operator()() {
 bool SRTProtocol::Params::setResource(const char* value, UInt32 size) {
 	if (_stream.assign(value, size).empty())
 		return false;
-	Util::UnpackUrl(_stream, (string&)_peer.path, (string&)_peer.query);
+	(string&)_peer.query = URL::ParseRequest(_stream, (string&)_peer.path);
 	size_t found = _peer.path.find_last_of("\\/");
 	if (found != string::npos) {
 		_stream.assign(_peer.path.data()+found+1, _peer.path.size()-found-1);

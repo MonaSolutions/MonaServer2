@@ -84,25 +84,6 @@ struct Util : virtual Static {
 
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
 
-	/// \brief Unpack url in path and query
-	/// \param url Url to unpack
-	/// \param path Part of the url between host address and '?'
-	/// \param query Part of the url after '?' (if present)
-	/// \return The position of the file in path (std::npos for a directory)
-	static std::size_t UnpackUrl(const std::string& url, std::string& path, std::string& query) {std::string address; return UnpackUrl(url, address, path, query);}
-	static std::size_t UnpackUrl(const char* url, std::string& path, std::string& query) {std::string address; return UnpackUrl(url, address, path, query);}
-	static std::size_t UnpackUrl(const std::string& url, std::string& address, std::string& path, std::string& query) { return UnpackUrl(url.c_str(), address, path, query); }
-	static std::size_t UnpackUrl(const char* url, std::string& address, std::string& path, std::string& query);
-
-	static Parameters& UnpackQuery(const std::string& query, Parameters& parameters) { return UnpackQuery(query.data(), query.size(), parameters); }
-	static Parameters& UnpackQuery(const char* query, std::size_t count, Parameters& parameters);
-	static Parameters& UnpackQuery(const char* query, Parameters& parameters) { return UnpackQuery(query, std::string::npos, parameters); }
-
-	typedef std::function<bool(const std::string&, const char*)> ForEachParameter;
-	static UInt32 UnpackQuery(const std::string& query, const ForEachParameter& forEach) { return UnpackQuery(query.data(), query.size(), forEach); }
-	static UInt32 UnpackQuery(const char* query, std::size_t count, const ForEachParameter& forEach);
-	static UInt32 UnpackQuery(const char* query, const ForEachParameter& forEach) { return UnpackQuery(query, std::string::npos, forEach); }
-
 	template <typename BufferType>
 	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
 		UInt32 accumulator(buffer.size()),bits(0);

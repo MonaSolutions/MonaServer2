@@ -17,19 +17,17 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/HTTP/HTTPDecoder.h"
-#include "Mona/Util.h"
+#include "Mona/URL.h"
 
 using namespace std;
 
 namespace Mona {
 
 HTTPDecoder::HTTPDecoder(const Handler& handler, const string& www, const char* name) :
-	_name(name), _www(www), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
-	FileSystem::MakeFile(_www);
+	_name(name), _www(MAKE_FOLDER(www)), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 }
 HTTPDecoder::HTTPDecoder(const Handler& handler, const string& www, const shared<HTTP::RendezVous>& pRendezVous, const char* name) : _pRendezVous(pRendezVous),
-	_name(name), _www(www), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
-	FileSystem::MakeFile(_www);
+	_name(name), _www(MAKE_FOLDER(www)), _stage(CMD), _handler(handler), _code(0), _lastRequest(0) {
 }
 
 void HTTPDecoder::onRelease(Socket& socket) {
@@ -111,10 +109,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 							break;
 						}
 						// Fix "ws://localhost/test" in "ws://localhost/test/" to connect to "test" application even if the last "/" is forgotten
-						if(!_path.isFolder()) {
-							_pHeader->path += '/';
-							_pHeader->path.append(_path.name());
-						}
+						if(!_path.isFolder())
+							_pHeader->folder.set(_pHeader->folder, _path.name(), '/');
 						_pWSDecoder.set(_handler, _name);
 						_pHeader->pWSDecoder = _pWSDecoder;
 						// following is WebSocket data, not read the content!
@@ -161,10 +157,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								break;
 							}
 							invocation = true;
-							if (!_path.isFolder()) {
-								_pHeader->path += '/';
-								_pHeader->path.append(_path.name());
-							}
+							if (!_path.isFolder())
+								_pHeader->folder.set(_pHeader->folder, _path.name(), '/');
 							// do here to detect possible _ex on the socket!
 							pSocket->send(_ex, NULL, 0); // to differ HTTP timeout (we have received a valid request, wait now that nothing is sending until timeout!)
 							_lastRequest.update(pSocket->sendTime() + 1); // to do working 204 response (see HTTPDecoder::onRelease)
@@ -244,20 +238,16 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					_stage = PATH;
 				} else if (_stage == PATH) {
 					// parse query
-					String::Scoped scoped(STR buffer.data());
+					UInt32 size = STR buffer.data() - signifiant;
 					if (_pHeader->type) {
 						// Request
-						size_t filePos = Util::UnpackUrl(signifiant, _pHeader->path, _pHeader->query);
-						if (filePos != string::npos) {
-							// is file!
-							_path.set(_www, _pHeader->path);
-							_pHeader->path.erase(filePos - 1);
-						} else
-							_path.set(_www, _pHeader->path, '/');
+						_pHeader->query = URL::ParseRequest(signifiant, size, _pHeader->folder);
+						_path.set(_www, _pHeader->folder);
+						if (!_pHeader->folder.isFolder())
+							_pHeader->folder = _pHeader->folder.parent();
 						signifiant = STR buffer.data() + 1;
 					} else {
 						// Response!
-						size_t size = strlen(signifiant);
 						if (size != 3 || !isdigit(signifiant[0]) || !isdigit(signifiant[1]) || !isdigit(signifiant[2])) {
 							_ex.set<Ex::Protocol>("Invalid HTTP code ", String::Data(signifiant, min(size, 3u)));
 							break;

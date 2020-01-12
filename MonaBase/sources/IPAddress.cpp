@@ -24,7 +24,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/Byte.h"
 #include "Mona/String.h"
 #include "Mona/DNS.h"
-#include "Mona/Util.h"
 #if defined(_WIN32)
 #include <Iphlpapi.h>
 #elif !defined(__ANDROID__)

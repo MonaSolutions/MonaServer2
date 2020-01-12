@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/HTTP/HTTP.h"
 #include "Mona/HTTP/HTTPSender.h"
+#include "Mona/URL.h"
 #include <algorithm>
 
 
@@ -227,7 +228,7 @@ static void WriteDirectoryEntry(BinaryWriter& writer, const Path& entry) {
 	String::Append(writer, "</a></td><td>&nbsp;", String::Date(entry.lastChange(), "%d-%b-%Y %H:%M"), "</td><td align=right>&nbsp;&nbsp;", size, "</td></tr>\n");
 }
 
-bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const string& fullPath, const string& path, SortBy sortBy, Sort sort) {
+bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const std::string& fullPath, const std::string& path, SortBy sortBy, Sort sort) {
 
 	vector<Path*> paths;
 	FileSystem::ForEach forEach([&paths](const string& path, UInt16 level){
@@ -243,11 +244,11 @@ bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const stri
 
 	// Write column names
 	// Name		Modified	Size
-	String::Append(writer, "<!DOCTYPE html><html><head><title>Index of ", path, "/</title><style>th {text-align: center;}</style></head><body><h1>Index of ", path, "/</h1><pre><table cellpadding=\"0\"><tr><th><a href=\"?N=");
+	String::Append(writer, "<!DOCTYPE html><html><head><title>Index of ", path, "</title><style>th {text-align: center;}</style></head><body><h1>Index of ", path, "</h1><pre><table cellpadding=\"0\"><tr><th><a href=\"?N=");
 	String::Append(writer, ord, "\">Name</a></th><th><a href=\"?M=", ord, "\">Modified</a></th><th><a href=\"?S=", ord, "\">Size</a></th></tr><tr><td colspan=\"3\"><hr></td></tr>");
 
 	// Write first entry - link to a parent directory
-	if (!path.empty())
+	if (path.size()>1 || (path[0]!='/' && path[0] != '\\'))
 		String::Append(writer, "<tr><td><a href=\"..\">Parent directory</a></td><td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>\n");
 
 	// Sort entries
@@ -292,7 +293,7 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 	// read join and resolve parameters
 	bool join = false;
 	const char* to = NULL;
-	Util::ForEachParameter forEach([&join, &to, &pHeader](const string& key, const char* value) {
+	URL::ForEachParameter forEach([&join, &to, &pHeader](string& key, const char* value) {
 		if (String::ICompare(key, "join") == 0)
 			join = !value || !String::IsFalse(value);
 		else if (String::ICompare(key, "from") == 0)
@@ -301,13 +302,13 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 			to = pHeader->setString(key, value).c_str();
 		return true;
 	});
-	Util::UnpackQuery(pHeader->query, forEach);
+	URL::ParseQuery(pHeader->query, forEach);
 
 	// meet
 	{ // lock
 		unique_lock<mutex> lock(_mutex);
-		auto it = _remotes.lower_bound(pHeader->path.c_str());
-		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path) == 0) {
+		auto it = _remotes.lower_bound(pHeader->folder.c_str());
+		if (it != _remotes.end() && String::ICompare(it->first, pHeader->folder) == 0) {
 			// found!
 			shared<Socket> pRemoteSocket = it->second->lock();
 			if (pRemoteSocket) {
@@ -337,7 +338,7 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 		}
 		if (!join && !to) {
 			unique<Remote> pRemote(SET, pHeader, packet, pSocket);
-			_remotes.emplace_hint(it, SET, forward_as_tuple((*pRemote)->path.c_str()), forward_as_tuple(move(pRemote)));
+			_remotes.emplace_hint(it, SET, forward_as_tuple((*pRemote)->folder.c_str()), forward_as_tuple(move(pRemote)));
 			return true;
 		} // else peer not found => 410
 	} // unlock

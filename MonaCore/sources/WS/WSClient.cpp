@@ -18,6 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/WS/WSClient.h"
 #include "Mona/ByteReader.h"
+#include "Mona/URL.h"
 
 using namespace std;
 
@@ -61,8 +62,8 @@ void WSClient::disconnect() {
 	disconnect(); // disconnect can delete this!
 }
 
-bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& pathAndQuery) {
-	Util::UnpackUrl(pathAndQuery, (string&)path, (string&)query);
+bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& request) {
+	(string&)query = URL::ParseRequest(request, (string&)path);
 	SocketAddress address(addr);
 	if (!address.port())
 		address.setPort(80);
@@ -71,7 +72,7 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& p
 	if (connection)
 		return true; // already send!
 
-	String::Append(_url, self->isSecure() ? "wss://" : "ws://", self->peerAddress(), pathAndQuery);
+	String::Append(_url, self->isSecure() ? "wss://" : "ws://", self->peerAddress(), request);
 	(SocketAddress&)this->address = socket()->address();
 	(SocketAddress&)this->serverAddress = address;
 	setWriter(_writer, *socket());

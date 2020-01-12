@@ -17,7 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/RTMFP/RTMFProtocol.h"
-#include "Mona/Util.h"
+#include "Mona/URL.h"
 #include "Mona/ServerAPI.h"
 #include "Mona/RTMFP/RTMFPSession.h"
 
@@ -41,15 +41,13 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 
 		// Fill peer infos
 		shared<Peer> pPeer(SET, this->api, "RTMFP", handshake.address);
+		const char* url = STR reader.current();
+		size_t size = reader.next(reader.available() - 16);
 		string serverAddress;
-		{
-			const char* url = STR reader.current();
-			reader.next(reader.available() - 16);
-			String::Scoped scoped(STR reader.current());
-			Util::UnpackUrl(url, serverAddress, (string&)pPeer->path, (string&)pPeer->query);
-		}
+		url = URL::ParseRequest(URL::Parse(url, size, serverAddress), size, (string&)pPeer->path);
 		pPeer->setServerAddress(serverAddress);
-		Util::UnpackQuery(pPeer->query, pPeer->properties());
+		pPeer->setQuery(string(url, size));
+		URL::ParseQuery(pPeer->query, pPeer->properties());
 
 		// prepare response
 		

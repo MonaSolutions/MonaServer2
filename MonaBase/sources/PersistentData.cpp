@@ -16,7 +16,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/PersistentData.h"
 #include "Mona/FileSystem.h"
-#include "Mona/Util.h"
 #include "Mona/File.h"
 #include OpenSSL(evp.h)
 

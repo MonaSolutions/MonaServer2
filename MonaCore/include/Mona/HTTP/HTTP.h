@@ -170,7 +170,7 @@ struct HTTP : virtual Static {
 		const char*		subMime;
 
 		HTTP::Type		type;
-		std::string		path;
+		Path			folder;
 		std::string		query;
 		std::string		host;
 		float			version;

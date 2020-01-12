@@ -37,13 +37,13 @@ bool HTTPFileSender::load(Exception& ex) {
 		/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
 		if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
 			if (send(HTTP_CODE_304)) {// NOT MODIFIED 
-				DEBUG("GET 304 ", pRequest->path, '/', File::name());
+				DEBUG("GET 304 ", pRequest->folder, File::name());
 				ex.set<Ex::Unfound>(); // to detect end!
 			} else
 				ex.set<Ex::Net::Socket>();
 			return false;
 		}
-		DEBUG("GET 200 ", pRequest->path, '/', File::name());
+		DEBUG("GET 200 ", pRequest->folder, File::name());
 		return true;
 	}
 
@@ -54,7 +54,7 @@ bool HTTPFileSender::load(Exception& ex) {
 		if (FileSystem::Exists(MAKE_FOLDER(path()))) {
 			/// Redirect to the real folder path
 			// Full URL required here relating RFC2616 section 10.3.3
-			String::Assign(buffer, pSocket->isSecure() ? "https://" : "http://", pRequest->host, pRequest->path, '/', File::name(), '/');
+			String::Assign(buffer, pSocket->isSecure() ? "https://" : "http://", pRequest->host, pRequest->folder, File::name(), '/');
 			HTTP_BEGIN_HEADER(this->buffer())
 				HTTP_ADD_HEADER("Location", buffer);
 			HTTP_END_HEADER
@@ -63,9 +63,9 @@ bool HTTPFileSender::load(Exception& ex) {
 			HTML_END_COMMON_RESPONSE(buffer)
 			if (!send(HTTP_CODE_301, MIME::TYPE_TEXT, "html; charset=utf-8"))
 				ex.set<Ex::Net::Socket>();
-		} else if (!sendError(HTTP_CODE_404, "The requested URL ", pRequest->path, '/', File::name(), " was not found on the server"))
+		} else if (!sendError(HTTP_CODE_404, "The requested URL ", pRequest->folder, File::name(), " was not found on the server"))
 			ex.set<Ex::Net::Socket>();
-	} else if (sendError(HTTP_CODE_401, "Impossible to open ", pRequest->path, '/', File::name(), " file"))
+	} else if (sendError(HTTP_CODE_401, "Impossible to open ", pRequest->folder, File::name(), " file"))
 		ex.set<Ex::Unfound>(); // to be detected by HTTPWriter like a loading error!
 	else
 		ex.set<Ex::Net::Socket>();

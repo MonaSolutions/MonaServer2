@@ -19,7 +19,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/ServerAPI.h"
 #include "Mona/MapWriter.h"
 #include "Mona/MapReader.h"
-#include "Mona/Util.h"
+#include "Mona/URL.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -65,7 +65,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 		// write metadata!
 		// allow to work with any protocol and easy query writing
 		// Ignore the FMLE case which write two times properties (use query and metadata, anyway query are include in metadata (more complete))
-		Util::UnpackQuery(query, publication);
+		URL::ParseQuery(query, publication);
 	}
 
 	// Write static metadata configured
@@ -148,7 +148,7 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 	// update parameters
 	Parameters parameters;
 	if (queryParameters)
-		Util::UnpackQuery(queryParameters, parameters);
+		URL::ParseQuery(queryParameters, parameters);
 	const char* mbr = parameters.getString("mbr");
 	if (mbr) // add "this" mbr if mbr param!
 		parameters.emplace("mbr", String(mbr, "|", stream));

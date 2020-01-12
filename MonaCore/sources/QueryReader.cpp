@@ -18,7 +18,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/QueryReader.h"
 #include "Mona/Logs.h"
-#include "Mona/Util.h"
+#include "Mona/URL.h"
 #include <sstream>
 
 using namespace std;
@@ -30,7 +30,7 @@ UInt8 QueryReader::followingType() {
 		return _type;
 
 	bool hasProperty(false);
-	Util::ForEachParameter forEach([this,&hasProperty](const string& key, const char* value) {
+	URL::ForEachParameter forEach([this,&hasProperty](string& key, const char* value) {
 		if (value) {
 			_property = std::move(key);
 			hasProperty = true;
@@ -40,7 +40,7 @@ UInt8 QueryReader::followingType() {
 		return false; // we just want the first following key
 	});
 
-	if (Util::UnpackQuery(STR reader.current(), reader.available(), forEach) == 0)
+	if (URL::ParseQuery(STR reader.current(), reader.available(), forEach) == 0)
 		return END;
 
 	if (hasProperty)

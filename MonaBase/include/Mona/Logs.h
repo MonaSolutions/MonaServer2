@@ -20,7 +20,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #include "Mona/ConsoleLogger.h"
 #include "Mona/String.h"
 #include "Mona/Thread.h"
-#include "Mona/Util.h"
 #include <atomic>
 
 namespace Mona {

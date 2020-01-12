@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/QueryWriter.h"
+#include "Mona/Util.h"
 
 
 using namespace std;

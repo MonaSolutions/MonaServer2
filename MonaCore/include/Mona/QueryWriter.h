@@ -20,7 +20,6 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/DataWriter.h"
-#include "Mona/Util.h"
 
 namespace Mona {
 
