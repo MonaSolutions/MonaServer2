@@ -78,7 +78,7 @@ private:
 				_ex.set<Ex::Intern>();
 				_pHeader.reset();
 			} else
-				_handler.queue(onRequest, _path, _pHeader, std::forward<Args>(args)...);
+				_handler.queue(onRequest, _file, _pHeader, std::forward<Args>(args)...);
 		}
 	}
 
@@ -89,7 +89,7 @@ private:
 	Stage					_stage;
 	shared<HTTP::Header>	_pHeader;
 	Time					_lastRequest;
-	Path					_path;
+	Path					_file;
 	UInt16					_code;
 	std::string				_www;
 	const Handler&			_handler;

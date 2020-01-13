@@ -30,7 +30,7 @@ HTTPFolderSender::HTTPFolderSender(const shared<const HTTP::Header>& pRequest, c
 void HTTPFolderSender::run() {
 	// FOLDER
 	if (!_folder.exists()) {
-		sendError(HTTP_CODE_404, "The requested URL ", pRequest->folder, "/ not found on the server");
+		sendError(HTTP_CODE_404, "The requested URL ", pRequest->path, "/ not found on the server");
 		return;
 	}
 
@@ -52,7 +52,7 @@ void HTTPFolderSender::run() {
 	bool success;
 	Exception ex;
 	BinaryWriter writer(buffer());
-	AUTO_ERROR(success = HTTP::WriteDirectoryEntries(ex, writer, _folder, pRequest->folder, sortBy, sort), "HTTP Folder view");
+	AUTO_ERROR(success = HTTP::WriteDirectoryEntries(ex, writer, _folder, pRequest->path, sortBy, sort), "HTTP Folder view");
 	if (success)
 		send(HTTP_CODE_200, MIME::TYPE_TEXT, "html; charset=utf-8");
 	else

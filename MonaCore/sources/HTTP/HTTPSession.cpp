@@ -46,10 +46,10 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 			_pWriter->beginRequest(request);
 
 			////  Fill peers infos
-			if (String::ICompare(peer.query, request->query) != 0 || String::ICompare(peer.path, request->folder) != 0) {
+			if (String::ICompare(peer.query, request->query) != 0 || String::ICompare(peer.path, request->path) != 0) {
 				//// Disconnection if path or query changed
 				disconnection();
-				peer.setPath(request->folder);
+				peer.setPath(request->path);
 				peer.setQuery(request->query.c_str());
 			}
 			peer.setServerAddress(request->host);
@@ -184,7 +184,7 @@ bool HTTPSession::handshake(HTTP::Request& request) {
 	if (!peer.onHandshake(redirection))
 		return true;
 	HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_307))
-		HTTP_ADD_HEADER("Location", self->isSecure() ? "https://" : "http://", redirection, request->folder, request.path.isFolder() ? "" : request.path.name())
+		HTTP_ADD_HEADER("Location", self->isSecure() ? "https://" : "http://", redirection, request->path, request.file.isFolder() ? "" : request.file.name())
 	HTTP_END_HEADER
 	kill();
 	return false;
@@ -332,7 +332,7 @@ void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
 	// use index http option in the case of GET request on a directory
 	
-	Path& file(request.path);
+	Path& file(request.file);
 
 	// Priority on client method
 	if (file.extension().empty() && invoke(ex, request, parameters)) // can be method if not a file (can be a folder)
@@ -414,12 +414,12 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 
 void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
 	if (request.pMedia)
-		return publish(ex, request.path); // Publish
+		return publish(ex, request.file); // Publish
 	processPut(ex, request, parameters); // data or file append (as behavior as PUT)
 }
 
 void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
-	if (request.path.extension().empty() && invoke(ex, request, parameters))
+	if (request.file.extension().empty() && invoke(ex, request, parameters))
 		return;
 	ex = nullptr;
 	// write file or create folder
@@ -431,28 +431,28 @@ void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader&
 		bool readOne(UInt8 type, DataWriter& writer) { writer.writeString(EXPAND("append")); return true; }
 	} appendReader;
 	SplitReader params(parameters, append ? appendReader : DataReader::Null());
-	if (peer.onWrite(ex, request.path, params, props)) {
+	if (peer.onWrite(ex, request.file, params, props)) {
 		properties.getBoolean("append", append);
 		_EOWFlags = 0;
-		_fileWriter.open(request.path, append);
-		_EOWFlags = (request.path.exists() ? 0 : 2) | (request->progressive ? 0 : 1); // before open otherwise onFlush will close the writer!
+		_fileWriter.open(request.file, append);
+		_EOWFlags = (request.file.exists() ? 0 : 2) | (request->progressive ? 0 : 1); // before open otherwise onFlush will close the writer!
 		_fileWriter.write(request);
 	} // else "ex" is necessary set so HTTP session will be killed!
 }
 
 void HTTPSession::processDelete(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
-	if (request.path.extension().empty() && invoke(ex, request, parameters))
+	if (request.file.extension().empty() && invoke(ex, request, parameters))
 		return;
 	ex = nullptr;
 	// file/folder deletion!
 	_EOWFlags = 0;
-	if (peer.onDelete(ex, request.path, parameters)) // else "ex" is necessary set so HTTP session will be killed!	
-		_fileWriter.open(request.path).erase();
+	if (peer.onDelete(ex, request.file, parameters)) // else "ex" is necessary set so HTTP session will be killed!	
+		_fileWriter.open(request.file).erase();
 }
 
 bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& parameters, const char* name) {
-	if (!name && !request.path.isFolder())
-		name = request.path.name().c_str();
+	if (!name && !request.file.isFolder())
+		name = request.file.name().c_str();
 
 	bool hasContent = request->hasKey("content-length");
 	string method;

@@ -75,7 +75,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 		while (_stage<BODY) {
 			if (!_pHeader) {
 				// reset header var to parse
-				_path.reset();
+				_file.reset();
 				_code = 0;
 				_pHeader.set(*pSocket, _pRendezVous.operator bool());
 			}
@@ -99,7 +99,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 
 					// Try to fix mime if no content-type with file extension!
 					if (!_pHeader->mime)
-						_pHeader->mime = MIME::Read(_path, _pHeader->subMime);
+						_pHeader->mime = MIME::Read(_file, _pHeader->subMime);
 					
 					// Upgrade session?
 					if (_pHeader->connection&HTTP::CONNECTION_UPGRADE && String::ICompare(_pHeader->upgrade, "websocket") == 0) {
@@ -109,8 +109,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 							break;
 						}
 						// Fix "ws://localhost/test" in "ws://localhost/test/" to connect to "test" application even if the last "/" is forgotten
-						if(!_path.isFolder())
-							_pHeader->folder.set(_pHeader->folder, _path.name(), '/');
+						if(!_file.isFolder())
+							_pHeader->path.set(_pHeader->path, _file.name(), '/');
 						_pWSDecoder.set(_handler, _name);
 						_pHeader->pWSDecoder = _pWSDecoder;
 						// following is WebSocket data, not read the content!
@@ -148,7 +148,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								break;
 							}
 						case HTTP::TYPE_PUT:
-							if (!_code && _path.extension().empty()) // else write file if PUT or append file if POST (just valid if request => !_code)
+							if (!_code && _file.extension().empty()) // else write file if PUT or append file if POST (just valid if request => !_code)
 								invocation = true;
 							break;
 						case HTTP::TYPE_RDV:
@@ -157,15 +157,15 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 								break;
 							}
 							invocation = true;
-							if (!_path.isFolder())
-								_pHeader->folder.set(_pHeader->folder, _path.name(), '/');
+							if (!_file.isFolder())
+								_pHeader->path.set(_pHeader->path, _file.name(), '/');
 							// do here to detect possible _ex on the socket!
 							pSocket->send(_ex, NULL, 0); // to differ HTTP timeout (we have received a valid request, wait now that nothing is sending until timeout!)
 							_lastRequest.update(pSocket->sendTime() + 1); // to do working 204 response (see HTTPDecoder::onRelease)
 							break;
 						case HTTP::TYPE_GET:
 							if (_pHeader->mime)
-								_path.exists(); // preload disk attributes now in the thread!
+								_file.exists(); // preload disk attributes now in the thread!
 						case HTTP::TYPE_DELETE:
 							invocation = true; // must not have progressive content!
 							break;
@@ -241,10 +241,10 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					UInt32 size = STR buffer.data() - signifiant;
 					if (_pHeader->type) {
 						// Request
-						_pHeader->query = URL::ParseRequest(signifiant, size, _pHeader->folder, URL::REQUEST_FORCE_RELATIVE);
-						_path.set(_www, _pHeader->folder);
-						if (!_pHeader->folder.isFolder())
-							_pHeader->folder = _pHeader->folder.parent();
+						_pHeader->query = URL::ParseRequest(signifiant, size, _pHeader->path, URL::REQUEST_FORCE_RELATIVE);
+						_file.set(_www, _pHeader->path);
+						if (!_pHeader->path.isFolder())
+							_pHeader->path = _pHeader->path.parent();
 						signifiant = STR buffer.data() + 1;
 					} else {
 						// Response!

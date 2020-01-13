@@ -170,7 +170,7 @@ struct HTTP : virtual Static {
 		const char*		subMime;
 
 		HTTP::Type		type;
-		Path			folder;
+		Path			path;
 		std::string		query;
 		std::string		host;
 		float			version;
@@ -233,21 +233,21 @@ struct HTTP : virtual Static {
 	};
 
 	struct Request : Message, virtual Object {
-		Request(const Path& path, shared<Header>& pHeader, const Packet& packet, bool flush) : path(path), Message(pHeader, packet, flush) {}
+		Request(const Path& file, shared<Header>& pHeader, const Packet& packet, bool flush) : file(file), Message(pHeader, packet, flush) {}
 		/*!
 		exception */
-		Request(const Path& path, shared<Header>& pHeader, const Exception& ex) : path(path), Message(pHeader, ex) {}
+		Request(const Path& file, shared<Header>& pHeader, const Exception& ex) : file(file), Message(pHeader, ex) {}
 		/*!
 		media packet */
-		Request(const Path& path, shared<Header>& pHeader, Media::Base* pMedia) : path(path), Message(pHeader, pMedia) {}
+		Request(const Path& file, shared<Header>& pHeader, Media::Base* pMedia) : file(file), Message(pHeader, pMedia) {}
 		/*!
 		media lost infos */
-		Request(const Path& path, shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : path(path), Message(pHeader, type, lost, track) {}
+		Request(const Path& file, shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : file(file), Message(pHeader, type, lost, track) {}
 		/*!
 		media reset, flush or publish end */
-		Request(const Path& path, shared<Header>& pHeader, bool endMedia, bool flush) : path(path), Message(pHeader, endMedia, flush) {}
+		Request(const Path& file, shared<Header>& pHeader, bool endMedia, bool flush) : file(file), Message(pHeader, endMedia, flush) {}
 		
-		Path	path;
+		Path	file;
 	};
 
 	struct Response : Message, virtual Object {
