@@ -31,7 +31,7 @@ DataReader& SRTProtocol::Params::operator()() {
 
 bool SRTProtocol::Params::setResource(const char* value, UInt32 size) {
 	Path path;
-	const char* query = URL::ParseRequest(value, size, path, URL::REQUEST_FORCE_RELATIVE);
+	const char* query = URL::ParseRequest(value, (size_t)size, path, URL::REQUEST_FORCE_RELATIVE);
 	if (path.isFolder()) {
 		_stream.clear();
 		return false;
