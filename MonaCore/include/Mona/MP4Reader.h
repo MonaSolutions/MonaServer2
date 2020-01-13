@@ -124,24 +124,24 @@ private:
 	template <class VideoType>
 	void	frameToMedias(Track& track, UInt32 time, const Packet& packet);
 
-	UInt32													_sequence;
-	UInt32													_position;
-	UInt64													_offset;
-	bool													_failed;
-	UInt8													_audios;
-	UInt8													_videos;
-	UInt8													_datas;
+	UInt32															_sequence;
+	UInt32															_position;
+	UInt64															_offset;
+	bool															_failed;
+	UInt8															_audios;
+	UInt8															_videos;
+	UInt8															_datas;
 
-	std::map<UInt64, Track*>								_chunks; // stco
-	std::deque<Box>											_boxes;
-	std::deque<Track>										_tracks;
-	std::map<UInt32,Track*>									_ids;
-	std::map<UInt32, UInt32>								_times;
-	std::multimap<UInt32, std::pair<Track*, Media::Base*>>	_medias;
+	std::map<UInt64, Track*>										_chunks; // stco
+	std::deque<Box>													_boxes;
+	std::deque<Track>												_tracks;
+	std::map<UInt32,Track*>											_ids;
+	std::map<UInt32, UInt32>										_times;
+	std::multimap<UInt32, std::pair<Track*, unique<Media::Base>>>	_medias;
 
-	Track*													_pTrack;
-	Fragment												_fragment;
-	bool													_firstMoov;
+	Track*															_pTrack;
+	Fragment														_fragment;
+	bool															_firstMoov;
 };
 
 

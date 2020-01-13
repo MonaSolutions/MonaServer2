@@ -36,7 +36,7 @@ Subscription::Subscription(Media::TrackTarget& target) : pPublication(NULL), _pN
 }
 
 Subscription::~Subscription() {
-	// No reset() call here! stop "means" @end, it's not the case here! (publication may be always running)
+	// No reset() call here! stop "means" endMedia signal, it's not the case here! (publication may be always running)
 	if (pPublication)
 		CRITIC("Unsafe ", pPublication->name(), " subscription deletion");
 	if (_pNextPublication)

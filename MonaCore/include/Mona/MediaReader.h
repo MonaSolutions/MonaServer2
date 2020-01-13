@@ -31,17 +31,16 @@ struct MediaReader : virtual Object, private StreamData<Media::Source&> {
 
 	virtual void setParams(const Parameters& parameters) {}
 
-	void		 read(const Packet& packet, Media::Source& source) { if(packet) addStreamData(packet, 0xFFFFFFFF, source); } // keep the check on packet (no sense for empty packet here!)
+	void		 read(const Packet& packet, Media::Source& source);
 	virtual void flush(Media::Source& source);
 
 	const char*			format() const;
 	MIME::Type			mime() const;
 	virtual const char*	subMime() const; // Keep virtual to allow to RTPReader to redefine it
 
-	~MediaReader() { flush(Media::Source::Null()); } // release data!
 protected:
 	MediaReader() {}
-
+	
 	virtual void	onFlush(Packet& buffer, Media::Source& source);
 private:
 	/*!

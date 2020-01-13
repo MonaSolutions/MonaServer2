@@ -94,6 +94,10 @@ unique<MediaReader> MediaReader::New(const char* subMime) {
 	return nullptr;
 }
 
+void MediaReader::read(const Packet& packet, Media::Source& source) {
+	if (packet) // keep the check on packet (no sense for empty packet here!)
+		addStreamData(packet, 0xFFFFFFFF, source);
+}
 void MediaReader::flush(Media::Source& source) {
 	shared<Buffer> pBuffer;
 	Packet buffer(clearStreamData(pBuffer));

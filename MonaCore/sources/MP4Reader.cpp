@@ -948,7 +948,6 @@ void MP4Reader::flushMedias(Media::Source& source) {
 			source.writeMedia(media);
 		} else
 			source.reportLost(media.type, ((Lost&)media).lost);
-		delete &media;
 	}
 	_medias.erase(_medias.begin(), it);
 	if (properties.count())

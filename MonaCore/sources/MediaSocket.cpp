@@ -52,7 +52,7 @@ void MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketA
 	}
 	if (_address != address) {
 		if (_address)
-			_pReader->flush(*this); // address has changed, means that we are in UDP, it's a new stream (come from someone else)
+			_pReader->flush(self); // address has changed, means that we are in UDP, it's a new stream (come from someone else)
 		_address = address;
 	}
 	HTTPDecoder::decode(pBuffer, address, pSocket);
@@ -61,7 +61,7 @@ void MediaSocket::Reader::Decoder::decode(shared<Buffer>& pBuffer, const SocketA
 UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) {
 	if (_type == TYPE_HTTP)
 		return HTTPDecoder::onStreamData(buffer, pSocket);
-	_pReader->read(buffer, *this);
+	_pReader->read(buffer, self);
 	return 0;
 }
 

@@ -43,7 +43,7 @@ UInt32 MediaFile::Reader::Decoder::decode(shared<Buffer>& pBuffer, bool end) {
 	_mediaTimeGotten = false;
 	_pReader->read(packet, self);
 	if (end)
-		_pReader.reset(); // no flush, because will be done by the main thread!
+		_pReader.reset(); // no flush, because will be done by the main thread (end of file call stop())
 	else if(!_mediaTimeGotten)
 		return packet.size(); // continue to read if no flush
 	_handler.queue(onFlush);
@@ -76,12 +76,13 @@ MediaFile::Reader::Reader(const Path& path, unique<MediaReader>&& pReader, Media
 		MediaStream(TYPE_FILE, source, "Stream source file://...", Path(path.parent()).name(), '/', path.baseName(), '.', path.extension().empty() ? pReader->format() : path.extension().c_str()),
 		_onTimer([this, &source](UInt32 delay) {
 			UInt32 size = _pMedias->size();
+			bool end = _pReader.unique();
 			while (!_pMedias->empty()) {
 				if (_pMedias->front()) {
 					Media::Base& media(*_pMedias->front());
 					if (media || typeid(media) != typeid(Lost)) {
 						UInt32 time;
-						if(ReadMediaTime(media, time)){
+						if(ReadMediaTime(media, time) && !end){
 							if (_realTime) {
 								Int32 delta = range<Int32>(time - _realTime.elapsed());
 								if (delta > 20) { // 20 ms for timer performance reason (to limit timer raising), not more otherwise not progressive (and player load data by wave)
@@ -105,15 +106,14 @@ MediaFile::Reader::Reader(const Path& path, unique<MediaReader>&& pReader, Media
 					source.reset();
 				_pMedias->pop_front();
 			} // end of while medias
-
+			if (_pMedias->size()<size)
+				source.flush(); // flush read before because reading can take time (and to avoid too large amout of data transfer)
 			// Here _pMedias is empty!
-			if (_pReader.unique()) {
+			if (end) {
 				// end of file!
 				stop();
 				return 0;
 			}
-			if(_pMedias->size()<size)
-				source.flush(); // flush before because reading can take time (and to avoid too large amout of data transfer)
 			this->io.read(_pFile); // continue to read immediatly
 			return 0;
 		}) {
@@ -142,10 +142,7 @@ void MediaFile::Reader::stopping() {
 	// reset _pReader because could be used by different thread by new Socket and its decoding thread
 	if (_pReader.unique()) { // else always used by the decoder, impossible to flush!
 		_onTimer(); // flush possible current media remaining
-		if(_pMedias->empty())
-			_pReader->flush(source); // reset + flush!
-		else
-			source.reset();
+		_pReader->flush(source); // reset + flush!
 	} else
 		source.reset(); // because _pReader could be used always by the decoder (parallel!)
 	// new resource for next start
