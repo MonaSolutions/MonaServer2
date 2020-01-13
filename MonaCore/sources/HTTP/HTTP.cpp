@@ -307,8 +307,8 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 	// meet
 	{ // lock
 		unique_lock<mutex> lock(_mutex);
-		auto it = _remotes.lower_bound(pHeader->folder.c_str());
-		if (it != _remotes.end() && String::ICompare(it->first, pHeader->folder) == 0) {
+		auto it = _remotes.lower_bound(pHeader->path.c_str());
+		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path) == 0) {
 			// found!
 			shared<Socket> pRemoteSocket = it->second->lock();
 			if (pRemoteSocket) {
@@ -338,7 +338,7 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 		}
 		if (!join && !to) {
 			unique<Remote> pRemote(SET, pHeader, packet, pSocket);
-			_remotes.emplace_hint(it, SET, forward_as_tuple((*pRemote)->folder.c_str()), forward_as_tuple(move(pRemote)));
+			_remotes.emplace_hint(it, SET, forward_as_tuple((*pRemote)->path.c_str()), forward_as_tuple(move(pRemote)));
 			return true;
 		} // else peer not found => 410
 	} // unlock

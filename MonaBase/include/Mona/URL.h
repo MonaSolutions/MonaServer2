@@ -23,6 +23,12 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 
+typedef UInt8 REQUEST_OPTIONS;
+enum {
+	REQUEST_MAKE_FOLDER = 1, /// ignore empty tokens
+	REQUEST_FORCE_RELATIVE = 2,  /// remove leading and trailing whitespace from tokens
+};
+
 /*!
 URL parser,
 to write use directly String like that => 
@@ -39,11 +45,6 @@ struct URL : virtual Static {
 	static const char* Parse(const char* url, std::string& address) { std::size_t size(std::string::npos); return Parse(url, size, address, address); }
 	static const char* Parse(const char* url, std::size_t& size, std::string& address) { return Parse(url, size, address, address); }
 	
-	typedef UInt8 REQUEST_OPTIONS;
-	enum {
-		REQUEST_MAKE_FOLDER = 1, /// ignore empty tokens
-		REQUEST_FORCE_RELATIVE = 2,  /// remove leading and trailing whitespace from tokens
-	};
 	/*!
 	Parse Request, assign path and return query */
 	static const char* ParseRequest(const std::string& request, Path& path, REQUEST_OPTIONS options=0) { std::size_t size(request.size()); return ParseRequest(request.data(), size, path, options); }

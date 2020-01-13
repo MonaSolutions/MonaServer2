@@ -63,7 +63,7 @@ void WSClient::disconnect() {
 }
 
 bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& request) {
-	(string&)query = URL::ParseRequest(request, (Path&)path, URL::REQUEST_MAKE_FOLDER | URL::REQUEST_FORCE_RELATIVE);
+	(string&)query = URL::ParseRequest(request, (Path&)path, REQUEST_MAKE_FOLDER | REQUEST_FORCE_RELATIVE);
 	SocketAddress address(addr);
 	if (!address.port())
 		address.setPort(80);
