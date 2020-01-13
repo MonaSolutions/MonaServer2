@@ -238,7 +238,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					_stage = PATH;
 				} else if (_stage == PATH) {
 					// parse query
-					UInt32 size = STR buffer.data() - signifiant;
+					size_t size = STR buffer.data() - signifiant;
 					if (_pHeader->type) {
 						// Request
 						_pHeader->query = URL::ParseRequest(signifiant, size, _pHeader->path, REQUEST_FORCE_RELATIVE);
