@@ -47,7 +47,7 @@ struct SRTProtocol : Protocol, virtual Object {
 		bool readOne(UInt8 type, DataWriter& writer);
 		void write(DataWriter& writer, const char* key, const char* value, UInt32 size);
 
-		bool setResource(const char* value, UInt32 size);
+		bool setResource(const char* value, std::size_t size);
 
 		std::string	_stream;
 		Peer&		_peer;
