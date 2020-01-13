@@ -108,10 +108,15 @@ const char* URL::Parse(const char* url, size_t& size, string& protocol, string& 
 }
 
 
-const char* URL::ParseRequest(const char* request, std::size_t& size, std::string& path) {
+const char* URL::ParseRequest(const char* request, std::size_t& size, std::string& path, REQUEST_OPTIONS options) {
 	// Decode PATH
 
-	bool relative = !size || (*request != '/' && *request != '\\');
+	bool relative;
+	while (!(relative = !size || (*request != '/' && *request != '\\')) && (options & REQUEST_FORCE_RELATIVE)) {
+		++request;
+		if (size != std::string::npos)
+			--size;
+	}
 	// allow to fix /c:/ to c:/ (and don't impact linux, if was already absolute it removes just the first slash)
 	if (!relative && FileSystem::IsAbsolute(request+1)) {
 		++request;
@@ -174,15 +179,16 @@ const char* URL::ParseRequest(const char* request, std::size_t& size, std::strin
 		if (level > 2) // /..
 			path.resize(slashs.empty() ? 0 : slashs.back());
 		path += '/';
-	}
+	} else if(options & REQUEST_MAKE_FOLDER)
+		path += '/';
 	if (relative)
 		MAKE_RELATIVE(path);
 	return request; // returns query!
 }
 
-const char* URL::ParseRequest(const char* request, std::size_t& size, Path& path) {
+const char* URL::ParseRequest(const char* request, std::size_t& size, Path& path, REQUEST_OPTIONS options) {
 	string strPath;
-	request = ParseRequest(request, size, strPath);
+	request = ParseRequest(request, size, strPath, options);
 	path = move(strPath);
 	return request; // returns query!
 }

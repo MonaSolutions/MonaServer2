@@ -38,15 +38,21 @@ struct URL : virtual Static {
 	static const char* Parse(const std::string& url, std::string& address) { std::size_t size(url.size()); return Parse(url.data(), size, address, address); }
 	static const char* Parse(const char* url, std::string& address) { std::size_t size(std::string::npos); return Parse(url, size, address, address); }
 	static const char* Parse(const char* url, std::size_t& size, std::string& address) { return Parse(url, size, address, address); }
+	
+	typedef UInt8 REQUEST_OPTIONS;
+	enum {
+		REQUEST_MAKE_FOLDER = 1, /// ignore empty tokens
+		REQUEST_FORCE_RELATIVE = 2,  /// remove leading and trailing whitespace from tokens
+	};
 	/*!
 	Parse Request, assign path and return query */
-	static const char* ParseRequest(const std::string& request, Path& path) { std::size_t size(request.size()); return ParseRequest(request.data(), size, path); }
-	static const char* ParseRequest(const char* request, Path& path) { std::size_t size(std::string::npos); return ParseRequest(request, size, path); }
-	static const char* ParseRequest(const char* request, std::size_t& size, Path& path);
+	static const char* ParseRequest(const std::string& request, Path& path, REQUEST_OPTIONS options=0) { std::size_t size(request.size()); return ParseRequest(request.data(), size, path, options); }
+	static const char* ParseRequest(const char* request, Path& path, REQUEST_OPTIONS options = 0) { std::size_t size(std::string::npos); return ParseRequest(request, size, path, options); }
+	static const char* ParseRequest(const char* request, std::size_t& size, Path& path, REQUEST_OPTIONS options = 0);
 
-	static const char* ParseRequest(const std::string& request, std::string& path) { std::size_t size(request.size()); return ParseRequest(request.data(), size, path); }
-	static const char* ParseRequest(const char* request, std::string& path) { std::size_t size(std::string::npos); return ParseRequest(request, size, path); }
-	static const char* ParseRequest(const char* request, std::size_t& size, std::string& path);
+	static const char* ParseRequest(const std::string& request, std::string& path, REQUEST_OPTIONS options = 0) { std::size_t size(request.size()); return ParseRequest(request.data(), size, path, options); }
+	static const char* ParseRequest(const char* request, std::string& path, REQUEST_OPTIONS options = 0) { std::size_t size(std::string::npos); return ParseRequest(request, size, path, options); }
+	static const char* ParseRequest(const char* request, std::size_t& size, std::string& path, REQUEST_OPTIONS options = 0);
 
 	typedef std::function<bool(std::string&, const char*)> ForEachParameter;
 	static UInt32 ParseQuery(const std::string& query, const ForEachParameter& forEach) { return ParseQuery(query.data(), query.size(), forEach); }
