@@ -111,14 +111,14 @@ void MonaServer::onManage() {
 void MonaServer::onStop(Service& service) {
 	// When a application is reloaded, the resource are released (to liberate port for example of one lua socket)
 	// So client which have record their member function with the onConnection of this application can not more interact with, we have to close them!
-	// All client in the inheritance application branch have to be disconnected. Ex: "/live" is updating, clients with path "/", "/live", "/live/sub" have to reconnect, clients with path "/live2" can stay alive!
+	// All client in the inheritance application branch have to be disconnected. Ex: "live/" is updating, clients with path "", "live/", "live/sub/" have to reconnect, clients with path "live2/" can stay alive!
 	auto it = clients.begin();
 	while (it != clients.end()) { // while loop because the close can remove immediatly client from clients!
 		Client& client = *it++->second;
-		size_t minSize = min(service.path.size(), client.path.size());
+		size_t minSize = min(service.path.length(), client.path.length());
 		if (String::ICompare(service.path, client.path, minSize) != 0)
 			continue;
-		const string& maxPath = client.path.size()>minSize ? client.path : service.path;
+		const string& maxPath = client.path.length()>minSize ? client.path : service.path;
 		if (!maxPath[minSize] || maxPath[minSize] == '/') {
 			client.close(Session::ERROR_UPDATE);
 			client.setCustomData<Service>(nullptr); // after the close to allow on close to call onDisconnection when possible!
@@ -126,16 +126,16 @@ void MonaServer::onStop(Service& service) {
 	}
 }
 
-SocketAddress& MonaServer::onHandshake(const string& path, const string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) {
+SocketAddress& MonaServer::onHandshake(const Path& path, const string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) {
 	Exception ex;
 	Service* pService = _pService->get(ex, path);
 	if (!pService)
 		return redirection;
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_FUNCTION_BEGIN("onHandshake",pService->reference())
-			SCRIPT_WRITE_DATA(protocol.data(), protocol.size())
+			SCRIPT_WRITE_STRING(protocol)
 			SCRIPT_WRITE_ADDRESS(address);
-			SCRIPT_WRITE_DATA(path.data(), path.size())
+			SCRIPT_WRITE_STRING(path)
 			SCRIPT_WRITE_VALUE(properties);
 			SCRIPT_FUNCTION_CALL
 			if(SCRIPT_NEXT_READABLE)
@@ -220,7 +220,7 @@ bool MonaServer::onInvocation(Exception& ex, Client& client, const string& name,
 	SCRIPT_END
 	if(!method)
 		return true;
-	ex.set<Ex::Application>("Method client ", name, " not found in application ", client.path);
+	ex.set<Ex::Application>("Method client ", name, " not found in application ", client.path.length() ? client.path : "/");
 	return false;
 }
 

@@ -244,11 +244,11 @@ bool HTTP::WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const std:
 
 	// Write column names
 	// Name		Modified	Size
-	String::Append(writer, "<!DOCTYPE html><html><head><title>Index of ", path, "</title><style>th {text-align: center;}</style></head><body><h1>Index of ", path, "</h1><pre><table cellpadding=\"0\"><tr><th><a href=\"?N=");
+	String::Append(writer, "<!DOCTYPE html><html><head><title>Index of ", path.empty() ? "/" : path, "</title><style>th {text-align: center;}</style></head><body><h1>Index of ", path.empty() ? "/" : path, "</h1><pre><table cellpadding=\"0\"><tr><th><a href=\"?N=");
 	String::Append(writer, ord, "\">Name</a></th><th><a href=\"?M=", ord, "\">Modified</a></th><th><a href=\"?S=", ord, "\">Size</a></th></tr><tr><td colspan=\"3\"><hr></td></tr>");
 
 	// Write first entry - link to a parent directory
-	if (path.size()>1 || (path[0]!='/' && path[0] != '\\'))
+	if (!path.empty() && path[0]!='/' && path[0] != '\\')
 		String::Append(writer, "<tr><td><a href=\"..\">Parent directory</a></td><td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>\n");
 
 	// Sort entries

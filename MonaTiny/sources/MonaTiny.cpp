@@ -67,7 +67,7 @@ private:
 //// Server Events /////
 void MonaTiny::onStart() {
 	// create applications
-	//_applications["/ffmpeg"] = new FFMPEG(*this);
+	//_applications["ffmpeg/"] = new FFMPEG(*this);
 }
 
 void MonaTiny::onManage() {
@@ -88,15 +88,15 @@ void MonaTiny::onStop() {
 }
 
 //// Client Events /////
-SocketAddress& MonaTiny::onHandshake(const string& path, const string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) {
-	DEBUG(protocol, " ", address, " handshake to ", path.empty() ? "/" : path);
+SocketAddress& MonaTiny::onHandshake(const Path& path, const string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) {
+	DEBUG(protocol, " ", address, " handshake to ", path.length() ? path : "/");
 	const auto& it(_applications.find(path));
 	return it == _applications.end() ? redirection : it->second->onHandshake(protocol, address, properties, redirection);
 }
 
 
 void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams) {
-	DEBUG(client.protocol, " ", client.address, " connects to ", client.path.empty() ? "/" : client.path)
+	DEBUG(client.protocol, " ", client.address, " connects to ", client.path.length() ? client.path : "/")
 	const auto& it(_applications.find(client.path));
 	if (it == _applications.end())
 		return;
@@ -104,7 +104,7 @@ void MonaTiny::onConnection(Exception& ex, Client& client, DataReader& inParams,
 }
 
 void MonaTiny::onDisconnection(Client& client) {
-	DEBUG(client.protocol, " ", client.address, " disconnects from ", client.path.empty() ? "/" : client.path);
+	DEBUG(client.protocol, " ", client.address, " disconnects from ", client.path.length() ? client.path : "/");
 	if (client.hasCustomData()) {
 		delete client.getCustomData<App::Client>();
 		client.setCustomData<App::Client>(NULL);
@@ -128,7 +128,7 @@ bool MonaTiny::onInvocation(Exception& ex, Client& client, const string& name, D
 		}
 	}*/
 	// on client message, returns "false" if "name" message is unknown
-	DEBUG(name, " call from ", client.protocol, " to ", client.path.empty() ? "/" : client.path);
+	DEBUG(name, " call from ", client.protocol, " to ", client.path.length() ? client.path : "/");
 	if (client.hasCustomData())
 		return client.getCustomData<App::Client>()->onInvocation(ex, name, arguments,responseType);
 	return false;
@@ -138,7 +138,7 @@ bool MonaTiny::onInvocation(Exception& ex, Client& client, const string& name, D
 bool MonaTiny::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) {
 	// on client file access, returns "false" if acess if forbiden
 	if(pClient) {
-		DEBUG(file.name(), " file access from ", pClient->protocol, " to ", pClient->path.empty() ? "/" : pClient->path);
+		DEBUG(file.name(), " file access from ", pClient->protocol, " to ", pClient->path.length() ? pClient->path : "/");
 		if (pClient->hasCustomData())
 			return pClient->getCustomData<App::Client>()->onFileAccess(ex, mode, file, arguments, properties);
 	} else

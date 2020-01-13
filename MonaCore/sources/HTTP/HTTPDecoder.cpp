@@ -241,7 +241,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					UInt32 size = STR buffer.data() - signifiant;
 					if (_pHeader->type) {
 						// Request
-						_pHeader->query = URL::ParseRequest(signifiant, size, _pHeader->folder);
+						_pHeader->query = URL::ParseRequest(signifiant, size, _pHeader->folder, URL::REQUEST_FORCE_RELATIVE);
 						_path.set(_www, _pHeader->folder);
 						if (!_pHeader->folder.isFolder())
 							_pHeader->folder = _pHeader->folder.parent();

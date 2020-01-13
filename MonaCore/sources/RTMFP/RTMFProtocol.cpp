@@ -44,7 +44,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		const char* url = STR reader.current();
 		size_t size = reader.next(reader.available() - 16);
 		string serverAddress;
-		url = URL::ParseRequest(URL::Parse(url, size, serverAddress), size, (string&)pPeer->path);
+		url = URL::ParseRequest(URL::Parse(url, size, serverAddress), size, (Path&)pPeer->path, URL::REQUEST_MAKE_FOLDER);
 		pPeer->setServerAddress(serverAddress);
 		pPeer->setQuery(string(url, size));
 		URL::ParseQuery(pPeer->query, pPeer->properties());

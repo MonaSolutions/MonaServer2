@@ -76,7 +76,7 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual bool			running() = 0;
 
 	// events	
-	virtual SocketAddress& 	onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) { return redirection; }
+	virtual SocketAddress& 	onHandshake(const Path& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) { return redirection; }
 	virtual void			onConnection(Exception& ex,Client& client, DataReader& inParams, DataWriter& outParams) {} // Exception::SOFTWARE, Exception::APPLICATION
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}

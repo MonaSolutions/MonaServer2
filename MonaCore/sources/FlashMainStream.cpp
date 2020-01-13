@@ -60,7 +60,7 @@ void FlashMainStream::messageHandler(const string& name, AMFReader& message, Fla
 			const char* url = peer.properties().getString("tcUrl");
 			if (url) {
 				string serverAddress;
-				peer.setQuery(URL::ParseRequest(URL::Parse(url, serverAddress), (string&)peer.path));
+				peer.setQuery(URL::ParseRequest(URL::Parse(url, serverAddress), (Path&)peer.path, URL::REQUEST_MAKE_FOLDER));
 				URL::ParseQuery(peer.query, peer.properties());
 				peer.setServerAddress(serverAddress);
 			}

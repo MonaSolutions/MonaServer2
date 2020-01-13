@@ -138,26 +138,26 @@ void Peer::onDisconnection() {
 
 bool Peer::onInvocation(Exception& ex, const string& name, DataReader& reader, UInt8 responseType) {
 	if (!connection) {
-		CRITIC("RPC client before connection to ", path);
+		CRITIC("RPC client before connection to ", path.length() ? path : "/");
 		return false;
 	}
 	if (_api.onInvocation(ex, *this, name, reader, responseType))
 		return true;
 	// method not found!
 	if(!ex)
-		ex.set<Ex::Application>("Method client ", name, " not found in application ", path); // no log just in this case!
+		ex.set<Ex::Application>("Method client ", name, " not found in application ", path.length() ? path : "/"); // no log just in this case!
 	return false; // method not found!
 }
 
 bool Peer::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) {
 	if (!connection) {
-		CRITIC(ex.set<Ex::Intern>(path, '/', file.name(), " access by a not connected client"));
+		CRITIC(ex.set<Ex::Intern>(path, file.name(), " access by a not connected client"));
 		return false;
 	}
 	if(_api.onFileAccess(ex,mode,file, arguments, properties, this))
 		return true;
 	if (!ex)
-		ERROR(ex.set<Ex::Permission>(path, '/', file.name(), " access denied by application ", path));
+		ERROR(ex.set<Ex::Permission>(path, file.name(), " access denied by application ", path.length() ? path : "/"));
 	return false;
 }
 

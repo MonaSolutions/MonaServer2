@@ -24,7 +24,7 @@ namespace Mona {
 
 static int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(IPAddress, host)
-		SCRIPT_WRITE_DATA(host.c_str(), host.length());
+		SCRIPT_WRITE_STRING(host);
 	SCRIPT_CALLBACK_RETURN
 }
 

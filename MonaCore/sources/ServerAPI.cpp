@@ -78,7 +78,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	if (onPublish(ex, publication, pClient)) {
 		if(ext) {
 			// RECORD!
-			Path path(MAKE_FILE(www), pClient ? pClient->path : "", "/", stream,'.', ext);
+			Path path(www, pClient ? pClient->path : "", stream,'.', ext);
 			bool append(false);
 			publication.getBoolean("append", append);
 			MapReader<Parameters> arguments(publication);

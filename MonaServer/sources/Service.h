@@ -30,16 +30,14 @@ struct Service {
 	struct Handler {
 		virtual void onStop(Service& service) = 0;
 	};
-	Service(lua_State* pState, const std::string& wwwPath, Handler& handler, IOFile& ioFile);
+	Service(lua_State* pState, const std::string& www, Handler& handler, IOFile& ioFile);
 	Service(lua_State* pState, Service& parent, const char* name);
 	virtual ~Service();
 
 	int					reference() const { return _reference; }
 
-	const std::string	name;
-	const std::string	path;
-	const Path			file;
-
+	const Path			path;
+	
 	Service*			get(Exception& ex, const std::string& path) { return get(ex, path.c_str()); }
 	Service*			get(Exception& ex, const char* path);
 
@@ -64,6 +62,7 @@ private:
 	Service*				_pParent;
 	lua_State*				_pState;
 	bool					_started;
+	Path					_file;
 
 
 

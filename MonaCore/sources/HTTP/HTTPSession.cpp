@@ -49,7 +49,7 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 			if (String::ICompare(peer.query, request->query) != 0 || String::ICompare(peer.path, request->folder) != 0) {
 				//// Disconnection if path or query changed
 				disconnection();
-				peer.setPath(request->folder.c_str());
+				peer.setPath(request->folder);
 				peer.setQuery(request->query.c_str());
 			}
 			peer.setServerAddress(request->host);
@@ -351,7 +351,7 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		MapWriter<Parameters> mapWriter(fileProperties);
 		if (!peer.onRead(ex, file, parameters, mapWriter)) {
 			if (!ex)
-				ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path,"/",file.name());
+				ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path, file.name());
 			return;
 		}
 		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD)
@@ -402,7 +402,7 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		ex = nullptr;
 		file.set(file, _index);
 	} else if (!_indexDirectory) {
-		ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path, "/");
+		ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path.length() ? peer.path : "/");
 		return;
 	}
 

@@ -30,14 +30,15 @@ DataReader& SRTProtocol::Params::operator()() {
 }
 
 bool SRTProtocol::Params::setResource(const char* value, UInt32 size) {
-	if (_stream.assign(value, size).empty())
+	Path path;
+	const char* query = URL::ParseRequest(value, size, path, URL::REQUEST_FORCE_RELATIVE);
+	if (path.isFolder()) {
+		_stream.clear();
 		return false;
-	(string&)_peer.query = URL::ParseRequest(_stream, (string&)_peer.path);
-	size_t found = _peer.path.find_last_of("\\/");
-	if (found != string::npos) {
-		_stream.assign(_peer.path.data()+found+1, _peer.path.size()-found-1);
-		((string&)_peer.path).resize(found);
 	}
+	_stream = path.name();
+	_peer.setPath(path.parent());
+	_peer.setQuery(string(query, size));
 	return true;
 }
 

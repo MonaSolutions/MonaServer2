@@ -59,7 +59,7 @@ RTMPSession::RTMPSession(Protocol& protocol, const shared<Socket>& pSocket) : _f
 					amf.writePropertyName("ex");
 					amf.beginObject();
 					amf.writeNumberProperty("code", 302);
-					amf.writeStringProperty("redirect", String(String::Lower(peer.protocol), "://", address, peer.path));
+					amf.writeStringProperty("redirect", String(String::Lower(peer.protocol), "://", address, "/", peer.path));
 					amf.endObject();
 					amf.endObject();
 					writer.writeInvocation("close");

@@ -187,12 +187,7 @@ void HTTPWriter::writeSetCookie(const string& key, DataReader& reader) {
 	String::Append(*_pSetCookie, "\r\nSet-Cookie: ", key, '=');
 	StringWriter<> value(*_pSetCookie);
 	reader.read(value, 1);
-	_pSetCookie->append(EXPAND("; path="));
-	// write path parameters
-	if (_session.peer.path.empty())
-		_pSetCookie->append(EXPAND("/"));
-	else
-		_pSetCookie->append(_session.peer.path.data(), _session.peer.path.size());
+	String::Append(*_pSetCookie, "; path=", _session.peer.path.length() ? _session.peer.path : "/");
 	// write other params
 	if (!reader.available())
 		return;

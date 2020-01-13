@@ -25,14 +25,14 @@ namespace Mona {
 
 
 
-Service::Service(lua_State* pState, const string& wwwPath, Handler& handler, IOFile& ioFile) :
+Service::Service(lua_State* pState, const string& www, Handler& handler, IOFile& ioFile) : path(""),
 	_handler(handler), _reference(LUA_REFNIL), _pParent(NULL), _pState(pState), _started(false),
-	_pWatcher(SET, Path(wwwPath, "*"), FileSystem::MODE_HEAVY), file(wwwPath, "/main.lua"),
-	_onUpdate([this, &wwwPath](const Path& file, bool firstWatch) {
+	_pWatcher(SET, Path(www, "*"), FileSystem::MODE_HEAVY), _file(www, "/main.lua"),
+	_onUpdate([this, &www](const Path& file, bool firstWatch) {
 		if(!file.isFolder() && file.name() != "main.lua")
 			return;
 		// file path is a concatenation of _wwwPath given to ListFiles in FileWatcher and file name, so we can get relative file name!
-		const char* path = (file.isFolder() ? file.c_str() : file.parent().c_str()) + wwwPath.size();
+		const char* path = (file.isFolder() ? file.c_str() : file.parent().c_str()) + www.size();
 		Service* pService;
 		if (file.exists()) {
 			DEBUG("Application ", file, " load");
@@ -61,10 +61,9 @@ Service::Service(lua_State* pState, const string& wwwPath, Handler& handler, IOF
 	init();
 }
 
-Service::Service(lua_State* pState, Service& parent, const char* name) :
+Service::Service(lua_State* pState, Service& parent, const char* name) : path(parent.path.parent(), name),
 	_handler(parent._handler), _reference(LUA_REFNIL), _pParent(&parent), _pState(pState),
-	name(name), file(parent.file.parent(), name, "/main.lua") {
-	String::Assign((string&)path, parent.path,'/',name);
+	_file(parent._file.parent(), name, "/main.lua") {
 	init();
 }
 
@@ -137,17 +136,12 @@ void Service::init() {
 	lua_pushliteral(_pState, "__index");
 	lua_newtable(_pState);
 
-	// set name
-	lua_pushliteral(_pState, "name");
-	lua_pushlstring(_pState, name.data(), name.size());
-	lua_rawset(_pState, -3);
-
 	// set path
 	lua_pushliteral(_pState, "path");
-	lua_pushlstring(_pState, path.data(), path.size());
+	Script::NewObject(_pState, new const Path(path));
 	lua_rawset(_pState, -3);
 	lua_pushliteral(_pState, "__tostring");
-	lua_pushlstring(_pState, path.data(), path.size());
+	lua_pushlstring(_pState, path.c_str(), path.length());
 	lua_rawset(_pState, -3);
 
 	// set this
@@ -185,14 +179,14 @@ void Service::start() {
 
 	SCRIPT_BEGIN(_pState)
 		lua_rawgeti(_pState, LUA_REGISTRYINDEX, _reference);
-		int error = luaL_loadfile(_pState, file.c_str());
+		int error = luaL_loadfile(_pState, _file.c_str());
 		if(!error) {
 			lua_pushvalue(_pState, -2);
 			lua_setfenv(_pState, -2);
 			if (lua_pcall(_pState, 0, 0, 0) == 0) {
 				_started = true;
 				SCRIPT_FUNCTION_BEGIN("onStart", _reference)
-					SCRIPT_WRITE_DATA(path.data(), path.size())
+					SCRIPT_WRITE_STRING(path)
 					SCRIPT_FUNCTION_CALL
 				SCRIPT_FUNCTION_END
 				INFO("Application www", path, " started")
@@ -215,7 +209,7 @@ void Service::stop() {
 		_started = false;
 		SCRIPT_BEGIN(_pState)
 			SCRIPT_FUNCTION_BEGIN("onStop", _reference)
-				SCRIPT_WRITE_DATA(path.data(), path.size())
+				SCRIPT_WRITE_STRING(path)
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END

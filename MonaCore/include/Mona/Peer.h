@@ -40,7 +40,7 @@ struct Peer : Client, virtual Object {
 	Try to assign/replace the serverAddress with string address gotten of protocol. Returns false if failed. */
 	bool						setServerAddress(const SocketAddress& address);
 	bool						setServerAddress(const std::string& address);
-	void						setPath(std::string&& value) { (std::string&)Client::path = std::move(value); }
+	void						setPath(const Path& path) { (Path&)Client::path = path; }
 	void						setQuery(std::string&& value) { (std::string&)Client::query = std::move(value); }
 	
 	UInt16						setPing(UInt64 value) { pingTime.update(); return Client::setPing(value); }

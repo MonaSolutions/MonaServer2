@@ -57,8 +57,9 @@ struct Client : Entity, virtual Object, Net::Stats {
 	DataType*			getCustomData() const { return (DataType*)_pData; }
 
 	// Alterable in class children Peer
-	
-	const std::string			path;
+	/*!
+	Path folder, "" or "live/" for example */
+	const Path					path;
 	const std::string			query;
 	
 	UInt16						ping() const { return _ping; } // 0 for protocol which doesn't support PING calculation

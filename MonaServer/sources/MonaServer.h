@@ -37,7 +37,7 @@ private:
 	void					onManage();
 	void					onStop();
 
-	SocketAddress& 			onHandshake(const std::string& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection);
+	SocketAddress& 			onHandshake(const Path& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection);
 	void					onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams);
 	void					onDisconnection(Client& client);
 	void					onAddressChanged(Client& client, const SocketAddress& oldAddress);

@@ -84,7 +84,7 @@ template<> void Script::ObjInit(lua_State* pState, Mona::Client& client) {
 		SCRIPT_DEFINE_DATA("id", client.id, Entity::SIZE)
 		SCRIPT_DEFINE_STRING("protocol", client.protocol);
 		SCRIPT_DEFINE_DOUBLE("connection", client.connection);
-		SCRIPT_DEFINE_STRING("path", client.path);
+		SCRIPT_DEFINE("path", Script::NewObject(pState, new const Path(client.path)))
 		SCRIPT_DEFINE_STRING("query", client.query);
 	
 		SCRIPT_DEFINE("address", SCRIPT_WRITE_ADDRESS(client.address));

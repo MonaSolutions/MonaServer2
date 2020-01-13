@@ -25,7 +25,7 @@ namespace Mona {
 
 int __tostring(lua_State *pState) {
 	SCRIPT_CALLBACK(SocketAddress, address)
-		SCRIPT_WRITE_DATA(address.c_str(), address.length());
+		SCRIPT_WRITE_STRING(address);
 	SCRIPT_CALLBACK_RETURN
 }
 
