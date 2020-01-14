@@ -132,7 +132,8 @@ bool MediaStream::initSocket(shared<Socket>& pSocket, const Parameters& paramete
 }
 
 const char* MediaStream::Format(Exception& ex, MediaStream::Type type, const char* request, Path& path) {
-	Path fmt(move(path));
+	static thread_local Path FMT;
+	FMT = move(path); // clear path, and set default format
 	URL::ParseRequest(request, path);
 	switch (type) {
 		case TYPE_HTTP:
@@ -143,7 +144,7 @@ const char* MediaStream::Format(Exception& ex, MediaStream::Type type, const cha
 			}
 		default:;
 	}
-	const char* format = fmt.c_str();
+	const char* format = FMT.c_str();
 	if (!*format && !MIME::Read(path, format)) {
 		switch (type) {
 			case MediaStream::TYPE_SRT: // SRT and No Format => TS by default to catch Haivision usage
@@ -165,16 +166,16 @@ const char* MediaStream::Format(Exception& ex, MediaStream::Type type, const cha
 unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const string& description, const Timer& timer, IOFile& ioFile, IOSocket& ioSocket, const shared<TLS>& pTLS) {
 
 	// split "main url" and format?query!
-	size_t pos = description.find_last_of(" \t\r\n\v\f");
+	size_t size = description.find_last_of(" \t\r\n\v\f");
 	// parse explicit format and parameters
 	Parameters params;
 	string format;
-	if (pos != string::npos)
-		URL::ParseQuery(URL::ParseRequest(description.c_str() + pos, format), params);
+	if (size != string::npos)
+		URL::ParseQuery(URL::ParseRequest(description.c_str() + size + 1, format), params);
 	
 	// parse protocol and address
 	string protocol, addr;
-	const char* request = URL::Parse(description.data(), pos, protocol, addr);
+	const char* request = URL::Parse(description.data(), size, protocol, addr);
 
 	Type type(TYPE_FILE);
 	bool isSecure(false);
@@ -238,7 +239,7 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 	}
 	
 	
-	String::Scoped scoped(request+pos);
+	String::Scoped scoped(request+size);
 	unique<MediaStream> pStream;
 	if (type>0) {
 		// KEEP this model of double creation to allow a day a new RTPWriter<...>(parameter)

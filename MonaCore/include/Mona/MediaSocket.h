@@ -75,7 +75,7 @@ struct MediaSocket : virtual Static {
 			void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
 			UInt32 onStreamData(Packet& buffer, const shared<Socket>& pSocket);
 
-			shared<MediaReader>		_pReader;
+			shared<MediaReader>		_pReader; // can be null (HTTP auto case for example)
 			Type					_type;
 			SocketAddress			_address;
 			std::string				_name;
@@ -88,7 +88,7 @@ struct MediaSocket : virtual Static {
 		Socket::OnFlush			_onSocketFlush;
 		Socket::OnError			_onSocketError;
 
-		shared<MediaReader>		_pReader;
+		shared<MediaReader>		_pReader; // can be null (HTTP auto case for example)
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
 		bool					_streaming;

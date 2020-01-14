@@ -54,10 +54,10 @@ struct MediaServer : virtual Static {
 		Socket::OnAccept	_onConnnection;
 		Socket::OnError		_onError;
 
-		shared<MediaReader>			_pReader;
 		shared<Socket>					_pSocket;
 		shared<TLS>						_pTLS;
-		shared<MediaSocket::Reader>	_pTarget;
+		shared<MediaSocket::Reader>		_pTarget;
+		const char*						_subMime; // can be null (HTTP auto case for example)
 	};
 
 	struct Writer : MediaStream, virtual Object {

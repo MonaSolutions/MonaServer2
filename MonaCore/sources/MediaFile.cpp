@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-unique<MediaFile::Reader> MediaFile::Reader::New(Exception ex, const char* request, Media::Source& source, const Timer& timer, IOFile& io, string&& format) {
+unique<MediaFile::Reader> MediaFile::Reader::New(Exception& ex, const char* request, Media::Source& source, const Timer& timer, IOFile& io, string&& format) {
 	Path path(move(format));
 	if (!(request = MediaStream::Format(ex, MediaStream::TYPE_FILE, request, path)))
 		return nullptr;
@@ -152,7 +152,7 @@ void MediaFile::Reader::stopping() {
 
 
 
-unique<MediaFile::Writer> MediaFile::Writer::New(Exception ex, const char* request, IOFile& io, string&& format) {
+unique<MediaFile::Writer> MediaFile::Writer::New(Exception& ex, const char* request, IOFile& io, string&& format) {
 	bool isM3U8 = String::ICompare(format, EXPAND("x-mpegURL")) == 0;
 	if (isM3U8) // just valid for MediaFile::Writer => M3U8 + TSWriter!
 		format = "ts";

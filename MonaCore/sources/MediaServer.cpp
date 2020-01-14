@@ -44,13 +44,13 @@ unique<MediaServer::Reader> MediaServer::Reader::New(Exception& ex, MediaStream:
 }
 
 MediaServer::Reader::Reader(MediaServer::Type type, const char* request, unique<MediaReader>&& pReader, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
-	request(request), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)),
-	MediaStream(MediaStream::Type(type), "Stream server source ", TypeToString(MediaStream::Type(type)), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
+	request(request), io(io), _pTLS(pTLS), address(address), _subMime(pReader ? pReader->subMime() : NULL),
+	MediaStream(MediaStream::Type(type), "Stream server source ", TypeToString(MediaStream::Type(type)), "://", address, *request ? "/" : "", request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		if (!_pTarget) {
-			_pTarget.set<MediaSocket::Reader>(this->type, this->request.c_str(), MediaReader::New(_pReader->subMime()), this->source, pSocket, this->io);
+			_pTarget.set<MediaSocket::Reader>(this->type, this->request.c_str(), MediaReader::New(_subMime), this->source, pSocket, this->io);
 			_pTarget->onStop = [this]() { _pTarget.reset(); };
-			_pTarget->start();
+			_pTarget->start(params()); // give same parameters than parent!
 			return;
 		}
 		WARN(description, " connection from ", pSocket->peerAddress(), " rejected");
@@ -59,7 +59,6 @@ MediaServer::Reader::Reader(MediaServer::Type type, const char* request, unique<
 
 bool MediaServer::Reader::starting(const Parameters& parameters) {
 	// can subscribe after bind + listen for server, no risk to miss an event
-	_pReader->setParams(parameters);
 	if (initSocket(_pSocket, parameters, _pTLS)) {
 		bool success;
 		Exception ex;
@@ -97,7 +96,7 @@ unique<MediaServer::Writer> MediaServer::Writer::New(Exception& ex, MediaStream:
 
 MediaServer::Writer::Writer(MediaServer::Type type, const char* request, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	request(request), io(io), _pTLS(pTLS), address(address), _subMime(pWriter->subMime()),
-	MediaStream(MediaStream::Type(type), "Stream server target ", TypeToString(MediaStream::Type(type)), "://", address, request, '|', String::Upper(pWriter->format())) {
+	MediaStream(MediaStream::Type(type), "Stream server target ", TypeToString(MediaStream::Type(type)), "://", address, *request ? "/" : "", request, '|', String::Upper(pWriter->format())) {
 	_onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->request.c_str(), MediaWriter::New(_subMime), pSocket, this->io);

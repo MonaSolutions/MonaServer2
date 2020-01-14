@@ -31,7 +31,7 @@ namespace Mona {
 struct MediaFile : virtual Static  {
 
 	struct Reader : MediaStream, virtual Object {
-		static unique<MediaFile::Reader> New(Exception ex, const char* request, Media::Source& source, const Timer& timer, IOFile& io, std::string&& format = "");
+		static unique<MediaFile::Reader> New(Exception& ex, const char* request, Media::Source& source, const Timer& timer, IOFile& io, std::string&& format = "");
 	
 		Reader(const Path& path, unique<MediaReader>&& pReader, Media::Source& source, const Timer& timer, IOFile& io);
 		virtual ~Reader() { stop(); }
@@ -98,7 +98,7 @@ struct MediaFile : virtual Static  {
 
 
 	struct Writer : Media::Target, MediaStream, virtual Object {
-		static unique<MediaFile::Writer> New(Exception ex, const char* request, IOFile& io, std::string&& format = "");
+		static unique<MediaFile::Writer> New(Exception& ex, const char* request, IOFile& io, std::string&& format = "");
 
 		Writer(const Path& path, unique<MediaWriter>&& pWriter, IOFile& io);
 		virtual ~Writer() { stop(); }

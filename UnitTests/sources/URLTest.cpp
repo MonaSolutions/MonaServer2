@@ -71,6 +71,7 @@ ADD_TEST(Parse) {
 
 	CheckURL("/space name/file.txt", "", "", "/space name/file.txt", "");
 	CheckURL("space name", "", "", "space name", "");
+	CheckURL("Sintel.ts FLV", "", "", "Sintel.ts FLV", "");
 
 	CheckURL("?name=value", "", "", "", "?name=value");
 	CheckURL("path?name=value", "", "", "path", "?name=value");
