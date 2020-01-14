@@ -97,7 +97,7 @@ unique<MediaServer::Writer> MediaServer::Writer::New(Exception& ex, MediaStream:
 
 MediaServer::Writer::Writer(MediaServer::Type type, const char* request, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	request(request), io(io), _pTLS(pTLS), address(address), _format(pWriter->format()), _subMime(pWriter->subMime()),
-	MediaStream(MediaStream::Type(type), "Stream server target ", MediaStream::Type(type), "://", address, request, '|', String::Upper(_format)) {
+	MediaStream(MediaStream::Type(type), "Stream server target ", MediaStream::Type(type), "://", address, request, '|', String::Upper(pWriter->format())) {
 	_onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->request.c_str(), MediaWriter::New(_subMime), pSocket, this->io);

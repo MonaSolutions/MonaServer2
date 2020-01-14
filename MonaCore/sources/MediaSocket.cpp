@@ -209,7 +209,7 @@ MediaSocket::Writer::Writer(Type type, string&& request, unique<MediaWriter>&& p
 }
 MediaSocket::Writer::Writer(Type type, string&& request, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io) : _pSocket(pSocket),
 	io(io), request(move(request)), _sendTrack(0), _pWriter(move(pWriter)), _httpAnswer(true), _subscribed(false), address(pSocket->peerAddress()),
-	MediaStream(type, "Stream target ", TypeToString(type), "://", address, request, '|', String::Upper(pWriter->format())) {
+	MediaStream(type, "Stream target ", TypeToString(type), "://", pSocket->peerAddress(), request, '|', String::Upper(pWriter->format())) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
