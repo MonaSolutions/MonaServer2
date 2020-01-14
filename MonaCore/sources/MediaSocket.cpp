@@ -67,7 +67,7 @@ UInt32 MediaSocket::Reader::Decoder::onStreamData(Packet& buffer, const shared<S
 
 MediaSocket::Reader::Reader(Type type, string&& request, unique<MediaReader>&& pReader, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	request(move(request)), _streaming(false), io(io), _pTLS(pTLS), _pReader(move(pReader)), _httpAnswer(false), address((!address.host() && type != TYPE_UDP) ? IPAddress::Loopback() : address.host(), address.port()),
-	MediaStream(type, "Stream source ", TypeToString(type), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
+	MediaStream(type, source, "Stream source ", TypeToString(type), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { run(); };
 	_onSocketError = [this](const Exception& ex) { stop(state()==STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
@@ -75,7 +75,7 @@ MediaSocket::Reader::Reader(Type type, string&& request, unique<MediaReader>&& p
 
 MediaSocket::Reader::Reader(Type type, string&& request, unique<MediaReader>&& pReader, Media::Source& source, const shared<Socket>& pSocket, IOSocket& io) :
 	_pSocket(pSocket), request(move(request)), _streaming(false), io(io), _pReader(move(pReader)), _httpAnswer(true), address(pSocket->peerAddress()),
-	MediaStream(type, "Stream source ", TypeToString(type), "://", pSocket->peerAddress(), request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
+	MediaStream(type, source, "Stream source ", TypeToString(type), "://", pSocket->peerAddress(), request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { run(); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };

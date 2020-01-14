@@ -45,7 +45,7 @@ unique<MediaServer::Reader> MediaServer::Reader::New(Exception& ex, MediaStream:
 
 MediaServer::Reader::Reader(MediaServer::Type type, const char* request, unique<MediaReader>&& pReader, Media::Source& source, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	request(request), io(io), _pTLS(pTLS), address(address), _pReader(move(pReader)),
-	MediaStream(MediaStream::Type(type), "Stream server source ", TypeToString(MediaStream::Type(type)), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
+	MediaStream(MediaStream::Type(type), source, "Stream server source ", TypeToString(MediaStream::Type(type)), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onConnnection = [this](const shared<Socket>& pSocket) {
 		if (!_pTarget) {
 			_pTarget.set<MediaSocket::Reader>(this->type, this->request.c_str(), MediaReader::New(_pReader->subMime()), this->source, pSocket, this->io);
