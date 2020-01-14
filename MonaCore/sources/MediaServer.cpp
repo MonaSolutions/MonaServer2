@@ -55,6 +55,7 @@ MediaServer::Reader::Reader(MediaServer::Type type, const char* request, unique<
 		}
 		WARN(description, " connection from ", pSocket->peerAddress(), " rejected");
 	};
+	pReader.reset(); // pReader to match with MediaSocket::Reader signature and guarantee a correct subMime
 }
 
 bool MediaServer::Reader::starting(const Parameters& parameters) {
@@ -104,6 +105,7 @@ MediaServer::Writer::Writer(MediaServer::Type type, const char* request, unique<
 			stop<Ex::Intern>(LOG_ERROR, "impossibe to add target ", pSocket->peerAddress());
 		// Don't overrides onStop => close socket => remove target!
 	};
+	pWriter.reset(); // pWriter to match with MediaSocket::Writer signature and guarantee a correct subMime
 }
 
 bool MediaServer::Writer::starting(const Parameters& parameters) {
