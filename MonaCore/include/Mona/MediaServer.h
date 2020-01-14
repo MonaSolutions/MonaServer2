@@ -82,7 +82,6 @@ struct MediaServer : virtual Static {
 		shared<Socket>			_pSocket;
 		shared<TLS>				_pTLS;
 		const char*				_subMime;
-		const char*				_format;
 	};
 };
 

@@ -76,7 +76,7 @@ struct MediaStream : virtual Object {
 	const MediaStream::Type	type;
 	const String			description;
 
-	const Parameters&	params() { _params.onUnfound = nullptr; return _params; }
+	const Parameters&	params();
 	bool				isSource() const { return &source == &Media::Source::Null(); }
 
 	UInt32	runCount() const { return _runCount; };

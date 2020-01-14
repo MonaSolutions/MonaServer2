@@ -150,6 +150,11 @@ SRT::Socket::Socket(SRTSOCKET id, const sockaddr& addr) : Mona::Socket(id, addr,
 
 bool SRT::Socket::processParams(Exception& ex, const Parameters& parameters, const char* prefix) {
 	bool result = Mona::Socket::processParams(ex, parameters); // in first to override "net." possible same property by its "srt." version
+	if (!result && ex.cast<Ex::Net::Socket>().code == NET_EISCONN) {
+		// impossible to change srt socket params of base (low-level) one time connected
+		result = true;
+		ex = nullptr;
+	}
 	int value;
 	Int64 i64Value;
 	bool bValue;

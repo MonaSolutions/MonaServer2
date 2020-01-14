@@ -75,7 +75,7 @@ MediaSocket::Reader::Reader(Type type, string&& request, unique<MediaReader>&& p
 
 MediaSocket::Reader::Reader(Type type, string&& request, unique<MediaReader>&& pReader, Media::Source& source, const shared<Socket>& pSocket, IOSocket& io) :
 	_pSocket(pSocket), request(move(request)), _streaming(false), io(io), _pReader(move(pReader)), _httpAnswer(true), address(pSocket->peerAddress()),
-	MediaStream(type, "Stream source ", TypeToString(type), "://", address, request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
+	MediaStream(type, "Stream source ", TypeToString(type), "://", pSocket->peerAddress(), request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, "disconnection"); };
 	_onSocketFlush = [this]() { run(); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
@@ -204,13 +204,13 @@ MediaSocket::Writer::Send::Send(Type type, const shared<string>& pName, const sh
 MediaSocket::Writer::Writer(Type type, string&& request, unique<MediaWriter>&& pWriter, const SocketAddress& address, IOSocket& io, const shared<TLS>& pTLS) :
 	_pTLS(pTLS), request(move(request)), io(io), _sendTrack(0), _pWriter(move(pWriter)), _httpAnswer(false), _subscribed(false), address(address.host() ? address.host() : IPAddress::Loopback(), address.port()),
 	MediaStream(type, "Stream target ", TypeToString(type), "://", address, request, '|', String::Upper(pWriter->format())) {
-	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
+	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, this->address, " disconnection"); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
 MediaSocket::Writer::Writer(Type type, string&& request, unique<MediaWriter>&& pWriter, const shared<Socket>& pSocket, IOSocket& io) : _pSocket(pSocket),
 	io(io), request(move(request)), _sendTrack(0), _pWriter(move(pWriter)), _httpAnswer(true), _subscribed(false), address(pSocket->peerAddress()),
-	MediaStream(type, "Stream target ", TypeToString(type), "://", address, request, '|', String::Upper(pWriter->format())) {
-	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_WARN, this->address, " disconnection"); };
+	MediaStream(type, "Stream target ", TypeToString(type), "://", pSocket->peerAddress(), request, '|', String::Upper(pWriter->format())) {
+	_onSocketDisconnection = [this]() { stop<Ex::Net::Socket>(LOG_DEBUG, this->address, " disconnection"); };
 	_onSocketError = [this](const Exception& ex) { stop(state() == STATE_STARTING ? LOG_DEBUG : LOG_WARN, ex); };
 }
 

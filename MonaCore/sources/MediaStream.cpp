@@ -35,6 +35,15 @@ MediaStream::~MediaStream() {
 	onDelete();
 }
 
+const Parameters& MediaStream::params() {
+	if (_params.onUnfound) {
+		// Keep assigned to something if was starting!
+		_params.onUnfound = nullptr;
+		_params.onUnfound = [](const string& key) { return nullptr; };
+	}
+	return _params;
+}
+
 bool MediaStream::start(const Parameters& parameters) {
 	ex = nullptr; // reset lastEx on pullse start!
 	if (_state==STATE_RUNNING)
