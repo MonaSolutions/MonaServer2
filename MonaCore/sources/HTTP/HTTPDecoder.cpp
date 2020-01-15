@@ -69,8 +69,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 	do {
 /////////////////////////////////////////////////////////////////
 ///////////////////// PARSE HEADER //////////////////////////////
-		char* signifiant(STR buffer.data());
-		char* key(NULL);
+		const char* signifiant(STR buffer.data());
+		const char* key(NULL);
 
 		while (_stage<BODY) {
 			if (!_pHeader) {
@@ -197,7 +197,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					} else // Set response code!
 						_pHeader->code = _pHeader->setString("code", signifiant).c_str();
 				} else {
-					char* endValue(signifiant);
+					const char* endValue(signifiant);
 					while (isblank(*--endValue)); // after the :
 					while (isblank(*--endValue)); // before the :
 					String::Scoped scoped(++endValue);
@@ -241,7 +241,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					size_t size = STR buffer.data() - signifiant;
 					if (_pHeader->type) {
 						// Request
-						_pHeader->query = URL::ParseRequest(signifiant, size, _pHeader->path, REQUEST_FORCE_RELATIVE);
+						signifiant = URL::ParseRequest(signifiant, size, _pHeader->path, REQUEST_FORCE_RELATIVE);
+						_pHeader->query.assign(signifiant, size);
 						_file.set(_www, _pHeader->path);
 						if (!_pHeader->path.isFolder())
 							_pHeader->path = _pHeader->path.parent();
