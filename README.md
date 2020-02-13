@@ -129,7 +129,7 @@ See more at https://github.com/MonaSolutions/docker-mona
 
 To run monaserver in Docker use the following command :
 ```
-docker run --rm -it --name=test monaserver/monaserver
+docker run --rm -it --name=mona -p 80:80 -p 443:443 -p 1935:1935 -p 1935:1935/udp monaserver/monaserver
 ```
 
 ## Documentation
