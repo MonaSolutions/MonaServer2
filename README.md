@@ -1,4 +1,4 @@
-[Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [macOS setup](#macOS-setup) | [MonaTiny](#MonaTiny) | [Documentation](#Documentation) | [About](#About)
+[Unix setup](#Unix-setup) | [Windows setup](#Windows-setup) | [macOS setup](#macOS-setup) | [MonaTiny](#MonaTiny) | [Docker](#Docker) | [Documentation](#Documentation) | [About](#About)
 
 # MonaServer
 
@@ -121,6 +121,16 @@ See [Unix setup](#Unix-setup) Build and Start chapters
 ## MonaTiny
 MonaTiny is a version of MonaServer without LUA script applications.
 Setup is identical excepting that there is no LuaJIT dependency, just start executable file *./MonaTiny/MonaTiny*
+
+## Docker
+
+A Docker image is available on [Docker Hub](https://hub.docker.com/) with the name `monaserver/monaserver`.
+See more at https://github.com/MonaSolutions/docker-mona
+
+To run monaserver in Docker use the following command :
+```
+docker run --rm -it --name=test monaserver/monaserver
+```
 
 ## Documentation
 - [General (in progress...)](https://docs.google.com/document/d/1SS_mdvzDxkKZ7M1264BFGPMYXPjaV3yGUqqCzJEDs4g/edit?usp=sharing)
