@@ -148,7 +148,7 @@ docker run --rm -it --name=mona -p 80:80 -p 443:443 -p 1935:1935 -p 1935:1935/ud
 ## About
 Asks your __questions or feedbacks__ relating MonaServer usage on the [MonaServer forum](https://groups.google.com/forum/#!forum/monaserver).
 
-For all __issues problem__ with MonaServer please create an issue on the [github issues page](https://github.com/MonaSolutions/MonaServer2/issues).
+For all __issues__ with MonaServer please create an issue on the [github issues page](https://github.com/MonaSolutions/MonaServer2/issues).
 
 MonaServer is licensed under the **[GNU General Public License]** and mainly **[powered by Haivision](https://www.haivision.com/)**, for any commercial questions or licence please contact us at ![contact_mail].
 
