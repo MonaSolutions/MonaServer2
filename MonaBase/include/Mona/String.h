@@ -435,7 +435,7 @@ struct String : std::string {
 		virtual bool write(OutType& out) = 0;
 	};
 	template <typename OutType, typename Type, typename ...Args>
-	static OutType& Append(OutType& out, Writer<Type>& writer, Args&&... args) {
+	static OutType& Append(OutType& out, const Writer<Type>& writer, Args&&... args) {
 		while (writer.write(out));
 		return Append<OutType>(out, std::forward<Args>(args)...);
 	}

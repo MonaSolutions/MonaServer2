@@ -76,7 +76,7 @@ bool Application::init(int argc, const char* argv[]) {
 			_version = Option::Parse(argv[i]);
 			if (_version || !configPath.set(argv[i]))
 				continue;
-			iniParam = true;
+			iniParam = !configPath.isFolder();
 		}
 		argv[i-1] = argv[i];
 	}
@@ -89,8 +89,8 @@ bool Application::init(int argc, const char* argv[]) {
 			_name = configPath.baseName(); // not make configuration "name" in ini file otherwise in service mode impossible to refind the correct ini file to load: service name must stay the base name of ini file!
 		if (!SetCurrentDirectory(configPath.parent().c_str()))
 			FATAL_ERROR("Cannot set current directory of ", name()); // useless to continue, the application could not report directory error (no logs, no init, etc...)
-	} else
-		configPath.set(_name, ".ini");
+	}
+	configPath.set(_name, ".ini");
 
 	// 2 - load configurations + write common parameters
 	if (loadConfigurations(configPath)) {
