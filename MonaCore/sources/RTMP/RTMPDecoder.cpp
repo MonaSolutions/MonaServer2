@@ -50,7 +50,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				return buffer.size();
 			if (buffer.size() > 1537) {
 				ERROR("RTMP Handshake unknown");
-				socket.shutdown();
+				socket.shutdown(Socket::SHUTDOWN_RECV);
 				return 0;
 			}
 
@@ -59,7 +59,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			UInt8 type(*buffer.data());
 			if (type != 3 && type != 6) {
 				ERROR("RTMP Handshake type '", type, "' unknown");
-				socket.shutdown();
+				socket.shutdown(Socket::SHUTDOWN_RECV);
 				return 0;
 			}
 
@@ -77,7 +77,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 			if (!key) {
 				if (encrypted) {
 					ERROR("RTMP Handshake encrypted without key")
-					socket.shutdown();
+					socket.shutdown(Socket::SHUTDOWN_RECV);
 					return 0;
 				}
 				/// Simple Handshake ///
@@ -126,7 +126,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 						AUTO_ERROR(size = dh.computeSecret(ex, farPubKey, farPubKeySize, secret), "RTMPE Handshake");
 					} while (size && (size != DiffieHellman::SIZE || dh.privateKeySize() != DiffieHellman::SIZE || dh.publicKeySize() != DiffieHellman::SIZE));
 					if (!dh || !size) {
-						socket.shutdown();
+						socket.shutdown(Socket::SHUTDOWN_RECV);
 						return 0;
 					}
 					RTMP::ComputeRC4Keys(dh.readPublicKey(pBuffer->data() + serverDHPos), DiffieHellman::SIZE, farPubKey, farPubKeySize, secret, size, *_pDecryptKey, *pEncryptKey);
@@ -135,7 +135,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 
 				//generate the digest
 				if (!RTMP::WriteDigestAndKey(key, keySize, middle, pBuffer->data(), pBuffer->size())) {
-					socket.shutdown();
+					socket.shutdown(Socket::SHUTDOWN_RECV);
 					return 0;
 				}
 
@@ -234,7 +234,7 @@ UInt32 RTMPDecoder::onStreamData(Packet& buffer, Socket& socket) {
 				channel.absoluteTime = channel.time; // absolute
 		} else if (channel->size() > chunkSize) {
 			ERROR("Invalid RTMP packet, chunked message doesn't match bodySize")
-			socket.shutdown();
+			socket.shutdown(Socket::SHUTDOWN_RECV);
 			return 0;
 		} else
 			chunkSize -= channel->size();

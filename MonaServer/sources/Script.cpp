@@ -265,63 +265,55 @@ private:
 
 
 static int Fatal(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(LOG_FATAL, false, writer);
+		SCRIPT_LOG(LOG_FATAL, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
 static int Error(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(LOG_ERROR, false, writer);
+		SCRIPT_LOG(LOG_ERROR, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
 static int Warn(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(LOG_WARN, false, writer);
+		SCRIPT_LOG(LOG_WARN, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
 static int Note(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(LOG_NOTE, false, writer);
+		SCRIPT_LOG(LOG_NOTE, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
 static int Info(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(LOG_INFO, false, writer);
+		SCRIPT_LOG(LOG_INFO, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
 static int Debug(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(LOG_DEBUG, false, writer);
+		SCRIPT_LOG(LOG_DEBUG, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
 static int Trace(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
-		SCRIPT_LOG(LOG_TRACE, false, writer);
+		SCRIPT_LOG(LOG_TRACE, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
 static int Log(lua_State *pState) {
-	LogWriter writer(pState);
 	SCRIPT_BEGIN(pState)
 		UInt8 level = range<UInt8>(min(LOG_TRACE, lua_tointeger(pState, 1))); // <= 8
 		if(level)
 			level = max(level, LOG_ERROR); // >= 3
 		else
 			level = LOG_DEFAULT;
-		SCRIPT_LOG(level, false, writer);
+		SCRIPT_LOG(level, false, LogWriter(pState));
 	SCRIPT_END
 	return 0;
 }
