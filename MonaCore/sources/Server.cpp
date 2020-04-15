@@ -61,103 +61,105 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 	if (getBoolean<true>("poolBuffers"))
 		Buffer::Allocator::Set<BufferPool>();
 
-	Timer::OnTimer onManage;
-	
-#if !defined(_DEBUG)
-	try
-#endif
-	{ // Encapsulate sessions!
-		Exception ex;
-		// SSL client
-		AUTO_ERROR(TLS::Create(ex, pTLSClient), "SSL Client");
-		// SSL server
-		Path cert(getString("TLS.certificat", "cert.pem"));
-		Path key(getString("TLS.key", "key.pem"));
-		if (!cert.exists())
-			WARN("No TLS/SSL server protocols, no ", cert.name()," file")
-		else if(!key.exists())
-			WARN("No TLS/SSL server protocols, no ", key.name(), " file")
-		else
-			AUTO_ERROR(TLS::Create(ex=nullptr, cert, key, pTLSServer), "SSL Server");
-	
-		UInt32 countClient(0);
+	{ // encapsulate Sessions
 		Sessions sessions;
-		_protocols.start(self, sessions);
-	
-		onStart();
-
-		// Start streams after onStart to get onPublish/onSubscribe permissions!
-		loadIniStreams();
-
-		onManage = ([&](UInt32) {
-			sessions.manage(); // in first to detect session useless died
-			_protocols.manage(); // manage custom protocol manage (resource protocols)
-
-			// Reset subscriptions of streams target
-			auto it = _streamSubscriptions.begin();
-			while (it != _streamSubscriptions.end()) {
-				if (!it->first.unique()) {
-					if (it->second->ejected()) // pulse ejection timeout! and reset to allow a new start if need!
-						it->second->reset();
-					++it;
-				} else { // remove subscriptions, no more usefull!
-					unsubscribe(*it->second);
-					it = _streamSubscriptions.erase(it);
-				}
-			}
-			// Pulse streams!
-			for (const auto& it : _iniStreams) {
-				if (it.second && it.second->ejected())
-					it.second->reset(); // wait next onManage to restart!
-				else
-					it.first->start(self);
-			}
-		
-			this->onManage(); // client manage (script, etc..)
-			if (clients.size() != countClient)
-				INFO((countClient = clients.size()), " clients");
-			// TODO? relayer.manage();
-			return 2000;
-		}); // manage every 2 seconds!
-		_timer.set(onManage, 2000);
-
-		while (!requestStop) {
-			if (wakeUp.wait(_timer.raise()))
-				_handler.flush();
-		}
-
-		// Sessions deletion!
-	}
+		Timer::OnTimer onManage;
 #if !defined(_DEBUG)
-	catch (exception& ex) {
-		FATAL("Server, ",ex.what());
-	} catch (...) {
-		FATAL("Server, unknown error");
-	}
+		try
 #endif
-	// Stop onManage (useless now)
-	_timer.set(onManage, 0);
+		{ // Encapsulate sessions!
+			Exception ex;
+			// SSL client
+			AUTO_ERROR(TLS::Create(ex, pTLSClient), "SSL Client");
+			// SSL server
+			Path cert(getString("TLS.certificat", "cert.pem"));
+			Path key(getString("TLS.key", "key.pem"));
+			if (!cert.exists())
+				WARN("No TLS/SSL server protocols, no ", cert.name(), " file")
+			else if (!key.exists())
+				WARN("No TLS/SSL server protocols, no ", key.name(), " file")
+			else
+				AUTO_ERROR(TLS::Create(ex = nullptr, cert, key, pTLSServer), "SSL Server");
 
-	// Close server sockets to stop reception
-	_protocols.stop();
-	
-	// do a handler flush here too because few MediaStream like MediaLogger can have tasks to do after 
-	_handler.flush();
-	Thread::stop(); // to set running() to false (usefull for new _handler.flush() and Publish => cancel task!)
+			UInt32 countClient(0);
+			
+			_protocols.start(self, sessions);
 
-	// clean and unsubscribe subscriptions => before onStop to get onUnsubscribe event before onStop!
-	for (const auto& it : _iniStreams) {
-		if (it.second)
+			onStart();
+
+			// Start streams after onStart to get onPublish/onSubscribe permissions!
+			loadIniStreams();
+
+			onManage = ([&](UInt32) {
+				sessions.manage(); // in first to detect session useless died
+				_protocols.manage(); // manage custom protocol manage (resource protocols)
+
+				// Reset subscriptions of streams target
+				auto it = _streamSubscriptions.begin();
+				while (it != _streamSubscriptions.end()) {
+					if (!it->first.unique()) {
+						if (it->second->ejected()) // pulse ejection timeout! and reset to allow a new start if need!
+							it->second->reset();
+						++it;
+					} else { // remove subscriptions, no more usefull!
+						unsubscribe(*it->second);
+						it = _streamSubscriptions.erase(it);
+					}
+				}
+				// Pulse streams!
+				for (const auto& it : _iniStreams) {
+					if (it.second && it.second->ejected())
+						it.second->reset(); // wait next onManage to restart!
+					else
+						it.first->start(self);
+				}
+
+				this->onManage(); // client manage (script, etc..)
+				if (clients.size() != countClient)
+					INFO((countClient = clients.size()), " clients");
+				// TODO? relayer.manage();
+				return 2000;
+			}); // manage every 2 seconds!
+			_timer.set(onManage, 2000);
+
+			while (!requestStop) {
+				if (wakeUp.wait(_timer.raise()))
+					_handler.flush();
+			}
+
+		}
+	#if !defined(_DEBUG)
+		catch (exception& ex) {
+			FATAL("Server, ", ex.what());
+		} catch (...) {
+			FATAL("Server, unknown error");
+		}
+	#endif
+		// Stop onManage (useless now)
+		_timer.set(onManage, 0);
+
+		// Close server sockets to stop reception
+		_protocols.stop();
+
+		// do a handler flush here too because few MediaStream like MediaLogger can have tasks to do after 
+		_handler.flush();
+		Thread::stop(); // to set running() to false (usefull for new _handler.flush() and Publish => cancel task!)
+
+		// clean and unsubscribe subscriptions => before onStop to get onUnsubscribe event before onStop!
+		for (const auto& it : _iniStreams) {
+			if (it.second)
+				unsubscribe(*it.second);
+		}
+		_iniStreams.clear(); // before onStop because MediaStream::onDelete can call unpublish!
+		// unsubscribe streamSubscriptions  => before onStop to get onUnsubscribe event before onStop!
+		for (const auto& it : _streamSubscriptions)
 			unsubscribe(*it.second);
+
+		// stop event to unload children resource (before to release sockets, threads, and buffers)
+		onStop();
+
+		// Sessions deletion! After onStop to be able to send last clients message if need in onStop
 	}
-	_iniStreams.clear(); // before onStop because MediaStream::onDelete can call unpublish!
-	// unsubscribe streamSubscriptions  => before onStop to get onUnsubscribe event before onStop!
-	for (const auto& it : _streamSubscriptions)
-		unsubscribe(*it.second);
-
-	// stop event to unload children resource (before to release sockets, threads, and buffers)
-	onStop();
-
 	// stop socket sending (it waits the end of sending last session messages)
 	threadPool.join();
 

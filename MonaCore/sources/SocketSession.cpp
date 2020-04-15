@@ -37,5 +37,11 @@ void SocketSession::onParameters(const Parameters& parameters) {
 	protocol().initSocket(*_pSocket);
 }
 
+void SocketSession::kill(Int32 error, const char* reason) {
+	if (died)
+		return;
+	Session::kill(error, reason); // onPeerDisconnection, before socket disconnection to allow possible last message
+	_pSocket->shutdown(Socket::SHUTDOWN_RECV); // shutdown just recveing part to send current "sending" packet (+ help websocket on chrome to avoid uncatchable error)
+}
 
 } // namespace Mona

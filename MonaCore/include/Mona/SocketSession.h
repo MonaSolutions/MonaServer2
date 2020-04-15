@@ -33,6 +33,8 @@ protected:
 	SocketSession(Protocol& protocol, const shared<Socket>& pSocket);
 	SocketSession(Protocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
 
+	virtual	void kill(Int32 error = 0, const char* reason = NULL);
+
 	virtual void onParameters(const Parameters& parameters);
 
 private:
