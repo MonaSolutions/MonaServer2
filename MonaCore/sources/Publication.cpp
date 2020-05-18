@@ -17,6 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/Publication.h"
+#include "Mona/Util.h"
 #include "Mona/Logs.h"
 
 using namespace std;
@@ -38,6 +39,14 @@ Publication::~Publication() {
 	if (_publishing)
 		ERROR("Publication ",_name," running is deleting"); // ERROR because can happen on server shutdown + server.publish (extern)
 	DEBUG("Publication ",_name," deleted");
+}
+
+UInt32 Publication::currentTime() const {
+	if (_audios.empty())
+		return _videos.lastTime;
+	if (_videos.empty())
+		return _audios.lastTime;
+	return Util::Distance(_audios.lastTime, _videos.lastTime)>0 ? _audios.lastTime : _videos.lastTime;
 }
 
 void Publication::reportLost(Media::Type type, UInt32 lost, UInt8 track) {

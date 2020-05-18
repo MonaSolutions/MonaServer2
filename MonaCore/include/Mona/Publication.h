@@ -77,6 +77,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	UInt16							latency() const { return _latency; }
 	UInt64							byteRate() const { return _byteRate; }
 	double							lostRate() const { return _lostRate; }
+	UInt32							currentTime() const;
 
 	const std::set<Subscription*>	subscriptions;
 

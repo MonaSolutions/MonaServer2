@@ -26,12 +26,12 @@ using namespace std;
 namespace Mona {
 
 Subscription::Subscription(Media::Target& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
-	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _lastTime(0),
+	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0),
 	_audios(true), _videos(true), _datas(true), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self), _updating(0) {
 }
 
 Subscription::Subscription(Media::TrackTarget& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
-	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _lastTime(0),
+	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0),
 	_audios(false), _videos(false), _datas(false), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self), _updating(0) {
 }
 
@@ -61,6 +61,14 @@ const string& Subscription::name() const {
 
 bool Subscription::subscribed(const std::string& stream) const {
 	return (pPublication && pPublication->name() == stream) || (_pNextPublication && _pNextPublication->name() == stream);
+}
+
+UInt32 Subscription::currentTime() const {
+	if (_audios.empty())
+		return _videos.lastTime;
+	if (_videos.empty())
+		return _audios.lastTime;
+	return Util::Distance(_audios.lastTime, _videos.lastTime)>0 ? _audios.lastTime : _videos.lastTime;
 }
 
 Subscription::EJECTED Subscription::ejected() {
@@ -100,11 +108,11 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 			setTime(pValue->c_str());
 	} else if (String::ICompare(key, "from") == 0) {
 		_fromTime = 0;
-		if (pValue && String::ToNumber(*pValue, _fromTime) && (_lastTime < _fromTime))
+		if (pValue && String::ToNumber(*pValue, _fromTime) && (currentTime() < _fromTime))
 			reset();
 	} else if (String::ICompare(key, "to") == 0) {
 		_toTime = 0xFFFFFFFF;
-		if (pValue && String::ToNumber(*pValue, _toTime) && (_toTime > _lastTime))
+		if (pValue && String::ToNumber(*pValue, _toTime) && (_toTime > currentTime()))
 			reset();
 	} else {
 		// audio/video/data = true => receives everything!
@@ -258,7 +266,8 @@ void Subscription::reset() {
 		return;
 	}
 	_firstTime = true;
-	_lastTime = 0;
+	_audios.lastTime = 0;
+	_videos.lastTime = 0;
 	_timeoutMBRUP = 10000; // reset timeout MBRUP just when endMedia, to stay valid on MBR switch! (10 sec = max key frame interval possible)
 	stop();
 	if (_pMediaWriter) {
@@ -363,7 +372,7 @@ void Subscription::writeData(Media::Data::Type type, const Packet& packet, UInt8
 }
 
 void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track) {
-	bool progress = tag.time>_lastTime;
+	bool progress = Util::Distance(tag.time, _audios.lastTime) > 0;
 	if (!start(track, tag, packet) || !_audios.selected(track))
 		return;
 
@@ -401,10 +410,11 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 	Media::Audio::Tag audio;
 	audio.channels = tag.channels;
 	audio.rate = tag.rate;
-	audio.isConfig = tag.isConfig;
+	if ((audio.isConfig = tag.isConfig))
+		audio.time = _audios.lastTime;
 	fixTag(tag.isConfig, tag, audio);
-//	if (pPublication)
-//		DEBUG("Audio time, ", tag.time, "=>", audio.time);
+	//if (pPublication)
+	//	DEBUG("Audio time, ", tag.time, "=>", audio.time);
 	if (_pMediaWriter)
 		_pMediaWriter->writeAudio(track, audio, packet, _onMediaWrite);
 	else if(!writeToTarget(_audios, track, audio, packet, tag.isConfig))
@@ -412,7 +422,7 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 }
 
 void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track) {
-	bool progress = tag.time>_lastTime;
+	bool progress = Util::Distance(tag.time, _videos.lastTime) > 0;
 	if (!start(track, tag, packet))
 		return;
 
@@ -475,6 +485,8 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	Media::Video::Tag video;
 	video.compositionOffset = tag.compositionOffset;
 	video.frame = tag.frame;
+	if(isConfig)
+		video.time = _videos.lastTime;
 	fixTag(isConfig, tag, video);
 //	if (pPublication)
 //		DEBUG("Video time, ", tag.time, "=>", video.time, " (", video.frame, ")");
@@ -551,17 +563,14 @@ void Subscription::Medias::setNext(Publication* pNextPublication) {
 	if (!pNextPublication)
 		return;
 	// use minimum lastTime of pNextPublication to compute timestamp aligment
-	UInt32 alignment = abs(Util::Distance(
-		Util::Distance(pNextPublication->audios.lastTime, pNextPublication->videos.lastTime) >= 0 ? pNextPublication->audios.lastTime : pNextPublication->videos.lastTime,
-		_subscription._lastTime)
-	);
+	UInt32 alignment = abs(Util::Distance( pNextPublication->currentTime(), _subscription.currentTime()));
 	DEBUG(_subscription.name()," setNext ", pNextPublication->name()," with timestamp distance of ", alignment);
 	if (alignment > 1000) {
 		WARN(pNextPublication->name(), " and ", _subscription.name(), " haven't an aligned timestamp (", alignment, "ms)");
-		_pNextSubscription->setNumber("time", _subscription._lastTime+22); // 22ms is the interval between 44000 and 48000 usual audio interval (and gives acceptable interval value for video)
+		_pNextSubscription->setNumber("time", _subscription.currentTime()+22); // 22ms is the interval between 44000 and 48000 usual audio interval (and gives acceptable interval value for video)
 	} else
 		_pNextSubscription->setString("time", "absolute");
-	_pNextSubscription->setNumber("from", _subscription._lastTime+1); // +1 = strictly positive (otherwise two frames can be overrided)
+	_pNextSubscription->setNumber("from", _subscription.currentTime()+1); // +1 = strictly positive (otherwise two frames can be overrided)
 	if (_subscription.audios.pSelection)
 		_pNextSubscription->_audios.pSelection.set(*_subscription.audios.pSelection);
 	else

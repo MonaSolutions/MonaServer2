@@ -138,9 +138,6 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 		// Stop onManage (useless now)
 		_timer.set(onManage, 0);
 
-		// Close server sockets to stop reception
-		_protocols.stop();
-
 		// do a handler flush here too because few MediaStream like MediaLogger can have tasks to do after 
 		_handler.flush();
 		Thread::stop(); // to set running() to false (usefull for new _handler.flush() and Publish => cancel task!)
@@ -160,6 +157,9 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 
 		// Sessions deletion! After onStop to be able to send last clients message if need in onStop
 	}
+	// Close server sockets AFTER sessions deletions
+	_protocols.stop();
+
 	// stop socket sending (it waits the end of sending last session messages)
 	threadPool.join();
 

@@ -60,8 +60,9 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	};
 	template<typename TrackType>
 	struct MediaTracks : Tracks<TrackType> {
-		MediaTracks(bool multiTracks) : Tracks<TrackType>(multiTracks) {}
+		MediaTracks(bool multiTracks) : Tracks<TrackType>(multiTracks), lastTime(0) {}
 		bool selected(UInt8 track) const { return Tracks<TrackType>::pSelection ? (*Tracks<TrackType>::pSelection == track) : (Tracks<TrackType>::multiTracks || track <= 1); }
+		UInt32 lastTime;
 	};
 
 	struct Track : virtual Object {};
@@ -92,6 +93,8 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	bool							subscribed(const std::string& stream) const;
 	bool							subscribed(const Publication& publication) const { return pPublication == &publication || _pNextPublication == &publication; }
 	const std::string&				name() const;
+
+	UInt32							currentTime() const;
 
 	void							setFormat(const char* format);
 
@@ -128,9 +131,9 @@ private:
 
 	bool start();
 	bool start(UInt32 time);
-	bool start(Media::Data::Type type) { return start(_lastTime); }
-	bool start(const Media::Audio::Tag& tag) { return tag.isConfig ? start() : start(_lastTime=tag.time); }
-	bool start(const Media::Video::Tag& tag) { return tag.frame==Media::Video::FRAME_CONFIG ? start() : start(_lastTime=tag.time); }
+	bool start(Media::Data::Type type) { return start(currentTime()); }
+	bool start(const Media::Audio::Tag& tag) { return tag.isConfig ? start() : start(_audios.lastTime=tag.time); }
+	bool start(const Media::Video::Tag& tag) { return tag.frame==Media::Video::FRAME_CONFIG ? start() : start(_videos.lastTime=tag.time); }
 	template<typename TagType>
 	bool start(UInt8 track, const TagType& tag, const Packet& packet) {
 		if (_pNextPublication && !_medias.flushing()) {
@@ -149,7 +152,7 @@ private:
 		if (_firstTime) {
 			if (!isConfig) {
 				_firstTime = false;
-				_startTime = _lastTime;
+				_startTime = tagIn.time;
 				setTime();
 				tagOut.time = _seekTime;
 			} else
@@ -157,10 +160,10 @@ private:
 		} else {
 #if defined(_DEBUG) // allow to debug a no monotonic time in debug, in release we have to accept "cyclic" time value (live of more than 49 days),
 			// also for container like TS with AV offset it can be a SECOND packet just after the FIRST which can be just before, not an error
-			if (_startTime > _lastTime)
+			if (_startTime > tagIn.time)
 				WARN(typeid(TagType) == typeid(Media::Audio::Tag) ? "Audio" : "Video", " time too late on ", name());
 #endif
-			tagOut.time = _lastTime - _startTime + _seekTime;
+			tagOut.time = tagIn.time - _startTime + _seekTime;
 		}
 		tagOut.codec = tagIn.codec;
 		return tagOut;
@@ -252,7 +255,7 @@ private:
 			// flush what is possible (before _pNextSubscription->pPublication->lastTime())
 			if (!_nextSize) {
 				if (!flush(_subscription)) { // keep _nextSize to 0 during flush!
-					DEBUG(_subscription.name(), " sync with ", _pNextSubscription->name(), " (", _pNextSubscription->_lastTime, ")");
+					DEBUG(_subscription.name(), " sync with ", _pNextSubscription->name(), " (", _pNextSubscription->currentTime(), ")");
 					_nextTimeout = 0; // complete (joined)
 					clear(); // erase the rest!
 				} else
@@ -291,7 +294,6 @@ private:
 	UInt32					_seekTime;
 	bool					_firstTime;
 	UInt32					_startTime;
-	UInt32					_lastTime;
 
 	UInt32					_fromTime;
 	UInt32					_toTime;
