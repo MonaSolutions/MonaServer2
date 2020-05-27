@@ -25,14 +25,23 @@ using namespace std;
 
 namespace Mona {
 
+bool Subscription::MediaTrack::setLastTime(UInt32 time) {
+	if (_started && Util::Distance(lastTime, time) < 0) {
+		WARN("Non-monotonic ", typeid(self) == typeid(MediaTrack) ? "audio" : "video", " time ", time, ", packet ignored");
+		return false;
+	}
+	(UInt32&)lastTime = time;
+	return _started =true;
+}
+
 Subscription::Subscription(Media::Target& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
-	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0),
-	_audios(true), _videos(true), _datas(true), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self), _updating(0) {
+	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _seekTime(0),
+	_audios(true), _videos(true), _datas(true), _timeoutMBRUP(10000), _medias(self), _updating(0), _duration(0) {
 }
 
 Subscription::Subscription(Media::TrackTarget& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
-	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0),
-	_audios(false), _videos(false), _datas(false), _timeoutMBRUP(10000), _fromTime(0), _toTime(0xFFFFFFFF), _medias(self), _updating(0) {
+	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _seekTime(0),
+	_audios(false), _videos(false), _datas(false), _timeoutMBRUP(10000), _medias(self), _updating(0), _duration(0) {
 }
 
 Subscription::~Subscription() {
@@ -64,20 +73,20 @@ bool Subscription::subscribed(const std::string& stream) const {
 }
 
 UInt32 Subscription::currentTime() const {
-	if (_audios.empty())
-		return _videos.lastTime;
 	if (_videos.empty())
-		return _audios.lastTime;
+		return _audios.empty() ? _seekTime : _audios.lastTime;
 	return Util::Distance(_audios.lastTime, _videos.lastTime)>0 ? _audios.lastTime : _videos.lastTime;
+}
+UInt32 Subscription::lastTime() const {
+	if (_audios.empty())
+		return _videos.empty() ? _seekTime : _videos.lastTime;
+	return Util::Distance(_audios.lastTime, _videos.lastTime)>0 ? _videos.lastTime : _audios.lastTime;
 }
 
 Subscription::EJECTED Subscription::ejected() {
-	if (_ejected) {
-		if (!_pNextPublication)
-			return _ejected;
-		next(); // next publication will maybe resolve ejection cause, or must be done if _medias timeout!
-		return ejected();
-	}
+	if (_ejected)
+		return next() ? ejected() : _ejected; // next publication will maybe resolve ejection cause, or must be done if _medias timeout!
+
 	if (_pNextPublication && !_medias.synchronizing())
 		next(); // timeout next!
 	if (_streaming && _timeout && _streaming.isElapsed(_timeout)) {
@@ -104,16 +113,13 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 		if (pValue && String::ToNumber(*pValue, _timeout))
 			_timeout *= 1000;
 	} else if (String::ICompare(key, "time") == 0) {
-		if (pValue) // else not change on remove to keep time progressive
-			setTime(pValue->c_str());
+		parseTime(pValue ? pValue->c_str() : NULL);
 	} else if (String::ICompare(key, "from") == 0) {
-		_fromTime = 0;
-		if (pValue && String::ToNumber(*pValue, _fromTime) && (currentTime() < _fromTime))
-			reset();
-	} else if (String::ICompare(key, "to") == 0) {
-		_toTime = 0xFFFFFFFF;
-		if (pValue && String::ToNumber(*pValue, _toTime) && (_toTime > currentTime()))
-			reset();
+		parseFromTime(pValue ? pValue->c_str() : NULL);
+	} else if (String::ICompare(key, "duration") == 0) {
+		_duration = 0;
+		if (pValue && String::ToNumber(*pValue, _duration))
+			insideDuration(currentTime()); // to reset if need!
 	} else {
 		// audio/video/data = true => receives everything!
 		// audio/video/data = false or 0 => receives just track 0!
@@ -132,15 +138,15 @@ void Subscription::onParamChange(const string& key, const string* pValue) {
 	Media::Properties::onParamChange(key, pValue);
 }
 void Subscription::onParamClear() {
-	_fromTime = 0;
-	_toTime = 0xFFFFFFFF;
+	parseFromTime(NULL);
+	parseTime(NULL);
+	_duration = 0;
 	_audios.reliable = _videos.reliable = _datas.reliable = true;
 	_timeout = 0;
 	_streams.clear();
 	setMediaSelection(pPublication ? &pPublication->audios : NULL, NULL, _audios);
 	setMediaSelection(pPublication ? &pPublication->videos : NULL, NULL, _videos);
 	_datas.pSelection.reset();
-	// not change time on remove to keep time progressive
 	Media::Properties::onParamClear();
 }
 
@@ -211,10 +217,10 @@ bool Subscription::start() {
 		return true;
 	}
 
-	if (_waitingFirstVideoSync) {
-		// Just on first subcription and just if the publication has already begun to wait first key frame
+	if (_waitingFirstVideoSync) { // else not a first subscription
+		// Just on first subcription and just if the publication has already begin to wait first key frame
 		// If the publication reset, on next start it will begin with first key frame!
-		if (pPublication->audios.lastTime || pPublication->videos.lastTime)
+		if (pPublication->videos.size())
 			_waitingFirstVideoSync.update();
 		else
 			_waitingFirstVideoSync = 0;
@@ -244,15 +250,35 @@ bool Subscription::start() {
 	}
 	return true;
 }
-
 bool Subscription::start(UInt32 time) {
-	if (time < _fromTime)  // no cycle compatible here, because _toTime marks a timevalue inferior to 49 days
-		return false;
-	if (time > _toTime) { // no cycle compatible here, because _toTime marks a timevalue inferior to 49 days
-		reset();
-		return false;
+	if (_pFromTime) {
+		Int32 distance = Util::Distance(*_pFromTime, time);
+		if (distance < 0)
+			return false;
+		// after 10 seconds (max key frame interval) remove _pFromTime to allow cyclic (49 days) streaming!
+		if (_firstTime && distance > 10000) // check _firstTime because source timeline can change while reseting
+			_pFromTime.reset();
 	}
-	return start();
+	return insideDuration(time) && start();
+}
+bool Subscription::start(UInt8 track, Media::Data::Type type, const Packet& packet) {
+	if (_pNextPublication && _medias.add(type, packet, track))
+		return false;
+	return start(lastTime());
+}
+bool Subscription::start(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
+	if (_pNextPublication && _medias.add(tag, packet, track))
+		return false;
+	if (tag.isConfig)
+		return start(); // config packet has to be ignored by time progression and from/duration processing
+	return _audios.setLastTime(track, tag.time) && start(tag.time);
+}
+bool Subscription::start(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
+	if (_pNextPublication && _medias.add(tag, packet, track))
+		return false;
+	if (tag.frame == Media::Video::FRAME_CONFIG)
+		return start(); // config packet has to be ignored by time progression and from/duration processing
+	return _videos.setLastTime(track, tag.time) && start(tag.time);
 }
 
 void Subscription::reset() {
@@ -261,15 +287,13 @@ void Subscription::reset() {
 	_ejected = EJECTED_NONE; // Reset => maybe the next publication will solve ejection
 	if (!_streaming)
 		return;
-	if (_pNextPublication) {
-		next(); // useless to wait sync on reset, next publication now!
-		return;
-	}
-	_firstTime = true;
-	_audios.lastTime = 0;
-	_videos.lastTime = 0;
+	if (next())
+		return; // useless to wait sync on reset, next publication now!
+	
 	_timeoutMBRUP = 10000; // reset timeout MBRUP just when endMedia, to stay valid on MBR switch! (10 sec = max key frame interval possible)
-	stop();
+	parseFromTime(getString("from")); // reset _pFromTime to its from value (cyclic algo)
+	_seekTime = 0;
+	clear(); 
 	if (_pMediaWriter) {
 		_pMediaWriter->endMedia(_onMediaWrite);
 		_onMediaWrite = nullptr; // to call _pMediaWriter->begin just after reset (and not on MBR switch!)
@@ -279,14 +303,8 @@ void Subscription::reset() {
 }
 
 void Subscription::clear() {
-	// must be like a new subscription creation beware not change pPublication (supervised by ServerAPI)
-	reset();
-	setNext(NULL);
-	_medias.flush(Source::Null()); // flush invalid medias to empty _medias collection!
-	_waitingFirstVideoSync.update(); // in last to not pertub flush of valid _medias in setNext(NULL)
-}
-
-void Subscription::stop() {
+	_firstTime = true;
+	_startTime = 0; // todo working scaleTime on first config packet
 	_streaming = 0;
 	_updating = 0;
 	// release resources
@@ -295,26 +313,62 @@ void Subscription::stop() {
 	_datas.clear();
 }
 
-void Subscription::setTime(const char* time) {
+void Subscription::release() {
+	// must be like a new subscription creation beware not change pPublication (supervised by ServerAPI)
+	reset();
+	setNext(NULL);
+	_medias.clear(); // clear invalid medias to empty _medias collection!
+	_waitingFirstVideoSync.update(); // in last to not pertub flush of valid _medias in setNext(NULL)
+}
+
+bool Subscription::insideDuration(UInt32 time) {
+	if (!_duration || _firstTime)
+		return true;
+	UInt32 duration = time - _startTime;
+	if (duration < _duration)
+		return true;
+	// after 10 seconds (max key frame interval) reset (no more media would happen BEFORE toTime)
+	if ((duration - _duration)>10000)
+		reset();
+	return false;
+}
+
+void Subscription::parseTime(const char* time) {
+	if (_firstTime)
+		return; // wait first time!
 	if (!time)
-		time = getString("time", String::Empty().c_str());
-	UInt32 seek;
+		return; // no change on "time=" removing to keep progressive time 
+	// time=
+	/// a or absolute	=> time from source/publication
+	/// +100			=> time from source + 100
+	/// -100			=> time from source - 100
+	/// r or relative	=> time relative to subscription
+	/// 100				=> fix time now to 100 (if set on subscription start to 100)
+	_seekTime = 0;
 	switch (time[0]) {
-		case '+':  // time relative to publication time (source time)
-			String::ToNumber(time+1, seek=0);
-			_seekTime = _startTime + seek;
+		case '-':
+			String::ToNumber(time + 1, _seekTime);
+			_seekTime = _startTime - _seekTime;
 			break;
-		case '-': // time relative to publication time (source time)
+		case '+':
+			String::ToNumber(time + 1, _seekTime);
 		case 'a': // or "absolute"
-			String::ToNumber(time+1, seek=0);
-			_seekTime = seek>_startTime ? 0 : (_startTime-seek);
+			_seekTime = _startTime + _seekTime;
 			break;
-		case 'r': // or "relative" (pValue is not a number => _seekTime = 0)
-			++time;
-		default:
-			// set current time!
-			String::ToNumber(time, _seekTime = 0);
+		case 'r': // or "relative"
+			break;
+		default:  // set current time!
+			if (String::ToNumber(time, _seekTime))
+				_seekTime += currentTime();
 	}
+}
+void Subscription::parseFromTime(const char* time) {
+	UInt32 fromTime;
+	if (time && String::ToNumber(time, fromTime)) {
+		if (Util::Distance(lastTime(), _pFromTime.set(fromTime)) > 0)
+			reset();
+	} else
+		_pFromTime.reset();
 }
 
 
@@ -343,12 +397,10 @@ void Subscription::writeData(Media::Data::Type type, const Packet& packet, UInt8
 		// Sync audio/video/data subscription (data can be subtitle)
 		if (_waitingFirstVideoSync) {
 			if (!_waitingFirstVideoSync.isElapsed(1000)) {
-				if (_medias.count()) // has audio, data has the same timestamp than prev audio packet!
-					_medias.add(type, packet, track);
-				return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
-			}
-			_waitingFirstVideoSync = 0;
-			_medias.flush(Source::Null()); // impossible to recover prev audio (< to _lastTime or duration=0!)
+				if (_medias.count() && _medias.add(type, packet, track)) // has audio, data has the same timestamp than prev audio packet!
+					return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
+			} else
+				_waitingFirstVideoSync = 0;
 		}
 	} // else pass in force! (audio track = 0)
 
@@ -372,7 +424,6 @@ void Subscription::writeData(Media::Data::Type type, const Packet& packet, UInt8
 }
 
 void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track) {
-	bool progress = Util::Distance(tag.time, _audios.lastTime) > 0;
 	if (!start(track, tag, packet) || !_audios.selected(track))
 		return;
 
@@ -380,15 +431,12 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 		// Create track!
 		 _audios[track];
 		// Sync audio/video/data subscription (data can be subtitle)
-		if (_waitingFirstVideoSync && !tag.isConfig) {
-			if (progress)
-				_medias.flush(Source::Null());
+		if (_waitingFirstVideoSync) {
 			if (!_waitingFirstVideoSync.isElapsed(1000)) {
-				_medias.add(tag, packet, track);
-				return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
-			}
-			_waitingFirstVideoSync = 0;
-			_medias.flush(Source::Null()); // impossible to recover prev audio (< to _lastTime or duration=0!)
+				if(_medias.add(tag, packet, track))
+					return; // wait 1 seconds of video silence (one video has always at less one frame by second!)
+			} else
+				_waitingFirstVideoSync = 0;
 		}
 	} // else pass in force! (audio track = 0)
 
@@ -410,11 +458,12 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 	Media::Audio::Tag audio;
 	audio.channels = tag.channels;
 	audio.rate = tag.rate;
-	if ((audio.isConfig = tag.isConfig))
-		audio.time = _audios.lastTime;
-	fixTag(tag.isConfig, tag, audio);
-	//if (pPublication)
-	//	DEBUG("Audio time, ", tag.time, "=>", audio.time);
+	audio.isConfig = tag.isConfig;
+	audio.codec = tag.codec;
+	audio.time = scaleTime(tag.isConfig ? _audios.lastTime : tag.time, tag.isConfig);
+	if (Logs::GetLevel() >= LOG_TRACE && pPublication && typeid(_target)!=typeid(Medias))
+		TRACE(pPublication->name(), " audio time, ", tag.time, "=>", audio.time);
+
 	if (_pMediaWriter)
 		_pMediaWriter->writeAudio(track, audio, packet, _onMediaWrite);
 	else if(!writeToTarget(_audios, track, audio, packet, tag.isConfig))
@@ -422,7 +471,6 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 }
 
 void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track) {
-	bool progress = Util::Distance(tag.time, _videos.lastTime) > 0;
 	if (!start(track, tag, packet))
 		return;
 
@@ -439,22 +487,16 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	if (packet && _waitingFirstVideoSync)
 		_waitingFirstVideoSync.update(); // video is coming, wait more time
 
-	bool isConfig(tag.frame == Media::Video::FRAME_CONFIG);
+	bool isConfig = tag.frame == Media::Video::FRAME_CONFIG;
 	if (!isConfig) {
 		if (tag.frame == Media::Video::FRAME_KEY) {
 			if (pVideo && pVideo->waitKeyFrame) {
 				DEBUG("Video key frame gotten from ", name()," (", tag.time,")");
 				pVideo->waitKeyFrame = 0;
 			}
-			// flush medias buffered (audio and data with the same timestamp than this first video frame!)
-			if (_waitingFirstVideoSync) {
-				_waitingFirstVideoSync = 0;
-				if (progress)
-					_medias.flush(Source::Null());
-				else
-					_medias.flush(self);
-			}
+			_waitingFirstVideoSync = 0;
 		} else if(pVideo && pVideo->waitKeyFrame) {
+			_medias.clear(); // remove audio between two inter frames
 			++_videos.dropped;
 			if (pVideo->waitKeyFrame > 1)
 				return;
@@ -485,15 +527,43 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	Media::Video::Tag video;
 	video.compositionOffset = tag.compositionOffset;
 	video.frame = tag.frame;
-	if(isConfig)
-		video.time = _videos.lastTime;
-	fixTag(isConfig, tag, video);
-//	if (pPublication)
-//		DEBUG("Video time, ", tag.time, "=>", video.time, " (", video.frame, ")");
+	video.codec = tag.codec;
+	video.time = scaleTime(isConfig ? _videos.lastTime : tag.time, isConfig);
+	if (Logs::GetLevel() >= LOG_TRACE && pPublication && typeid(_target) != typeid(Medias))
+		TRACE(pPublication->name(), " video time, ", tag.time, "=>", video.time, " (", video.frame, ")");
+
 	if (_pMediaWriter)
 		_pMediaWriter->writeVideo(track, video, packet, _onMediaWrite);
 	else if (!writeToTarget(_videos, track, video, packet, isConfig))
 		_ejected = EJECTED_ERROR;
+}
+
+UInt32 Subscription::scaleTime(UInt32 time, bool isConfig) {
+	if (_firstTime) {
+		if (!isConfig) {
+			_firstTime = false;
+			if (_seekTime) {
+				// MBR SWITCH
+				_startTime = time - _seekTime;  // to do working duration parameter => _seekTime(duration) = time - _startTime;			
+				_seekTime = 0;
+			} else {
+				_startTime = time;
+				parseTime(getString("time"));
+			}
+			_pFromTime.set(time); // accept just time after startTime now!
+			_medias.clear(time);
+			_medias.flush(self); // flush all has been buffered in waiting key frame and after _startTime
+		} else
+			time = 0; // wrong but allow to be played immediatly after publication rest (start to 0)
+#if defined(_DEBUG)
+	} else {
+		// allow to debug a no monotonic time in debug, in release we have to accept "cyclic" time value (live of more than 49 days),
+		// also for container like TS with AV offset it can be a SECOND packet just after the FIRST which can be just before, not an error
+		if (_startTime > time)
+			WARN("Media time ", time," inferior to start time ", _startTime, " on ", name());
+#endif
+	}
+	return time - _startTime + _seekTime;
 }
 
 void Subscription::setFormat(const char* format) {
@@ -551,26 +621,30 @@ void Subscription::Medias::setNext(Publication* pNextPublication) {
 		if (pNextPublication || _pNextSubscription->pPublication != _subscription.pPublication)
 			resize(size() - _nextSize);  // remove next medias because publication has changed OR publication canceled!
 		else
-			erase(begin(), begin() + size() - _nextSize);  // NEXT DONE => remove medias remaining BEFORE _nextSize BUt keep next medias unchanged (transform next medias in medias!)
+			clear();  // NEXT DONE => remove medias remaining BEFORE _nextSize BUt keep next medias unchanged (transform next medias in medias!)
 		_nextSize = 0;
 
 		// unsubscribe in last to have "_nextSize = 0" and like that no reset packet stacked!
 		((set<Subscription*>&)_pNextSubscription->pPublication->subscriptions).erase(_pNextSubscription.get());
 		// reinitialize subscription instead of recreate it (more faster on multiple MBR switch)
-		_pNextSubscription->clear();
+		_pNextSubscription->release();
 	}
+	_aligning = false;
 	_pNextSubscription->pPublication = pNextPublication;
 	if (!pNextPublication)
 		return;
-	// use minimum lastTime of pNextPublication to compute timestamp aligment
-	UInt32 alignment = abs(Util::Distance( pNextPublication->currentTime(), _subscription.currentTime()));
-	DEBUG(_subscription.name()," setNext ", pNextPublication->name()," with timestamp distance of ", alignment);
-	if (alignment > 1000) {
-		WARN(pNextPublication->name(), " and ", _subscription.name(), " haven't an aligned timestamp (", alignment, "ms)");
-		_pNextSubscription->setNumber("time", _subscription.currentTime()+22); // 22ms is the interval between 44000 and 48000 usual audio interval (and gives acceptable interval value for video)
-	} else
-		_pNextSubscription->setString("time", "absolute");
-	_pNextSubscription->setNumber("from", _subscription.currentTime()+1); // +1 = strictly positive (otherwise two frames can be overrided)
+	UInt32 lastTime = _subscription.lastTime();
+	// 22ms is the interval between 44000 and 48000 usual audio interval (and gives acceptable interval value for video)
+	//_pNextSubscription->setNumber("time", UInt32(lastTime + 22));
+	if(pNextPublication->publishing()) {
+		UInt32 alignment = abs(Util::Distance(lastTime, pNextPublication->lastTime()));
+		DEBUG(_subscription.name()," setNext ", pNextPublication->name()," with timestamp distance of ", alignment);
+		if (alignment < 1000) {
+			_aligning = true;
+			_pNextSubscription->_pFromTime.set(lastTime + 1); // +1 = strictly positive (otherwise two frames can be overrided)
+		} else
+			WARN(pNextPublication->name(), " and ", _subscription.name(), " haven't an aligned timestamp (", alignment, "ms)")
+	}
 	if (_subscription.audios.pSelection)
 		_pNextSubscription->_audios.pSelection.set(*_subscription.audios.pSelection);
 	else
@@ -587,67 +661,112 @@ void Subscription::Medias::setNext(Publication* pNextPublication) {
 	_nextTimeout.update();
 }
 
-template<typename MediaType>
-bool Subscription::Medias::add(UInt32 time, const typename MediaType::Tag& tag, const Packet& packet, UInt8 track) {
-	// Must return TRUE if buffered OR if hit next publication!
-	if (_nextSize) {
-		if (!_nextTimeout)
-			return true; // already joined
-		if (Util::Distance(time, at(size() - _nextSize)->time()) > 0) // time() is necessary on an audio or video media which is not a config packet (so media has valid time())
-			return false; // can be play now!
-		DEBUG(_subscription.name(), " sync with ", _pNextSubscription->name(), " (", time, ")");
-		_nextTimeout = 0; // join! no more updating!
-		return true;
+bool Subscription::Medias::add(unique<Media::Base>&& pMedia) {
+	// play now if has no time (data or config packet) and when there is just next publication medias (or nothing)
+	if (!pMedia->hasTime() && _nextSize >= size()) 
+		return false; // can be played now
+	// buffering
+	emplace(begin() + size() - _nextSize, move(pMedia));
+	if (_nextTimeout) // flush just if synchronizing!
+		flush(_subscription);
+	return true;
+}
+bool Subscription::Medias::writeMedia(unique<Media::Base>&& pMedia) {
+	// must be sorted here to get good correct sync limit (medias resulting of _pNextSubscription and waitVideoKeySync)
+	auto it = begin() + size();
+	if(_nextSize && pMedia->hasTime()) {
+		for (UInt32 i = 0; i < _nextSize; ++i) {
+			if (Util::Distance((*--it)->time(), pMedia->time()) >= 0) {
+				++it;
+				break;
+			}
+		}
 	}
-	if (_pNextSubscription && _pNextSubscription->pPublication) {
-		UInt32 lastTime = typeid(MediaType) == typeid(Media::Audio) ? _pNextSubscription->pPublication->audios.lastTime : _pNextSubscription->pPublication->videos.lastTime;
-		if (Util::Distance(time, lastTime) > 0)
-			return false; // no join, can play now!
-	}
-	emplace(begin() + size() - _nextSize)->set<MediaType>(tag, packet, track);
+	emplace(it, move(pMedia));
+	if (!_nextSize++)
+		_nextTimeout.update();// update timeout on first next frame to wait now just 1 second the alignment
+	flush(_subscription);
 	return true;
 }
 
-bool Subscription::Medias::flush(Media::Source& source) {
+void Subscription::Medias::clear() {
+	if (!_flushing)
+		erase(begin(), begin() + size() - _nextSize);
+}
+void Subscription::Medias::clear(UInt32 untilTime) {
+	if (_flushing)
+		return;
+	while (size() > _nextSize) {
+		if (front()->hasTime() && Util::Distance(front()->time(), untilTime) <= 0)
+			return;
+		pop_front();
+	}
+}
+
+void Subscription::Medias::flush(Media::Source& source) {
+	if (_flushing)
+		return;
 	_flushing = true;
 	// flush all _medias before time and before next (or future next)
-	unique<UInt32> pLimit;
-	if (!_nextSize && _pNextSubscription && _pNextSubscription->pPublication) {
-		// take the minimum lastTime limit (audio or video!)
-		if(Util::Distance(_pNextSubscription->pPublication->audios.lastTime, _pNextSubscription->pPublication->videos.lastTime)>=0)
-			pLimit.set(_pNextSubscription->pPublication->audios.lastTime);
-		else
-			pLimit.set(_pNextSubscription->pPublication->videos.lastTime);
+	UInt32 limit;
+	bool hasLimit = _aligning;
+	if (hasLimit) {
+		if (!_nextSize) {
+			if (_pNextSubscription->pPublication->publishing())
+				limit = _pNextSubscription->pPublication->currentTime();
+			else
+				hasLimit = false;
+		} else
+			limit = at(size() - _nextSize)->time();
 	}
 	while (size() > _nextSize) {
-		if (pLimit && front()->hasTime() && Util::Distance(front()->time(), *pLimit) <= 0)
-			return _flushing = false; // rest to flush => false!
-	//	DEBUG(_subscription.name(), &source == &Source::Null() ?  " medias remove " : " medias flush ", Media::TypeToString(front()->type), " - ", front()->time());
+		if (hasLimit && front()->hasTime() && Util::Distance(front()->time(), limit) <= 0) {
+			if (_nextSize) // means that the limit reached is the next publication media
+				hasLimit = false;
+			break;
+		}
 		if (front()->type)
 			source.writeMedia(*front());
 		else
 			source.reset();
 		pop_front();
 	}
-	_flushing = false;
-	return true; // return true if all flushed and time parameter inferior to next time or possible future next time!
+	_flushing = false; // set false BEFORE clear()!
+	if (!_nextSize || hasLimit)
+		return;
+	// joined
+	clear(); // clear the rest
+	_nextTimeout = 0; // sync complete
+	
 }
 
-void Subscription::next() {
-	if (!_pNextPublication)
-		return;
+bool Subscription::next() {
+	if (!_pNextPublication) {
+		// called on Subscription reset => clear possible media buffered if no next publication
+		_medias.clear();
+		return false;
+	}
 	Publication& publication = *_pNextPublication;
 	_pNextPublication = NULL; // set NULL before flush (writeMedia) to avoid to call next() in infinite loop (can be call in start())
+
 	// flush _medias before next
 	_medias.flush(self);
+	
 	// onNext
-	if (_ejected)
-		reset(); // to fix _ejected and reset timestamp!
-	stop();
+	UInt32 lastTime = this->lastTime();
+	DEBUG(name(), " at ", lastTime, " switch to ", publication.name(), " at ", publication.currentTime());
 	onNext(publication);
 	_medias.setNext(NULL); // remove next!
+	if (!_ejected && _medias.count()) {
+		/// Set next timestamp => 22ms is the interval between 44000 and 48000 usual audio interval (and gives acceptable interval value for video)
+		_seekTime = max(scaleTime(lastTime) + 22, 1u); /// must be strictly positif to be detected in next scaleTime
+		clear();
+	} else // fix _ejected OR wait next publication starting! (no media gotten)
+		reset();
+	
 	// flush next _medias!
 	_medias.flush(self);
+	return true;
 }
 
 Publication* Subscription::setNext(Publication* pPublication) {
@@ -656,8 +775,8 @@ Publication* Subscription::setNext(Publication* pPublication) {
 	Publication* pOldNext = _pNextPublication;
 	if (pPublication && pPublication != this->pPublication) {
 		_pNextPublication = pPublication;
-		if (!_streaming || _waitingFirstVideoSync) {
-			_medias.flush(Source::Null()); // remove possible buffered "waiting video sync" audio and data packet
+		if (_firstTime) {
+			_medias.clear(); // remove possible buffered "waiting video sync" audio and data packet
 			next(); // always not started, so call "next" immediatly!
 			return pOldNext;
 		}
@@ -670,9 +789,5 @@ Publication* Subscription::setNext(Publication* pPublication) {
 	_medias.flush(self); // flush valid medias!
 	return pOldNext;
 }
-
-
-template bool Subscription::Medias::add<Media::Audio>(UInt32 time, const Media::Audio::Tag& tag, const Packet& packet, UInt8 track);
-template bool Subscription::Medias::add<Media::Video>(UInt32 time, const Media::Video::Tag& tag, const Packet& packet, UInt8 track);
 
 } // namespace Mona

@@ -36,7 +36,12 @@ struct MP4Writer : MediaWriter, virtual Object {
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
 	// ffmpeg -re -i Sintel.ts -c copy -listen 1 -f mp4 -frag_duration 100000 -movflags empty_moov+default_base_moof http://127.0.0.1:80/test.mp4
 
-	MP4Writer(UInt16 bufferTime = 1000);
+	enum : UInt16 {
+		BUFFER_MIN_SIZE		 = 100,
+		BUFFER_RESET_SIZE	 = 1000
+	};
+
+	MP4Writer(UInt16 bufferTime = BUFFER_RESET_SIZE);
 
 	const UInt16 bufferTime;
 
@@ -50,27 +55,23 @@ struct MP4Writer : MediaWriter, virtual Object {
 private:
 	void flush(const OnWrite& onWrite, Int8 reset=0);
 
-	struct Frame : virtual Object {
-		NULLABLE(!_pMedia)
-
-		Frame(const Media::Video::Tag& tag, const Packet& packet) : isSync(tag.frame == Media::Video::FRAME_KEY), time(tag.time) { _pMedia.set<Media::Video>(tag, packet); }
-		Frame(const Media::Audio::Tag& tag, const Packet& packet) : isSync(true), time(tag.time) { _pMedia.set<Media::Audio>(tag, packet); }
-		Frame(const Media::Data::Tag& tag, const Packet& packet, UInt32 time) : time(time), isSync(true) { _pMedia.set<Media::Data>(tag, packet); }
-		Frame(const Packet& packet) : isSync(false), time(0) { _pMedia.set(Media::TYPE_NONE, packet); }
-
+	struct Frame : Packet, virtual Object {
+		Frame(UInt32 time, const Media::Video::Tag& tag, const Packet& packet) : Packet(std::move(packet)), isSync(tag.frame == Media::Video::FRAME_KEY), time(time), compositionOffset(tag.compositionOffset) {}
+		Frame(UInt32 time, const Media::Audio::Tag& tag, const Packet& packet) : Packet(std::move(packet)), isSync(true), time(time), compositionOffset(0) {}
+		Frame(UInt32 time, const Packet& packet) : Packet(std::move(packet)), time(time), isSync(true), compositionOffset(0) {}
+	
 		const bool			isSync;
 		const UInt32		time;
-		const Media::Base*	operator->() const { return _pMedia.get(); }
-		const Media::Base&	operator*() const { return *_pMedia; }
-	private:
-		unique<Media::Base> _pMedia;
+		const UInt32		compositionOffset;
 	};
 
 	struct Frames : virtual Object, std::deque<Frame> {
 		NULLABLE(!_started)
 
-		Frames() : _started(false), rate(0), lastTime(0), lastDuration(0), codec(0),
-			hasCompositionOffset(false), hasKey(false), writeConfig(false) {}
+		Frames(UInt32 tagTime) : _started(false), rate(0), lastDuration(0), codec(0),
+			lastTime(tagTime), // assign lastTime to tagTime to accept the packet on monotonic control
+			hasCompositionOffset(false), hasKey(false), writeConfig(false) {
+		}
 
 		UInt8	codec;
 
@@ -90,16 +91,14 @@ private:
 
 		Frames& operator=(std::nullptr_t);
 
-		void push(const Media::Data::Tag& tag, const Packet& packet, UInt32 time) {
-			emplace_back(tag, packet, time);
+		void push(UInt32 time, const Packet& packet) {
+			emplace_back(time, packet);
 			_started = true;
 		}
 
 		template<typename TagType>
-		void push(const TagType& tag, const Packet& packet) {
-			emplace_back(tag, packet);
-			if (!codec) // necessary first usage, tag.codec>0 by control in entry from writeAudio/writeVideo
-				lastTime = front().time; // delta = lastDuration - (front().time - lastTime) = 0
+		void push(UInt32 time, const TagType& tag, const Packet& packet) {
+			emplace_back(time, tag, packet);
 			codec = tag.codec;
 			_started = true;
 		}
@@ -108,7 +107,7 @@ private:
 		bool	_started;
 	};
 
-	void	writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset);
+	void	writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset, bool isEnd);
 	Int32	writeFrame(BinaryWriter& writer, Frames& frames, UInt32 size, bool isSync, UInt32 duration, UInt32 compositionOffset, Int32 delta);
 
 	std::deque<Frames>			_audios;
@@ -117,8 +116,9 @@ private:
 	UInt32						_sequence;
 	UInt32						_timeFront;
 	UInt32						_timeBack;
+	UInt32						_seekTime;
 	bool						_started;
-	bool						_buffering;
+	UInt16						_buffering;
 	UInt8						_errors;
 };
 

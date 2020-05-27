@@ -117,13 +117,12 @@ Parameters::const_iterator Parameters::erase(const_iterator first, const_iterato
 		clear();
 		return end();
 	}
-	const_iterator it;
-	for (it = first; it != last;) {
-		string key(move(it->first));
-		it = _pMap->erase(it);
+	while (first != last) {
+		string key(move(first->first));
+		_pMap->erase(first++);
 		onParamChange(key, NULL);
 	}
-	return it;
+	return first;
 }
 
 

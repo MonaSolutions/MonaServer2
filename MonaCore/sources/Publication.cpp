@@ -42,11 +42,14 @@ Publication::~Publication() {
 }
 
 UInt32 Publication::currentTime() const {
-	if (_audios.empty())
-		return _videos.lastTime;
 	if (_videos.empty())
 		return _audios.lastTime;
-	return Util::Distance(_audios.lastTime, _videos.lastTime)>0 ? _audios.lastTime : _videos.lastTime;
+	return _audios.size() && Util::Distance(_audios.lastTime, _videos.lastTime)>0 ? _audios.lastTime : _videos.lastTime;
+}
+UInt32 Publication::lastTime() const {
+	if (_audios.empty())
+		return _videos.lastTime;
+	return _videos.size() && Util::Distance(_audios.lastTime, _videos.lastTime)>0 ? _videos.lastTime : _audios.lastTime;
 }
 
 void Publication::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
@@ -213,7 +216,7 @@ void Publication::writeAudio(const Media::Audio::Tag& tag, const Packet& packet,
 	_byteRate += packet.size() + sizeof(tag);
 	_audios.byteRate += packet.size() + sizeof(tag);
 	_new = true;
-	//	DEBUG(name()," audio ",tag.time);
+	//INFO(name()," audio ",tag.time);
 	for (Subscription* pSubscription : subscriptions) {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeAudio(tag, packet, track);

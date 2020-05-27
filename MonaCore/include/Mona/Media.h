@@ -50,16 +50,15 @@ struct Media : virtual Static {
 	}
 
 	static UInt16 ComputeTextDuration(UInt32 length) { return (UInt16)min(max(length / 20.0, 3) * 1000, 10000); }
-
+	
 	struct Base : Packet, virtual Object {
 		Base() : type(TYPE_NONE), track(0) {}
 		Base(Media::Type type, const Packet& packet, UInt8 track=0) : type(type), track(track), Packet(std::move(packet)) {}
 
-		bool   hasTime() const { return type>TYPE_DATA; }
+		bool   hasTime() const { return type>TYPE_DATA && !isConfig(); }
 		UInt32 time() const;
 		void   setTime(UInt32 time);
 
-		UInt32 compositionOffset() const { return type == TYPE_VIDEO ? ((Media::Video*)this)->tag.compositionOffset : 0; }
 		bool   isConfig() const;
 		Media::Type type;
 		UInt8		track;

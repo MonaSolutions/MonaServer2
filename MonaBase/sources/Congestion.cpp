@@ -23,7 +23,7 @@ namespace Mona {
 UInt32 Congestion::operator()(UInt32 duration) const {
 	if (!_congested)
 		return 0;
-	UInt64 elapsed = _congested.elapsed();
+	UInt64 elapsed = max(_congested.elapsed(), 1); // >0 to do working a call with duration=0 to get immediat congestion state
 	return elapsed > duration ? range<UInt32>(elapsed) : 0;
 }
 

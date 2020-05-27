@@ -44,6 +44,19 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 		EJECTED_ERROR
 	};
 
+	struct Track : virtual Object {};
+	struct MediaTrack : Track, virtual Object {
+		MediaTrack() : _started(false), lastTime(0) {}
+		const UInt32 lastTime;
+		bool setLastTime(UInt32 time);
+	private:
+		bool _started;
+	};
+	struct VideoTrack : MediaTrack, virtual Object {
+		VideoTrack() : waitKeyFrame(1) {}
+		UInt8 waitKeyFrame;  // 0 = no wait, 1 = wait, 2 = wait logged
+	};
+
 	template<typename TrackType>
 	struct Tracks : std::deque<TrackType> {
 		Tracks(bool multiTracks) : multiTracks(multiTracks), dropped(0), reliable(true) {}
@@ -62,13 +75,13 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	struct MediaTracks : Tracks<TrackType> {
 		MediaTracks(bool multiTracks) : Tracks<TrackType>(multiTracks), lastTime(0) {}
 		bool selected(UInt8 track) const { return Tracks<TrackType>::pSelection ? (*Tracks<TrackType>::pSelection == track) : (Tracks<TrackType>::multiTracks || track <= 1); }
-		UInt32 lastTime;
-	};
-
-	struct Track : virtual Object {};
-	struct VideoTrack : Track, virtual Object {
-		VideoTrack() : waitKeyFrame(1) {}
-		UInt8 waitKeyFrame;  // 0 = no wait, 1 = wait, 2 = wait logged
+		const UInt32 lastTime;
+		bool setLastTime(UInt8 track, UInt32 time) {
+			if (track && !self[track].setLastTime(time))
+				return false;
+			(UInt32&)lastTime = time;
+			return true;
+		}
 	};
 
 	/*!
@@ -83,7 +96,7 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	EJECTED				ejected();
 	
 	
-	const MediaTracks<Track>&		audios;
+	const MediaTracks<MediaTrack>&	audios;
 	const MediaTracks<VideoTrack>&	videos;
 	const Tracks<Track>&			datas;
 
@@ -95,6 +108,7 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	const std::string&				name() const;
 
 	UInt32							currentTime() const;
+	UInt32							lastTime() const;
 
 	void							setFormat(const char* format);
 
@@ -120,9 +134,12 @@ struct Subscription : Media::Source, Media::Properties, virtual Object {
 	template<typename TargetType=Media::Target>
 	TargetType& target() const { return (TargetType&)_target; }
 private:
-	void setTime(const char* time = NULL);
-	
+	void parseTime(const char* time);
+	void parseFromTime(const char* time);
+	bool insideDuration(UInt32 time);
+
 	void clear(); // block father Parameters:clear call, and usefull in private!
+	void release(); // reset the full subscription as if was just created
 
 	// Media::Properties overrides
 	void addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::addProperties(track, type, packet); }
@@ -131,43 +148,13 @@ private:
 
 	bool start();
 	bool start(UInt32 time);
-	bool start(Media::Data::Type type) { return start(currentTime()); }
-	bool start(const Media::Audio::Tag& tag) { return tag.isConfig ? start() : start(_audios.lastTime=tag.time); }
-	bool start(const Media::Video::Tag& tag) { return tag.frame==Media::Video::FRAME_CONFIG ? start() : start(_videos.lastTime=tag.time); }
-	template<typename TagType>
-	bool start(UInt8 track, const TagType& tag, const Packet& packet) {
-		if (_pNextPublication && !_medias.flushing()) {
-			_medias.flush(self);
-			if(_medias.add(tag, packet, track))
-				return false;
-		}
-		return start(tag);
-	}
-	void stop();
+	bool start(UInt8 track, Media::Data::Type type, const Packet& packet);
+	bool start(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet);
+	bool start(UInt8 track, const Media::Video::Tag& tag, const Packet& packet);
 
-	void next();
+	bool next();
 
-	template<typename TagType>
-	TagType& fixTag(bool isConfig, const TagType& tagIn, TagType& tagOut) {
-		if (_firstTime) {
-			if (!isConfig) {
-				_firstTime = false;
-				_startTime = tagIn.time;
-				setTime();
-				tagOut.time = _seekTime;
-			} else
-				tagOut.time = 0; // wrong but allow to play immediatly the config packet!
-		} else {
-#if defined(_DEBUG) // allow to debug a no monotonic time in debug, in release we have to accept "cyclic" time value (live of more than 49 days),
-			// also for container like TS with AV offset it can be a SECOND packet just after the FIRST which can be just before, not an error
-			if (_startTime > tagIn.time)
-				WARN(typeid(TagType) == typeid(Media::Audio::Tag) ? "Audio" : "Video", " time too late on ", name());
-#endif
-			tagOut.time = tagIn.time - _startTime + _seekTime;
-		}
-		tagOut.codec = tagIn.codec;
-		return tagOut;
-	}
+	UInt32 scaleTime(UInt32 time, bool isConfig = true);
 
 	template<typename TracksType, typename TagType>
 	bool writeToTarget(const TracksType& tracks, UInt8 track, const TagType& tag, const Packet& packet, bool isConfig = false) {
@@ -211,69 +198,55 @@ private:
 	}
 
 	struct Medias : virtual Object, private Media::Target, private std::deque<unique<Media::Base>> {
-		Medias(Subscription& subscription) : _nextTimeout(0), _nextSize(0), _subscription(subscription), _flushing(false) {}
+		Medias(Subscription& subscription) : _aligning(false), _nextTimeout(0), _nextSize(0), _subscription(subscription), _flushing(false) {}
 
 		UInt32 count() const { return std::deque<unique<Media::Base>>::size() - _nextSize; }
 
-		bool flushing() const { return _flushing; }
-		bool flush(Media::Source& source);
+		
+		void clear();
+		void clear(UInt32 untilTime);
+		void flush(Media::Source& source);
 		void setNext(Publication* pPublication);
 
 		bool synchronizing() const;
-
-		bool add(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track) { return tag.isConfig ? add<Media::Audio>(tag, packet, track) : add<Media::Audio>(tag.time, tag, packet, track); }
-		bool add(const Media::Video::Tag& tag, const Packet& packet, UInt8 track) { return tag.frame==Media::Video::FRAME_CONFIG ? add<Media::Video>(tag, packet, track) : add<Media::Video>(tag.time, tag, packet, track); }
+		
+		bool add(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track) { return add<Media::Audio>(tag, packet, track); }
+		bool add(const Media::Video::Tag& tag, const Packet& packet, UInt8 track) { return add<Media::Video>(tag, packet, track); }
 		bool add(Media::Data::Type type, const Packet& packet, UInt8 track) { return add<Media::Data>(type, packet, track); }
 	private:
 		template<typename MediaType>
 		bool add(const typename MediaType::Tag& tag, const Packet& packet, UInt8 track) {
-			// Time has not progressed here!
+			if (_flushing)
+				return false; // return false to play it now!
 			if (_nextSize && !_nextTimeout)
 				return true; // already joined OR must be buffered as previous (no time progress, same behavior than prev media)
-			if (size() <= _nextSize)
-				return false; // can be played now
-			emplace(begin() + size() - _nextSize)->set<MediaType>(tag, packet, track);
-			return true;
+			return add(std::make_unique<MediaType>(tag, packet, track));;
 		}
-		template<typename MediaType>
-		bool add(UInt32 time, const typename MediaType::Tag& tag, const Packet& packet, UInt8 track);
+		bool add(unique<Media::Base>&& pMedia);
+
 
 		bool beginMedia(const std::string& name) { return true; }
 		bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
-			return tag.isConfig && !_nextSize ? true : writeMedia<Media::Audio>(tag, packet, track); // first config packet is useless because will be given on switch
+			return tag.isConfig && !_nextSize ? true : writeMedia(std::make_unique<Media::Audio>(tag, packet, track)); // first config packet is useless because will be given on switch
 		}
 		bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-			return tag.frame == Media::Video::FRAME_CONFIG && !_nextSize ? true : writeMedia<Media::Video>(tag, packet, track); // first config packet is useless because will be given on switch
+			return tag.frame == Media::Video::FRAME_CONFIG && !_nextSize ? true : writeMedia(std::make_unique<Media::Video>(tag, packet, track)); // first config packet is useless because will be given on switch
 		} 
 		bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) {
-			return _nextSize ? writeMedia<Media::Data>(type, packet, track) : true;  // ignore data packet as first to get a timestamp explicit on _nextSize
+			return _nextSize ? writeMedia(std::make_unique<Media::Data>(type, packet, track)) : true;  // ignore data packet as first to get a timestamp explicit on _nextSize
 		}
-		bool endMedia() { return _nextSize ? writeMedia<Media::Base>() : true; }
+		bool endMedia() { return _nextSize ? writeMedia(std::make_unique<Media::Base>()) : true; }
 		// bool writeProperties(const Media::Properties& properties); ignore properties (metadata) during MBR switch, will be write on end of switch!
-		template<typename MediaType, typename ...Args>
-		bool writeMedia(Args&&... args) {
-			// flush what is possible (before _pNextSubscription->pPublication->lastTime())
-			if (!_nextSize) {
-				if (!flush(_subscription)) { // keep _nextSize to 0 during flush!
-					DEBUG(_subscription.name(), " sync with ", _pNextSubscription->name(), " (", _pNextSubscription->currentTime(), ")");
-					_nextTimeout = 0; // complete (joined)
-					clear(); // erase the rest!
-				} else
-					_nextTimeout.update(); // update timeout on first next frame to wait now just 1 second!
-			}
-			++_nextSize;
-			emplace_back();
-			back().set<MediaType>(std::forward<Args>(args)...);
-			return true;
-		}
+		bool writeMedia(unique<Media::Base>&& pMedia);
 		void flush() {}; // to overrides Media::Target flush (remove a clang warning)
 
 		Subscription&		 _subscription;
 		unique<Subscription> _pNextSubscription;
+		bool				 _aligning;
 		Time				 _nextTimeout;
-		UInt32				 _nextSize;
+		UInt32				 _nextSize; // number of next media  at the end of collection
 		bool				 _flushing;
-	}									_medias;
+	}	_medias;
 	enum {
 		MBR_NONE = 0,
 		MBR_DOWN,
@@ -287,7 +260,7 @@ private:
 	UInt32					_flushable;
 	Int8					_updating; // 0 = nothing (after flush), 1 = writen (before flush), -1 = MBR_UP, -2 MBR_DOWN
 
-	MediaTracks<Track>		_audios;
+	MediaTracks<MediaTrack>	_audios;
 	MediaTracks<VideoTrack>	_videos;
 	Tracks<Track>			_datas;
 
@@ -295,12 +268,15 @@ private:
 	bool					_firstTime;
 	UInt32					_startTime;
 
-	UInt32					_fromTime;
-	UInt32					_toTime;
+	unique<UInt32>			_pFromTime;
+	UInt32					_duration;
 
 	Time					_streaming;
-	Time					_waitingFirstVideoSync;
 	Time					_timeProperties;
+
+	// When the subscription starts on a publication running wit video we have to wait the first key video frame
+	// We can bufferize in this case audio gotten between since the last interval frame
+	Time					_waitingFirstVideoSync;
 
 	Time					_queueing;
 	Congestion				_congestion;

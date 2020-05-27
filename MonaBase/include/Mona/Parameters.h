@@ -85,7 +85,7 @@ struct Parameters : String::Object<Parameters> {
 
 	bool erase(const std::string& key);
 	const_iterator erase(const_iterator first, const_iterator last);
-	const_iterator erase(const_iterator it) { return erase(it, ++it); }
+	const_iterator erase(const_iterator it) { const_iterator last(it);  return erase(it, ++last); }
 
 	const std::string& setString(const std::string& key, const std::string& value) { return setParameter(key, value); }
 	const std::string& setString(const std::string& key, const char* value, std::size_t size = std::string::npos) {

@@ -216,9 +216,8 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 }
 
 void Media::Properties::onParamInit() {
-	Media::Data::Type type = Media::Data::Type(_packets.size());
-	if (type) // else no packets
-		addProperties(_track, type, _packets.back());
+	if (_packets.size()) // else no packets
+		addProperties(_track, Media::Data::Type(_packets.size()+1), _packets.back());
 }
 void Media::Properties::onParamChange(const std::string& key, const std::string* pValue) {
 	_packets.clear();
@@ -268,7 +267,7 @@ UInt32 Media::Properties::addProperties(UInt8 track, DataReader& reader) {
 	if(!track)
 		return reader.read(writer, 1); // just one argument!
 	writer.beginObject();
-	writer.writePropertyName(String(track, '.').c_str());
+	writer.writePropertyName(String(track).c_str());
 	UInt32 count = reader.read(writer, 1); // just one argument!
 	writer.endObject(); // impossible to save packet, not represent all metadata!
 	return count;
@@ -277,6 +276,7 @@ void Media::Properties::addProperties(UInt8 track, Media::Data::Type type, const
 	// keep _packets.empty condition BEFORE count() condition to avoid a overflow call while onParamInit (count() can call onParamInit)
 	if (type && _packets.empty() && !count()) { 
 		_packets.resize(type - 1);
+		_packets.back().set(packet);
 		_track = track;
 		return;
 	}
@@ -290,15 +290,33 @@ void Media::Properties::addProperties(UInt8 track, Media::Data::Type type, const
 		_packets = move(packets); // was onParamInit!
 }
 
-static const string _TrackMaxPrefix("256/"); // "256", '.' + 1
 void Media::Properties::clearTracks() {
-	erase(begin(), lower_bound(_TrackMaxPrefix));
+	UInt16 track;
+	auto it = lower_bound("1");
+	while (it != end()) {
+		if (it->first[0] > '9')
+			break;
+		size_t found = it->first.find('.');
+		if (found != string::npos && String::ToNumber(it->first.data(), found, track))
+			it = erase(it);
+		else
+			++it;
+	}
 }
 void Media::Properties::clear(UInt8 track) {
-	if(track)
-		erase(lower_bound(String(track, '.')), lower_bound(String(track, '.'+1)));
-	else
-		erase(lower_bound(_TrackMaxPrefix), end());
+	if (track) {
+		erase(lower_bound(String(track, '.')), lower_bound(String(track, '.' + 1)));
+		return;
+	}
+	// erase all what is not a metadata track
+	auto it = begin();
+	while (it != end()) {
+		size_t found = it->first.find('.');
+		if (found == string::npos || !String::ToNumber(it->first.data(), found, track))
+			it = erase(it);
+		else
+			++it;
+	}
 }
 
 Media::Data::Type Media::Data::ToType(const type_info& info) {
