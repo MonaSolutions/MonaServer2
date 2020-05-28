@@ -43,6 +43,9 @@ struct MP4Writer : MediaWriter, virtual Object {
 
 	MP4Writer(UInt16 bufferTime = BUFFER_RESET_SIZE);
 
+	UInt32 currentTime() const { return _timeFront; }
+	UInt32 lastTme() const { return _timeBack; }
+
 	const UInt16 bufferTime;
 
 	void beginMedia(const OnWrite& onWrite);

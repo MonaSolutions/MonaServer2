@@ -43,7 +43,7 @@ deque<MP4Writer::Frame> MP4Writer::Frames::flush() {
 	return frames;
 }
 
-MP4Writer::MP4Writer(UInt16 bufferTime) : bufferTime(max(bufferTime, BUFFER_MIN_SIZE)), _started(false) {
+MP4Writer::MP4Writer(UInt16 bufferTime) : bufferTime(max(bufferTime, BUFFER_MIN_SIZE)), _timeFront(0), _timeBack(0), _started(false) {
 	INFO("MP4 bufferTime set to ", bufferTime, "ms");
 }
 
@@ -51,7 +51,6 @@ void MP4Writer::beginMedia(const OnWrite& onWrite) {
 	_buffering = bufferTime;
 	_sequence = 0;
 	_errors = 0;
-	_timeBack = 0;
 	_seekTime = _timeBack;
 	// not reset this._started to keep _timeFront on old value to smooth transition and silence creation
 }
