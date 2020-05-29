@@ -38,7 +38,7 @@ struct MP4Writer : MediaWriter, virtual Object {
 
 	enum : UInt16 {
 		BUFFER_MIN_SIZE		 = 100,
-		BUFFER_RESET_SIZE	 = 1000
+		BUFFER_RESET_SIZE	 = 1000 // wait one second to get at less one video frame the first time (1fps is the min possibe for video)
 	};
 
 	MP4Writer(UInt16 bufferTime = BUFFER_RESET_SIZE);
@@ -84,15 +84,14 @@ private:
 		bool	hasCompositionOffset;
 		bool	hasKey;
 
-		UInt32  sizeTraf() const { return 60 + (size() * (hasCompositionOffset ? (hasKey ? 16 : 12) : (hasKey ? 12 : 8))); }
-		
 		UInt32  rate;
 
 		// fix time|duration + tfdt
 		UInt32	lastTime;
 		UInt32  lastDuration;
 
-		Frames& operator=(std::nullptr_t);
+		UInt32  sizeTraf() const { return 60 + (size() * (hasCompositionOffset ? (hasKey ? 16 : 12) : (hasKey ? 12 : 8))); }
+		Frames& operator=(std::nullptr_t) { _started = false; return self; }
 
 		void push(UInt32 time, const Packet& packet) {
 			emplace_back(time, packet);

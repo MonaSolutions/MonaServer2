@@ -275,7 +275,7 @@ UInt32 Media::Properties::addProperties(UInt8 track, DataReader& reader) {
 void Media::Properties::addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) {
 	// keep _packets.empty condition BEFORE count() condition to avoid a overflow call while onParamInit (count() can call onParamInit)
 	if (type && _packets.empty() && !count()) { 
-		_packets.resize(type - 1);
+		_packets.resize(type);
 		_packets.back().set(packet);
 		_track = track;
 		return;

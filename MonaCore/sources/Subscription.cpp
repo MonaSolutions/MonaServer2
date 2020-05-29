@@ -262,22 +262,31 @@ bool Subscription::start(UInt32 time) {
 	return insideDuration(time) && start();
 }
 bool Subscription::start(UInt8 track, Media::Data::Type type, const Packet& packet) {
+	// In first flush medias previous media before to progress timeline (setLastTime)
 	if (_pNextPublication && _medias.add(type, packet, track))
 		return false;
 	return start(lastTime());
 }
 bool Subscription::start(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet) {
+	if (tag.isConfig) {
+		if (!_streaming && pPublication)
+			return false; // ignored, will be sent on start
+		return start(); // config packet has to be ignored by time progression and from/duration processing
+	}
+	// In first flush medias previous media before to progress timeline (setLastTime)
 	if (_pNextPublication && _medias.add(tag, packet, track))
 		return false;
-	if (tag.isConfig)
-		return start(); // config packet has to be ignored by time progression and from/duration processing
 	return _audios.setLastTime(track, tag.time) && start(tag.time);
 }
 bool Subscription::start(UInt8 track, const Media::Video::Tag& tag, const Packet& packet) {
+	if (tag.frame == Media::Video::FRAME_CONFIG) {
+		if (!_streaming && pPublication)
+			return false; // ignored, will be sent on start
+		return start(); // config packet has to be ignored by time progression and from/duration processing
+	}
+	// In first flush medias previous media before to progress timeline (setLastTime)
 	if (_pNextPublication && _medias.add(tag, packet, track))
 		return false;
-	if (tag.frame == Media::Video::FRAME_CONFIG)
-		return start(); // config packet has to be ignored by time progression and from/duration processing
 	return _videos.setLastTime(track, tag.time) && start(tag.time);
 }
 
@@ -460,9 +469,9 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 	audio.rate = tag.rate;
 	audio.isConfig = tag.isConfig;
 	audio.codec = tag.codec;
-	audio.time = scaleTime(tag.isConfig ? _audios.lastTime : tag.time, tag.isConfig);
+	audio.time = scaleTime(tag.time, tag.isConfig);
 	if (Logs::GetLevel() >= LOG_TRACE && pPublication && typeid(_target)!=typeid(Medias))
-		TRACE(pPublication->name(), " audio time, ", tag.time, "=>", audio.time);
+		TRACE(pPublication->name(), " audio time, ", tag.time, "=>", audio.time, tag.isConfig ? " (7)" : " (1)");
 
 	if (_pMediaWriter)
 		_pMediaWriter->writeAudio(track, audio, packet, _onMediaWrite);
@@ -528,7 +537,7 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	video.compositionOffset = tag.compositionOffset;
 	video.frame = tag.frame;
 	video.codec = tag.codec;
-	video.time = scaleTime(isConfig ? _videos.lastTime : tag.time, isConfig);
+	video.time = scaleTime(tag.time, isConfig);
 	if (Logs::GetLevel() >= LOG_TRACE && pPublication && typeid(_target) != typeid(Medias))
 		TRACE(pPublication->name(), " video time, ", tag.time, "=>", video.time, " (", video.frame, ")");
 

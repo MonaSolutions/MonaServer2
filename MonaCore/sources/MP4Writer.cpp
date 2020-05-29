@@ -26,12 +26,6 @@ using namespace std;
 
 namespace Mona {
 
-MP4Writer::Frames& MP4Writer::Frames::operator=(std::nullptr_t) {
-	DEBUG("MP4 track removed");
-	_started = false;
-	return self;
-}
-
 deque<MP4Writer::Frame> MP4Writer::Frames::flush() {
 	hasKey = hasCompositionOffset = false;
 	deque<MP4Writer::Frame> frames(move(self));
@@ -102,7 +96,10 @@ void MP4Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Pack
 	if (!_started || Util::Distance(_timeBack, time)>0)
 		_timeBack = time;
 	// flush before emplace_back, with reset if codec change (if audios, codec is set) or started
-	flush(onWrite, audios ? audios.codec != tag.codec : !_buffering);
+	if (_buffering)
+		flush(onWrite);
+	else
+		flush(onWrite, audios ? audios.codec != tag.codec : false);
 	if (!audios.rate)
 		audios.rate = tag.rate;
 	if (!audios)
@@ -143,7 +140,10 @@ void MP4Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Pack
 	if (!_started || Util::Distance(_timeBack, time)>0)
 		_timeBack = time;
 	// flush before emplace_back, with reset if codec change (if videos, codec is set) or started
-	flush(onWrite, videos ? videos.codec != tag.codec : !_buffering);
+	if(_buffering)
+		flush(onWrite);
+	else
+		flush(onWrite, videos ? videos.codec != tag.codec : false);
 	if (tag.frame == Media::Video::FRAME_KEY)
 		videos.hasKey = true;
 	if (tag.compositionOffset)
@@ -180,14 +180,24 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 		_timeFront = _timeBack;
 	}
 
-	Int32 delta = Util::Distance(_timeFront, _timeBack);
-	if (!reset) {
-		// wait one second to get at less one video frame the first time (1fps is the min possibe for video)
-		if (delta < (_buffering ? _buffering : BUFFER_MIN_SIZE))
+	Int32 delta;
+	UInt16 buffering = _buffering;
+	if (reset) {
+		delta = BUFFER_RESET_SIZE; // to avoid rebuffering (see code below inside empty tracks checking)
+		if (reset < 0) { // end
+			_timeBack += BUFFER_MIN_SIZE;
+			_buffering = bufferTime;
+		} else {
+			DEBUG("MP4 dynamic configuration change");
+			_buffering = BUFFER_RESET_SIZE;
+		}
+	} else {
+		delta = Util::Distance(_timeFront, _timeBack);
+		if (delta < (buffering ? buffering : BUFFER_MIN_SIZE))
 			return;
-	} else if (reset < 0)
-		DEBUG("MP4 dynamic configuration change");
-
+		_buffering = 0;
+	}
+	
 	// Search if there is empty track => MSE requires to get at less one media by track on each segment
 	// In same time compute sizeMoof!
 	UInt32 sizeMoof = 0;
@@ -200,6 +210,8 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			_buffering = BUFFER_RESET_SIZE;
 			if (delta < _buffering)
 				return; // wait bufferTime to get at less one media on this track!
+			if (!reset)
+				DEBUG("MP4 video track removed");
 			videos = nullptr;
 		} else
 			sizeMoof += videos.sizeTraf();
@@ -211,6 +223,8 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			_buffering = BUFFER_RESET_SIZE;
 			if (delta < _buffering)
 				return; // wait bufferTime to get at less one media on this track!
+			if (!reset)
+				DEBUG("MP4 audio track removed");
 			audios = nullptr;
 		} else
 			sizeMoof += audios.sizeTraf();
@@ -230,7 +244,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 
 	UInt16 track(0);
 
-	if (_buffering) {
+	if (buffering) {
 		// fftyp box => iso5....iso6mp41
 		writer.write(EXPAND("\x00\x00\x00\x18""ftyp\x69\x73\x6F\x35\x00\x00\x02\x00""iso6mp41"));
 
@@ -549,16 +563,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 
 		BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 	}
-	if (reset) {
-		// On end all the tracks terminate on the same _timeBack time
-		// Add a flush interval of silence on end to allow on a onEnd/onBegin without interval to get a smooth transition (especially on chrome)
-		if (reset < 0) {
-			_timeBack += BUFFER_MIN_SIZE;
-			_buffering = bufferTime;
-		} else
-			_buffering = BUFFER_RESET_SIZE;
-	} else
-		_buffering = 0;
+
 
 	//////////// MOOF /////////////
 	writer.write32(sizeMoof+=24);
