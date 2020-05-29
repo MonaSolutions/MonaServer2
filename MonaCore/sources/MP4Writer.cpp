@@ -43,6 +43,7 @@ MP4Writer::MP4Writer(UInt16 bufferTime) : bufferTime(max(bufferTime, BUFFER_MIN_
 
 void MP4Writer::beginMedia(const OnWrite& onWrite) {
 	_buffering = bufferTime;
+	_bufferMinSize = BUFFER_MIN_SIZE;
 	_sequence = 0;
 	_errors = 0;
 	_seekTime = _timeBack;
@@ -174,16 +175,36 @@ void MP4Writer::writeData(UInt8 track, Media::Data::Type type, const Packet& pac
 	// TODO: Add styl from ASS styles?
 }
 
+bool MP4Writer::computeSizeMoof(deque<Frames>& tracks, Int8 reset, UInt32& sizeMoof) {
+	for (Frames& frames : tracks) {
+		if (!frames)
+			continue;
+		if (_sequence<14) // => trick to delay firefox play and bufferise more than 2 seconds before to start playing (when hasKey flags absent firefox starts to play! doesn't impact other browsers)
+			frames.hasKey = true;
+		if (frames.empty()) {
+			if (!reset) {
+				_bufferMinSize *= 2;
+				_buffering = _bufferMinSize;
+				if (_bufferMinSize < BUFFER_RESET_SIZE)
+					return false; // wait bufferTime to get at less one media on this track!
+				_bufferMinSize = BUFFER_MIN_SIZE;
+				DEBUG("MP4 track removed");
+			}
+			frames = nullptr;
+		} else
+			sizeMoof += frames.sizeTraf();
+	}
+	return true;
+}
+
 void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	if (!_started) {
 		_started = true;
 		_timeFront = _timeBack;
 	}
 
-	Int32 delta;
 	UInt16 buffering = _buffering;
 	if (reset) {
-		delta = BUFFER_RESET_SIZE; // to avoid rebuffering (see code below inside empty tracks checking)
 		if (reset < 0) { // end
 			_timeBack += BUFFER_MIN_SIZE;
 			_buffering = bufferTime;
@@ -192,8 +213,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 			_buffering = BUFFER_RESET_SIZE;
 		}
 	} else {
-		delta = Util::Distance(_timeFront, _timeBack);
-		if (delta < (buffering ? buffering : BUFFER_MIN_SIZE))
+		if (Util::Distance(_timeFront, _timeBack) < (buffering ? buffering : BUFFER_MIN_SIZE))
 			return;
 		_buffering = 0;
 	}
@@ -201,34 +221,8 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	// Search if there is empty track => MSE requires to get at less one media by track on each segment
 	// In same time compute sizeMoof!
 	UInt32 sizeMoof = 0;
-	for (Frames& videos : _videos) {
-		if (!videos)
-			continue;
-		if(_sequence<14) // => trick to delay firefox play and bufferise more than 2 seconds before to start playing (when hasKey flags absent firefox starts to play! doesn't impact other browsers)
-			videos.hasKey = true;
-		if (videos.empty()) {
-			_buffering = BUFFER_RESET_SIZE;
-			if (delta < _buffering)
-				return; // wait bufferTime to get at less one media on this track!
-			if (!reset)
-				DEBUG("MP4 video track removed");
-			videos = nullptr;
-		} else
-			sizeMoof += videos.sizeTraf();
-	}
-	for (Frames& audios : _audios) {
-		if (!audios)
-			continue;
-		if (audios.empty()) {
-			_buffering = BUFFER_RESET_SIZE;
-			if (delta < _buffering)
-				return; // wait bufferTime to get at less one media on this track!
-			if (!reset)
-				DEBUG("MP4 audio track removed");
-			audios = nullptr;
-		} else
-			sizeMoof += audios.sizeTraf();
-	}
+	if (!computeSizeMoof(_videos, reset, sizeMoof) || !computeSizeMoof(_audios, reset, sizeMoof))
+		return;// wait additionnal buffering
 	for (Frames& datas : _datas) {
 		if (!datas.empty())
 			sizeMoof += datas.sizeTraf();
