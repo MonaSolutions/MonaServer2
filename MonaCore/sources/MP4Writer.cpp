@@ -189,7 +189,7 @@ bool MP4Writer::computeSizeMoof(deque<Frames>& tracks, Int8 reset, UInt32& sizeM
 				_bufferMinSize = BUFFER_MIN_SIZE;
 				DEBUG("MP4 track removed");
 			}
-			_buffering = BUFFER_RESET_SIZE;
+			_buffering = true; // just to write header now!
 			frames = nullptr;
 		} else
 			sizeMoof += frames.sizeTraf();

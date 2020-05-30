@@ -67,10 +67,10 @@ void TracksInit(lua_State *pState, Type& tracks) {
 		SCRIPT_DEFINE_FUNCTION("selected", &selected<Type>);
 	SCRIPT_END
 }
-template<> void Script::ObjInit(lua_State *pState, const Subscription::MediaTracks<Subscription::Track>& tracks) { TracksInit(pState, tracks); }
+template<> void Script::ObjInit(lua_State *pState, const Subscription::MediaTracks<Subscription::MediaTrack>& tracks) { TracksInit(pState, tracks); }
 template<> void Script::ObjInit(lua_State *pState, const Subscription::MediaTracks<Subscription::VideoTrack>& tracks) { TracksInit(pState, tracks); }
 template<> void Script::ObjInit(lua_State *pState, const Subscription::Tracks<Subscription::Track>& tracks) { TracksInit(pState, tracks); }
-template<> void Script::ObjClear(lua_State *pState, const Subscription::MediaTracks<Subscription::Track>& tracks) {}
+template<> void Script::ObjClear(lua_State *pState, const Subscription::MediaTracks<Subscription::MediaTrack>& tracks) {}
 template<> void Script::ObjClear(lua_State *pState, const Subscription::MediaTracks<Subscription::VideoTrack>& tracks) {}
 template<> void Script::ObjClear(lua_State *pState, const Subscription::Tracks<Subscription::Track>& tracks) {}
 
