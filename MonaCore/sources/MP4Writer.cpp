@@ -37,7 +37,7 @@ deque<MP4Writer::Frame> MP4Writer::Frames::flush() {
 	return frames;
 }
 
-MP4Writer::MP4Writer(UInt16 bufferTime) : bufferTime(max(bufferTime, BUFFER_MIN_SIZE)), _timeFront(0), _timeBack(0), _started(false) {
+MP4Writer::MP4Writer(UInt16 bufferTime) : bufferTime(max(bufferTime, BUFFER_RESET_SIZE)), _timeFront(0), _timeBack(0), _started(false) {
 	INFO("MP4 bufferTime set to ", bufferTime, "ms");
 }
 
@@ -184,12 +184,12 @@ bool MP4Writer::computeSizeMoof(deque<Frames>& tracks, Int8 reset, UInt32& sizeM
 		if (frames.empty()) {
 			if (!reset) {
 				_bufferMinSize *= 2;
-				_buffering = _bufferMinSize;
 				if (_bufferMinSize < BUFFER_RESET_SIZE)
 					return false; // wait bufferTime to get at less one media on this track!
 				_bufferMinSize = BUFFER_MIN_SIZE;
 				DEBUG("MP4 track removed");
 			}
+			_buffering = BUFFER_RESET_SIZE;
 			frames = nullptr;
 		} else
 			sizeMoof += frames.sizeTraf();
@@ -203,26 +203,17 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 		_timeFront = _timeBack;
 	}
 
-	UInt16 buffering = _buffering;
-	if (reset) {
-		if (reset < 0) { // end
-			_timeBack += BUFFER_MIN_SIZE;
-			_buffering = bufferTime;
-		} else {
-			DEBUG("MP4 dynamic configuration change");
-			_buffering = BUFFER_RESET_SIZE;
-		}
-	} else {
-		if (Util::Distance(_timeFront, _timeBack) < (buffering ? buffering : BUFFER_MIN_SIZE))
-			return;
-		_buffering = 0;
-	}
-	
+	UInt16 delta = Util::Distance(_timeFront, _timeBack);
+	if (!reset && delta < (_buffering ? _buffering : _bufferMinSize))
+		return;
+
 	// Search if there is empty track => MSE requires to get at less one media by track on each segment
 	// In same time compute sizeMoof!
 	UInt32 sizeMoof = 0;
 	if (!computeSizeMoof(_videos, reset, sizeMoof) || !computeSizeMoof(_audios, reset, sizeMoof))
 		return;// wait additionnal buffering
+	// INFO(delta, " ", _audios[0].size(), " ", _videos[0].size());
+
 	for (Frames& datas : _datas) {
 		if (!datas.empty())
 			sizeMoof += datas.sizeTraf();
@@ -238,7 +229,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 
 	UInt16 track(0);
 
-	if (buffering) {
+	if (_buffering) {
 		// fftyp box => iso5....iso6mp41
 		writer.write(EXPAND("\x00\x00\x00\x18""ftyp\x69\x73\x6F\x35\x00\x00\x02\x00""iso6mp41"));
 
@@ -557,7 +548,17 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 
 		BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 	}
-
+	if (reset) {
+		if (reset < 0) { // end
+			// End all tracks on the same _timeBack time to add a silence to allow on a onEnd/onBegin without interval (smooth transition, especially on chrome)
+			_timeBack += BUFFER_MIN_SIZE;
+			_buffering = bufferTime;
+		} else {
+			DEBUG("MP4 dynamic configuration change");
+			_buffering = BUFFER_RESET_SIZE;
+		}
+	} else
+		_buffering = 0;
 
 	//////////// MOOF /////////////
 	writer.write32(sizeMoof+=24);
