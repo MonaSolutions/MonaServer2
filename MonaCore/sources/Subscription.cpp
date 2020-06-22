@@ -539,7 +539,7 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	video.codec = tag.codec;
 	video.time = scaleTime(tag.time, isConfig);
 	if (Logs::GetLevel() >= LOG_TRACE && pPublication && typeid(_target) != typeid(Medias))
-		TRACE(pPublication->name(), " video time, ", tag.time, "=>", video.time, " (", video.frame, ")");
+		TRACE(pPublication->name(), " video time, ", tag.time, "=>", video.time, " (", (UInt8)video.frame, ")");
 
 	if (_pMediaWriter)
 		_pMediaWriter->writeVideo(track, video, packet, _onMediaWrite);
