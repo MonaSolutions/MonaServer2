@@ -216,10 +216,9 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 }
 
 void Media::Properties::onParamInit() {
-	// else no packets, check last packet because can be called recursively from "MapReader<Parameters>(self).read(*pWriter);" inside data(...) below,
-	// in this case we have a _packets list where all packets are empty temporary
-	if (_packets.size() && _packets.back())
-		addProperties(_track, Media::Data::Type(_packets.size()+1), _packets.back());
+	Media::Data::Type type = Media::Data::Type(_packets.size());
+	if (type) // else no packets
+		addProperties(_track, type, _packets.back());
 }
 void Media::Properties::onParamChange(const std::string& key, const std::string* pValue) {
 	_packets.clear();
@@ -244,22 +243,24 @@ const Packet& Media::Properties::data(Media::Data::Type& type) const {
 		// Else serialize to JSON
 		type = Media::Data::TYPE_JSON;
 	}
-	// not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
-	UInt32 oldSize = _packets.size();
-	if(type>oldSize)
-		_packets.resize(type);
-	Packet& packet = _packets[type - 1];
+	// 1 - Not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
+	// 2 - Not change _packets.size() because MapReader can call onParamInit and fill properties if one other packet serialization exists!
+	Packet newPacket;
+	Packet& packet = type>_packets.size() ? newPacket : _packets[type - 1];
 	if (!packet) {
 		// Serialize in the format requested!
 		shared<Buffer> pBuffer(SET);
 		unique<DataWriter> pWriter(Media::Data::NewWriter(type, *pBuffer));
 		if (!pWriter) {
-			_packets.resize(oldSize);
 			WARN("Properties type ", Data::TypeToString(type), " unsupported");
 			return data(type = Data::TYPE_JSON);
 		}
 		MapReader<Parameters>(self).read(*pWriter); // beware, call "onParamInit" (see method)
 		packet.set(pBuffer);
+		if (type > _packets.size()) {
+			_packets.resize(type);
+			_packets[type - 1] = move(newPacket);
+		}
 	}
 	return packet;
 }
