@@ -245,24 +245,19 @@ const Packet& Media::Properties::data(Media::Data::Type& type) const {
 	}
 	// 1 - Not considerate the empty() case, because empty properties must write a object empty to match onMetaData(obj) with argument on clear properties!
 	// 2 - Not change _packets.size() because MapReader can call onParamInit and fill properties if one other packet serialization exists!
-	Packet newPacket;
-	Packet& packet = type>_packets.size() ? newPacket : _packets[type - 1];
-	if (!packet) {
-		// Serialize in the format requested!
-		shared<Buffer> pBuffer(SET);
-		unique<DataWriter> pWriter(Media::Data::NewWriter(type, *pBuffer));
-		if (!pWriter) {
-			WARN("Properties type ", Data::TypeToString(type), " unsupported");
-			return data(type = Data::TYPE_JSON);
-		}
-		MapReader<Parameters>(self).read(*pWriter); // beware, call "onParamInit" (see method)
-		packet.set(pBuffer);
-		if (type > _packets.size()) {
-			_packets.resize(type);
-			_packets[type - 1] = move(newPacket);
-		}
+	if (type <= _packets.size() && _packets[type - 1])
+		return _packets[type - 1];
+	// Serialize in the format requested!
+	shared<Buffer> pBuffer(SET);
+	unique<DataWriter> pWriter(Media::Data::NewWriter(type, *pBuffer));
+	if (!pWriter) {
+		WARN("Properties type ", Data::TypeToString(type), " unsupported");
+		return data(type = Data::TYPE_JSON);
 	}
-	return packet;
+	MapReader<Parameters>(self).read(*pWriter); // beware, call "onParamInit" (see method)
+	if (type > _packets.size())
+		_packets.resize(type);
+	return _packets[type - 1].set(pBuffer);
 }
 UInt32 Media::Properties::addProperties(UInt8 track, DataReader& reader) {
 	// add new properties
