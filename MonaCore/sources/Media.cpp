@@ -216,7 +216,9 @@ Media::Type Media::Unpack(BinaryReader& reader, Audio::Tag& audio, Video::Tag& v
 }
 
 void Media::Properties::onParamInit() {
-	if (_packets.size()) // else no packets
+	// else no packets, check last packet because can be called recursively from "MapReader<Parameters>(self).read(*pWriter);" inside data(...) below,
+	// in this case we have a _packets list where all packets are empty temporary
+	if (_packets.size() && _packets.back())
 		addProperties(_track, Media::Data::Type(_packets.size()+1), _packets.back());
 }
 void Media::Properties::onParamChange(const std::string& key, const std::string* pValue) {
@@ -256,7 +258,7 @@ const Packet& Media::Properties::data(Media::Data::Type& type) const {
 			WARN("Properties type ", Data::TypeToString(type), " unsupported");
 			return data(type = Data::TYPE_JSON);
 		}
-		MapReader<Parameters>(self).read(*pWriter);
+		MapReader<Parameters>(self).read(*pWriter); // beware, call "onParamInit" (see method)
 		packet.set(pBuffer);
 	}
 	return packet;
