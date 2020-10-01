@@ -470,7 +470,7 @@ void Subscription::writeAudio(const Media::Audio::Tag& tag, const Packet& packet
 	audio.isConfig = tag.isConfig;
 	audio.codec = tag.codec;
 	audio.time = scaleTime(tag.time, tag.isConfig);
-	if (Logs::GetLevel() >= LOG_TRACE && pPublication && typeid(_target)!=typeid(Medias))
+	if (pPublication && typeid(_target)!=typeid(Medias))
 		TRACE(pPublication->name(), " audio time, ", tag.time, "=>", audio.time, tag.isConfig ? " (7)" : " (1)");
 
 	if (_pMediaWriter)
@@ -538,7 +538,7 @@ void Subscription::writeVideo(const Media::Video::Tag& tag, const Packet& packet
 	video.frame = tag.frame;
 	video.codec = tag.codec;
 	video.time = scaleTime(tag.time, isConfig);
-	if (Logs::GetLevel() >= LOG_TRACE && pPublication && typeid(_target) != typeid(Medias))
+	if (pPublication && typeid(_target) != typeid(Medias))
 		TRACE(pPublication->name(), " video time, ", tag.time, "=>", video.time, " (", (UInt8)video.frame, ")");
 
 	if (_pMediaWriter)

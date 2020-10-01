@@ -109,7 +109,7 @@ private:
 		bool	_started;
 	};
 
-	bool	computeSizeMoof(std::deque<Frames>& tracks, Int8 reset, UInt32& sizeMoof);
+	bool	computeSizeMoof(std::deque<Frames>& tracks, bool flushing, UInt32& sizeMoof);
 	void	writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, UInt32& dataOffset, bool isEnd);
 	Int32	writeFrame(BinaryWriter& writer, Frames& frames, UInt32 size, bool isSync, UInt32 duration, UInt32 compositionOffset, Int32 delta);
 

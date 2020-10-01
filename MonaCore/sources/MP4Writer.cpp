@@ -175,20 +175,24 @@ void MP4Writer::writeData(UInt8 track, Media::Data::Type type, const Packet& pac
 	// TODO: Add styl from ASS styles?
 }
 
-bool MP4Writer::computeSizeMoof(deque<Frames>& tracks, Int8 reset, UInt32& sizeMoof) {
+bool MP4Writer::computeSizeMoof(deque<Frames>& tracks, bool flushing, UInt32& sizeMoof) {
 	for (Frames& frames : tracks) {
 		if (!frames)
 			continue;
 		if (_sequence<14) // => trick to delay firefox play and bufferise more than 2 seconds before to start playing (when hasKey flags absent firefox starts to play! doesn't impact other browsers)
 			frames.hasKey = true;
 		if (frames.empty()) {
-			if (!reset) {
-				_bufferMinSize *= 2;
-				if (_bufferMinSize < BUFFER_RESET_SIZE)
-					return false; // wait bufferTime to get at less one media on this track!
-				_bufferMinSize = BUFFER_MIN_SIZE;
-				DEBUG("MP4 track removed");
+			if (flushing) {
+				// no track-frames on flush, we have no other choise than ignore all this sequence
+				_buffering = max(bufferTime - Util::Distance(_timeFront, _timeBack) - BUFFER_MIN_SIZE, BUFFER_RESET_SIZE);
+				_timeBack = _timeFront + BUFFER_MIN_SIZE;
+				return false;
 			}
+			_bufferMinSize *= 2;
+			if (_bufferMinSize < bufferTime)
+				return false; // wait bufferTime to get at less one media on this track!
+			_bufferMinSize = BUFFER_MIN_SIZE;
+			DEBUG("MP4 track removed");
 			_buffering = true; // just to write header now!
 			frames = nullptr;
 		} else
@@ -206,13 +210,13 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	UInt16 delta = Util::Distance(_timeFront, _timeBack);
 	if (!reset && delta < (_buffering ? _buffering : _bufferMinSize))
 		return;
+	// INFO(delta, " ", _audios[0].size(), " ", _videos[0].size());
 
 	// Search if there is empty track => MSE requires to get at less one media by track on each segment
 	// In same time compute sizeMoof!
 	UInt32 sizeMoof = 0;
-	if (!computeSizeMoof(_videos, reset, sizeMoof) || !computeSizeMoof(_audios, reset, sizeMoof))
-		return;// wait additionnal buffering
-	// INFO(delta, " ", _audios[0].size(), " ", _videos[0].size());
+	if (!computeSizeMoof(_videos, reset<0, sizeMoof) || !computeSizeMoof(_audios, reset<0, sizeMoof))
+		return;// wait additionnal buffering OR flushing!
 
 	for (Frames& datas : _datas) {
 		if (!datas.empty())
@@ -549,10 +553,10 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 		BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 	}
 	if (reset) {
-		if (reset < 0) { // end
+		if (reset < 0) { // end (flushing)
 			// End all tracks on the same _timeBack time to add a silence to allow on a onEnd/onBegin without interval (smooth transition, especially on chrome)
 			_timeBack += BUFFER_MIN_SIZE;
-			_buffering = bufferTime;
+			_buffering = max(bufferTime - BUFFER_MIN_SIZE, BUFFER_RESET_SIZE);
 		} else {
 			DEBUG("MP4 dynamic configuration change");
 			_buffering = BUFFER_RESET_SIZE;
@@ -623,8 +627,9 @@ void MP4Writer::writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, U
 		writer.write(EXPAND("\x00\x00\x00\x10""tfhd\x00\x02\x00\x00")); // 020000 => default_base_is_moof
 		writer.write32(track);
 	}
+	const Frame* pFrame = &frames.front();
 	// frames.front().time is necessary a more upper time than frames.lastTime because non-monotonic packet are removed in writeAudio/writeVideo
-	Int32 delta = Util::Distance(frames.lastTime, frames.front().time) - frames.lastDuration;
+	Int32 delta = Util::Distance(frames.lastTime, pFrame->time) - frames.lastDuration;
 	if (!frames.codec && delta < 0)
 		delta = 0; // Data track, just "duration conflict" has to be fixed (delta>0)
 	if (abs(delta)>6) { // if lastTime == _timeFront it's a silence added intentionaly to sync audio and video
@@ -632,13 +637,13 @@ void MP4Writer::writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, U
 		if (!frames.lastDuration && frames.lastTime == _timeFront)
 			INFO("Add ", delta, "ms of silence to track ", track)
 		else
-			WARN("Timestamp delta ", delta, " superior to 6 (", frames.lastDuration, "=>", (frames.front().time - frames.lastTime), ")");
+			WARN("Timestamp delta ", delta, " superior to 6 (", frames.lastDuration, "=>", (pFrame->time - frames.lastTime), ")");
 	}
 	{ // tfdt => required by https://w3c.github.io/media-source/isobmff-byte-stream-format.html
 	  // http://www.etsi.org/deliver/etsi_ts/126200_126299/126244/10.00.00_60/ts_126244v100000p.pdf
 	  // when any 'tfdt' is used, the 'elst' box if present, shall be ignored => tfdt time manage the offset!
 		writer.write(EXPAND("\x00\x00\x00\x10""tfdt\x00\x00\x00\x00"));
-		writer.write32(frames.front().time - delta);
+		writer.write32(pFrame->time - delta);
 	}
 	{ // trun
 		writer.write32(sizeTraf - (writer.size()- position));
@@ -652,13 +657,11 @@ void MP4Writer::writeTrack(BinaryWriter& writer, UInt32 track, Frames& frames, U
 		writer.write32(frames.size()); // array length
 		writer.write32(dataOffset); // data-offset
 
-		const Frame* pFrame = NULL;
 		UInt32 size = frames.writeConfig ? frames.config.size() : 0;
 		for (const Frame& nextFrame : frames) {
-			if (!pFrame) {
-				pFrame = &nextFrame;
-				continue;
-			}
+			if (pFrame == &nextFrame)
+				continue; // front
+
 			// medias is already a list sorted by time, so useless to check here if pMedia->tag.time inferior to pNext.time
 			delta = writeFrame(writer, frames, size += pFrame->size(), pFrame->isSync,
 				nextFrame.time - pFrame->time,
