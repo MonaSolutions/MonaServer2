@@ -106,7 +106,9 @@ bool IOSRTSocket::run(Exception& ex, const volatile bool& requestStop) {
 		int i;
 		if (result < 0) {
 			int error = ::srt_getlasterror(NULL);
-			if (error == SRT_ETIMEOUT || error == SRT_EINVPARAM) // ETIMEOUT is not an error, EINVPARAM can be received when no subscribers have been subscribed yet
+			// ETIMEOUT is not an error, EINVPARAM can be received when no subscribers have been subscribed yet
+			// 5014 can be received when the srt_epoll socket is not ready (note: alternative is to set flag SRT_EPOLL_ENABLE_EMPTY)
+			if (error == SRT_ETIMEOUT || error == SRT_EINVPARAM || error == 5014)
 				continue;
 			break;
 		}
