@@ -44,14 +44,14 @@ void SRTSession::init(SRTProtocol::Params& params) {
 	if (params.publish()) {
 		if (params.subscribe()) // Note: Bidirectional is not supported for now as a socket cannot be subcribed twice
 			WARN(name(), " unsupport Bidirectional mode, just publication is processing");
-		if ((_pPublication = api.publish(ex, peer, params.stream())) == NULL)
+		if ((_pPublication = api.publish(ex, peer, params.stream(), peer.query.c_str())) == NULL)
 			return kill(TO_ERROR(ex));
 		_pReader.set(MediaStream::TYPE_SRT, params.stream().c_str(), new TSReader(), *_pPublication, socket(), api.ioSocket);
 		_pReader->onStop = [this]() { kill(TO_ERROR(_pReader->ex)); };
 		_pReader->start(); // no pulse required, socket already ready
 	} else { // by default "subscribe"!
 		_pWriter.set(MediaStream::TYPE_SRT, params.stream().c_str(), new TSWriter(), socket(), api.ioSocket);
-		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter))))
+		if (!api.subscribe(ex, peer, params.stream(), *(_pSubscription = new Subscription(*_pWriter)), peer.query.c_str()))
 			return kill(TO_ERROR(ex));
 		_pWriter->onStop = [this]() { kill(TO_ERROR(_pWriter->ex)); };
 		_pWriter->start(); // no pulse required, socket already ready
