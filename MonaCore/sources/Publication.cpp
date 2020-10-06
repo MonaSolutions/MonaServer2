@@ -250,6 +250,8 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 				}
 				pVideo->waitKeyFrame = false;
 			}
+			if(tag.frame == Media::Video::FRAME_KEY)
+				DEBUG(name(), " KEYFRAME ", tag.time);
 			CCaption::OnText onText([this, track](UInt8 channel, shared<Buffer>& pBuffer) {
 			//	DEBUG("cc", channel, " => ", *pBuffer);
 				writeData(Media::Data::TYPE_TEXT, Packet(pBuffer), (track - 1) * 4 + channel);
