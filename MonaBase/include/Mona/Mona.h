@@ -308,23 +308,6 @@ inline const std::string& typeof() {
 	return Type;
 }
 
-template<typename MapType, typename ValType, typename Comparator>
-inline typename MapType::const_iterator lower_bound(MapType& map, ValType&& value, Comparator&& compare) {
-	typename MapType::const_iterator it, result(map.begin());
-	UInt32 count(map.size()), step;
-	while (count) {
-		it = result;
-		step = count / 2;
-		std::advance(it, step);
-		if (compare(it, std::forward<ValType>(value))) {
-			result = ++it;
-			count -= step + 1;
-		} else
-			count = step;
-	}
-	return result;
-}
-
 template <typename Type>
 class is_container : virtual Static {
 	template<typename C> static char(&B(typename std::enable_if<

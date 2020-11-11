@@ -20,6 +20,7 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/Media.h"
+#include <algorithm>
 
 
 namespace Mona {
@@ -146,9 +147,12 @@ protected:
 			return NULL;
 		// by default remove children on stop, add Target user can simply cancel it in reset onStop to null!
 		pTarget->onStop = [this, &target = *pTarget]() {
-			const auto& it = lower_bound(_targets, target, [](const std::set<shared<const MediaStream>>::const_iterator& it, StreamType& target) {
-				return  ToPointer(*it) < ToPointer(target);
-			});
+			static struct Comparator {
+				bool operator()(const shared<const MediaStream>& pTarget, const StreamType& target) {
+					return  ToPointer(pTarget) < ToPointer(target);
+				}
+			} CompareTarget;
+			const auto& it = std::lower_bound(_targets.begin(), _targets.end(), target, CompareTarget);
 			if (it != _targets.end() && it->get() == &target)
 				_targets.erase(it);
 		};
