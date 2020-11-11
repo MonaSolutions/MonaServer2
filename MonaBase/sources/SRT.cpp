@@ -134,7 +134,11 @@ int SRT::Socket::ListenCallback(void* opaq, SRTSOCKET ns, int hsversion, const s
 };
 
 SRT::Socket::Socket() : Mona::Socket(TYPE_OTHER), _shutdownRecv(false) {
+#if (SRT_VERSION_VALUE < 0x10402)
+	_id = ::srt_socket(AF_INET6, SOCK_DGRAM, 0);
+#else
 	_id = ::srt_create_socket();
+#endif
 	if (_id == ::SRT_INVALID_SOCK) {
 		_id = NET_INVALID_SOCKET; // to avoid NET_CLOSESOCKET in Mona::Socket destruction
 		SetException(_ex);
