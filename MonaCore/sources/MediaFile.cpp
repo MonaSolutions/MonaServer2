@@ -153,12 +153,12 @@ void MediaFile::Reader::stopping() {
 
 
 unique<MediaFile::Writer> MediaFile::Writer::New(Exception& ex, const char* request, IOFile& io, string&& format) {
-	bool isM3U8 = String::ICompare(format, EXPAND("x-mpegURL")) == 0;
-	if (isM3U8) // just valid for MediaFile::Writer => M3U8 + TSWriter!
-		format = "ts";
 	Path path(move(format));
 	if (!(request = MediaStream::Format(ex, MediaStream::TYPE_FILE, request, path)))
 		return nullptr;
+	bool isM3U8 = String::ICompare(request, EXPAND("x-mpegURL")) == 0;
+	if (isM3U8) // just valid for MediaFile::Writer => M3U8 + TSWriter!
+		request = "ts";
 	unique<MediaWriter> pWriter = MediaWriter::New(request);
 	if (!pWriter) {
 		ex.set<Ex::Unsupported>("File stream with unsupported format ", request);

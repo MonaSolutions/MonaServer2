@@ -22,7 +22,7 @@ using namespace std;
 
 namespace Mona {
 
-bool Segments::MathSegment(const Path& path, const Path& file, UInt32& sequence) {
+bool Segments::MatchSegment(const Path& path, const Path& file, UInt32& sequence) {
 	if (file.extension() != path.extension())
 		return false; // not same extension!
 	if (file.baseName().compare(0, path.baseName().size(), path.baseName()) != 0)
@@ -38,7 +38,7 @@ bool Segments::MathSegment(const Path& path, const Path& file, UInt32& sequence)
 bool Segments::Clear(Exception &ex, const Path& path, IOFile& io) {
 	FileSystem::ForEach forEach([&path, &io](const string& file, UInt16 level) {
 		Path filePath(file);
-		if(MathSegment(path, filePath))
+		if(MatchSegment(path, filePath))
 			FileWriter(io).open(filePath).erase(); // asynchronous deletion!
 		return true;
 	});
@@ -49,7 +49,7 @@ UInt32 Segments::NextSequence(Exception &ex, const Path& path, IOFile& io) {
 	UInt32 lastSequence = 0;
 	FileSystem::ForEach forEach([&path, &lastSequence](const string& file, UInt16 level) {
 		UInt32 sequence;
-		if (MathSegment(path, file, sequence) && sequence > lastSequence)
+		if (MatchSegment(path, file, sequence) && sequence > lastSequence)
 			lastSequence = sequence;
 		return true;
 	});
@@ -60,9 +60,12 @@ UInt32 Segments::NextSequence(Exception &ex, const Path& path, IOFile& io) {
 bool Segments::Writer::newSegment(const OnWrite& onWrite) {
 	if (!sequences || ++_sequence<sequences)
 		return false; // wait sequences!
+
+	_pWriter->endMedia(onWrite);
 	_sequence = 0;
 	onSegment(_lastTime - _segTime);
 	_segTime = _lastTime;
+	_pWriter->beginMedia(onWrite);
 
 	// Rewrite properties + configs to make segment readable individualy
 	// properties

@@ -35,8 +35,8 @@ struct Segments : virtual Static {
 	static bool   Clear(Exception& ex, const Path& path, IOFile& io);
 	static UInt32 NextSequence(Exception &ex, const Path& path, IOFile& io);
 	static Path	  Segment(const Path& path, UInt32 sequence) { return Path(path.parent(), SEGMENT(path.baseName(), sequence, path.extension())); }
-	static bool   MathSegment(const Path& path, const Path& file) { UInt32 sequence; return MathSegment(path, file, sequence); }
-	static bool   MathSegment(const Path& path, const Path& file, UInt32& sequence);
+	static bool   MatchSegment(const Path& path, const Path& file) { UInt32 sequence; return MatchSegment(path, file, sequence); }
+	static bool   MatchSegment(const Path& path, const Path& file, UInt32& sequence);
 
 	struct Writer : MediaWriter, virtual Object {
 		typedef Event<void(UInt32 duration)> ON(Segment);

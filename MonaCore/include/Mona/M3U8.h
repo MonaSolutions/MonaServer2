@@ -21,8 +21,6 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
-/*!
-Tool to compute queue congestion */
 struct M3U8 : virtual Static {
 
 	struct Writer : Playlist::Writer, virtual Object {

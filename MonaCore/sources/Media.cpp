@@ -274,7 +274,7 @@ void Media::Properties::addProperties(UInt8 track, Media::Data::Type type, const
 	// keep _packets.empty condition BEFORE count() condition to avoid a overflow call while onParamInit (count() can call onParamInit)
 	if (type && _packets.empty() && !count()) { 
 		_packets.resize(type);
-		_packets.back().set(packet);
+		_packets.back().set(move(packet));
 		_track = track;
 		return;
 	}
