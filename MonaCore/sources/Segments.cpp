@@ -61,13 +61,12 @@ bool Segments::Writer::newSegment(const OnWrite& onWrite) {
 	if (!sequences || ++_sequence<sequences)
 		return false; // wait sequences!
 
-	_pWriter->endMedia(onWrite);
 	_sequence = 0;
 	onSegment(_lastTime - _segTime);
 	_segTime = _lastTime;
-	_pWriter->beginMedia(onWrite);
 
 	// Rewrite properties + configs to make segment readable individualy
+	_pWriter->beginMedia(onWrite);
 	// properties
 	if (_pProperties)
 		_pWriter->writeProperties(Media::Properties(_pProperties->track, _pProperties->tag, *_pProperties), onWrite);
