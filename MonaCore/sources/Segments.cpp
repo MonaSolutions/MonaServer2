@@ -76,10 +76,18 @@ bool Segments::Writer::newSegment(const OnWrite& onWrite) {
 	}
 	UInt32 lastTime = this->lastTime();
 	// change sequences if DURATION_TIMEOUT
-	if (Util::Distance(_segTime, lastTime) < DURATION_TIMEOUT) {
-		// wait number of sequences requested, or wait DURATION_TIMEOUT
-		if (!_keying || !sequences || _sequence < sequences)
+	Int32 duration = Util::Distance(_segTime, lastTime);
+	Int32 rest = DURATION_TIMEOUT - duration;
+	if (rest>=0) {
+		// wait number of sequences requested in trying to keep a key on start of sequence
+		if (!_keying || !_sequence)
 			return false;
+		// look if rest time to add one new key-frames sequence again
+		if (rest >= (duration / _sequence)) {
+			// check if sequences defined reached
+			if(!sequences || _sequence < sequences)
+				return false;
+		}
 	}
 
 	// end

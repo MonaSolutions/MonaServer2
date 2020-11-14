@@ -85,7 +85,7 @@ void Publication::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
 
 void Publication::startRecording(unique<MediaFile::Writer>&& pRecorder, bool append) {
 	stopRecording();
-	pRecorder->start(); // start MediaFile::Writer before subscription!
+	pRecorder->start(self); // start MediaFile::Writer before subscription!
 	NOTE("Start ", _name, "=>", pRecorder->path.name(), " recording");
 	_pRecording.set(*pRecorder.release());
 	_pRecording->pPublication = this;
