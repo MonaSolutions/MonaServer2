@@ -44,6 +44,9 @@ struct Segments : virtual Static {
 		Writer(const shared<MediaWriter>& pWriter, UInt8 sequences=1) : _pWriter(pWriter), sequences(sequences) {}
 
 		UInt8 sequences;
+		
+		UInt32 currentTime() const;
+		UInt32 lastTime() const;
 
 		const char*	format() const { return _pWriter->format(); }
 		virtual MIME::Type	mime() const { return _pWriter->mime(); }
@@ -64,12 +67,12 @@ struct Segments : virtual Static {
 		std::map<UInt8, Media::Audio::Config>	_audioConfigs;
 		std::map<UInt8, Media::Video::Config>	_videoConfigs;
 		bool									_keying;
-		UInt32									_segTime;
 		bool									_first;
-		bool									_firstVideo;
-		UInt32									_lastTime;
-		
 		UInt8									_sequence;
+
+		UInt32									_segTime;
+		unique<UInt32>							_pAudioTime;
+		unique<UInt32>							_pVideoTime;
 	};
 };
 

@@ -57,46 +57,75 @@ UInt32 Segments::NextSequence(Exception &ex, const Path& path, IOFile& io) {
 }
 
 
-bool Segments::Writer::newSegment(const OnWrite& onWrite) {
-	if (!sequences || ++_sequence<sequences)
-		return false; // wait sequences!
+UInt32 Segments::Writer::lastTime() const {
+	if (!_pVideoTime)
+		return _pAudioTime ? *_pAudioTime : 0;
+	return (_pAudioTime && Util::Distance(*_pVideoTime, *_pAudioTime) > 0) ? *_pAudioTime : *_pVideoTime;
+}
+UInt32 Segments::Writer::currentTime() const {
+	if (!_pVideoTime)
+		return _pAudioTime ? *_pAudioTime : 0;
+	return (_pAudioTime && Util::Distance(*_pAudioTime, *_pVideoTime) > 0) ? *_pAudioTime : *_pVideoTime;
+}
 
+bool Segments::Writer::newSegment(const OnWrite& onWrite) {
+	if (_first) {
+		_first = false;
+		_segTime = this->currentTime();
+		return false;
+	}
+	UInt32 lastTime = this->lastTime();
+	// change sequences if DURATION_TIMEOUT
+	if (Util::Distance(_segTime, lastTime) < DURATION_TIMEOUT) {
+		// wait number of sequences requested, or wait DURATION_TIMEOUT
+		if (!_keying || !sequences || _sequence < sequences)
+			return false;
+	}
+
+	// end
+	_pWriter->endMedia(onWrite);
+	onSegment(lastTime - _segTime);
+	_segTime = lastTime;
+
+	// begin
 	_sequence = 0;
-	onSegment(_lastTime - _segTime);
-	_segTime = _lastTime;
+	_keying = false;
+	_pWriter->beginMedia(onWrite);
 
 	// Rewrite properties + configs to make segment readable individualy
-	_pWriter->beginMedia(onWrite);
 	// properties
 	if (_pProperties)
-		_pWriter->writeProperties(Media::Properties(_pProperties->track, _pProperties->tag, *_pProperties), onWrite);
+		_pWriter->writeProperties(Media::Properties(0, _pProperties->tag, *_pProperties), onWrite);
 	// send config audio + video!
 	for (auto& it : _videoConfigs) {
 		// fix DTS, can provoke warning in VLC if next frame has compositionOffset (picture too late),
 		// but we can ignore it: doesn't impact playing or individual segment play
-		it.second.time = _lastTime;
+		it.second.time = lastTime;
 		_pWriter->writeVideo(it.first, it.second, it.second, onWrite);
 	}
 	for (auto& it : _audioConfigs) {
-		it.second.time = _lastTime;
+		it.second.time = lastTime;
 		_pWriter->writeAudio(it.first, it.second, it.second, onWrite);
 	}
 	return true;
 }
 
 void Segments::Writer::beginMedia(const OnWrite& onWrite) {
-	_firstVideo = _first = true;
+	_first = true;
 	_keying = false;
 	_sequence = 0;
 	_pWriter->beginMedia(onWrite);
 }
 void Segments::Writer::endMedia(const OnWrite& onWrite) {
+	_pWriter->endMedia(onWrite);
+	if (!_first)
+		onSegment(lastTime() - _segTime); // last segment, doesn't matter if not the exact duration
+	// release resources
 	_audioConfigs.clear();
 	_videoConfigs.clear();
 	_pProperties.reset();
-	_pWriter->endMedia(onWrite);
-	if (!_first)
-		onSegment(_lastTime - _segTime); // last segment, doesn't matter if not the exact duration
+	_pAudioTime.reset();
+	_pVideoTime.reset();
 }
 void Segments::Writer::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
 	Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
@@ -106,15 +135,12 @@ void Segments::Writer::writeProperties(const Media::Properties& properties, cons
 }
 void Segments::Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!tag.isConfig) {
-		_lastTime = tag.time;
-		if (_first) {
-			_first = false;
-			_segTime = tag.time;
-		} else if (Util::Distance(_segTime, tag.time) >= DURATION_TIMEOUT)
-			newSegment(onWrite);
+		PTR_SET(_pAudioTime, tag.time);
+		newSegment(onWrite);
 	}
 	_pWriter->writeAudio(track, tag, packet, onWrite);
 	if (tag.isConfig) {
+		// to support audio without config packet before => remove config packet
 		if (packet)
 			_audioConfigs[track].set(tag, packet);
 		else
@@ -124,37 +150,35 @@ void Segments::Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, con
 void Segments::Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	switch (tag.frame) {
 		case Media::Video::FRAME_CONFIG:
-			// to support multitrack video without config packet before
+			// to support video without config packet before => remove config packet
 			if (packet)
 				_videoConfigs[track].set(tag, packet);
 			else
 				_videoConfigs.erase(track);
 			_keying = false;
+			// return => not write it immediatly if we change of sequence after key
 			return;
 		case Media::Video::FRAME_KEY:
-			_lastTime = tag.time;
-			if (!_keying) { // to support multitrack video
+			PTR_SET(_pVideoTime, tag.time);
+			// change of sequence just on key frame (or audio if DURATION_TIMEOUT)
+			if (!_keying) { // to support multitrack video => change sequence on first video key of any track!
 				_keying = true;
-				if (!_firstVideo && newSegment(onWrite))
-					return _pWriter->writeVideo(track, tag, packet, onWrite);
-				// first video
-				for (const auto& it : _videoConfigs)
-					_pWriter->writeVideo(it.first, it.second, it.second, onWrite);
-				_firstVideo = false;
+				if (!newSegment(onWrite)) {
+					// write all config packet "skip"
+					for (const auto& it : _videoConfigs)
+						_pWriter->writeVideo(it.first, it.second, it.second, onWrite);
+				}
+				++_sequence; // after newSegment to avoid to segment on first video
 			}
 			break;
 		case Media::Video::FRAME_INTER:
 		case Media::Video::FRAME_DISPOSABLE_INTER:
 			_keying = false;
 		default:
-			_lastTime = tag.time;
+			PTR_SET(_pVideoTime, tag.time);
+			newSegment(onWrite);
 	}
 	// not config!
-	if (_first) {
-		_first = false;
-		_segTime = tag.time;
-	} else if (Util::Distance(_segTime, tag.time) >= DURATION_TIMEOUT)
-		newSegment(onWrite);
 	_pWriter->writeVideo(track, tag, packet, onWrite);
 }
 

@@ -44,6 +44,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 #define STRINGIFY_(x) #x
 #define LINE_STRING STRINGIFY(__LINE__)
 #define FOURCC(a,b,c,d) uint32_t( ((a)<<24) | ((b)<<16) | ((c)<<8) | (d) )
+#define PTR_SET(PTR, VALUE)  PTR ? (*PTR = VALUE) : PTR.set(VALUE)
 
 
 #if defined(_WIN32)

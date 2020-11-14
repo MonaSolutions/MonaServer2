@@ -96,6 +96,7 @@ void TSWriter::beginMedia(const OnWrite& onWrite) {
 	_timePMT = 0;
 	_changed = true;
 	// Don't reset _version to allow to player to detect change
+	// Don't reset _pids to be compatible with video in multiple file sequence (as HLS, see Sequences class)
 }
 
 void TSWriter::endMedia(const OnWrite& onWrite) {
@@ -111,7 +112,6 @@ void TSWriter::endMedia(const OnWrite& onWrite) {
 		it.second->endMedia();
 	_videos.clear();
 	_audios.clear();
-	_pids.clear();
 }
 
 void TSWriter::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
