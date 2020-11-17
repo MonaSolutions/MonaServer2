@@ -123,7 +123,7 @@ bool Session::manage() {
 		return true;
 	// If peer connected => control sending and receiving activity
 	// If peer not connected => control time taking to (re)call onConnection
-	if (peer ? (!peer.recvTime().isElapsed(timeout) || !peer.sendTime().isElapsed(timeout)) : peer.disconnection.isElapsed(timeout))
+	if (peer ? (!peer.recvTime().isElapsed(timeout) || !peer.sendTime().isElapsed(timeout)) : !peer.disconnection.isElapsed(timeout))
 		return true;
 	LOG(String::ICompare(_protocol.name, EXPAND("HTTP"))==0 ? LOG_DEBUG : LOG_INFO, name(), " timeout connection");
 	close(ERROR_IDLE);
