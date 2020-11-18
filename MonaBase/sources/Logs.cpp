@@ -78,11 +78,14 @@ void Logs::SetDump(const char* name) {
 	_DumpFilter = name;
 	if (_DumpFilter.empty())
 		return;
-	if (_DumpFilter.back() == '>') {
-		_DumpRequest = false;
-		_DumpFilter.pop_back();
-	} else if (_DumpFilter.back() == '<') {
+	
+	if (_DumpFilter.back() == '<') {
+		// dump request
 		_DumpResponse = false;
+		_DumpFilter.pop_back();
+	} else if (_DumpFilter.back() == '>') {
+		// dump response
+		_DumpRequest = false;
 		_DumpFilter.pop_back();
 	}
 }

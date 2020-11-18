@@ -286,6 +286,10 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	// in last because will disconnect
 	TCPSession::kill(error, reason);
 
+	// release events before _pWriter to avoid a crash on _pWriter access
+	_fileWriter.onFlush = nullptr;
+	_fileWriter.onError = nullptr;
+
 	// release resources (sockets)
 	_pWriter.reset();
 }

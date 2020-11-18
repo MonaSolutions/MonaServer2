@@ -40,6 +40,7 @@ struct MP4Writer : MediaWriter, virtual Object {
 	// - "no chunk defined" => normal for fMP4
 	// - "STTS table of 0 entries" => normal for fMP4
 	// - "Fragment sequence discontinuity detected 1 != 0" => ISO says well to start moof sequence to 1 and not 0
+	// - "mdat had still 5343 bytes unparsed as samples" => happen on data frame
 
 	enum : UInt16 {
 		BUFFER_MIN_SIZE		 = 100,
