@@ -356,7 +356,8 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		}
 		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD)
 		// Subscribe for a live stream with the basename file as stream name
-		if (!file.isFolder()) {
+		if (file.isFolder()) {
+			bool isPlaylist = false;
 			switch (request->mime) {
 				case MIME::TYPE_TEXT:
 					// subtitle?
@@ -369,6 +370,9 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 					// subtitle?
 					if (String::ICompare(file.extension(), "srt") == 0)
 						break;
+					// m3u8?
+					if((isPlaylist = String::ICompare(file.extension(), "m3u8") == 0))
+						break;
 				default:;
 					return _pWriter->writeFile(file, fileProperties);
 			}
@@ -378,17 +382,56 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 			if (request->query == "?") {
 				// request publication properties!
 				const auto& it = api.publications().find(file.baseName());
-				if (it == api.publications().end())
-					_pWriter->writeError(HTTP_CODE_404, "Publication ", file.baseName(), " unfound");
-				else
-					MapReader<Parameters>(it->second).read(_pWriter->writeResponse("json"));
-			} else if (request->type == HTTP::TYPE_HEAD) {
+				if (it != api.publications().end()) {
+					DataWriter& writer = _pWriter->writeResponse("json");
+					if (request->type != HTTP::TYPE_HEAD)
+						MapReader<Parameters>(it->second).read(writer);
+				} else // send the information immediatly => doesn't exist!
+					_pWriter->writeError(HTTP_CODE_404, "Publication or file ", file.baseName(), " doesn't exist");
+				return;
+			}
+			if (request->type == HTTP::TYPE_HEAD) {
 				// HEAD, want just immediatly the header format of audio/video live streaming!
 				HTTP_BEGIN_HEADER(*_pWriter->writeResponse())
 					HTTP_ADD_HEADER_LINE(HTTP_LIVE_HEADER)
 				HTTP_END_HEADER
-			} else
-				subscribe(ex, file.baseName());
+				return;
+			}
+			Int32 sequence;
+			UInt16 duration;
+			size_t size;
+			if (isPlaylist || request->getNumber("segment", sequence)
+				|| ((size = Segment::ReadName(file.baseName(), (UInt32&)sequence, duration)) != string::npos)) {
+				string publication = file.baseName();
+				if (size != string::npos)
+					publication.resize(size);
+				const auto& it = api.publications().find(publication);
+				if (it != api.publications().end()) {
+					const Segments& segments(it->second.segments);
+					if (segments) {
+						if(isPlaylist)
+							return _pWriter->writePlaylist(segments);
+						if (size == string::npos) {
+							// sequence is segment index, transforms it in negative to be comptible with segments access by index
+							/// test.ts?segment = 0, last segment => -1
+							/// test.ts?segment = -1, before last segment => -2
+							/// test.ts?segment = 1, first segment => -count()
+							if (sequence > 0)
+								sequence -= segments.count();
+							--sequence;
+						}
+						const Segment& segment = segments(sequence);
+						if (segment) {
+							if(size == string::npos || duration == segment.duration())
+								return _pWriter->writeSegment(segment, fileProperties);
+						} else if(sequence<0) // informs on segment argument error
+							_pWriter->writeError(HTTP_CODE_404, "Publication segment ", publication, ' ', sequence, " unavailable");	
+					} else if(sequence<0) // informs on segment argument error
+						_pWriter->writeError(HTTP_CODE_503, "Publication ", publication, " has no segmentation, publisher has to publish with 'segments' parameter");
+				} else if(sequence<0) // informs on segment argument error
+					return _pWriter->writeError(HTTP_CODE_404, "Publication or file ", publication, " doesn't exist");
+			}
+			subscribe(ex, file.baseName());
 			return;
 		}
 	}

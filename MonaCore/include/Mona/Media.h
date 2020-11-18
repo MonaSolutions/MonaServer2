@@ -161,11 +161,13 @@ struct Media : virtual Static {
 			explicit Tag() : frame(FRAME_UNSPECIFIED), compositionOffset(0), time(0) {}
 			explicit Tag(Media::Video::Codec codec) : codec(codec), frame(FRAME_UNSPECIFIED), compositionOffset(0), time(0) {}
 			explicit Tag(const Tag& other) { set(other); }
+			explicit Tag(const Tag& other, UInt32 time) { set(other, time); }
 
-			Tag& set(const Tag& other) {
+			Tag& set(const Tag& other) { return set(other, other.time); }
+			Tag& set(const Tag& other, UInt32 time) {
+				this->time = time;
 				codec = other.codec;
 				frame = other.frame;
-				time = other.time;
 				compositionOffset = other.compositionOffset;
 				return self;
 			}
@@ -224,15 +226,18 @@ struct Media : virtual Static {
 			explicit Tag() : rate(0), channels(0), isConfig(false), time(0) {}
 			explicit Tag(Media::Audio::Codec codec) : codec(codec), rate(0), channels(0), isConfig(false), time(0) {}
 			explicit Tag(const Tag& other) { set(other); }
+			explicit Tag(const Tag& other, UInt32 time) { set(other, time); }
 	
-			Tag& set(const Tag& other) {
+			Tag& set(const Tag& other) { return set(other, other.time); }
+			Tag& set(const Tag& other, UInt32 time) {
+				this->time = time;
 				codec = other.codec;
 				isConfig = other.isConfig;
-				time = other.time;
 				channels = other.channels;
 				rate = other.rate;
 				return self;
 			}
+			
 			void reset() {
 				time = rate = 0;
 				channels = 0;

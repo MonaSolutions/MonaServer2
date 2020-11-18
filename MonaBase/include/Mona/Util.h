@@ -85,6 +85,8 @@ struct Util : virtual Static {
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
 
 	template <typename BufferType>
+	static BufferType& ToBase64URL(const UInt8* data, UInt32 size, BufferType& buffer, bool append = false) { return ToBase64<BufferType, true>(data, size, buffer, append); }
+	template <typename BufferType, bool url=false>
 	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
 		UInt32 accumulator(buffer.size()),bits(0);
 
@@ -99,31 +101,35 @@ struct Util : virtual Static {
 		current += accumulator;
 
 		const UInt8* endData = data + size;
-		
+		const auto& table = url ? _B64urlTable : _B64Table;
+	
 		accumulator = 0;
 		while(data<endData) {
 			accumulator = (accumulator << 8) | (*data++ & 0xFFu);
 			bits += 8;
 			while (bits >= 6) {
 				bits -= 6;
-				*current++ = _B64Table[(accumulator >> bits) & 0x3Fu];
+				*current++ = table[(accumulator >> bits) & 0x3Fu];
 			}
 		}
 		if (bits > 0) { // Any trailing bits that are missing.
 			accumulator <<= 6 - bits;
-			*current++ = _B64Table[accumulator & 0x3Fu];
+			*current++ = table[accumulator & 0x3Fu];
 		}
-		while (current<end) // padding with '='
-			*current++ = '=';
+		if(end>current) // rectify the size
+			buffer.resize(buffer.size() - (end - current));
 		return buffer;
 	}
 
-
 	template <typename BufferType>
-	static bool FromBase64(BufferType& buffer) { return FromBase64(BIN buffer.data(), buffer.size(), buffer); }
-
+	static bool FromBase64URL(BufferType& buffer) { return FromBase64<BufferType, true>(BIN buffer.data(), buffer.size(), buffer); }
 	template <typename BufferType>
-	static bool FromBase64(const UInt8* data, UInt32 size,BufferType& buffer, bool append=false) {
+	static bool FromBase64URL(const UInt8* data, UInt32 size, BufferType& buffer, bool append = false) { return FromBase64<BufferType, true>(data, size, buffer, append); }
+	
+	template <typename BufferType, bool url = false>
+	static bool FromBase64(BufferType& buffer) { return FromBase64<BufferType, url>(BIN buffer.data(), buffer.size(), buffer); }
+	template <typename BufferType, bool url=false>
+	static bool FromBase64(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
 		if (!buffer.data())
 			return false; // to expect null writer 
 
@@ -138,9 +144,16 @@ struct Util : virtual Static {
 		accumulator = size = 0;
 
 		while(data<end) {
-			const int c = *data++;
+			int c = *data++;
 			if (isspace(c) || c == '=')
 				continue;
+
+			if (url) {
+				if (c == '_')
+					c = '/';
+				else if (c == '-')
+					c = '+';
+			}
 
 			if ((c > 127) || (c < 0) || (_ReverseB64Table[c] > 63)) {
 				// reset the oldSize
@@ -163,6 +176,7 @@ struct Util : virtual Static {
 
 private:
 	static const char						_B64Table[65];
+	static const char						_B64urlTable[65];
 	static const char						_ReverseB64Table[128];
 };
 

@@ -51,6 +51,7 @@ struct File : virtual Object {
 	~File();
 
 	const Mode  mode;
+	Path		releasePath; // path on close
 
 	operator const Path&() const { return _path; }
 
@@ -93,7 +94,7 @@ struct File : virtual Object {
 	Create file or folder */
 	bool				create(Exception& ex) { return write(ex, NULL, 0); }
 
-	void				reset(UInt64 position = 0);
+	bool				reset(UInt64 position = 0);
 
 private:
 	Path				_path;

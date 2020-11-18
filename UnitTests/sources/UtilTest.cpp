@@ -71,13 +71,14 @@ ADD_TEST(distance) {
 }
 
 
-bool TestEncode(const char* data,UInt32 size, const char* result) {
+template<bool url = false>
+static bool TestEncode(const char* data,UInt32 size, const char* result) {
 	static string Value;
-	return Util::ToBase64(BIN data, size, Value) == result;
+	return Util::ToBase64<string, url>(BIN data, size, Value) == result;
 }
-
-bool TestDecode(string data, const char* result, UInt32 size) {
-	return Util::FromBase64(data) && memcmp(data.c_str(),result,size)==0;
+template<bool url = false>
+static bool TestDecode(string data, const char* result, UInt32 size) {
+	return Util::FromBase64<string, url>(data) && memcmp(data.c_str(),result,size)==0;
 }
 
 ADD_TEST(Generators) {
@@ -90,7 +91,7 @@ ADD_TEST(Generators) {
 
 ADD_TEST(Base64) {
 	CHECK(TestEncode(EXPAND("\00\01\02\03\04\05"),"AAECAwQF"));
-	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw=="));
+	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw"));
 	CHECK(TestEncode(EXPAND("ABCDEF"),"QUJDREVG"));
 
 	CHECK(TestDecode("AAECAwQF", EXPAND("\00\01\02\03\04\05")));
@@ -105,13 +106,21 @@ ADD_TEST(Base64) {
 	CHECK(Util::FromBase64(Result) && Result==Message);
 	CHECK(Result==Message);
 
-
 	UInt8 data[255];
 	for (UInt8 i = 0; i < 255; ++i)
 		data[i] = i;
 	Util::ToBase64(data, sizeof(data), Result);
 	CHECK(Util::FromBase64(Result));
 	CHECK(memcmp(Result.data(), data, sizeof(data)) == 0);
+
+	// CHECK Base64URL (on UInt16 encoding)
+	for (UInt16 i = 0; i < 0xFFFF; ++i) {
+		UInt16 bin = Byte::To16Network(i);
+		Util::ToBase64URL(BIN &bin, 2, Result);
+		CHECK(Result.size() == 3);
+		Util::FromBase64URL(Result);
+		CHECK(Byte::From16Network(*(UInt16*)Result.data()) == i);
+	}
 }
 
 

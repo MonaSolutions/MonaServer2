@@ -48,18 +48,22 @@ static int writeProperties(lua_State *pState) {
 }
 static int writeAudio(lua_State *pState) {
 	SCRIPT_CALLBACK(MediaWriter, writer)
-		LUAMedia::Tag::Writer tagWriter(LUAMedia::Tag::Writer::TYPE_AUDIO);
-		SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_NEXT_READABLE).read(tagWriter, 1));
+		LUAMedia::Tag::Writer tag(LUAMedia::Tag::Writer::TYPE_AUDIO);
+		if (SCRIPT_NEXT_TYPE == LUA_TNUMBER) // to be compatible with a mapping Media::Target => Media::Source (ex: Subcription::on## => Publication)
+			tag.track = SCRIPT_READ_UINT8(1);
+		SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_NEXT_READABLE).read(tag, 1));
 		SCRIPT_READ_PACKET(packet);
-		writer.writeAudio(SCRIPT_NEXT_READABLE ? SCRIPT_READ_UINT8(tagWriter.track) : tagWriter.track, tagWriter.audio(), packet, OnWrite(pState));
+		writer.writeAudio(SCRIPT_NEXT_READABLE ? SCRIPT_READ_UINT8(tag.track) : tag.track, tag.audio(), packet, OnWrite(pState));
 	SCRIPT_CALLBACK_RETURN
 }
 static int writeVideo(lua_State *pState) {
 	SCRIPT_CALLBACK(MediaWriter, writer)
-		LUAMedia::Tag::Writer tagWriter(LUAMedia::Tag::Writer::TYPE_VIDEO);
-		SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_NEXT_READABLE).read(tagWriter, 1));
+		LUAMedia::Tag::Writer tag(LUAMedia::Tag::Writer::TYPE_VIDEO);
+		if (SCRIPT_NEXT_TYPE == LUA_TNUMBER) // to be compatible with a mapping Media::Target => Media::Source (ex: Subcription::on## => Publication)
+			tag.track = SCRIPT_READ_UINT8(1);
+		SCRIPT_READ_NEXT(ScriptReader(pState, SCRIPT_NEXT_READABLE).read(tag, 1));
 		SCRIPT_READ_PACKET(packet);
-		writer.writeVideo(SCRIPT_NEXT_READABLE ? SCRIPT_READ_UINT8(tagWriter.track) : tagWriter.track, tagWriter.video(), packet, OnWrite(pState));
+		writer.writeVideo(SCRIPT_NEXT_READABLE ? SCRIPT_READ_UINT8(tag.track) : tag.track, tag.video(), packet, OnWrite(pState));
 	SCRIPT_CALLBACK_RETURN
 }
 static int writeData(lua_State *pState) {
@@ -96,12 +100,7 @@ static int endMedia(lua_State *pState) {
 template<> void Script::ObjInit(lua_State *pState, MediaWriter& writer) {
 	SCRIPT_BEGIN(pState)
 		lua_pushlightuserdata(pState, new MediaWriter::OnWrite([pState, &writer](const Packet& packet) {
-			SCRIPT_BEGIN(pState)
-				SCRIPT_MEMBER_FUNCTION_BEGIN(writer, "onWrite")
-					SCRIPT_WRITE_PACKET(packet)
-					SCRIPT_FUNCTION_CALL
-				SCRIPT_FUNCTION_END
-			SCRIPT_END
+			Script::NewObject(pState, new Packet(packet));
 		}));
 		lua_rawseti(pState, -3, 0);
 

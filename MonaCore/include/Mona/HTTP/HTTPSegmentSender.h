@@ -20,24 +20,35 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/HTTP/HTTPSender.h"
+#include "Mona/Segment.h"
 
 
 namespace Mona {
 
 /*!
-folder index view */
-struct HTTPFolderSender : HTTPSender, virtual Object {
+Segment send */
+struct HTTPSegmentSender : HTTPSender, private Media::Target, virtual Object {
 	
-	HTTPFolderSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
-		const Path& folder, Parameters& properties);
+	HTTPSegmentSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
+		const Segment& segment, Parameters& properties);
 
-	const Path& path() const { return _folder; }
+
 private:
+	const Path& path() const { return pRequest->path; }
 
 	void  run();
 
+	bool beginMedia(const std::string& name);
+	bool writeProperties(const Media::Properties& properties);
+	bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
+	bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
+	bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
+	bool endMedia();
+
+	MediaWriter::OnWrite	_onWrite;
+	unique<MediaWriter>		_pWriter;
+	const Segment			_segment;
 	Parameters				_properties;
-	Path					_folder;
 };
 
 

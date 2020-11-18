@@ -569,7 +569,7 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 	writer.write(EXPAND("moof"));
 	{	// mfhd
 		writer.write(EXPAND("\x00\x00\x00\x10""mfhd\x00\x00\x00\x00"));
-		writer.write32(++_sequence); // starts from 1!
+		writer.write32(++_sequence); 
 	}
 
 	UInt32 dataOffset(sizeMoof + 8); // 8 for [size]mdat

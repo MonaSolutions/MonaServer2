@@ -219,6 +219,8 @@
     <ClInclude Include="include\Mona\HTTP\HTTPFileSender.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPFolderSender.h" />
     <ClInclude Include="include\Mona\HTTP\HTTPMediaSender.h" />
+    <ClInclude Include="include\Mona\HTTP\HTTPPlaylistSender.h" />
+    <ClInclude Include="include\Mona\HTTP\HTTPSegmentSender.h" />
     <ClInclude Include="include\Mona\ICE.h" />
     <ClInclude Include="include\Mona\M3U8.h" />
     <ClInclude Include="include\Mona\MapReader.h" />
@@ -256,6 +258,7 @@
     <ClInclude Include="include\Mona\RTP_H264.h" />
     <ClInclude Include="include\Mona\RTP_MPEG.h" />
     <ClInclude Include="include\Mona\SDP.h" />
+    <ClInclude Include="include\Mona\Segment.h" />
     <ClInclude Include="include\Mona\Segments.h" />
     <ClInclude Include="include\Mona\Server.h" />
     <ClInclude Include="include\Mona\ServerAPI.h" />
@@ -331,6 +334,8 @@
     <ClCompile Include="sources\HTTP\HTTPFileSender.cpp" />
     <ClCompile Include="sources\HTTP\HTTPFolderSender.cpp" />
     <ClCompile Include="sources\HTTP\HTTPMediaSender.cpp" />
+    <ClCompile Include="sources\HTTP\HTTPPlaylistSender.cpp" />
+    <ClCompile Include="sources\HTTP\HTTPSegmentSender.cpp" />
     <ClCompile Include="sources\HTTP\HTTPSender.cpp" />
     <ClCompile Include="sources\ICE.cpp" />
     <ClCompile Include="sources\M3U8.cpp" />
@@ -350,6 +355,7 @@
     <ClCompile Include="sources\MPEG4.cpp" />
     <ClCompile Include="sources\NALNetReader.cpp" />
     <ClCompile Include="sources\NALNetWriter.cpp" />
+    <ClCompile Include="sources\Playlist.cpp" />
     <ClCompile Include="sources\Protocol.cpp" />
     <ClCompile Include="sources\Publish.cpp" />
     <ClCompile Include="sources\RendezVous.cpp" />
@@ -358,6 +364,7 @@
     <ClCompile Include="sources\RTP_H264.cpp" />
     <ClCompile Include="sources\RTP_MPEG.cpp" />
     <ClCompile Include="sources\MediaSocket.cpp" />
+    <ClCompile Include="sources\Segment.cpp" />
     <ClCompile Include="sources\Segments.cpp" />
     <ClCompile Include="sources\SocketSession.cpp" />
     <ClCompile Include="sources\SRTReader.cpp" />

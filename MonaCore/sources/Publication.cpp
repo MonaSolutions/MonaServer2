@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-Publication::Publication(const string& name): _latency(0),
+Publication::Publication(const string& name): _latency(0), segments(_segments), _segments(0),
 	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate),
 	_publishing(0),_new(false), _newLost(false), _name(name) {
 	DEBUG("New publication ",name);
@@ -73,10 +73,14 @@ void Publication::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
 			if (track <= _datas.size())
 				_datas.lostRate += lost;
 			break;
-		default:
-			_audios.lostRate += UInt32(lost*_audios.byteRate / _byteRate);
-			_videos.lostRate += UInt32(lost*_videos.byteRate / _byteRate);
-			_datas.lostRate += UInt32(lost*_datas.byteRate / _byteRate);
+		default: {
+			UInt64 byteRate = _byteRate;
+			if (!byteRate) // can't divise by 0, share this lost
+				byteRate = lost; // add all the byteRate track to lost
+			_audios.lostRate += UInt32(lost*_audios.byteRate / byteRate);
+			_videos.lostRate += UInt32(lost*_videos.byteRate / byteRate);
+			_datas.lostRate += UInt32(lost*_datas.byteRate / byteRate);
+		}
 	}
 	_newLost = true;
 	_lostRate += lost;
@@ -113,7 +117,7 @@ MediaFile::Writer* Publication::recorder() {
 
 void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 	if (!_publishing) {
-		INFO("Publication ", _name, " started");
+		INFO("Publication ", _name, ' ', self, " started");
 		_publishing = 1;
 	} else if(_publishing>0) {
 		// reset!
@@ -135,11 +139,40 @@ void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 			pSubscription->pPublication = this;
 			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 		}
+		// reset is a call to endMedia + beginMedia
+		_segments.endMedia();
+		_segments.beginMedia(name());
 	}
 	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
-	if(pRecorder)
-		startRecording(move(pRecorder), append);
 	// no flush here, wait first flush or first media to allow to subscribe to onProperties event for a publisher!
+	
+	const char* pSegments = getString("segments");
+	UInt8 segments = 0;
+	if (pSegments)
+		segments = String::ToNumber(pSegments, segments = Segments::DEFAULT_SEGMENTS);
+
+	if (pRecorder) {
+		// no double segmentation (files + memory) required!
+		if (pRecorder->segmented()) {
+			segments = 0;
+			pSegments = "";
+		}
+		// start recording, "segments" parameters is used in intern if segmented
+		startRecording(move(pRecorder), append);
+	}
+
+	// start live segmenting
+	if (_segments.setMaxSegments(segments)) { // else disable live segmenting
+		getNumber("sequences", _segments.sequences = 1); // by default 1 key by segment to be closer to live
+		_segments.beginMedia(name());
+	}
+
+	if (!pSegments)
+		return;
+	if(segments)
+		INFO("Publication ", _name, ' ', segments, "segmenting, support playlist (m3u8) subscription")
+	else
+		INFO("Publication ", _name, " segmenting, support playlist (m3u8) subscription");
 }
 
 void Publication::reset() {
@@ -221,6 +254,7 @@ void Publication::writeAudio(const Media::Audio::Tag& tag, const Packet& packet,
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeAudio(tag, packet, track);
 	}
+	_segments.writeAudio(track, tag, packet);
 
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
 	if (pAudio && tag.isConfig)
@@ -287,6 +321,7 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		} else
 			pSubscription->writeVideo(tag, packet, track); // with CC
 	}
+	_segments.writeVideo(track, tag, packet);
 
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
 	if (pVideo && tag.frame == Media::Video::FRAME_CONFIG && packet) // don't save the config "empty" (keep alive data stream!)
@@ -333,6 +368,7 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeData(type, packet, track);
 	}
+	_segments.writeData(track, type, packet);
 }
 
 void Publication::onParamChange(const string& key, const string* pValue) {
@@ -371,6 +407,7 @@ void Publication::flushProperties() {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeProperties(self);
 	}
+	_segments.writeProperties(self);
 }
 
 } // namespace Mona

@@ -30,11 +30,16 @@ MP4Writer writes a progressive fragmented MP4 compatible with VLC, HTML5 and Med
 struct MP4Writer : MediaWriter, virtual Object {
 	// http://xhelmboyx.tripod.com/formats/mp4-layout.txt
 	// https://www.w3.org/TR/mse-byte-stream-format-isobmff/
-	// http://l.web.umkc.edu/lizhu/teaching/2016sp.video-communication/ref/mp4.pdf
+	// https://b.goeswhere.com/ISO_IEC_14496-12_2015.pdf
 	// https://www.adobe.com/content/dam/Adobe/en/devnet/flv/pdfs/video_file_format_spec_v10.pdf
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
+	// MP4 parser online => http://mp4parser.com/
 	// ffmpeg -re -i Sintel.ts -c copy -listen 1 -f mp4 -frag_duration 100000 -movflags empty_moov+default_base_moof http://127.0.0.1:80/test.mp4
+	// VLC warnings accepted:
+	// - "no chunk defined" => normal for fMP4
+	// - "STTS table of 0 entries" => normal for fMP4
+	// - "Fragment sequence discontinuity detected 1 != 0" => ISO says well to start moof sequence to 1 and not 0
 
 	enum : UInt16 {
 		BUFFER_MIN_SIZE		 = 100,

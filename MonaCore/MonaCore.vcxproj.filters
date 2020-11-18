@@ -52,6 +52,9 @@
     <Filter Include="Protocols\SRT">
       <UniqueIdentifier>{eb7f6d61-bf91-4967-8a56-ba9747d84aae}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Multimedia\Playlist">
+      <UniqueIdentifier>{f25ef280-b495-4f30-8092-b202dc27a663}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Mona\Protocol.h">
@@ -349,15 +352,6 @@
     <ClInclude Include="include\Mona\MediaSocket.h">
       <Filter>Multimedia\Streams</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\Segments.h">
-      <Filter>Multimedia</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\M3U8.h">
-      <Filter>Multimedia</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\Playlist.h">
-      <Filter>Multimedia</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\MediaStream.h">
       <Filter>Multimedia\Streams</Filter>
     </ClInclude>
@@ -384,6 +378,24 @@
     </ClInclude>
     <ClInclude Include="include\Mona\VTTReader.h">
       <Filter>Multimedia\Serializers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\HTTP\HTTPPlaylistSender.h">
+      <Filter>Protocols\HTTP\Senders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\M3U8.h">
+      <Filter>Multimedia\Playlist</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Playlist.h">
+      <Filter>Multimedia\Playlist</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Segment.h">
+      <Filter>Multimedia\Playlist</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\Segments.h">
+      <Filter>Multimedia\Playlist</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\HTTP\HTTPSegmentSender.h">
+      <Filter>Protocols\HTTP\Senders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -626,12 +638,6 @@
     <ClCompile Include="sources\MediaSocket.cpp">
       <Filter>Multimedia\Streams</Filter>
     </ClCompile>
-    <ClCompile Include="sources\Segments.cpp">
-      <Filter>Multimedia</Filter>
-    </ClCompile>
-    <ClCompile Include="sources\M3U8.cpp">
-      <Filter>Multimedia</Filter>
-    </ClCompile>
     <ClCompile Include="sources\MediaStream.cpp">
       <Filter>Multimedia\Streams</Filter>
     </ClCompile>
@@ -653,6 +659,24 @@
     </ClCompile>
     <ClCompile Include="sources\SRTReader.cpp">
       <Filter>Multimedia\Serializers</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HTTP\HTTPPlaylistSender.cpp">
+      <Filter>Protocols\HTTP\Senders</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\M3U8.cpp">
+      <Filter>Multimedia\Playlist</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\Playlist.cpp">
+      <Filter>Multimedia\Playlist</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\Segments.cpp">
+      <Filter>Multimedia\Playlist</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\HTTP\HTTPSegmentSender.cpp">
+      <Filter>Protocols\HTTP\Senders</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\Segment.cpp">
+      <Filter>Multimedia\Playlist</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

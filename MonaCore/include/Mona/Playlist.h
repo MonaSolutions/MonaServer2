@@ -18,19 +18,43 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 #include "Mona/Mona.h"
 #include "Mona/FileWriter.h"
+#include "Mona/Segment.h"
 
 namespace Mona {
 
 
-struct Playlist : virtual Static {
+struct Playlist : Path, virtual Object {
+	NULLABLE(durations.empty())
+	/*!
+	Write a playlist type live (memory) */
+	static bool Write(Exception& ex, const Playlist& playlist, Buffer& buffer);
 
+	/*!
+	Write a playlist type event (file) */
 	struct Writer : FileWriter, virtual Object {
 		Writer(IOFile& io) : FileWriter(io) {}
 
-		virtual Writer&	open(const Path& path, bool append) = 0;
-		virtual void	write(UInt32 sequence, UInt32 duration) = 0;
+		void write(Playlist& playlist, UInt16 duration);
+	
+	private:
+		virtual void open(const Playlist& playlist) = 0;
+		virtual void write(UInt32 sequence, UInt16 duration) = 0;
+		// set close private to allow child class to write a last sequence in desctructor on end-of-file (END-LIST for example) in 
+		void close() { FileWriter::close(); } 
 	};
 
+	/*!
+	Represents a playlist, fix maxDuration on item addition and sequence on remove item*/
+	Playlist(const Path& path) : Path(path), sequence(0), maxDuration(0) {}
+
+	UInt32						sequence;
+	UInt64						maxDuration;
+	const std::deque<UInt16>	durations;
+	UInt32						count() const { return durations.size(); }
+
+	Playlist&					addItem(UInt16 duration);
+	Playlist&					removeItem();
+	Playlist&					removeItems();
 };
 
 } // namespace Mona

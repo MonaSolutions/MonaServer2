@@ -198,7 +198,9 @@ struct ASCII : virtual Static {
 		UPPER    = 0x0100,
 		GRAPH    = 0x0200,
 		PRINT    = 0x0400,
-		XML		 = 0x0800
+		XML		 = 0x0800,
+		B64		 = 0x1000,
+		B64URL	 = 0x2000
 	};
 
 	static UInt8 ToLower(char value) { return Is(value, UPPER) ? (value + 32) : value; }
@@ -270,6 +272,8 @@ inline bool isspace(char value) { return  ASCII::Is(value,ASCII::SPACE); }
 inline bool isupper(char value) { return ASCII::Is(value,ASCII::UPPER); }
 inline bool isxdigit(char value) { return ASCII::Is(value,ASCII::HEXDIGIT); }
 inline bool isxml(char value) { return ASCII::Is(value,ASCII::XML); }
+inline bool isb64(char value) { return ASCII::Is(value, ASCII::B64); }
+inline bool isb64url(char value) { return ASCII::Is(value, ASCII::B64URL); }
 inline char tolower(char value) { return ASCII::ToLower(value); }
 inline char toupper(char value) { return ASCII::ToUpper(value); }
 

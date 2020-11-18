@@ -26,6 +26,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/HTTP/HTTPMediaSender.h"
 #include "Mona/HTTP/HTTPFileSender.h"
 #include "Mona/HTTP/HTTPFolderSender.h"
+#include "Mona/HTTP/HTTPSegmentSender.h"
+#include "Mona/HTTP/HTTPPlaylistSender.h"
 
 namespace Mona {
 
@@ -50,8 +52,12 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	void			writeSetCookie(const std::string& key, DataReader& reader);
 
 	void			writeFile(const Path& file, Parameters& properties);
+	void			writeSegment(const Segment& segment, Parameters& properties) { newSender<HTTPSegmentSender>(true, segment, properties); }
+	void			writePlaylist(const Segments& segments) { newSender<HTTPPlaylistSender>(true, segments); }
+
 	BinaryWriter&   writeRaw(const char* code);
 	DataWriter&     writeResponse(const char* subMime);
+
 
 	bool			beginMedia(const std::string& name);
 	bool			writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) { return newSender<HTTPMediaSender>(_pMediaWriter, new Media::Audio(tag, packet, track)) ? true : false; }

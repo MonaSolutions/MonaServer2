@@ -22,17 +22,25 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct M3U8 : virtual Static {
+	/*!
+	Write a M3U8 type live (memory)
+	https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/live_playlist_sliding_window_construction */
+	static Buffer& Write(const Playlist& playlist, Buffer& buffer, bool isEvent = false);
 
+	/*!
+	Write a M3U8 type event (file)
+	https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/event_playlist_construction */
 	struct Writer : Playlist::Writer, virtual Object {
-
 		Writer(IOFile& io) : Playlist::Writer(io) {}
-
-		Writer& open(const Path& path, bool append);
-		void    write(UInt32 sequence, UInt32 duration);
+		~Writer();
 
 	private:
+		void    open(const Playlist& playlist);
+		void    write(UInt32 sequence, UInt16 duration);
+
 		std::string _ext;
 	};
+
 };
 
 } // namespace Mona

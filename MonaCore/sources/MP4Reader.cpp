@@ -288,6 +288,9 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				if (++_sequence == sequence)
 					break;
 				_sequence = sequence;
+				// report lost just if audios/videos/datas have occured, otherwise useless (allow to tolerate first sequence assignation)
+				if (!_datas && !_audios && !_videos)
+					break;
 				_medias.emplace_hint(_medias.end(),
 					_times.empty() ? (_medias.empty() ? 0 : _medias.rbegin()->first) : _times.begin()->first,
 					pair<Track*, Media::Base*>(NULL, new Lost(range<UInt32>(_offset - _position))) // lost approximation

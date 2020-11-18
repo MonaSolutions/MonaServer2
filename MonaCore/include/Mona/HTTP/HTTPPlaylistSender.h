@@ -20,34 +20,24 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Mona.h"
 #include "Mona/HTTP/HTTPSender.h"
+#include "Mona/Playlist.h"
 
 
 namespace Mona {
 
 /*!
-File send */
-struct HTTPFileSender : HTTPSender, File, File::Decoder, virtual Object {
-	
-	HTTPFileSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
-		const Path& file, Parameters& properties);
-
-	const Path& path() const { return self; }
+Playlist send */
+struct HTTPPlaylistSender : HTTPSender, virtual Object {
+	HTTPPlaylistSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
+		const Segments& segments) : _playlist(pRequest->path), HTTPSender("HTTPPlaylistSender", pRequest, pSocket) {
+		segments.to(_playlist);
+	}
 
 private:
-	bool				load(Exception& ex);
-	UInt32				decode(shared<Buffer>& pBuffer, bool end);
-	const std::string*	search(char c);
-	UInt32				generate(const Packet& packet, std::deque<Packet>& packets);
 
-	Parameters				_properties;
-	MIME::Type				_mime;
-	const char*				_subMime;
+	void  run();
 
-	// For search!
-	Parameters::const_iterator	_result;
-	UInt32						_pos;
-	Int32						_step;
-	UInt8						_stage;
+	Playlist _playlist;
 };
 
 

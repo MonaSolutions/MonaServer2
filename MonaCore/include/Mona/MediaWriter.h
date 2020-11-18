@@ -23,6 +23,10 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
+/*!
+Call to write media container,
+Call sequences are beginMedia,...writeMedia...,endMedia
+Every sequences must accept any starting timestamp */
 struct MediaWriter : virtual Object {
 	/// Media container writer must be able to support a dynamic change of audio/video codec!
 
@@ -36,11 +40,15 @@ struct MediaWriter : virtual Object {
 
 	typedef std::function<void(const Packet& packet)> OnWrite;
 
+	/*!
+	Initialize the media and its variable */
 	virtual void beginMedia(const OnWrite& onWrite) {}
 	virtual void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {}
 	virtual void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) = 0;
 	virtual void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) = 0;
 	virtual void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite);
+	/*!
+	Release the media ressources */
 	virtual void endMedia(const OnWrite& onWrite) {}
 	
 	void writeMedia(const Media::Base& media, const OnWrite& onWrite);

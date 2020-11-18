@@ -123,10 +123,12 @@ private:
 #if defined(_DEBUG)
 
 #if defined(_WIN32)
+// run the assertion just in debug
 #define		DEBUG_ASSERT(ASSERT)			{ _ASSERTE(ASSERT); }
 #define		FATAL_ERROR(...)				{ if (_CrtDbgReport(_CRT_ASSERT, __FILE__, __LINE__, NULL, Mona::String(__VA_ARGS__).c_str()) == 1) _CrtDbgBreak(); }
 #else
 #define		DEBUG_ASSERT(ASSERT)			{ assert(ASSERT); }
+#define		DEBUG_CHECK(RUN)				DEBUG_ASSERT(RUN)
 #if defined(__ANDROID__)
 #define		FATAL_ERROR(...)				{  __assert(__FILE__,__LINE__, Mona::String(__VA_ARGS__).c_str()); }
 #elif defined(__APPLE__)
@@ -138,9 +140,14 @@ private:
 #endif
 #endif
 
-#else
+// assertion with run guarantee
+#define		DEBUG_CHECK(RUN)				DEBUG_ASSERT(RUN)
 
+#else
+// run the assertion just in debug
 #define		DEBUG_ASSERT(ASSERT)		{}
+// assertion with run guarantee
+#define		DEBUG_CHECK(RUN)			{ RUN; }
 #define		FATAL_ERROR(...)			{ throw std::runtime_error(Mona::String(__VA_ARGS__,", " __FILE__ "[" LINE_STRING "]"));}
 
 #endif

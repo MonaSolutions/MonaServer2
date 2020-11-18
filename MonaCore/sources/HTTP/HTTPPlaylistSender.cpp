@@ -16,29 +16,25 @@ details (or else see http://www.gnu.org/licenses/).
 
 */
 
-#pragma once
+#include "Mona/HTTP/HTTPPlaylistSender.h"
 
-#include "Mona/Mona.h"
-#include "Mona/HTTP/HTTPSender.h"
+using namespace std;
 
 
 namespace Mona {
 
-/*!
-folder index view */
-struct HTTPFolderSender : HTTPSender, virtual Object {
-	
-	HTTPFolderSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
-		const Path& folder, Parameters& properties);
 
-	const Path& path() const { return _folder; }
-private:
-
-	void  run();
-
-	Parameters				_properties;
-	Path					_folder;
-};
+void HTTPPlaylistSender::run() {
+	Exception ex;
+	bool success;
+	AUTO_ERROR(success = Playlist::Write(ex, _playlist, buffer()), "Playlist ", _playlist.name());
+	if (success) {
+		const char* subType;
+		MIME::Type mime = MIME::Read(_playlist, subType);
+		send(HTTP_CODE_200, mime, subType);
+	} else
+		sendError(HTTP_CODE_406, ex);
+}
 
 
 } // namespace Mona

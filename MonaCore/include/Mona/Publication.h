@@ -24,6 +24,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/LostRate.h"
 #include "Mona/MediaFile.h"
 #include "Mona/CCaption.h"
+#include "Mona/Segments.h"
 #include <set>
 
 namespace Mona {
@@ -74,6 +75,8 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	const MediaTracks<VideoTrack>&  videos;
 	const Tracks<DataTrack>&		datas;
 
+	const Segments&					segments;
+
 	UInt16							latency() const { return _latency; }
 	UInt64							byteRate() const { return _byteRate; }
 	double							lostRate() const { return _lostRate; }
@@ -86,6 +89,7 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	void							reset();
 	void							stop();
 	bool							publishing() const { return _publishing ? true : false; }
+
 
 	MediaFile::Writer*				recorder();
 	bool							recording() const { return _pRecording && _pRecording->target<MediaFile::Writer>().state()>0; }
@@ -140,6 +144,9 @@ private:
 	Time							_timeProperties;
 
 	unique<Subscription>			_pRecording;
+
+	// segmentation support (HLS/DASH)
+	Segments						_segments;
 };
 
 

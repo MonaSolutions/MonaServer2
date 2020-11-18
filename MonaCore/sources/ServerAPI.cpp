@@ -85,7 +85,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 			Parameters parameters;
 			MapWriter<Parameters> properties(parameters);
 			if (onFileAccess(ex, append ? File::MODE_APPEND : File::MODE_WRITE, path, arguments, properties, pClient)) {
-				unique<MediaFile::Writer> pFileWriter = MediaFile::Writer::New(ex, path.c_str(), ioFile);
+				unique<MediaFile::Writer> pFileWriter = MediaFile::Writer::New(ex, path.c_str(), ioFile, publication.getString("format",""));
 				if (pFileWriter) {
 					parameters.getBoolean("append", append);
 					publication.start(move(pFileWriter), append);

@@ -46,13 +46,15 @@ File::~File() {
 		delete _pDecoder;
 	}
 	// No CPU expensive
-	if (_handle == INVALID_HANDLE_VALUE)
-		return;
+	if (_handle != INVALID_HANDLE_VALUE) {
 #if defined(_WIN32)
-	CloseHandle((HANDLE)_handle);
+		CloseHandle((HANDLE)_handle);
 #else
-	::close(_handle);
+		::close(_handle);
 #endif
+	}
+	if (releasePath)
+		FileSystem::Rename(_path, releasePath);
 }
 
 UInt64 File::queueing() const {
@@ -182,9 +184,12 @@ UInt64 File::size(bool refresh) const {
 	return _path.size(refresh);
 }
 
-void File::reset(UInt64 position) {
-	if(!_loaded)
-		return;
+bool File::reset(UInt64 position) {
+	if (position > size(true))
+		return false;
+	Exception ex;
+	if(!load(ex))
+		return position ? true : false;
 	_readen = position;
 #if defined(_WIN32)
 	LARGE_INTEGER offset;
@@ -193,6 +198,7 @@ void File::reset(UInt64 position) {
 #else
 	lseek64(_handle, -(off64_t )_written.exchange(position) + position, SEEK_CUR);
 #endif
+	return true;
 }
 
 int File::read(Exception& ex, void* data, UInt32 size) {

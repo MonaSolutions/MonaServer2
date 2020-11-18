@@ -152,6 +152,7 @@ struct String : std::string {
 	static std::string&	ToUpper(std::string& value) { for (char& c : value) c = toupper(c); return value; }
 
 	static int ICompare(const char* data, const char* value, std::size_t count = std::string::npos) { return ICompare(data, std::string::npos, value, count); }
+	static int ICompare(const char* data, std::size_t size, const std::string& value) { return ICompare(data, size, value.c_str()); }
 	static int ICompare(const char* data, std::size_t size, const char* value, std::size_t count = std::string::npos);
 	static int ICompare(const std::string& data, const char* value, std::size_t count = std::string::npos) { return ICompare(data.c_str(), data.size(), value, count); }
 	static int ICompare(const std::string& data, const std::string& value, std::size_t count = std::string::npos) { return ICompare(data.c_str(), data.size(), value.c_str(), count); }

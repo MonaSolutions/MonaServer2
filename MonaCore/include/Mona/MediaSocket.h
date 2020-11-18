@@ -42,6 +42,8 @@ struct MediaSocket : virtual Static {
 		const std::string			request;
 		IOSocket&					io;
 		shared<const Socket>		socket() const { return _pSocket ? _pSocket : nullptr; }
+
+		const MediaReader* operator->() const { return _pReader.get(); }
 	
 	private:
 		template<typename ...Args>
@@ -110,6 +112,8 @@ struct MediaSocket : virtual Static {
 		IOSocket&				io;
 		UInt64					queueing() const { return _pSocket ? _pSocket->queueing() : 0; }
 		shared<const Socket>	socket() const { return _pSocket ? _pSocket : nullptr; }
+
+		const MediaWriter* operator->() const { return _pWriter.get(); }
 		
 		bool beginMedia(const std::string& name);
 		bool writeProperties(const Media::Properties& properties);

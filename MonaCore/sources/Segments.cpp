@@ -22,98 +22,96 @@ using namespace std;
 
 namespace Mona {
 
-bool Segments::MatchSegment(const Path& path, const Path& file, UInt32& sequence) {
-	if (file.extension() != path.extension())
-		return false; // not same extension!
-	if (file.baseName().compare(0, path.baseName().size(), path.baseName()) != 0)
-		return false; // not same prefix name!
-	const char* varName = file.baseName().c_str() + path.baseName().size();
-	if (*varName++ != '.')
-		return false; // not in the form baseName.##.ext
-	if (!String::ToNumber(varName, sequence))
-		return false; // not name with number as suffix
-	return true;
-}
+bool Segments::Init(Exception& ex, IOFile& io, Playlist& playlist, bool append) {
+	playlist.removeItems().sequence = 0;
 
-bool Segments::Clear(Exception &ex, const Path& path, IOFile& io) {
-	FileSystem::ForEach forEach([&path, &io](const string& file, UInt16 level) {
-		Path filePath(file);
-		if(MatchSegment(path, filePath))
-			FileWriter(io).open(filePath).erase(); // asynchronous deletion!
-		return true;
-	});
-	return FileSystem::ListFiles(ex, path.parent(), forEach)<0 ? false : true;
-}
-
-UInt32 Segments::NextSequence(Exception &ex, const Path& path, IOFile& io) {
-	UInt32 lastSequence = 0;
-	FileSystem::ForEach forEach([&path, &lastSequence](const string& file, UInt16 level) {
+	FileSystem::ForEach forEach([&](const string& file, UInt16 level) {
+		Path path(file);
+		if (path.isFolder())
+			return true; // folder!
+		// don't compare extension because playlist for different type have the same name => overrides it!
 		UInt32 sequence;
-		if (MatchSegment(path, file, sequence) && sequence > lastSequence)
-			lastSequence = sequence;
+		UInt16 duration;
+		size_t nameSize = Segment::ReadName(path.baseName(), sequence, duration);
+		if (nameSize==string::npos)
+			return true;
+		if (!duration) {
+			// temporary segment (not correctly finished), release it
+			FileWriter::Erase(path, io); // asynchronous deletion!
+			return true;
+		}
+		if (String::ICompare(path.baseName().data(), nameSize, playlist.baseName()) != 0)
+			return true; // not a item of this playlist
+		if (!append) {
+			FileWriter::Erase(path, io); // asynchronous deletion!
+			return true;
+		}
+		if (playlist.addItem(duration).count() > 1) {
+			if (sequence < playlist.sequence)
+				playlist.sequence = sequence;
+		} else // assign first sequence
+			playlist.sequence = sequence;
 		return true;
 	});
-	return FileSystem::ListFiles(ex, path.parent(), forEach) ? (lastSequence+1) : 0;
+	return FileSystem::ListFiles(ex, playlist.parent(), forEach) >= 0;
 }
 
-
-UInt32 Segments::Writer::lastTime() const {
-	if (!_pVideoTime)
-		return _pAudioTime ? *_pAudioTime : 0;
-	return (_pAudioTime && Util::Distance(*_pVideoTime, *_pAudioTime) > 0) ? *_pAudioTime : *_pVideoTime;
-}
-UInt32 Segments::Writer::currentTime() const {
-	if (!_pVideoTime)
-		return _pAudioTime ? *_pAudioTime : 0;
-	return (_pAudioTime && Util::Distance(*_pAudioTime, *_pVideoTime) > 0) ? *_pAudioTime : *_pVideoTime;
+Playlist& Segments::Erase(UInt32 count, Playlist& playlist, IOFile& io) {
+	while(count-- && playlist.count()) {
+		FileWriter::Erase(Segment::BuildPath(playlist, playlist.sequence, playlist.durations.front()), io);  // asynchronous deletion!
+		playlist.removeItem();
+	}
+	return playlist;
 }
 
-bool Segments::Writer::newSegment(const OnWrite& onWrite) {
+bool Segments::Writer::newSegment(UInt32 time, const OnWrite& onWrite) {
 	if (_first) {
 		_first = false;
-		_segTime = this->currentTime();
+		_lastTime = _segTime = time;
 		return false;
 	}
-	UInt32 lastTime = this->lastTime();
+	// save _lastTime just for the last sequence,
+	// use "time" otherwise to cut segments compatible with key frame with composition offset: their DTS have to be the segment front
+	if(Util::Distance(_lastTime, time)>0)
+		_lastTime = time;
+	
 	// change sequences if DURATION_TIMEOUT
-	Int32 duration = Util::Distance(_segTime, lastTime);
-	Int32 rest = DURATION_TIMEOUT - duration;
+	UInt16 duration = UInt16(Util::Distance(_segTime, time));
+	Int16 rest = Segment::MAX_DURATION - duration;
 	if (rest>=0) {
 		// wait number of sequences requested in trying to keep a key on start of sequence
-		if (!_keying || !_sequence)
+		if (!_keying || !_sequences)
 			return false;
 		// look if rest time to add one new key-frames sequence again
-		if (rest >= (duration / _sequence)) {
+		if (rest >= (duration / _sequences)) {
 			// check if sequences defined reached
-			if(!sequences || _sequence < sequences)
+			if(!sequences || _sequences < sequences)
 				return false;
 		}
 	}
 
 	// end
-	_pWriter->endMedia(onWrite);
-	onSegment(lastTime - _segTime);
-	_segTime = lastTime;
+	_writer.endMedia(onWrite);
+	onSegment(duration);
+	_segTime = time;
 
 	// begin
-	_sequence = 0;
+	_sequences = 0;
 	_keying = false;
-	_pWriter->beginMedia(onWrite);
-
+	_writer.beginMedia(onWrite);
+	
 	// Rewrite properties + configs to make segment readable individualy
 	// properties
 	if (_pProperties)
-		_pWriter->writeProperties(Media::Properties(0, _pProperties->tag, *_pProperties), onWrite);
+		_writer.writeProperties(Media::Properties(0, _pProperties->tag, *_pProperties), onWrite);
 	// send config audio + video!
 	for (auto& it : _videoConfigs) {
-		// fix DTS, can provoke warning in VLC if next frame has compositionOffset (picture too late),
-		// but we can ignore it: doesn't impact playing or individual segment play
-		it.second.time = lastTime;
-		_pWriter->writeVideo(it.first, it.second, it.second, onWrite);
+		it.second.time = time; // fix timestamp to stay inscreasing
+		_writer.writeVideo(it.first, it.second, it.second, onWrite);
 	}
 	for (auto& it : _audioConfigs) {
-		it.second.time = lastTime;
-		_pWriter->writeAudio(it.first, it.second, it.second, onWrite);
+		it.second.time = time; // fix timestamp to stay inscreasing
+		_writer.writeAudio(it.first, it.second, it.second, onWrite);
 	}
 	return true;
 }
@@ -121,40 +119,37 @@ bool Segments::Writer::newSegment(const OnWrite& onWrite) {
 void Segments::Writer::beginMedia(const OnWrite& onWrite) {
 	_first = true;
 	_keying = false;
-	_sequence = 0;
-	_pWriter->beginMedia(onWrite);
+	_sequences = 0;
+	_writer.beginMedia(onWrite);
 }
 void Segments::Writer::endMedia(const OnWrite& onWrite) {
-	_pWriter->endMedia(onWrite);
-	if (!_first)
-		onSegment(lastTime() - _segTime); // last segment, doesn't matter if not the exact duration
+	_writer.endMedia(onWrite);
+	if (!_first) // last segment, doesn't matter if not the exact duration
+		onSegment(UInt16(Util::Distance(_segTime, _lastTime)));
 	// release resources
 	_audioConfigs.clear();
 	_videoConfigs.clear();
 	_pProperties.reset();
-	_pAudioTime.reset();
-	_pVideoTime.reset();
 }
 void Segments::Writer::writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
 	Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
 	const Packet& packet(properties.data(type));
 	_pProperties.set<Media::Data>(type, packet);
-	_pWriter->writeProperties(properties, onWrite);
+	_writer.writeProperties(properties, onWrite);
 }
+
 void Segments::Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
-	if (!tag.isConfig) {
-		PTR_SET(_pAudioTime, tag.time);
-		newSegment(onWrite);
-	}
-	_pWriter->writeAudio(track, tag, packet, onWrite);
 	if (tag.isConfig) {
 		// to support audio without config packet before => remove config packet
 		if (packet)
 			_audioConfigs[track].set(tag, packet);
 		else
 			_audioConfigs.erase(track);
-	}
+	} else
+		newSegment(tag.time, onWrite);
+	_writer.writeAudio(track, tag, packet, onWrite);
 }
+
 void Segments::Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	switch (tag.frame) {
 		case Media::Video::FRAME_CONFIG:
@@ -167,28 +162,101 @@ void Segments::Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, con
 			// return => not write it immediatly if we change of sequence after key
 			return;
 		case Media::Video::FRAME_KEY:
-			PTR_SET(_pVideoTime, tag.time);
 			// change of sequence just on key frame (or audio if DURATION_TIMEOUT)
 			if (!_keying) { // to support multitrack video => change sequence on first video key of any track!
 				_keying = true;
-				if (!newSegment(onWrite)) {
+				if (!newSegment(tag.time, onWrite)) {
 					// write all config packet "skip"
 					for (const auto& it : _videoConfigs)
-						_pWriter->writeVideo(it.first, it.second, it.second, onWrite);
+						_writer.writeVideo(it.first, it.second, it.second, onWrite);
 				}
-				++_sequence; // after newSegment to avoid to segment on first video
+				++_sequences; // after newSegment to avoid to segment on first video
 			}
 			break;
 		case Media::Video::FRAME_INTER:
 		case Media::Video::FRAME_DISPOSABLE_INTER:
 			_keying = false;
 		default:
-			PTR_SET(_pVideoTime, tag.time);
-			newSegment(onWrite);
+			newSegment(tag.time, onWrite);
 	}
 	// not config!
-	_pWriter->writeVideo(track, tag, packet, onWrite);
+	_writer.writeVideo(track, tag, packet, onWrite);
 }
 
+
+/// SEGMENTS //////
+
+Segments::Segments(UInt8 maxSegments) : _maxDuration(Segment::MIN_DURATION), _maxSegments(maxSegments), _sequence(0), _writer(self), sequences(_writer.sequences) {
+	_writer.onSegment = [this](UInt16 duration) {
+		// add the valid segment to _segments
+		if (_segments.size() >= _maxSegments) {
+			++_sequence; // increments just on remove
+			_segments.pop_front();
+		}
+		_segment.add(_segment.time() + duration);
+		_segments.emplace_back(move(_segment));
+		if (duration > _maxDuration)
+			_maxDuration = duration;
+	};
+}
+
+UInt8 Segments::setMaxSegments(UInt8 maxSegments) {
+	_maxSegments = maxSegments;
+	if (maxSegments) {
+		while (maxSegments < _segments.size()) {
+			++_sequence; // increments just on remove
+			_segments.pop_front();
+		}
+		_segments.resize(maxSegments);
+	} else {
+		// stop segmentation
+		_segments.clear();
+		_sequence = 0;
+		_segment.clear();
+		_maxDuration = Segment::MIN_DURATION;
+	}
+	return maxSegments;
+}
+
+bool Segments::endMedia() {
+	_writer.endMedia(nullptr);
+	if (_segments.size())
+		_segments.back().discontinuous = true;
+	_segment.clear();
+	_maxDuration = Segment::MIN_DURATION;
+	return true;
+}
+
+
+const Segment& Segments::operator()(Int32 sequence) const {
+	if (sequence < 0)
+		sequence += _segments.size();
+	else
+		sequence -= _sequence;
+	if(sequence < 0)
+		return Segment::Null();
+	if (UInt32(sequence) >= _segments.size())
+		return Segment::Null();
+	// sequence is index now!
+	return _segments[(UInt32)sequence];
+}
+
+Playlist& Segments::to(Playlist& playlist) const {
+	// anticipate the _segments.pop() => sequence+1
+	playlist.sequence = _sequence + 1;
+	(UInt64&)playlist.maxDuration = _maxDuration;
+	// Skip the first segment in playlist, because can be deleted by segments before request
+	bool first = true;
+	for (const Segment& segment : _segments) {
+		if (first) {
+			first = false;
+			continue;
+		}
+		if (segment.discontinuous)
+			playlist.addItem(0);
+		playlist.addItem(segment.duration());
+	}
+	return playlist;
+}
 
 } // namespace Mona

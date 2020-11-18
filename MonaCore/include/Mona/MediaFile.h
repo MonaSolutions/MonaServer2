@@ -21,7 +21,6 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/Mona.h"
 #include "Mona/MediaReader.h"
 #include "Mona/MediaWriter.h"
-#include "Mona/Playlist.h"
 #include "Mona/Segments.h"
 #include "Mona/MediaStream.h"
 
@@ -39,6 +38,8 @@ struct MediaFile : virtual Static  {
 		const Path		path;
 		IOFile&			io;
 		const Timer&	timer;
+
+		const MediaReader* operator->() const { return _pReader.get(); }
 
 	private:
 		bool starting(const Parameters& parameters);
@@ -106,6 +107,9 @@ struct MediaFile : virtual Static  {
 		const Path	path;
 		IOFile&		io;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
+		bool		segmented() const { return _pPlaylistWriter.operator bool(); }
+
+		const MediaWriter* operator->() const { return _pWriter.get(); }
 
 		bool beginMedia(const std::string& name);
 		bool writeProperties(const Media::Properties& properties);
@@ -126,20 +130,24 @@ struct MediaFile : virtual Static  {
 			return true;
 		}
 
-		struct File : FileWriter, Path, virtual Object {
+		struct File : FileWriter, Playlist, virtual Object {
 			NULLABLE(!FileWriter::operator bool())
 
-			File(const std::string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylist, UInt8 sequences, IOFile& io);
+			File(const std::string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylistWriter, UInt32 segments, UInt8 sequences, IOFile& io);
+			~File();
+
+			File& open(bool append = true);
+			bool segmented() const { return _pPlaylistWriter.operator bool(); }
 
 			MediaWriter*	operator->() { return _pWriter.get(); }
 			MediaWriter&	operator*() { return *_pWriter; }
-	
+
 			const std::string				name;
 			MediaWriter::OnWrite			onWrite;
-			const shared<Playlist::Writer>	pPlaylist;
-			UInt32							sequence;
+			UInt32							segments;
 		private:
-			shared<MediaWriter>			_pWriter;
+			const shared<Playlist::Writer>	_pPlaylistWriter;
+			shared<MediaWriter>				_pWriter;
 		};
 
 
@@ -160,7 +168,15 @@ struct MediaFile : virtual Static  {
 		struct ChangeSequences : Write, virtual Object {
 			ChangeSequences(const shared<File>& pFile, UInt8 sequences) : Write(pFile), sequences(sequences) {}
 			const UInt8	sequences;
-			void process(Exception& ex, File& file) { if (file.pPlaylist) ((Segments::Writer&)*file).sequences = sequences; }
+			void process(Exception& ex, File& file) { if (typeid(*file) == typeid(Segments::Writer)) ((Segments::Writer&)*file).sequences = sequences; }
+		};
+		struct ChangeSegments : Write, virtual Object {
+			ChangeSegments(const shared<File>& pFile, UInt32 segments) : Write(pFile), segments(segments) {}
+			const UInt32 segments;
+			void process(Exception& ex, File& file) {
+				if (file.segments && file.count()>file.segments)
+					Segments::Erase(file.count() - file.segments, file, file.io);
+			}
 		};
 
 		template<typename MediaType>
@@ -169,8 +185,8 @@ struct MediaFile : virtual Static  {
 			MediaWrite(const shared<File>& pFile, Args&&... args) : Write(pFile), MediaType(std::forward<Args>(args)...) {}
 			void process(Exception& ex, File& file) { file->writeMedia(self, file.onWrite); }
 		};
-		struct EndWrite : Write, virtual Object {
-			EndWrite(const shared<File>& pFile) : Write(pFile) {}
+		struct End : Write, virtual Object {
+			End(const shared<File>& pFile) : Write(pFile) {}
 			void process(Exception& ex, File& file) { file->endMedia(file.onWrite); }
 		};
 
@@ -179,7 +195,8 @@ struct MediaFile : virtual Static  {
 		UInt16					 _writeTrack;
 		bool					 _append;
 		UInt8					 _sequences;
-		shared<Playlist::Writer> _pPlaylist;
+		UInt32					 _segments;
+		shared<Playlist::Writer> _pPlaylistWriter;
 	};
 };
 

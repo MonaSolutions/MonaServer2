@@ -148,9 +148,6 @@
     <ClCompile Include="sources\Packet.cpp">
       <Filter>Memory</Filter>
     </ClCompile>
-    <ClCompile Include="sources\TLS.cpp">
-      <Filter>Crypto</Filter>
-    </ClCompile>
     <ClCompile Include="sources\Path.cpp">
       <Filter>Disk</Filter>
     </ClCompile>
@@ -184,17 +181,20 @@
     <ClCompile Include="sources\Logs.cpp">
       <Filter>Logs</Filter>
     </ClCompile>
-    <ClCompile Include="sources\SRT.cpp">
-      <Filter>Crypto</Filter>
-    </ClCompile>
-    <ClCompile Include="sources\IOSRTSocket.cpp">
-      <Filter>Crypto</Filter>
-    </ClCompile>
     <ClCompile Include="sources\UnitTest.cpp">
       <Filter>Application</Filter>
     </ClCompile>
     <ClCompile Include="sources\URL.cpp">
       <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\TLS.cpp">
+      <Filter>Net</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\IOSRTSocket.cpp">
+      <Filter>Net</Filter>
+    </ClCompile>
+    <ClCompile Include="sources\SRT.cpp">
+      <Filter>Net</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -340,9 +340,6 @@
     <ClInclude Include="include\Mona\Event.h">
       <Filter>Util</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\TLS.h">
-      <Filter>Crypto</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\LostRate.h">
       <Filter>Net</Filter>
     </ClInclude>
@@ -391,17 +388,20 @@
     <ClInclude Include="include\Mona\Logs.h">
       <Filter>Logs</Filter>
     </ClInclude>
-    <ClInclude Include="include\Mona\SRT.h">
-      <Filter>Crypto</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Mona\IOSRTSocket.h">
-      <Filter>Crypto</Filter>
-    </ClInclude>
     <ClInclude Include="include\Mona\UnitTest.h">
       <Filter>Application</Filter>
     </ClInclude>
     <ClInclude Include="include\Mona\URL.h">
       <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\TLS.h">
+      <Filter>Net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\IOSRTSocket.h">
+      <Filter>Net</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Mona\SRT.h">
+      <Filter>Net</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
