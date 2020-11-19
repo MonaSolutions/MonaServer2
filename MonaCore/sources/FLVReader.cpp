@@ -38,10 +38,11 @@ UInt8 FLVReader::ReadMediaHeader(const UInt8* data, UInt32 size, Media::Audio::T
 	UInt8 codecs(reader.read8());
 	tag.codec = Media::Audio::Codec(codecs >> 4);
 	if(tag.codec == Media::Audio::CODEC_AAC) {
-		if (reader.available() && !reader.read8() && MPEG4::ReadAudioConfig(reader.current(), reader.available(), tag.rate, tag.channels)) {
-			// Use rate here of AAC config rather previous!
+		if (reader.available() && !reader.read8()) {
+			// CONFIG packet!
 			tag.isConfig = true;
-			config.set(tag);
+			if (MPEG4::ReadAudioConfig(reader.current(), reader.available(), tag.rate, tag.channels))
+				config.set(tag); // Use rate here of AAC config rather previous!
 		} else
 			tag.isConfig = false;
 	} else if (tag.codec == Media::Audio::CODEC_MP38K_FLV) {
