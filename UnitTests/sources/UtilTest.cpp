@@ -72,9 +72,13 @@ ADD_TEST(distance) {
 
 
 template<bool url = false>
-static bool TestEncode(const char* data,UInt32 size, const char* result) {
+static bool TestEncode(const char* data,UInt32 size, const char* result, bool padding=true) {
 	static string Value;
-	return Util::ToBase64<string, url>(BIN data, size, Value) == result;
+	if (padding)
+		Util::ToBase64<string, url>(BIN data, size, Value);
+	else
+		Value.resize(Util::ToBase64<string, url>(BIN data, size, Value));
+	return Value == result;
 }
 template<bool url = false>
 static bool TestDecode(string data, const char* result, UInt32 size) {
@@ -92,9 +96,11 @@ ADD_TEST(Generators) {
 ADD_TEST(Base64) {
 	CHECK(TestEncode(EXPAND("\00\01\02\03\04\05"),"AAECAwQF"));
 	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw=="));
+	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw", false));
 	CHECK(TestEncode(EXPAND("ABCDEF"),"QUJDREVG"));
 
 	CHECK(TestDecode("AAECAwQF", EXPAND("\00\01\02\03\04\05")));
+	CHECK(TestDecode("AAECAw", EXPAND("\00\01\02\03")));
 	CHECK(TestDecode("AAECAw==", EXPAND("\00\01\02\03")));
 	CHECK(TestDecode("QUJDREVG", EXPAND("ABCDEF")));
 	CHECK(TestDecode("QUJ\r\nDRE\r\nVG", EXPAND("ABCDEF")));

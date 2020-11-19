@@ -84,19 +84,23 @@ struct Util : virtual Static {
 
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
 
+	/*!
+	Encode to base64URL, returns the size without '=' padding */
 	template <typename BufferType>
-	static BufferType& ToBase64URL(const UInt8* data, UInt32 size, BufferType& buffer, bool append = false) { return ToBase64<BufferType, true>(data, size, buffer, append); }
+	static UInt32 ToBase64URL(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) { return ToBase64<BufferType, true>(data, size, buffer, append); }
+	/*!
+	Encode to base64, returns the size without '=' padding */
 	template <typename BufferType, bool url=false>
-	static BufferType& ToBase64(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
+	static UInt32 ToBase64(const UInt8* data, UInt32 size, BufferType& buffer, bool append=false) {
 		UInt32 accumulator(buffer.size()),bits(0);
-
 		if (!append)
 			accumulator = 0;
 		buffer.resize(accumulator + ((size+2)/3 *4)); // +2 to get a /3 ceiling (more faster)
 
+		// get current pointer after resize!
 		char* current((char*)buffer.data());
 		if (!current) // to expect null writer 
-			return buffer;
+			return 0;
 		const char*	end(current+buffer.size());
 		current += accumulator;
 
@@ -118,9 +122,9 @@ struct Util : virtual Static {
 			*current++ = table[accumulator & 0x3Fu];
 		}
 		// padding with '=' to match with precomputed size (required by RFC 4648)
-		while (current<end)
-			*current++ = '=';
-		return buffer;
+		accumulator = end - current;
+		memset(current, '=', accumulator);
+		return buffer.size() - accumulator;
 	}
 
 	template <typename BufferType>
