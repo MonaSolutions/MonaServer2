@@ -92,7 +92,7 @@ struct Util : virtual Static {
 
 		if (!append)
 			accumulator = 0;
-		buffer.resize(accumulator+UInt32(ceil(size/3.0)*4));
+		buffer.resize(accumulator + ((size+2)/3 *4)); // +2 to get a /3 ceiling (more faster)
 
 		char* current((char*)buffer.data());
 		if (!current) // to expect null writer 
@@ -112,12 +112,14 @@ struct Util : virtual Static {
 				*current++ = table[(accumulator >> bits) & 0x3Fu];
 			}
 		}
-		if (bits > 0) { // Any trailing bits that are missing.
+		// Any trailing bits that are missing.
+		if (bits > 0) {
 			accumulator <<= 6 - bits;
 			*current++ = table[accumulator & 0x3Fu];
 		}
-		if(end>current) // rectify the size
-			buffer.resize(buffer.size() - (end - current));
+		// padding with '=' to match with precomputed size (required by RFC 4648)
+		while (current<end)
+			*current++ = '=';
 		return buffer;
 	}
 
@@ -134,7 +136,7 @@ struct Util : virtual Static {
 			return false; // to expect null writer 
 
 		UInt32 bits(0), oldSize(append ? buffer.size() : 0);
-		UInt32 accumulator(oldSize + UInt32(ceil(size / 4.0) * 3));
+		UInt32 accumulator(oldSize + (size / 4 * 3));
 		const UInt8* end(data+size);
 
 		if (buffer.size()<accumulator)

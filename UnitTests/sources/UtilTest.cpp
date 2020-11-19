@@ -91,7 +91,7 @@ ADD_TEST(Generators) {
 
 ADD_TEST(Base64) {
 	CHECK(TestEncode(EXPAND("\00\01\02\03\04\05"),"AAECAwQF"));
-	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw"));
+	CHECK(TestEncode(EXPAND("\00\01\02\03"), "AAECAw=="));
 	CHECK(TestEncode(EXPAND("ABCDEF"),"QUJDREVG"));
 
 	CHECK(TestDecode("AAECAwQF", EXPAND("\00\01\02\03\04\05")));
@@ -117,7 +117,7 @@ ADD_TEST(Base64) {
 	for (UInt16 i = 0; i < 0xFFFF; ++i) {
 		UInt16 bin = Byte::To16Network(i);
 		Util::ToBase64URL(BIN &bin, 2, Result);
-		CHECK(Result.size() == 3);
+		CHECK(Result.size() == 4 && Result.back() == '=');
 		Util::FromBase64URL(Result);
 		CHECK(Byte::From16Network(*(UInt16*)Result.data()) == i);
 	}
