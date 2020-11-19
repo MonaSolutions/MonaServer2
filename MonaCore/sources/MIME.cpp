@@ -67,6 +67,7 @@ MIME::Type MIME::Read(const Path& file, const char*& subType) {
 		{ "pdf",{ TYPE_APPLICATION, "pdf" } },
 		{ "ogg",{ TYPE_APPLICATION, "ogg" } },
 		{ "xml",{ TYPE_APPLICATION, "xml" } },
+		{ "ttml",{ TYPE_APPLICATION, "ttml+xml"} },
 		{ "zip",{ TYPE_APPLICATION, "zip" } }
 	});
 	const auto& it = Types.find(file.extension().c_str());

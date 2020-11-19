@@ -74,7 +74,7 @@ bool AVC::ParseVideoConfig(const Packet& packet, Packet& sps, Packet& pps) {
 }
 
 
-UInt32 AVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
+Buffer& AVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 	// ISO => http://103.23.20.16/srs/trunk/doc/H.264-AVC-ISO_IEC_14496-15.pdf
 
 	BinaryReader reader(data, size);
@@ -84,7 +84,7 @@ UInt32 AVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 	BinaryWriter writer(buffer);
 	UInt8 count(reader.read8() & 0x1F);
 	bool isPPS(false);
-	while (reader.available() >= 2 && count--) {
+	while (reader.available() >= 2 && count--) { // loop over every NALU
 		size = reader.read16();
 		if (size > reader.available())
 			size = reader.available();
@@ -92,12 +92,12 @@ UInt32 AVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 		reader.next(size);
 		if (!count) {
 			if (isPPS)
-				break;
+				break; // ignore SPSE for now (TODO: save SPSE too and write it in WriteVideoConfig)
 			count = reader.read8(); // PPS now!
 			isPPS = true;
 		}
 	}
-	return reader.position();
+	return buffer;
 }
 
 BinaryWriter& AVC::WriteVideoConfig(BinaryWriter& writer, const Packet& sps, const Packet& pps) {

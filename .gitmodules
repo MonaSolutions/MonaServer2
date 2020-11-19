@@ -1,6 +1,3 @@
 [submodule "MonaServer/www/MonaJS"]
 	path = MonaServer/www/MonaJS
 	url = https://github.com/MonaSolutions/MonaJS.git
-[submodule "MonaServer/www/JS"]
-	path = MonaServer/www/JS
-	url = https://github.com/MonaSolutions/MonaJS.git

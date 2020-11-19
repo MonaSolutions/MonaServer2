@@ -145,7 +145,7 @@ bool HEVC::ParseVideoConfig(const Packet& packet, Packet& vps, Packet& sps, Pack
 }
 
 
-UInt32 HEVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
+Buffer& HEVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 	BinaryReader reader(data, size);
 	BinaryWriter writer(buffer);
 
@@ -167,7 +167,7 @@ UInt32 HEVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 			break;
 		default:
 			ERROR("Unexpected type received : ", nalType & 0x3f, " (expected VPS, SPS & PPS)")
-			return reader.position();
+			return buffer;
 		}		
 
 		for (UInt16 i = 0; i < nalus; ++i) {
@@ -180,7 +180,7 @@ UInt32 HEVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
 		if ((nalType & 0x3f) == 0x22)
 			break;
 	}
-	return size; // we want to ignore the remaining data otherwise it will overwrite the codecs
+	return buffer;
 }
 
 BinaryWriter& HEVC::WriteVideoConfig(BinaryWriter& writer, const Packet& vps, const Packet& sps, const Packet& pps) {
