@@ -44,7 +44,8 @@ struct Segment : virtual Object  {
 	template<typename BufferType>
 	static BufferType& WriteDuration(UInt16 duration, BufferType& buffer) {
 		duration = Byte::To16Network(duration);
-		return Util::ToBase64URL(BIN &duration, 2, buffer, true);
+		buffer.resize(Util::ToBase64URL(BIN &duration, 2, buffer, true)); // without '=' padding
+		return buffer;
 	}
 	/*!
 	Read sequence and duration from name and returns size of basename, if file is not in a segment format NAME.S###.EXT returns string::npos */

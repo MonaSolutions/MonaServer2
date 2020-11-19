@@ -168,8 +168,8 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& r
 	String::Append(*pHeader, "Upgrade: websocket\r\n");
 	//String::Append(*pHeader, "Origin: http://", address, "\r\n");
 	String::Append(*pHeader, "Sec-WebSocket-Version: 13\r\n");
-	String::Append(*pHeader, "Sec-WebSocket-Key: ");
-	String::Append(Util::ToBase64(id, 16, *pHeader, true), "\r\n\r\n");
+	Util::ToBase64(id, 16, String::Append(*pHeader, "Sec-WebSocket-Key: "), true);
+	String::Append(*pHeader, "\r\n\r\n");
 	DUMP_RESPONSE(_writer.name(), pHeader->data(), pHeader->size(), address);
 	return socket()->write(ex, Packet(pHeader))>=0;
 }

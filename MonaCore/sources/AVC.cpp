@@ -75,11 +75,12 @@ bool AVC::ParseVideoConfig(const Packet& packet, Packet& sps, Packet& pps) {
 
 
 UInt32 AVC::ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer) {
-	BinaryReader reader(data, size);
+	// ISO => http://103.23.20.16/srs/trunk/doc/H.264-AVC-ISO_IEC_14496-15.pdf
 
+	BinaryReader reader(data, size);
 	reader.next(5); // skip avcC version 1 + 3 bytes of profile, compatibility, level + 1 byte xFF
 
-					// SPS and PPS
+	// SPS and PPS
 	BinaryWriter writer(buffer);
 	UInt8 count(reader.read8() & 0x1F);
 	bool isPPS(false);
@@ -105,7 +106,7 @@ BinaryWriter& AVC::WriteVideoConfig(BinaryWriter& writer, const Packet& sps, con
 	writer.write(sps.data() + 1, 3); // profile, compatibility, level
 
 	writer.write8(0xff); // 111111 + 2 bit NAL size - 1
-							// sps
+	// sps
 	writer.write8(0xe1); // 11 + number of SPS
 	writer.write16(sps.size());
 	writer.write(sps);
@@ -134,50 +135,50 @@ UInt32 AVC::SPSToVideoDimension(const UInt8* data, UInt32 size) {
 	MPEG4::ReadExpGolomb(reader); // seq_parameter_set_id
 
 	switch (idc) {
-	case 100:
-	case 110:
-	case 122:
-	case 144:
-	case 44:
-	case 83:
-	case 86:
-	case 118:
-		switch (MPEG4::ReadExpGolomb(reader)) { // chroma_format_idc
-		case 1: // 4:2:0
-			subWidthC = subHeightC = 2;
-			break;
-		case 2: // 4:2:2
-			subWidthC = 2;
-			subHeightC = 1;
-			break;
-		case 3: // 4:4:4
-			if (!reader.read())
-				subWidthC = subHeightC = 1; // separate_colour_plane_flag 
-			break;
-		}
+		case 100:
+		case 110:
+		case 122:
+		case 144:
+		case 44:
+		case 83:
+		case 86:
+		case 118:
+			switch (MPEG4::ReadExpGolomb(reader)) { // chroma_format_idc
+				case 1: // 4:2:0
+					subWidthC = subHeightC = 2;
+					break;
+				case 2: // 4:2:2
+					subWidthC = 2;
+					subHeightC = 1;
+					break;
+				case 3: // 4:4:4
+					if (!reader.read())
+						subWidthC = subHeightC = 1; // separate_colour_plane_flag 
+					break;
+			}
 
-		MPEG4::ReadExpGolomb(reader); // bit_depth_luma_minus8
-		MPEG4::ReadExpGolomb(reader); // bit_depth_chroma_minus8
-		reader.next(); // qpprime_y_zero_transform_bypass_flag
-		if (reader.read()) { // seq_scaling_matrix_present_flag
-			for (UInt8 i = 0; i < 8; ++i) {
-				if (reader.read()) { // seq_scaling_list_present_flag
-					UInt8 sizeOfScalingList = (i < 6) ? 16 : 64;
-					UInt8 scale = 8;
-					for (UInt8 j = 0; j < sizeOfScalingList; ++j) {
-						Int16 delta = MPEG4::ReadExpGolomb(reader);
-						if (delta & 1)
-							delta = (delta + 1) / 2;
-						else
-							delta = -(delta / 2);
-						scale = (scale + delta + 256) % 256;
-						if (!scale)
-							break;
+			MPEG4::ReadExpGolomb(reader); // bit_depth_luma_minus8
+			MPEG4::ReadExpGolomb(reader); // bit_depth_chroma_minus8
+			reader.next(); // qpprime_y_zero_transform_bypass_flag
+			if (reader.read()) { // seq_scaling_matrix_present_flag
+				for (UInt8 i = 0; i < 8; ++i) {
+					if (reader.read()) { // seq_scaling_list_present_flag
+						UInt8 sizeOfScalingList = (i < 6) ? 16 : 64;
+						UInt8 scale = 8;
+						for (UInt8 j = 0; j < sizeOfScalingList; ++j) {
+							Int16 delta = MPEG4::ReadExpGolomb(reader);
+							if (delta & 1)
+								delta = (delta + 1) / 2;
+							else
+								delta = -(delta / 2);
+							scale = (scale + delta + 256) % 256;
+							if (!scale)
+								break;
+						}
 					}
 				}
 			}
-		}
-		break;
+			break;
 	}
 
 	MPEG4::ReadExpGolomb(reader); // log2_max_frame_num_minus4

@@ -280,15 +280,15 @@ void HTTPSession::kill(Int32 error, const char* reason){
 	else
 		disconnection();
 
+	// release events before _pWriter close to avoid a crash on _pWriter access
+	_fileWriter.onFlush = nullptr;
+	_fileWriter.onError = nullptr;
+
 	// close writer (flush)
 	_pWriter->close(error, reason);
 	
 	// in last because will disconnect
 	TCPSession::kill(error, reason);
-
-	// release events before _pWriter to avoid a crash on _pWriter access
-	_fileWriter.onFlush = nullptr;
-	_fileWriter.onError = nullptr;
 
 	// release resources (sockets)
 	_pWriter.reset();
@@ -360,7 +360,7 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		}
 		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD)
 		// Subscribe for a live stream with the basename file as stream name
-		if (file.isFolder()) {
+		if (!file.isFolder()) {
 			bool isPlaylist = false;
 			switch (request->mime) {
 				case MIME::TYPE_TEXT:
