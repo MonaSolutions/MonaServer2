@@ -32,7 +32,7 @@ struct HTTProtocol : TCProtocol, virtual Object {
 		setNumber("timeout", 10); // ideal value between 7 and 10, but take 10 to be equal to max keyframe interval configurable for a video (10sec), to allow a live streaming not interrupted by session timeout
 		setBoolean("index", true); // index directory, if false => forbid directory index, otherwise redirection to index
 		setBoolean("rendezVous", false);
-		setBoolean("crossOriginIsolated", false);
+		setBoolean("crossOriginIsolated", false); // if true adds COOP & COEP headers, needed to access SharedArrayBuffer (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer/Planned_changes)
 
 		onConnection = [this](const shared<Socket>& pSocket) {
 			// Create session

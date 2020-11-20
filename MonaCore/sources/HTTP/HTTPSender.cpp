@@ -118,6 +118,13 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UI
 		String::Append(*pBuffer, "\r\nConnection: upgrade");
 	else
 		String::Append(*pBuffer, "\r\nConnection: close");
+
+	if (crossOriginIsolated) {
+		if (String::ICompare(path.extension(), "html") == 0)
+			String::Append(*pBuffer, "\r\nCross-Origin-Opener-Policy: same-origin");
+		if (String::ICompare(path.extension(), "html") == 0 || String::ICompare(path.extension(), "js") == 0)
+			String::Append(*pBuffer, "\r\nCross-Origin-Embedder-Policy: require-corp");
+	}
 	
 	/// allow cross request, indeed if onConnection has not been rejected, every cross request are allowed
 	if (pRequest->origin && String::ICompare(pRequest->origin, pRequest->host) != 0)
