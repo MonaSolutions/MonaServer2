@@ -24,7 +24,7 @@ namespace Mona {
 
 
 struct Segments : virtual Object, Media::Target, private MediaWriter {
-	NULLABLE(!_maxSegments)
+	NULLABLE(!_maxSegments) // no real sense to use in writing/reading if _maxSegments==0
 
 	enum : UInt8 {
 		DEFAULT_SEGMENTS = 4
@@ -94,14 +94,25 @@ struct Segments : virtual Object, Media::Target, private MediaWriter {
 	const_iterator	end() const { return _segments.end(); }
 
 	// Methods to write Segments
-	bool beginMedia(const std::string& name) { _writer.beginMedia(nullptr); return true; }
-	bool writeProperties(const Media::Properties& properties) { if (_maxSegments) _writer.writeProperties(properties, nullptr); return true; }
-	bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable = true) { if (_maxSegments) _writer.writeAudio(track, tag, packet, nullptr); return true; }
-	bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable = true) { if (_maxSegments) _writer.writeVideo(track, tag, packet, nullptr); return true; }
-	bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable = true) { if (_maxSegments) _writer.writeData(track, type, packet, nullptr); return true; }
-	bool endMedia();
+	/*!
+	beginMedia, can be called multiple time (MBR) */
+	bool beginMedia(const std::string& name) override;
+	bool writeProperties(const Media::Properties& properties) override { return write(properties, nullptr); }
+	bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable = true) override { return write(track, tag, packet, nullptr); }
+	bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable = true) override { return write(track, tag, packet, nullptr); }
+	bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable = true) override { return write(track, type, packet, nullptr); }
+	bool endMedia() override;
 
 private:
+
+	template<typename ...Args>
+	bool write(Args&&... args) {
+		DEBUG_ASSERT(_started);
+		if(!_started)
+			return false; // Stream not begin!
+		_writer.writeMedia(std::forward<Args>(args)...);
+		return true;
+	}
 
 	// Method to write current segment
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
@@ -125,6 +136,7 @@ private:
 	UInt8				_maxSegments;
 	UInt32				_maxDuration;
 	Writer				_writer;
+	bool				_started;
 };
 
 } // namespace Mona

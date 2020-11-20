@@ -186,44 +186,46 @@ void Segments::Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, con
 
 /// SEGMENTS //////
 
-Segments::Segments(UInt8 maxSegments) : _maxDuration(Segment::MIN_DURATION), _maxSegments(maxSegments), _sequence(0), _writer(self), sequences(_writer.sequences) {
+Segments::Segments(UInt8 maxSegments) : _maxDuration(Segment::MIN_DURATION),
+	_started(false), _maxSegments(maxSegments), _sequence(0), _writer(self), sequences(_writer.sequences) {
 	_writer.onSegment = [this](UInt16 duration) {
 		// add the valid segment to _segments
-		if (_segments.size() >= _maxSegments) {
-			++_sequence; // increments just on remove
-			_segments.pop_front();
-		}
 		_segment.add(_segment.time() + duration);
 		_segments.emplace_back(move(_segment));
 		if (duration > _maxDuration)
 			_maxDuration = duration;
+		if (_segments.size() > _maxSegments) {
+			++_sequence; // increments just on remove
+			_segments.pop_front();
+		}
 	};
 }
 
 UInt8 Segments::setMaxSegments(UInt8 maxSegments) {
-	_maxSegments = maxSegments;
-	if (maxSegments) {
-		while (maxSegments < _segments.size()) {
-			++_sequence; // increments just on remove
-			_segments.pop_front();
-		}
-		_segments.resize(maxSegments);
-	} else {
-		// stop segmentation
-		_segments.clear();
-		_sequence = 0;
-		_segment.clear();
-		_maxDuration = Segment::MIN_DURATION;
+	while (_segments.size() > maxSegments) {
+		++_sequence; // increments just on remove
+		_segments.pop_front();
 	}
-	return maxSegments;
+	return _maxSegments = maxSegments;;
 }
 
+bool Segments::beginMedia(const string& name) {
+	// can be called multiple time, just do a _writer.endMedia() on double call
+	if (_started)
+		_writer.endMedia(nullptr);
+	_started = true;
+	_writer.beginMedia(nullptr);
+	return true;
+}
 bool Segments::endMedia() {
+	if (!_started)
+		return false;
+	_started = false;
 	_writer.endMedia(nullptr);
 	if (_segments.size())
 		_segments.back().discontinuous = true;
-	_segment.clear();
-	_maxDuration = Segment::MIN_DURATION;
+	// Don't reset _maxDuration and segments, must stays alive for playlist usage,
+	// delete the Segments object to reset all!
 	return true;
 }
 
@@ -242,14 +244,15 @@ const Segment& Segments::operator()(Int32 sequence) const {
 }
 
 Playlist& Segments::to(Playlist& playlist) const {
-	// anticipate the _segments.pop() => sequence+1
-	playlist.sequence = _sequence + 1;
+	playlist.sequence = _sequence;
 	(UInt64&)playlist.maxDuration = _maxDuration;
 	// Skip the first segment in playlist, because can be deleted by segments before request
 	bool first = true;
 	for (const Segment& segment : _segments) {
 		if (first) {
 			first = false;
+			// anticipate the _segments.pop() => sequence+1
+			++playlist.sequence;
 			continue;
 		}
 		if (segment.discontinuous)

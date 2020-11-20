@@ -38,7 +38,7 @@ void ADTSWriter::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, 
 
 	if (tag.isConfig) { // Read config packet to get object type
 		// has configs! prefer AAC configs!
-		UInt8 type(MPEG4::ReadAudioConfig(packet.data(), min(packet.size(), 2), _rateIndex, _channels));
+		UInt8 type(MPEG4::ReadAudioConfig(packet.data(), min(packet.size(), 2u), _rateIndex, _channels));
 		if (type)
 			_codecType = type - 1; // minus 1
 		return; // remove config packet (no need, already all infos in header)

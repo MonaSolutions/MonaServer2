@@ -140,8 +140,10 @@ void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
 			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
 		}
 		// reset is a call to endMedia + beginMedia
-		_segments.endMedia();
-		_segments.beginMedia(name());
+		if (_segments) {
+			_segments.beginMedia(name());
+			_segments.endMedia();
+		}
 	}
 	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 	// no flush here, wait first flush or first media to allow to subscribe to onProperties event for a publisher!
@@ -254,7 +256,8 @@ void Publication::writeAudio(const Media::Audio::Tag& tag, const Packet& packet,
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeAudio(tag, packet, track);
 	}
-	_segments.writeAudio(track, tag, packet);
+	if (_segments)
+		_segments.writeAudio(track, tag, packet);
 
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
 	if (pAudio && tag.isConfig)
@@ -321,7 +324,8 @@ void Publication::writeVideo(const Media::Video::Tag& tag, const Packet& packet,
 		} else
 			pSubscription->writeVideo(tag, packet, track); // with CC
 	}
-	_segments.writeVideo(track, tag, packet);
+	if (_segments)
+		_segments.writeVideo(track, tag, packet);
 
 	// Hold config packet after video distribution to avoid to distribute two times config packet if subscription call beginMedia
 	if (pVideo && tag.frame == Media::Video::FRAME_CONFIG && packet) // don't save the config "empty" (keep alive data stream!)
@@ -368,7 +372,8 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeData(type, packet, track);
 	}
-	_segments.writeData(track, type, packet);
+	if (_segments)
+		_segments.writeData(track, type, packet);
 }
 
 void Publication::onParamChange(const string& key, const string* pValue) {
@@ -407,7 +412,8 @@ void Publication::flushProperties() {
 		if (pSubscription->pPublication == this || !pSubscription->pPublication)
 			pSubscription->writeProperties(self);
 	}
-	_segments.writeProperties(self);
+	if(_segments)
+		_segments.writeProperties(self);
 }
 
 } // namespace Mona

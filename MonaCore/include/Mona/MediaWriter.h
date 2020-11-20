@@ -52,6 +52,10 @@ struct MediaWriter : virtual Object {
 	virtual void endMedia(const OnWrite& onWrite) {}
 	
 	void writeMedia(const Media::Base& media, const OnWrite& onWrite);
+	void writeMedia(const Media::Properties& properties, const OnWrite& onWrite) { writeProperties(properties, onWrite); }
+	void writeMedia(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) { writeAudio(track, tag, packet, onWrite); }
+	void writeMedia(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) { writeVideo(track, tag, packet, onWrite); }
+	void writeMedia(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) { writeData(track, type, packet, onWrite); }
 };
 
 struct MediaTrackWriter : MediaWriter, virtual Object {
