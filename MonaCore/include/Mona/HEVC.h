@@ -68,7 +68,7 @@ struct HEVC : virtual Static {
 	static bool					ParseVideoConfig(const Packet& packet, Packet& vps, Packet& sps, Packet& pps);
 	/*!
 	Extract the content of VPS, SPS & PPS (preceded by size) into the buffer for further usage */
-	static UInt32				ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer);
+	static Buffer&				ReadVideoConfig(const UInt8* data, UInt32 size, Buffer& buffer);
 	/*!
 	Write the MP4 video config packet from VPS, SPS & PPS packets */
 	static BinaryWriter&		WriteVideoConfig(BinaryWriter& writer, const Packet& vps, const Packet& sps, const Packet& pps);

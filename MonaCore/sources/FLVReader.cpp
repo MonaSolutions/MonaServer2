@@ -129,12 +129,12 @@ UInt32 FLVReader::parse(Packet& buffer, Media::Source& source) {
 				if (_video.frame == Media::Video::FRAME_CONFIG && ((_video.codec == Media::Video::CODEC_H264) || (_video.codec == Media::Video::CODEC_HEVC))) {
 					shared<Buffer> pBuffer(SET);
 					if (_video.codec == Media::Video::CODEC_HEVC)
-						content += HEVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
+						HEVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
 					else
-						content += AVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
+						AVC::ReadVideoConfig(content.data(), content.size(), *pBuffer);
 					source.writeVideo(_video, Packet(pBuffer), track ? track : 1);
 				}
-				if(content) // because if was just a config packet, there is no more data!
+				else
 					source.writeVideo(_video, content, track ? track : 1);
 				break;
 			}

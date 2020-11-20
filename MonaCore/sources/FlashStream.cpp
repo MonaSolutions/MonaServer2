@@ -391,14 +391,13 @@ void FlashStream::videoHandler(UInt32 timestamp, const Packet& packet) {
 	if (_video.frame == Media::Video::FRAME_CONFIG && (_video.codec == Media::Video::CODEC_H264 || _video.codec == Media::Video::CODEC_HEVC)) {
 		shared<Buffer> pBuffer(SET);
 		if (_video.codec == Media::Video::CODEC_HEVC)
-			readen += HEVC::ReadVideoConfig(packet.data() + readen, packet.size() - readen, *pBuffer);
+			HEVC::ReadVideoConfig(packet.data() + readen, packet.size() - readen, *pBuffer);
 		else
-			readen += AVC::ReadVideoConfig(packet.data() + readen, packet.size() - readen, *pBuffer);
+			AVC::ReadVideoConfig(packet.data() + readen, packet.size() - readen, *pBuffer);
 		_pPublication->writeVideo(_video, Packet(pBuffer), _videoTrack);
-		if (packet.size() <= readen)
-			return; //rest nothing
-	}
-	_pPublication->writeVideo(_video, packet+readen, _videoTrack);
+	} 
+	else
+		_pPublication->writeVideo(_video, packet+readen, _videoTrack);
 }
 
 

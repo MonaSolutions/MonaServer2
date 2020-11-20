@@ -182,6 +182,8 @@ struct Media : virtual Static {
 			Frame				 frame;
 			UInt16				 compositionOffset;
 		};
+		/*! 
+		Convig Video packet contains avcC or hvcC NALUs (PPS, SPS, SPSE, VPS...) */
 		struct Config : Tag, Packet, virtual Object {
 			NULLABLE(!Packet::operator bool())
 			explicit Config() { frame = FRAME_CONFIG; }
@@ -195,6 +197,9 @@ struct Media : virtual Static {
 			}
 		};
 
+		/*! 
+		video packet in MonaServer is composed of multiple NAL units :
+		{size32}{NALU}[{size32}{NALU}...] */
 		Video(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) : Base(TYPE_VIDEO, packet, track), tag(tag) {}
 		Media::Video::Tag	tag;
 	};

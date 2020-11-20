@@ -36,7 +36,8 @@ UInt8 MPEG4::ReadAudioConfig(const UInt8* data, UInt32 size, UInt8& rateIndex, U
 	// http://www.mpeg-audio.org/docs/w14751_(mpeg_AAC_TransportFormats).pdf
 
 	if (size < 2) {
-		WARN("AAC configuration packet must have a minimum size of 2 bytes");
+		if (size) // empty size is not an error, it is an audio silence which signal the end of audio in order to sync with video
+			WARN("AAC configuration packet must have a minimum size of 2 bytes");
 		return 0;
 	}
 
