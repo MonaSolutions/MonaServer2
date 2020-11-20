@@ -30,13 +30,14 @@ struct HTTPSender : Runner, virtual Object {
 	HTTPSender(const char* name,
 		const shared<const HTTP::Header>& pRequest,
 		const shared<Socket>& pSocket) : _chunked(0), pSocket(pSocket), // hold socket to thhe sending (answer even if server falls)
-		pRequest(pRequest), connection(pRequest->connection), Runner(name) {}
+		pRequest(pRequest), connection(pRequest->connection), Runner(name), crossOriginIsolated(false) {}
 	virtual ~HTTPSender() { if (!connection) pSocket->shutdown(); }
 
 	bool isFile() const { const Path& path(this->path()); return path && !path.isFolder(); }
 
 	virtual bool hasHeader() const { return true; }
 
+	bool crossOriginIsolated;
 	void setCookies(shared<Buffer>& pSetCookie);
 
 	Buffer& buffer();

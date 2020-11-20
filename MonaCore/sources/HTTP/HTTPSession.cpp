@@ -201,6 +201,7 @@ void HTTPSession::onParameters(const Parameters& parameters) {
 	TCPSession::onParameters(parameters);
 	if (_pUpgradeSession)
 		return _pUpgradeSession->onParameters(parameters);
+	parameters.getBoolean("crossOriginIsolated", _pWriter->crossOriginIsolated = false);
 	_index.clear(); // default value
 	_indexDirectory = true; // default value
 	if (parameters.getString("index", _index)) {

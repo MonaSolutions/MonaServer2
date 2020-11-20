@@ -78,7 +78,7 @@ private:
 };
 
 
-HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(false), _session(session),
+HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(false), _session(session), crossOriginIsolated(false),
 	_onFileReaden([this](shared<Buffer>& pBuffer, bool end) {
 #if !defined(_DEBUG)
 		if (_flushings.empty())

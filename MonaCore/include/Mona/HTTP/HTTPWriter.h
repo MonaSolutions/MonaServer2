@@ -35,6 +35,8 @@ namespace Mona {
 struct HTTPWriter : Writer, Media::Target, virtual Object {
 	HTTPWriter(TCPSession& session);
 
+	bool			crossOriginIsolated;
+
 	void			beginRequest(const shared<const HTTP::Header>& pRequest);
 	void			endRequest();
 
@@ -72,6 +74,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 
 	bool			answering() const { return !_flushings.empty() || _session->queueing(); }
 	void			flush() { Writer::flush(); }
+
 private:
 	void			flush(const shared<HTTPSender>& pSender);
 	void			flushing();
@@ -90,6 +93,7 @@ private:
 			return nullptr;
 		shared<SenderType> pSender(SET, _pRequest, _session.socket(), std::forward<Args>(args)...);
 		pSender->setCookies(_pSetCookie);
+		pSender->crossOriginIsolated = crossOriginIsolated;
 		if(isResponse) {
 			if (_pResponse) {
 				if(_requesting)
