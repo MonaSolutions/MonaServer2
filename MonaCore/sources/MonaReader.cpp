@@ -17,11 +17,45 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/MonaReader.h"
+#include "Mona/JSONReader.h"
 #include "Mona/Logs.h"
 
 using namespace std;
 
 namespace Mona {
+
+bool MonaReader::Read(const Packet& packet, Media::Source& source) {
+	BinaryReader reader(packet.data(), packet.size());
+	UInt8 track;
+	Media::Audio::Tag audio;
+	Media::Video::Tag video;
+	Media::Data::Type  data;
+	Media::Type type = Media::Unpack(reader, audio, video, data, track);
+	Packet media(packet, reader.current(), reader.available());
+	switch (type) {
+		case Media::TYPE_AUDIO:
+			source.writeAudio(audio, media, track);
+			return true;
+		case Media::TYPE_VIDEO:
+			source.writeVideo(video, media, track);
+			return true;
+		case Media::TYPE_DATA: {
+			if (!track && data == Media::Data::TYPE_JSON) {
+				// properties?
+				string handler;
+				if (JSONReader(media).readString(handler) && handler == "@properties") {
+					source.addProperties(0, data, media);
+					return true;
+				}
+			}
+			source.writeData(data, media, track);
+			return true;
+		}
+		default:
+			ERROR("Unknown type ", type);
+	}
+	return false;
+}
 
 void MonaReader::onFlush(Packet& buffer, Media::Source& source) {
 	_size = 0;
@@ -42,33 +76,10 @@ UInt32 MonaReader::parse(Packet& buffer, Media::Source& source) {
 		if (reader.available() < _size)
 			return reader.available();
 
-		BinaryReader content(reader.current(), _size);
+		Read(Packet(buffer, reader.current(), _size), source);
 		reader.next(_size);
 		_size = 0;
-
-		UInt8 track;
-		Media::Audio::Tag audio;
-		Media::Video::Tag video;
-		Media::Data::Type  data;
-		Media::Type type = Media::Unpack(content, audio, video, data, track);
-		Packet media(buffer, content.current(), content.available());
-		switch (type) {
-			case Media::TYPE_AUDIO:
-				source.writeAudio(audio, media, track);
-				break;
-			case Media::TYPE_VIDEO:
-				source.writeVideo(video, media, track);
-				break;
-			case Media::TYPE_DATA: {
-				if (track)
-					source.writeData(data, media, track);
-				else // properties have been serialized like data with track=0 (no RPC in media, see MonaWriter) 
-					source.addProperties(0, data, media);
-				break;
-			}
-			default:
-				ERROR("Malformed header size");
-		}
+		
 	}
 	return 0;
 }

@@ -26,6 +26,9 @@ namespace Mona {
 /*!
 [UInt32=>size][Media::Pack][...data...] */
 struct MonaReader : virtual Object, MediaReader {
+	static bool Read(const Packet& packet, Media::Source& source);
+
+
 	MonaReader() : _size(0)  {}
 
 private:

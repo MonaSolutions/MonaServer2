@@ -343,8 +343,7 @@ void Publication::writeData(Media::Data::Type type, const Packet& packet, UInt8 
 		unique<DataReader> pReader(Media::Data::NewReader(type, packet));
 		if (pReader) {
 			string handler;
-			// for performance reason read just if type is explicity a STRING (not a convertible string as binary etc...)
-			if (pReader->nextType()==DataReader::STRING && pReader->readString(handler) && handler == "@properties")
+			if (pReader->readString(handler) && handler == "@properties")
 				return addProperties(track, type, packet + (*pReader)->position());
 		}
 	} else if(track)

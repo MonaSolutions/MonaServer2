@@ -35,20 +35,24 @@ struct MonaWriter : MediaWriter, virtual Object {
 			write(track, type, packet, onWrite);
 	}
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
-		Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
+		Media::Data::Type type(Media::Data::TYPE_JSON);
 		const Packet& packet = properties.data(type);
-		writeData(0, type, packet, onWrite); // use data command channel (can't happen in a container) to write properties!
+		static const Packet Header(EXPAND("[\"@properties\","));
+		write(0, Media::Data::TYPE_JSON, packet+1, onWrite, Header); // +1 to remove "["
 	}
 private:
 	
 	template<typename TagType>
-	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
+	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite, const Packet& header = Packet::Null()) {
 		if (!onWrite)
 			return;
 		UInt8 buffer[9];
 		BinaryWriter writer(buffer, sizeof(buffer));
-		Media::Pack(writer.write32(Media::PackedSize(tag, track) + packet.size()), tag, track);
+		UInt32 size = header.size() + packet.size();
+		Media::Pack(writer.write32(Media::PackedSize(tag, track) + size), tag, track);
 		onWrite(Packet(writer.data(), writer.size()));
+		if(header)
+			onWrite(header);
 		onWrite(packet);
 	}
 

@@ -104,6 +104,7 @@ struct Segments : virtual Object, Media::Target, private MediaWriter {
 	bool endMedia() override;
 
 private:
+	void flush() {} // private to mark it explicitly as useless
 
 	template<typename ...Args>
 	bool write(Args&&... args) {
