@@ -111,7 +111,12 @@ ADD_TEST(Parse) {
 ADD_TEST(ParseQuery) {
 	string value;
 	Parameters properties;
+	CHECK(!URL::ParseQuery("?", properties).count())
 	CHECK(URL::ParseQuery("name1=value1&name2=value2", properties).count() == 2)
+	DEBUG_CHECK(properties.getString("name1", value) && value == "value1");
+	DEBUG_CHECK(properties.getString("name2", value) && value == "value2");
+	properties.clear();
+	CHECK(URL::ParseQuery("?name1=value1&name2=value2", properties).count() == 2)
 	DEBUG_CHECK(properties.getString("name1", value) && value == "value1");
 	DEBUG_CHECK(properties.getString("name2", value) && value == "value2");
 	properties.clear();

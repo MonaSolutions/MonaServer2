@@ -31,54 +31,42 @@ ServerAPI::ServerAPI(std::string& www, map<string, Publication>& publications, c
 	www(www), _publications(publications), threadPool(cores), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool, cores), clients() {
 }
 
-Publication* ServerAPI::publish(Exception& ex, string& stream, Client* pClient) {
-	size_t found = stream.find('?');
-	const char* query(NULL);
-	if (found != string::npos) {
-		query = stream.c_str() + found + 1;
-		stream.resize(found);
-	}
-	found = stream.find_last_of('.');
-	const char* ext(NULL);
-	if (found != string::npos) {
-		ext = stream.c_str() + found + 1;
-		stream.resize(found);
-	}
-	return publish(ex, stream, ext, query, pClient);
-}
+Publication* ServerAPI::publish(Exception& ex, Path& stream, Client* pClient) {
+	// change Path to isolate properties, in first to get the right stream name in logs!
+	const string& properties = stream.search();
+	const string& name = stream.baseName();
 
-Publication* ServerAPI::publish(Exception& ex, const string& stream, const char* ext, const char* query, Client* pClient) {
 	if (pClient && !pClient->connection) {
-		ERROR(ex.set<Ex::Intern>("Client must be connected before ", stream, " publication"));
+		ERROR(ex.set<Ex::Intern>("Client must be connected before ", name, " publication"));
 		return NULL;
 	}
 	
-	const auto& it = _publications.emplace(SET, forward_as_tuple(stream), forward_as_tuple(stream));
+	const auto& it = _publications.emplace(SET, forward_as_tuple(name), forward_as_tuple(name));
 	Publication& publication(it.first->second);
 
 	if (publication.publishing()) {
-		ERROR(ex.set<Ex::Intern>(stream, " is already publishing"));
+		ERROR(ex.set<Ex::Intern>(name, " is already publishing"));
 		return NULL;
 	}
 
-	if (query) {
+	if (properties != "?") {
 		// write metadata!
 		// allow to work with any protocol and easy query writing
 		// Ignore the FMLE case which write two times properties (use query and metadata, anyway query are include in metadata (more complete))
-		URL::ParseQuery(query, publication);
+		URL::ParseQuery(properties, publication);
 	}
 
 	// Write static metadata configured
-	if (String::ICompare(getString(stream), "publication")==0) {
-		String name(stream,'.');
-		for (auto& it : range(name))
-			publication.setString(it.first.c_str()+name.size(), it.second);
+	if (String::ICompare(getString(name), "publication")==0) {
+		String prop(name,'.');
+		for (auto& it : range(prop))
+			publication.setString(it.first.c_str()+ prop.size(), it.second);
 	}
 
 	if (onPublish(ex, publication, pClient)) {
-		if(ext) {
+		if(!stream.extension().empty()) {
 			// RECORD!
-			Path path(www, pClient ? pClient->path : "", stream,'.', ext);
+			Path path(www, pClient ? pClient->path : "", name,'.', stream.extension());
 			bool append(false);
 			publication.getBoolean("append", append);
 			MapReader<Parameters> arguments(publication);
@@ -91,7 +79,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 					publication.start(move(pFileWriter), append);
 					return &publication;
 				}
-				WARN(stream, " impossible to record, ", ex);
+				WARN(name, " impossible to record, ", ex);
 			}
 		}
 		publication.start();
@@ -102,7 +90,7 @@ Publication* ServerAPI::publish(Exception& ex, const string& stream, const char*
 	publication.clear();
 
 	if(!ex)
-		ex.set<Ex::Permission>("Not allowed to publish ", stream);
+		ex.set<Ex::Permission>("Not allowed to publish ", name);
 	ERROR(ex);
 	if (publication.subscriptions.empty())
 		_publications.erase(it.first);
@@ -130,15 +118,15 @@ void ServerAPI::unpublish(Publication& publication, Client* pClient) {
 
 bool ServerAPI::subscribe(Exception& ex, string& stream, Subscription& subscription, Client* pClient) {
 	size_t found(stream.find('?'));
-	const char* query(NULL);
+	const char* parameters(NULL);
 	if (found != string::npos) {
-		query = stream.c_str() + found + 1;
+		parameters = stream.c_str() + found + 1;
 		stream.resize(found);
 	}
-	return subscribe(ex, stream, subscription, query, pClient);
+	return subscribe(ex, stream, subscription, parameters, pClient);
 }
 
-bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& subscription, const char* queryParameters, Client* pClient) {
+bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& subscription, const char* parameters, Client* pClient) {
 	// check that client is connected before!
 	if (pClient && !pClient->connection) {
 		ERROR(ex.set<Ex::Intern>("Client must be connected before ", stream, " publication subscription"))
@@ -146,15 +134,15 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 	}
 
 	// update parameters
-	Parameters parameters;
-	if (queryParameters)
-		URL::ParseQuery(queryParameters, parameters);
-	const char* mbr = parameters.getString("mbr");
+	Parameters params;
+	if (parameters)
+		URL::ParseQuery(parameters, params);
+	const char* mbr = params.getString("mbr");
 	if (mbr) // add "this" mbr if mbr param!
-		parameters.emplace("mbr", String(mbr, "|", stream));
+		params.emplace("mbr", String(mbr, "|", stream));
 
 	// Change parameters with just one call to limit change event propagation to Target
-	subscription.setParams(move(parameters));
+	subscription.setParams(move(params));
 
 	// check if subscription has already subscribed for one of theses stream (more faster than _publication.find(...))
 	if (subscription.subscribed(stream))

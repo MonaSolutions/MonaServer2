@@ -47,8 +47,9 @@ struct Peer : Client, virtual Object {
 	Time						pingTime;
 
 	// events
-	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters) { onConnection(ex, writer, netStats, parameters, DataWriter::Null()); }
-	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters, DataWriter& response);
+	/*!
+	Peer app connection, parameters will contains peer.query (useless to pass it if just it) */
+	void onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, DataReader& parameters = DataReader::Null(), DataWriter& response = DataWriter::Null());
 	void onDisconnection();
 
 	SocketAddress& onHandshake(SocketAddress& redirection);

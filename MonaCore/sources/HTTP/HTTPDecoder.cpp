@@ -141,6 +141,10 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 							// is response => continue as a POST request!
 						case HTTP::TYPE_POST:
 							if (_pHeader->mime == MIME::TYPE_VIDEO || _pHeader->mime == MIME::TYPE_AUDIO) {
+								if (_file.isFolder()) {
+									_ex.set<Ex::Protocol>("HTTP ", _pHeader->subMime, " publication name missing");
+									break;
+								}
 								// Publish = POST + VIDEO/AUDIO
 								_pReader = MediaReader::New(_pHeader->subMime);
 								if (!_pReader)

@@ -119,21 +119,23 @@ UInt8 JSONReader::followingType() {
 		++cur;
 	} while (available && *cur != ',' && *cur != '}' && *cur != ']');
 
+	_size = String::TrimRight(value, _size);
+
 	if (_size == 4) {
-		if (String::ICompare(value, EXPAND("true")) == 0) {
+		if (String::ICompare(value, _size, "true") == 0) {
 			_number = 1;
 			return BOOLEAN;
 		}
-		if(String::ICompare(value, EXPAND("null")) == 0)
+		if(String::ICompare(value, _size, "null") == 0)
 			return NIL;
-	} else if (_size == 5 && String::ICompare(value, EXPAND("false")) == 0) {
+	} else if (_size == 5 && String::ICompare(value, _size, "false") == 0) {
 		_number = 0;
 		return BOOLEAN;
 	}
 	if (String::ToNumber(value, _size, _number))
 		return NUMBER;
 
-	ERROR("JSON malformed, unknown ",string(value,_size)," value");
+	ERROR("JSON malformed, unknown ",String::Data(value,_size)," value");
 	reader.next(reader.available());
 	return END;
 }

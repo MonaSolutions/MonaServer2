@@ -56,9 +56,6 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 			// properties = version + headers + cookies
 			peer.properties().setParams(move(request));
 
-			// Create parameters for onConnection or a GET onRead/onWrite/onInvocation
-			QueryReader parameters(peer.query.data(), peer.query.size());
-
 			Exception ex;
 
 			// Upgrade protocol
@@ -80,7 +77,7 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 							HTTP_END_HEADER
 
 							// WebSocket connection
-							peer.onConnection(ex, pSession->writer, *self, parameters); // No response in WebSocket handshake (fail for few clients)
+							peer.onConnection(ex, pSession->writer, *self); // No response in WebSocket handshake (fail for few clients)
 						} else
 							ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
 					} else
@@ -99,13 +96,13 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 							return true;
 						};
 					}
-					peer.onConnection(ex, *_pWriter, *self, parameters);
-					parameters.reset();
+					peer.onConnection(ex, *_pWriter, *self);
 				}
 
 				// onInvocation/<method>/onRead
 				if (!ex && peer) {
-
+					// Create parameters for onRead/onWrite/onInvocation
+					QueryReader parameters(peer.query.data(), peer.query.size());
 					/// HTTP GET & HEAD
 					switch (request->type) {
 						case HTTP::TYPE_HEAD:
@@ -312,9 +309,9 @@ void HTTPSession::unsubscribe() {
 	_pSubscription = NULL;
 }
 
-void HTTPSession::publish(Exception& ex, const Path& stream) {
+void HTTPSession::publish(Exception& ex, Path& stream) {
 	unpublish();
-	_pPublication = api.publish(ex, peer, stream, peer.query.c_str());
+	_pPublication = api.publish(ex, peer, stream);
 }
 
 void HTTPSession::unpublish() {
@@ -462,8 +459,9 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 
 void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
 	if (request.pMedia)
-		return publish(ex, request.file); // Publish
-	processPut(ex, request, parameters); // data or file append (as behavior as PUT)
+		publish(ex, request.file); // Publish
+	else
+		processPut(ex, request, parameters); // data or file append (as behavior as PUT)	
 }
 
 void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters) {

@@ -38,7 +38,25 @@ ADD_TEST(Getters) {
 	CHECK(path.extension() == "txt");
 	CHECK(path.parent() == "/path/");
 	CHECK(!path.isFolder());
-	
+
+	CHECK(path.search() == "?");
+	path.set("/path/file.txt?salut");
+	CHECK(path.name() == "file.txt?salut");
+	CHECK(path.baseName() == "file");
+	CHECK(path.extension() == "txt?salut");
+	CHECK(path.search() == "?salut");
+	CHECK(path.name() == "file.txt");
+	CHECK(path.baseName() == "file");
+	CHECK(path.extension() == "txt");
+
+	path.set("/path?url=/file.txt?salut");
+	CHECK(path.name() == "file.txt?salut");
+	CHECK(path.baseName() == "file");
+	CHECK(path.extension() == "txt?salut");
+	CHECK(path.search() == "?url=/file.txt?salut");
+	CHECK(path.name() == "path");
+	CHECK(path.baseName() == "path");
+	CHECK(path.extension() == "");
 }
 
 ADD_TEST(Setters) {

@@ -35,9 +35,9 @@ struct SRTProtocol : Protocol, virtual Object {
 			read(DataWriter::Null()); // fill parameters!
 		}
 
-		const std::string&	stream() const { return _stream; }
-		bool				publish() const { return _publish; }
-		bool				subscribe() const { return _subscribe; }
+		Path			stream;
+		bool			publish() const { return _publish; }
+		bool			subscribe() const { return _subscribe; }
 
 		DataReader& operator()();
 
@@ -49,7 +49,6 @@ struct SRTProtocol : Protocol, virtual Object {
 
 		bool setResource(const char* value, std::size_t size);
 
-		std::string	_stream;
 		Peer&		_peer;
 		bool		_publish;
 		bool		_subscribe;

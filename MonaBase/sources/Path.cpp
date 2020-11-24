@@ -61,6 +61,7 @@ bool Path::setName(const char* value) {
 	if (isFolder())
 		FileSystem::MakeFolder(path);
 	_pImpl.set(move(path));
+	_search.clear();
 	return true;
 }
 
@@ -79,6 +80,7 @@ bool Path::setBaseName(const char* value) {
 	if (isFolder())
 		FileSystem::MakeFolder(path);
 	_pImpl.set(move(path));
+	_search.clear();
 	return true;
 }
 
@@ -97,7 +99,34 @@ bool Path::setExtension(const char* value) {
 	if (isFolder())
 		FileSystem::MakeFolder(path);
 	_pImpl.set(move(path));
+	_search.clear();
 	return true;
+}
+
+
+const string& Path::search() {
+	if (_search.size())
+		return _search;
+	if(!_pImpl)
+		return _search = "?";
+	const string& path = _pImpl->path();
+	size_t found = path.find('?');
+	if (found == string::npos)
+		return _search = "?";
+	// rebuild path
+	_search = path.c_str() + found;
+	_pImpl.set(String::Data(path.c_str(), found));
+	return _search;
+}
+
+Path& Path::setSearch(string&& value) {
+	if (value.empty()) {
+		// erase search part
+		search();
+		_search = "?";
+	}  else
+		_search = move(value);
+	return self;
 }
 
 } // namespace Mona

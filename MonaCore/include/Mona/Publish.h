@@ -36,7 +36,7 @@ struct Publish : Media::Source, Server::Action, virtual Object {
 	~Publish();
 	/*!
 	Publication name */
-	const std::string& name() const { return _pName ? *_pName : (*_ppSource)->name(); }
+	const std::string& name() const { return _pStream ? _pStream->baseName() : (*_ppSource)->name(); }
 	/*!
 	Write audio packet */
 	void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track=1) { queue<Write<Media::Audio>>(tag, packet, track); }
@@ -78,7 +78,7 @@ struct Publish : Media::Source, Server::Action, virtual Object {
 	};
 private:
 
-	void run(ServerAPI& api) { Exception ex; *_ppSource = api.publish(ex, name()); }
+	void run(ServerAPI& api) { Exception ex; *_ppSource = api.publish(ex, *_pStream); }
 
 	struct Action : Runner, virtual Object {
 		Action(const char* name, const shared<Source*>& ppSource, bool isPublication=false) : Runner(name), _ppSource(ppSource), _isPublication(isPublication) {}
@@ -106,7 +106,7 @@ private:
 			ERROR("Server stopped, impossible to ", typeof<Type>(), " ", name());
 	}
 
-	unique<std::string>	_pName; // if is set => source is a publication (otherwise _ppSource points to source constructor argument)
+	unique<Path>		_pStream; // if is set => source is a publication (otherwise _ppSource points to source constructor argument)
 	shared<Source*>		_ppSource; // if Source*==NULL => failed (always set otherwise)
 	ServerAPI&			_api;
 };

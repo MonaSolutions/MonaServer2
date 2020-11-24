@@ -36,10 +36,10 @@ struct Path : virtual Object {
 	template <typename ...Args>
 	Path(Args&&... args) { _pImpl.set(std::forward<Args>(args)...); }
 	Path(const Path& path) : _pImpl(path._pImpl) {}
-	Path(Path&& path) : _pImpl(std::move(path._pImpl)) {}
+	Path(Path&& path) : _pImpl(std::move(path._pImpl)), _search(std::move(path._search)) {}
 
-	Path& operator=(const Path& path) { _pImpl = path._pImpl; return self; }
-	Path& operator=(Path&& path) { _pImpl = std::move(path._pImpl); return self; }
+	Path& operator=(const Path& path) { _pImpl = path._pImpl; _search = path._search; return self; }
+	Path& operator=(Path&& path) { _pImpl = std::move(path._pImpl); _search = path._search; return self; }
 	Path& operator=(std::nullptr_t) { return reset(); }
 
 	// properties
@@ -50,6 +50,11 @@ struct Path : virtual Object {
 	bool				isFolder() const { return _pImpl ? _pImpl->isFolder() : false; }
 	bool				isAbsolute() const { return _pImpl ? _pImpl->isAbsolute() : false; }
 
+	/*!
+	Try to see if there is a search-query in the path (which is a valid name over unix) and extract it,
+	it rebuild the path without the search-part and returns it */
+	const std::string&	search();
+
 
 	// physical disk file
 	bool		exists(bool refresh = false) const { return _pImpl ? _pImpl->exists(refresh) : false; }
@@ -59,15 +64,20 @@ struct Path : virtual Object {
 
 	// setters
 	template <typename ...Args>
-	Path& set(Args&&... args) { _pImpl.set(std::forward<Args>(args)...); return self; }
+	Path& set(Args&&... args) { _pImpl.set(std::forward<Args>(args)...); _search.clear(); return self; }
 	bool setName(const std::string& value) { return setName(value.c_str()); }
 	bool setName(const char* value);
 	bool setBaseName(const std::string& value) { return setBaseName(value.c_str()); }
 	bool setBaseName(const char* value);
 	bool setExtension(const std::string& value) { return setExtension(value.c_str()); }
 	bool setExtension(const char* value);
+	/*!
+	Set search-part without extract current value (maybe a legal file name),
+	to override search part call "search()" in first,
+	to erase search part call setSearch("") */
+	Path& setSearch(std::string&& value);
 
-	Path& reset() { _pImpl.reset(); return self; }
+	Path& reset() { _pImpl.reset(); _search.clear(); return self; }
 
 	static const Path& Home() { static Path Path(FileSystem::GetHome()); return Path; }
 	static const Path& CurrentApp() { static Path Path(FileSystem::GetCurrentApp()); return Path; }
@@ -116,7 +126,8 @@ private:
 	};
 
 
-	shared<Impl> _pImpl;
+	shared<Impl>	_pImpl;
+	std::string		_search;
 
 	friend struct File;
 };

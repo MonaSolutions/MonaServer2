@@ -50,13 +50,13 @@ struct ServerAPI : virtual Object, Parameters {
 	shared<TLS>				pTLSServer;
 
 	/*!
-	Publish a publication
-	Query parameters will be passed to publication properties (metadata)
-	To change properties dynamically, send a @properties command, with a track it writes properties related one track, without track it overloads all */
-	Publication*			publish(Exception& ex, std::string& stream) { return publish(ex, stream, NULL); }
-	Publication*			publish(Exception& ex, const Path& stream, const char* query = NULL) { return publish(ex, stream.isFolder() ? String::Empty() : stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), query, NULL); }
-	Publication*			publish(Exception& ex, Client& client, std::string& stream) { return publish(ex, stream, &client); }
-	Publication*			publish(Exception& ex, Client& client, const Path& stream, const char* query = NULL) { return publish(ex, stream.isFolder() ? String::Empty() : stream.baseName(), stream.extension().empty() ? NULL : stream.extension().c_str(), query, &client); }
+	Publish a publication, stream can be in the form "name.ext?query". With extention stream is recorded, and query fills publication properties.
+	Stream in out parameter give the publication name isolated */
+	Publication*			publish(Exception& ex, Path& stream) { return publish(ex, stream, NULL); }
+	/*!
+	Client publication, stream can be in the form "name.ext?query". With extention stream is recorded, and query fills publication properties.
+	Stream in out parameter give the publication name isolated */
+	Publication*			publish(Exception& ex, Client& client, Path& stream) { return publish(ex, stream, &client); }
 
 	void					unpublish(Publication& publication) { unpublish(publication, NULL); }
 	void					unpublish(Publication& publication, Client& client) { unpublish(publication, &client);  }
@@ -66,9 +66,9 @@ struct ServerAPI : virtual Object, Parameters {
 	If the subscription is already done, change just the subscriptions parameters, usefull to allow automatically the support by protocol of subscription dynamic parameters 
 	If one other subscription exists already, switch publication in a smooth way (MBR)  */
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription) { return subscribe(ex, stream, subscription, NULL); }
-	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream, subscription, query, NULL); }
+	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* parameters = NULL) { return subscribe(ex, stream, subscription, parameters, NULL); }
 	bool					subscribe(Exception& ex, Client& client, std::string& stream, Subscription& subscription) { return subscribe(ex, stream, subscription, &client); }
-	bool					subscribe(Exception& ex, Client& client, const std::string& stream, Subscription& subscription, const char* query = NULL) { return subscribe(ex, stream, subscription, query, &client); }
+	bool					subscribe(Exception& ex, Client& client, const std::string& stream, Subscription& subscription, const char* parameters = NULL) { return subscribe(ex, stream, subscription, parameters, &client); }
 
 	void					unsubscribe(Subscription& subscription) { unsubscribe(subscription, NULL); }
 	void					unsubscribe(Client& client, Subscription& subscription) { unsubscribe(subscription, &client); }
@@ -94,13 +94,12 @@ protected:
 
 private:
 	bool					subscribe(Exception& ex, std::string& stream, Subscription& subscription, Client* pClient);
-	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* query, Client* pClient);
+	bool					subscribe(Exception& ex, const std::string& stream, Subscription& subscription, const char* parameters, Client* pClient);
 	bool					subscribe(Exception& ex, Publication& publication, Subscription& subscription, Client* pClient);
 	void					unsubscribe(Subscription& subscription, Client* pClient);
 	void					unsubscribe(Subscription& subscription, Publication* pPublication, Client* pClient);
 
-	Publication*			publish(Exception& ex, std::string& stream, Client* pClient);
-	Publication*			publish(Exception& ex, const std::string& stream, const char* ext, const char* query, Client* pClient);
+	Publication*			publish(Exception& ex, Path& stream, Client* pClient);
 	void					unpublish(Publication& publication, Client* pClient);
 
 	std::map<std::string, Publication>&	_publications;

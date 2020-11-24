@@ -46,7 +46,7 @@ private:
 	void			subscribe(Exception& ex, const std::string& stream);
 	void			unsubscribe();
 
-	void			publish(Exception& ex, const Path& stream);
+	void			publish(Exception& ex, Path& stream);
 	void			unpublish();
 
 	/// \brief Send the Option response

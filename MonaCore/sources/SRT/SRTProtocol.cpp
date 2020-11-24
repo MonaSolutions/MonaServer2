@@ -30,14 +30,12 @@ DataReader& SRTProtocol::Params::operator()() {
 }
 
 bool SRTProtocol::Params::setResource(const char* value, size_t size) {
-	Path path;
-	const char* query = URL::ParseRequest(value, size, path, REQUEST_FORCE_RELATIVE);
-	if (path.isFolder()) {
-		_stream.clear();
+	const char* query = URL::ParseRequest(value, size, stream, REQUEST_FORCE_RELATIVE);
+	if (stream.isFolder()) {
+		stream.reset();
 		return false;
 	}
-	_stream = path.name();
-	_peer.setPath(path.parent());
+	_peer.setPath(stream.parent());
 	_peer.setQuery(string(query, size));
 	return true;
 }
@@ -115,10 +113,10 @@ SRTProtocol::SRTProtocol(const char* name, ServerAPI& api, Sessions& sessions) :
 		shared<Peer> pPeer(SET, this->api, this->name, pSocket->peerAddress());
 		Params params(((SRT::Socket&)*pSocket).streamId(), *pPeer);
 		if (params) {
-			if(params.stream().empty()) // raise just in the case where streamid=#!:: (without any resource)
-				ERROR("SRT connection with streamid has to specify a valid resource (r parameter)")
-			else
+			if(params.stream) // raise just in the case where streamid=#!:: (without any resource)
 				this->sessions.create<SRTSession>(self, pSocket, pPeer).init(params);
+			else
+				ERROR("SRT connection with streamid has to specify a valid resource (r parameter)")
 		} else
 			ERROR("SRT connection without a valid streamid, use ini configuration rather to configure statically SRT input and output");
 

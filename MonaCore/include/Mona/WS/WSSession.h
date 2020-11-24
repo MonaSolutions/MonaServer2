@@ -39,7 +39,7 @@ private:
 	void		subscribe(Exception& ex, std::string& stream, WSWriter& writer);
 	void		unsubscribe();
 
-	void		publish(Exception& ex, std::string& stream);
+	void		publish(Exception& ex, Path& stream);
 	void		unpublish();
 
 	void		kill(Int32 error = 0, const char* reason = NULL);

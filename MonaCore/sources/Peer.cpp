@@ -18,6 +18,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 #include "Mona/Peer.h"
 #include "Mona/SplitWriter.h"
+#include "Mona/SplitReader.h"
+#include "Mona/QueryReader.h"
 #include "Mona/MapWriter.h"
 #include "Mona/ServerAPI.h"
 #include "Mona/Logs.h"
@@ -108,7 +110,9 @@ void Peer::onConnection(Exception& ex, Writer& writer, Net::Stats& netStats, Dat
 		Parameters outParams;
 		MapWriter<Parameters> parameterWriter(outParams);
 		SplitWriter parameterAndResponse(parameterWriter,response);
-		_api.onConnection(ex, self, parameters, parameterAndResponse);
+		QueryReader query(this->query.data(), this->query.size());
+		SplitReader params(parameters, query);
+		_api.onConnection(ex, self, params, parameterAndResponse);
 		if (!ex && !((Entity::Map<Client>&)_api.clients).emplace(self).second) {
 			CRITIC(ex.set<Ex::Protocol>("Client ", String::Hex(id, Entity::SIZE), " exists already"));
 			_api.onDisconnection(self);

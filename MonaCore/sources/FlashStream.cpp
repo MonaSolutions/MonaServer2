@@ -193,18 +193,19 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 		};
 
 		Exception ex;
-		_pPublication = api.publish(ex, peer, _name);
+		Path stream(move(_name));
+		_pPublication = api.publish(ex, peer, stream);
 		if (_pPublication) {
-			writer.writeAMFStatus("NetStream.Publish.Start", _name + " is now published");
+			writer.writeAMFStatus("NetStream.Publish.Start", stream.baseName() + " is now published");
 			_audioTrack = _videoTrack = 1;
 			_audioConfig.reset();
 			_dataTrack = 0;
 			if (_pPublication->recording()) {
 				MediaStream* pRecorder = _pPublication->recorder();
-				pRecorder->onRunning = [this, &writer]() {
-					writer.writeAMFStatus("NetStream.Record.Start", _name + " recording started");
+				pRecorder->onRunning = [&writer, stream]() {
+					writer.writeAMFStatus("NetStream.Record.Start", stream.name() + " recording started");
 				};
-				pRecorder->onStop = [this, &writer, pRecorder]() {
+				pRecorder->onStop = [&]() {
 					if(pRecorder->ex)
 						writer.writeAMFStatus("NetStream.Record.Failed", "error", pRecorder->ex);
 					writer.writeAMFStatus("NetStream.Record.Stop", _pPublication->name() + " recording stopped");

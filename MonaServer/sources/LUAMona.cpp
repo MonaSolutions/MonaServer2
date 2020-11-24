@@ -142,7 +142,7 @@ static int setTimer(lua_State *pState) {
 
 static int newPublication(lua_State *pState) {
 	SCRIPT_CALLBACK_TRY(ServerAPI, api)
-		string stream = SCRIPT_READ_STRING("");
+		Path stream(SCRIPT_READ_STRING(""));
 		Exception ex;
 		Publication* pPublication = api.publish(ex, Script::Client(), stream);
 		// ex.error already displayed!

@@ -140,17 +140,17 @@ void WSSession::unsubscribe(){
 	_pSubscription = NULL;
 }
 
-void WSSession::publish(Exception& ex, string& stream) {
+void WSSession::publish(Exception& ex, Path& stream) {
 	unpublish();
 	_media = Media::TYPE_NONE;
 	_track = 0; // default for data!
-	_pPublication=api.publish(ex, peer, stream);
+	_pPublication = api.publish(ex, peer, stream);
 }
 void WSSession::unpublish() {
 	if (!_pPublication)
 		return;
 	api.unpublish(*_pPublication, peer);
-	_pPublication=NULL;
+	_pPublication = NULL;
 }
 
 void WSSession::processMessage(Exception& ex, const Packet& message, bool isBinary) {
@@ -164,7 +164,7 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 				ERROR(ex.set<Ex::Protocol>("@publish method takes a stream name in first parameter"));
 				return;
 			}
-			return publish(ex, name);
+			return publish(ex, Path(move(name)));
 		}
 
 		if (name == "@subscribe") {

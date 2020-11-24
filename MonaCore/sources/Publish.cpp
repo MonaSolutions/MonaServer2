@@ -35,13 +35,13 @@ bool Publish::Action::run(Exception& ex) {
 	return true;
 }
 
-Publish::Publish(ServerAPI& api, const char* name) : Server::Action(api, "Publish"), _pName(SET, name), _api(api), _ppSource(SET, &Source::Null()) {
+Publish::Publish(ServerAPI& api, const char* name) : Server::Action(api, "Publish"), _pStream(SET, name), _api(api), _ppSource(SET, &Source::Null()) {
 }
 Publish::Publish(ServerAPI& api, Source& source) : Server::Action(api, "Publish"), _api(api), _ppSource(SET, &source) {
 }
  
 Publish::~Publish() {
-	if (!_pName || !*_ppSource)
+	if (!_pStream || !*_ppSource)
 		return; // _ppSource is not a publication OR publication has failed
 	struct Unpublishing : Action, virtual Object {
 		Unpublishing(const shared<Source*>& ppSource, ServerAPI& api) : _api(api), Action("Unpublish", ppSource, true) {}
@@ -67,7 +67,7 @@ void Publish::flush(UInt16 ping) {
 		void run(Source& source) { source.flush(); }
 		UInt16			_ping;
 	};
-	queue<Flush>(ping, _pName ? true : false);
+	queue<Flush>(ping, _pStream ? true : false);
 }
 
 void Publish::reset() {

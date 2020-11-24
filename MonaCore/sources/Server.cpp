@@ -254,7 +254,12 @@ shared<MediaStream> Server::stream(const string& publication, const string& desc
 		// PUBLISH, keep publication opened!
 		Exception ex;
 		const auto& it = _streamPublications.lower_bound(publication.c_str());
-		Publication* pPublication = it == _streamPublications.end() || publication.compare(it->first) != 0 ? publish(ex, publication) : it->second;
+		Publication* pPublication;
+		if (it == _streamPublications.end() || publication != it->first) {
+			Path stream(publication); // Keep unchanged file name so fix search part (metadata are already in description)
+			pPublication = publish(ex, stream.setSearch("?"));
+		} else
+			pPublication = it->second;
 		if (!pPublication)
 			return nullptr; // logs already displaid by publish call
 		pStream = stream(*pPublication, description);

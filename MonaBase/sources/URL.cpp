@@ -199,6 +199,13 @@ UInt32 URL::ParseQuery(const char* query, size_t size, const ForEachParameter& f
 	string name,value;
 	bool isName(true);
 
+	// skip first '?'
+	if (*query == '?') {
+		++query;
+		if (size != string::npos)
+			--size;
+	}
+
 	String::ForEachDecodedChar forEachDecoded([&isName, &countPairs, &name, &value, &forEach](char c, bool wasEncoded) {
 
 		if (!wasEncoded) {
@@ -220,10 +227,9 @@ UInt32 URL::ParseQuery(const char* query, size_t size, const ForEachParameter& f
 			// not considerate '+' char to replace by ' ', because it affects Base64 value in query which includes '+',
 			// a space must be in a legal %20 format!
 		}
-		if (isName) {
-			if(countPairs || c != '?') // ignore first '?'!
-				name += c;
-		} else
+		if (isName)
+			name += c;
+		else
 			value += c; 
 		return true;
 	});

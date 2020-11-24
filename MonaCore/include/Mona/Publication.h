@@ -106,11 +106,13 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	Video timestamp should be monotonic (>=), but intern code should try to ignore it and let's pass packet such given */
 	void							writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1);
 	/*!
-	Push data packet */
+	Push data packet
+	Support command  @properties command to change publication properties (prefer the direct publication object access) */
 	void							writeData(Media::Data::Type type, const Packet& packet, UInt8 track = 0);
 	
 	/*!
-	Set properties, prefer the direct publication object access to change properties when done by final user */
+	Set properties, prefer the direct publication object access to change properties when done by final user
+	With a track it writes properties related one track, without track it overloads all the properties*/
 	void							addProperties(UInt8 track, Media::Data::Type type, const Packet& packet) { Properties::addProperties(track, type, packet); }
 	UInt32							addProperties(UInt8 track, DataReader& reader) { return Properties::addProperties(track, reader); }
 
