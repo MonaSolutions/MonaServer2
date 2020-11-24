@@ -132,7 +132,7 @@ UInt8 JSONReader::followingType() {
 		_number = 0;
 		return BOOLEAN;
 	}
-	if (String::ToNumber(value, _size, _number))
+	if (String::ToNumber(string(value, String::TrimRight(value, _size)), _number))
 		return NUMBER;
 
 	ERROR("JSON malformed, unknown ",String::Data(value,_size)," value");
