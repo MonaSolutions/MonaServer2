@@ -164,7 +164,8 @@ void WSSession::processMessage(Exception& ex, const Packet& message, bool isBina
 				ERROR(ex.set<Ex::Protocol>("@publish method takes a stream name in first parameter"));
 				return;
 			}
-			return publish(ex, Path(move(name)));
+			Path stream(move(name));
+			return publish(ex, stream);
 		}
 
 		if (name == "@subscribe") {
