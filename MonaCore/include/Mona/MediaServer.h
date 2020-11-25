@@ -56,7 +56,6 @@ struct MediaServer : virtual Static {
 
 		shared<Socket>					_pSocket;
 		shared<TLS>						_pTLS;
-		shared<MediaSocket::Reader>		_pTarget;
 		const char*						_subMime; // can be null (HTTP auto case for example)
 	};
 
