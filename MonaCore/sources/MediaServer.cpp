@@ -47,13 +47,14 @@ MediaServer::Reader::Reader(MediaServer::Type type, const char* request, unique<
 	request(request), io(io), _pTLS(pTLS), address(address), _subMime(pReader ? pReader->subMime() : NULL),
 	MediaStream(MediaStream::Type(type), source, "Stream server source ", TypeToString(MediaStream::Type(type)), "://", address, *request ? "/" : "", request, '|', String::Upper(pReader ? pReader->format() : "AUTO")) {
 	_onConnnection = [this](const shared<Socket>& pSocket) {
-		if (!_pTarget) {
-			_pTarget.set<MediaSocket::Reader>(this->type, this->request.c_str(), MediaReader::New(_subMime), this->source, pSocket, this->io);
-			_pTarget->onStop = [this]() { _pTarget.reset(); };
-			_pTarget->start(params()); // give same parameters than parent!
+		if (streams.size()) { // only one source at a time
+			WARN(description, " connection from ", pSocket->peerAddress(), " rejected");
 			return;
 		}
-		WARN(description, " connection from ", pSocket->peerAddress(), " rejected");
+		MediaSocket::Reader* pStream = addStream<MediaSocket::Reader>(this->type, this->request.c_str(), MediaReader::New(_subMime), this->source, pSocket, this->io);
+		if (!pStream)
+			stop<Ex::Intern>(LOG_ERROR, "impossibe to add source ", pSocket->peerAddress());
+		// Don't overrides onStop => close socket => remove source!
 	};
 	pReader.reset(); // pReader to match with MediaSocket::Reader signature and guarantee a correct subMime
 }
@@ -100,7 +101,7 @@ MediaServer::Writer::Writer(MediaServer::Type type, const char* request, unique<
 	MediaStream(MediaStream::Type(type), "Stream server target ", TypeToString(MediaStream::Type(type)), "://", address, *request ? "/" : "", request, '|', String::Upper(pWriter->format())) {
 	_onError = [this](const Exception& ex) { stop(LOG_ERROR, ex); };
 	_onConnnection = [this](const shared<Socket>& pSocket) {
-		MediaSocket::Writer* pTarget = addTarget<MediaSocket::Writer>(this->type, this->request.c_str(), MediaWriter::New(_subMime), pSocket, this->io);
+		MediaSocket::Writer* pTarget = addStream<MediaSocket::Writer>(this->type, this->request.c_str(), MediaWriter::New(_subMime), pSocket, this->io);
 		if (!pTarget)
 			stop<Ex::Intern>(LOG_ERROR, "impossibe to add target ", pSocket->peerAddress());
 		// Don't overrides onStop => close socket => remove target!

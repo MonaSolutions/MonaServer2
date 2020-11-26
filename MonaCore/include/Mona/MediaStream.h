@@ -89,8 +89,8 @@ struct MediaStream : virtual Object {
 	virtual shared<const File>	 file() const;
 
 	/*!
-	Children targets */
-	const std::set<shared<const MediaStream>>& targets;
+	Children streams (for listening MediaServer) */
+	const std::set<shared<const MediaStream>>& streams;
 
 	bool start(const Parameters& parameters = Parameters::Null());
 	void stop();
@@ -100,13 +100,13 @@ struct MediaStream : virtual Object {
 protected:
 	template <typename ...Args>
 	MediaStream(Type type, Args&&... args) : _firstStart(true), description(std::forward<Args>(args)...),
-		_state(STATE_STOPPED), targets(_targets), _runCount(0), type(type), source(Media::Source::Null()) {
+		_state(STATE_STOPPED), streams(_streams), _runCount(0), type(type), source(Media::Source::Null()) {
 		if (description.empty())
 			String::Assign((std::string&)description, "Stream source ", TypeToString(type));
 	}
 	template <typename ...Args>
 	MediaStream(Type type, Media::Source& source, Args&&... args) : _firstStart(true), description(std::forward<Args>(args)...),
-		_state(STATE_STOPPED), targets(_targets), _runCount(0), type(type), source(source) {
+		_state(STATE_STOPPED), streams(_streams), _runCount(0), type(type), source(source) {
 		if (description.empty())
 			String::Assign((std::string&)description, "Stream target ", TypeToString(type));
 	}
@@ -129,36 +129,33 @@ protected:
 	bool initSocket(shared<Socket>& pSocket, const Parameters& parameters, const shared<TLS>& pTLS = nullptr);
 
 	template <typename StreamType, typename ...Args>
-	StreamType* addTarget(Args&&... args) {
+	StreamType* addStream(Args&&... args) {
 		if (!_state) {
 			ERROR(description, ", child stream target authorized when start");
 			return NULL;
 		}
-		STATIC_ASSERT(std::is_base_of<Media::Target, StreamType>::value);
-		shared<StreamType> pTarget(SET, std::forward<Args>(args) ...);
-		auto it = _targets.lower_bound(pTarget);
-		if (it != _targets.end() && it->unique())
-			it = _targets.erase(it); // target useless!
-		pTarget->start(_params); // give same parameters than parent!
-		if (!pTarget->state())
-			return NULL;
-		onNewTarget(pTarget);
-		if (pTarget.unique())
+		shared<StreamType> pStream(SET, std::forward<Args>(args) ...);
+		auto it = _streams.lower_bound(pStream);
+		if (it != _streams.end() && it->unique())
+			it = _streams.erase(it); // target useless!
+		pStream->start(_params); // give same parameters than parent!
+		if (!pStream->state())
+			return NULL; // pStream is erased!
+		if (!onNewStream(pStream))
 			return NULL;
 		// by default remove children on stop, add Target user can simply cancel it in reset onStop to null!
-		pTarget->onStop = [this, &target = *pTarget]() {
+		pStream->onStop = [this, &stream = *pStream]() {
 			static struct Comparator {
-				bool operator()(const shared<const MediaStream>& pTarget, const StreamType& target) {
-					return  ToPointer(pTarget) < ToPointer(target);
+				bool operator()(const shared<const MediaStream>& pStream, const StreamType& stream) {
+					return  ToPointer(pStream) < ToPointer(stream);
 				}
-			} CompareTarget;
-			const auto& it = std::lower_bound(_targets.begin(), _targets.end(), target, CompareTarget);
-			if (it != _targets.end() && it->get() == &target)
-				_targets.erase(it);
+			} CompareStream;
+			const auto& it = std::lower_bound(_streams.begin(), _streams.end(), stream, CompareStream);
+			if (it != _streams.end() && it->get() == &stream)
+				_streams.erase(it);
 		};
-		_targets.emplace_hint(it, pTarget);
-		// let's addTarget caller call start(params)
-		return pTarget.get();
+		_streams.emplace_hint(it, pStream);
+		return (StreamType*)pStream.get();
 	}
 
 private:
@@ -169,8 +166,15 @@ private:
 	virtual bool starting(const Parameters& parameters) = 0;
 	virtual void stopping() = 0;
 
+	template<typename StreamType, typename = typename std::enable_if<!std::is_base_of<Media::Target, StreamType>::value>::type>
+	bool onNewStream(const shared<StreamType>& pStream) { return true; } // not a target
+	bool onNewStream(const shared<Media::Target>& pTarget) {
+		onNewTarget(pTarget);
+		return !pTarget.unique();
+	}
+
 	UInt32								_runCount;
-	std::set<shared<const MediaStream>>	_targets;
+	std::set<shared<const MediaStream>>	_streams;
 	shared<Media::Target>				_pTarget;
 	bool								_firstStart;
 	State								_state;

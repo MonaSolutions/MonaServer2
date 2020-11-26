@@ -88,9 +88,9 @@ void MediaStream::stop() {
 		return;
 	_params.onUnfound = nullptr;
 	stopping();
-	for (const auto& it : _targets)
+	for (const auto& it : _streams)
 		(MediaStream::OnStop&)it->onStop = nullptr; // unsuscribe because children pTarget can continue to live alone!
-	_targets.clear(); // to invalid targets!
+	_streams.clear(); // to invalid stream!
 	if (_state == STATE_RUNNING)
 		INFO(description, " stopped");
 	_state = STATE_STOPPED;

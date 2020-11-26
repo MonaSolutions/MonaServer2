@@ -382,6 +382,11 @@ ADD_TEST(TestOptions) {
 	SRT::Stats stats;
 	CHECK(pClient->getStats(ex, stats) && !ex && stats.recvLostCount() == 0 && (stats->pktSent == 1 || stats->pktSndBuf == 1)); // Can be sent or bufferised now
 
+	// Wait until packet is received by server, send back and then received by the client
+	UInt8 buffer[8192];
+	CHECK(((Socket&)*pClient).receive(ex, buffer, sizeof(buffer)) == 1);
+	CHECK(connection.getStats(ex, stats) && !ex && stats.recvLostCount() == 0 && (stats->pktRecv == 1 || stats->pktRcvBuf == 1));
+
 	pClient.set<SRT::Socket>();
 	pServer.set<Server>();
 

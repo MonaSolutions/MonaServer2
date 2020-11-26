@@ -48,12 +48,17 @@ struct SRT : virtual Object {
 		UInt64 recvLostCount() const { return self ? _stats.pktRcvLossTotal : 0; }
 		double recvLostRate() const { return self ? _stats.pktRcvLoss : 0; }
 		UInt32 recvDropped() const { return self ? _stats.pktRcvDropTotal : 0; }
+		UInt32 receivedAck() const { return self ? _stats.pktRecvACK : 0; }
+		UInt32 receivedNAck() const { return self ? _stats.pktRecvNAK : 0; }
 		UInt32 sendBufferTime() const { return self ? _stats.msSndBuf : 0; }
 		UInt32 sendNegotiatedDelay() const { return self ? _stats.msSndTsbPdDelay : 0; }
 		UInt64 sendLostCount() const { return self ? _stats.pktSndLossTotal : 0; }
 		double sendLostRate() const { return self ? _stats.pktSndLoss : 0; }
 		UInt32 sendDropped() const { return self ? _stats.pktSndDropTotal : 0; }
+		UInt32 sentAck() const { return self ? _stats.pktSentACK : 0; }
+		UInt32 sentNAck() const { return self ? _stats.pktSentNAK : 0; }
 		UInt64 retransmitRate() const { return self ? _stats.byteRetrans : 0; }
+		UInt32 retransmitPackets() const { return self ? _stats.pktRetrans : 0; }
 		double rtt() const { return self ? _stats.msRTT : 0; }
 
 		Time	recvTime() const { return self ? (Time::Now() - _stats.msRcvTsbPdDelay) : 0; }
