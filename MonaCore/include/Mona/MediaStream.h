@@ -135,9 +135,6 @@ protected:
 			return NULL;
 		}
 		shared<StreamType> pStream(SET, std::forward<Args>(args) ...);
-		auto it = _streams.lower_bound(pStream);
-		if (it != _streams.end() && it->unique())
-			it = _streams.erase(it); // target useless!
 		pStream->start(_params); // give same parameters than parent!
 		if (!pStream->state())
 			return NULL; // pStream is erased!
@@ -154,7 +151,7 @@ protected:
 			if (it != _streams.end() && it->get() == &stream)
 				_streams.erase(it);
 		};
-		_streams.emplace_hint(it, pStream);
+		_streams.emplace(pStream);
 		return (StreamType*)pStream.get();
 	}
 

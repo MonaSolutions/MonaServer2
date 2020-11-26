@@ -21,13 +21,15 @@ details (or else see http://mozilla.org/MPL/2.0/).
 
 namespace Mona {
 
+/*!
+Help tool to Read file in a asynchronous way (can be done also in using directly IOFile + File)
+Is thread-safe (no unsubscribe methods) */
 struct FileReader : virtual Object {
 	typedef File::OnReaden	 ON(Readen);
 	typedef File::OnError	 ON(Error);
 	NULLABLE(!_pFile)
 
 	FileReader(IOFile& io) : io(io) {}
-	~FileReader() { close(); }
 
 	IOFile&	io;
 
@@ -40,7 +42,6 @@ struct FileReader : virtual Object {
 	Async open file to read, return *this to allow a open(path).read(...) call 
 	/!\ don't open really the file, because performance are better if opened on first read operation */
 	FileReader& open(const Path& path) {
-		close();
 		_pFile.set(path, File::MODE_READ);
 		io.subscribe(_pFile, newDecoder(), onReaden, onError);
 		return self;
@@ -48,7 +49,7 @@ struct FileReader : virtual Object {
 	/*!
 	Read data */
 	void		read(UInt32 size = 0xFFFF) { DEBUG_ASSERT(_pFile);  io.read(_pFile, size); }
-	void		close() { if (_pFile) io.unsubscribe(_pFile); }
+	void		close() { _pFile.reset(); } // /!\ no unsubscribe to avoid a crash issue when FileReader is threaded!
 
 private:
 	virtual File::Decoder* newDecoder() { return NULL; }

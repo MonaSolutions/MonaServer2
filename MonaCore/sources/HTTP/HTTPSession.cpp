@@ -399,22 +399,30 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 				HTTP_END_HEADER
 				return;
 			}
+
+			// Here we have file media (content-type = audio/video) OR a file.m3u8 (isPlaylist=true) which doesn't exists sur the hard disk
+			// - file.m3u8 => search publication metadata, useless to attempt a subscription
+			// - segment media => if no publication OR unfound segment signal the error
+			// - media => search if it's a segment, otherwise attempt a subscription (wait publication)
 			Int32 sequence;
 			UInt16 duration;
-			size_t size;
+			size_t size = string::npos;
 			if (isPlaylist || request->getNumber("segment", sequence)
 				|| ((size = Segment::ReadName(file.baseName(), (UInt32&)sequence, duration)) != string::npos)) {
+
 				string publication = file.baseName();
 				if (size != string::npos)
 					publication.resize(size);
 				const auto& it = api.publications().find(publication);
 				if (it != api.publications().end()) {
+
 					const Segments& segments(it->second.segments);
 					if (segments) {
-						if(isPlaylist)
+						if (isPlaylist)
 							return _pWriter->writePlaylist(segments);
+
 						if (size == string::npos) {
-							// sequence is segment index, transforms it in negative to be comptible with segments access by index
+							// segment argument => sequence is segment index, transforms it in negative to be comptible with segments access by index
 							/// test.ts?segment = 0, last segment => -1
 							/// test.ts?segment = -1, before last segment => -2
 							/// test.ts?segment = 1, first segment => -count()
@@ -424,14 +432,19 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 						}
 						const Segment& segment = segments(sequence);
 						if (segment) {
-							if(size == string::npos || duration == segment.duration())
+							if (size == string::npos || duration == segment.duration())
 								return _pWriter->writeSegment(segment, fileProperties);
-						} else if(sequence<0) // informs on segment argument error
-							_pWriter->writeError(HTTP_CODE_404, "Publication segment ", publication, ' ', sequence, " unavailable");	
-					} else if(sequence<0) // informs on segment argument error
-						_pWriter->writeError(HTTP_CODE_503, "Publication ", publication, " has no segmentation, publisher has to publish with 'segments' parameter");
-				} else if(sequence<0) // informs on segment argument error
+							// try subscription just in the case of a media (not segment argument)
+
+						} else if (size == string::npos) // informs on segment argument error
+							return _pWriter->writeError(HTTP_CODE_404, "Publication segment ", publication, ' ', sequence, " unavailable");
+
+					} else if (size == string::npos) // Playlist OR segment argument
+						return _pWriter->writeError(HTTP_CODE_503, "Publication ", publication, " has no segmentation, publisher has to publish with 'segments' parameter");
+
+				} else if(size == string::npos) // Playlist OR segment argument
 					return _pWriter->writeError(HTTP_CODE_404, "Publication or file ", publication, " doesn't exist");
+	
 			}
 			subscribe(ex, file.baseName());
 			return;
