@@ -24,7 +24,7 @@ namespace Mona {
 
 	struct Ex : String, virtual Object {
 		NULLABLE(empty())
-		struct Application; struct Extern; struct Format; struct Intern; struct Net; struct Permission; struct Protocol; struct System; struct Unavailable; struct Unfound; struct Unsupported;
+		struct Application; struct Extern; struct Format; struct Intern; struct Net; struct Permission; struct Protocol; struct System; struct Unavailable; struct Unfound; struct Unsupported; struct Shutdown;
 	};
 	/*!
 	Application exception, error from user side */
@@ -77,6 +77,9 @@ namespace Mona {
 	/*!
 	Unsupported feature */
 	struct Ex::Unsupported : Ex {};
+	/*!
+	Application shutdown/update */
+	struct Ex::Shutdown : Ex {};
 
 
 struct Exception : virtual Object {

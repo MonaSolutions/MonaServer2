@@ -29,6 +29,8 @@ Int32 Session::ToError(const Exception& ex) {
 		return ERROR_APPLICATION;
 	if (ex.cast<Ex::Permission>())
 		return ERROR_REJECTED;
+	if (ex.cast<Ex::Shutdown>())
+		return ERROR_UPDATE;
 	if (ex.cast<Ex::Protocol>() || ex.cast<Ex::Format>())
 		return ERROR_PROTOCOL;
 	if (ex.cast<Ex::Unsupported>())
