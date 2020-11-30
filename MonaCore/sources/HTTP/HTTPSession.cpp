@@ -479,7 +479,8 @@ void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader
 		if (publish(ex, request.file)) {
 			Parameters params;
 			MapWriter<Parameters> writer(params);
-			params.getNumber("timeout", _timeoutPublication = 0);
+			if (params.getNumber("timeout", _timeoutPublication = 0))
+				_timeoutPublication *= 1000;
 		}
 	} else
 		processPut(ex, request, parameters); // data or file append (as behavior as PUT)	
