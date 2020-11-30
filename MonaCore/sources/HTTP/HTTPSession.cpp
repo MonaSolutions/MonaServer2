@@ -31,7 +31,7 @@ using namespace std;
 namespace Mona {
 
 
-HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TCPSession(protocol, pSocket), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(SET, self), _fileWriter(protocol.api.ioFile),
+HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TCPSession(protocol, pSocket), _timeoutPublication(0), _pSubscription(NULL), _pPublication(NULL), _indexDirectory(true), _pWriter(SET, self), _fileWriter(protocol.api.ioFile),
 	_onResponse([this](HTTP::Response& response) {
 		kill(ERROR_PROTOCOL, "A HTTP response has been received instead of request");
 	}),
@@ -217,11 +217,14 @@ bool HTTPSession::manage() {
 		return _pUpgradeSession->manage();
 
 	UInt32 timeout = this->timeout;
+	// if publication set timeoutPublication!
+	if(_pPublication)
+		(UInt32&)this->timeout = _timeoutPublication;
 	// Cancel timeout when subscribing, and use rather subscribing timeout! (HTTP which has no ping feature)
 	// If answering waits end of response, usefull for VLC file playing for example (which can to ::recv after a quantity of data in socket.available())
 	// In HTTP we can use some "auto feature" like RDV which doesn't pass over main thread (implemented in HTTPDecoder)
 	// So timeout just on nothing more is sending during timeout (send = valid HTTP response)
-	if ((_pSubscription && _pSubscription->streaming()) || _pWriter->answering() || !self->sendTime().isElapsed(timeout))
+	else if ((_pSubscription && _pSubscription->streaming()) || _pWriter->answering() || !self->sendTime().isElapsed(timeout))
 		(UInt32&)this->timeout = 0;
 		
 	if (!TCPSession::manage())
@@ -309,9 +312,10 @@ void HTTPSession::unsubscribe() {
 	_pSubscription = NULL;
 }
 
-void HTTPSession::publish(Exception& ex, Path& stream) {
+bool HTTPSession::publish(Exception& ex, Path& stream) {
 	unpublish();
 	_pPublication = api.publish(ex, peer, stream);
+	return _pPublication ? true : false;
 }
 
 void HTTPSession::unpublish() {
@@ -471,9 +475,13 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 }
 
 void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
-	if (request.pMedia)
-		publish(ex, request.file); // Publish
-	else
+	if (request.pMedia) {
+		if (publish(ex, request.file)) {
+			Parameters params;
+			MapWriter<Parameters> writer(params);
+			params.getNumber("timeout", _timeoutPublication = 0);
+		}
+	} else
 		processPut(ex, request, parameters); // data or file append (as behavior as PUT)	
 }
 

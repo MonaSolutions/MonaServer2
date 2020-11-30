@@ -46,7 +46,7 @@ private:
 	void			subscribe(Exception& ex, const std::string& stream);
 	void			unsubscribe();
 
-	void			publish(Exception& ex, Path& stream);
+	bool			publish(Exception& ex, Path& stream);
 	void			unpublish();
 
 	/// \brief Send the Option response
@@ -65,6 +65,7 @@ private:
 	unique<HTTPWriter>  _pWriter; // pointer to release source on session::kill
 	Subscription*		_pSubscription;
 	Publication*		_pPublication;
+	UInt32				_timeoutPublication;
 	FileWriter			_fileWriter;
 	UInt8				_EOWFlags; // 1 = end of write, 2 = has been created
 
