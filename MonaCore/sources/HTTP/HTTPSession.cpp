@@ -479,6 +479,7 @@ void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader
 		if (publish(ex, request.file)) {
 			Parameters params;
 			MapWriter<Parameters> writer(params);
+			parameters.read(writer);
 			if (params.getNumber("timeout", _timeoutPublication = 0))
 				_timeoutPublication *= 1000;
 		}
