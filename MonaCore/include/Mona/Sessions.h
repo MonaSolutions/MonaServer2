@@ -42,7 +42,7 @@ struct Sessions : virtual Object {
 
 	template<typename SessionType = Session>
 	SessionType* findByAddress(Protocol& protocol, const SocketAddress& address) {
-		map<SocketAddress, Session*>& sessionsByAddress = this->sessionsByAddress(protocol);
+		std::map<SocketAddress, Session*>& sessionsByAddress = this->sessionsByAddress(protocol);
 		const auto& it = sessionsByAddress.find(address);
 		if (it == sessionsByAddress.end())
 			return NULL;
