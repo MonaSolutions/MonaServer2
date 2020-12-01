@@ -26,9 +26,8 @@ details (or else see http://www.gnu.org/licenses/).
 
 namespace Mona {
 
-struct RTMFProtocol;
 struct RTMFPSession : RTMFP::Output, Session, Net::Stats, virtual Object {
-	RTMFPSession(RTMFProtocol& protocol, ServerAPI& api, shared<Peer>& pPeer);
+	RTMFPSession(Protocol& protocol, ServerAPI& api, shared<Peer>& pPeer);
 
 	void init(const shared<RTMFP::Session>& pSession);
 

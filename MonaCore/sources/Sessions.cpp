@@ -34,6 +34,10 @@ Sessions::~Sessions() {
 	}
 }
 
+std::map<SocketAddress, Session*> Sessions::sessionsByAddress(Protocol& protocol) {
+	return _sessionsByAddress[protocol.address];
+}
+
 void Sessions::addByAddress(Session& session) {
 	if (session._sessionsOptions&SESSION_BYADDRESS) {
 
@@ -46,8 +50,8 @@ void Sessions::addByAddress(Session& session) {
 		if (!session.peer.address) // no address yet, wait next onAddressChanged event (usefull for TCPSession)
 			return;
 
-		auto& map(dynamic_cast<UDProtocol*>(&session.protocol()) ? _sessionsByAddress[0] : _sessionsByAddress[1]);
-		const auto& it = map.emplace(session.peer.address, &session);
+		map<SocketAddress, Session*>& sessionsByAddress = this->sessionsByAddress(session.protocol());
+		const auto& it = sessionsByAddress.emplace(session.peer.address, &session);
 		if (it.second)
 			return;
 		INFO(it.first->second->name(), " overloaded by ", session.name(), " (by ", session.peer.address, ")");
@@ -68,17 +72,16 @@ void Sessions::removeByAddress(const SocketAddress& address, Session& session) {
 	if (session._sessionsOptions&SESSION_BYADDRESS) {
 
 		session.peer.onAddressChanged = nullptr;
-
 		if (!address)
 			return; // if no address, was not registered!
 
-		auto& map(dynamic_cast<UDProtocol*>(&session.protocol()) ? _sessionsByAddress[0] : _sessionsByAddress[1]);
-		if (map.erase(address) == 0) {
-			ERROR(session.name(), " unfound in address sessions collection with key ", address);
-			for (auto it = map.begin(); it != map.end(); ++it) {
+		map<SocketAddress, Session*>& sessionsByAddress = this->sessionsByAddress(session.protocol());
+		if (sessionsByAddress.erase(address) == 0) {
+			ERROR(session.name(), ' ', address, " unfound in address sessions collection");
+			for (auto it = sessionsByAddress.begin(); it != sessionsByAddress.end(); ++it) {
 				if (it->second == &session) {
-					INFO("The correct key was ", it->first);
-					map.erase(it);
+					ERROR(session.name(), ' ', address, " found in address sessions collection with address ", it->first);
+					sessionsByAddress.erase(it);
 					break;
 				}
 			}
@@ -104,10 +107,10 @@ void Sessions::addByPeer(Session& session) {
 void Sessions::removeByPeer(Session& session) {
 	if (session._sessionsOptions&SESSION_BYPEER) {
 		if (_sessionsByPeerId.erase(session.peer.id) == 0) {
-			ERROR(session.name(), " unfound in peer sessions collection with key ", String::Hex(session.peer.id, Entity::SIZE));
+			ERROR(session.name(), ' ', String::Hex(session.peer.id, Entity::SIZE), " unfound in peer sessions collection");
 			for (auto it = _sessionsByPeerId.begin(); it != _sessionsByPeerId.end(); ++it) {
 				if (it->second == &session) {
-					INFO("The correct key was ", String::Hex(it->first, Entity::SIZE));
+					ERROR(session.name(), ' ', String::Hex(session.peer.id, Entity::SIZE), " found in peer sessions collection with peerId ", it->first);
 					_sessionsByPeerId.erase(it);
 					break;
 				}

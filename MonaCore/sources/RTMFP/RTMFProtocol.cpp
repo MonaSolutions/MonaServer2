@@ -63,7 +63,7 @@ RTMFProtocol::RTMFProtocol(const char* name, ServerAPI& api, Sessions& sessions)
 		}else {
 			// Create session and write id in cookie response!
 			writer.write8(RTMFP::SIZE_COOKIE);
-			writer.write32(this->sessions.create<RTMFPSession>(*this, this->api, pPeer).id());
+			writer.write32(this->sessions.create<RTMFPSession>(self, this->api, pPeer).id());
 			writer.writeRandom(RTMFP::SIZE_COOKIE - 4);
 			// instance id (certificat in the middle)
 			writer.write(_certificat, sizeof(_certificat));

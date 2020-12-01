@@ -34,16 +34,17 @@ enum {
 /*!
 Allow to manage sessions + override obsolete session on address duplication */
 class Session;
+struct Protocol;
 struct Sessions : virtual Object {
 
 	Sessions() {}
 	virtual ~Sessions();
 
 	template<typename SessionType = Session>
-	SessionType* findByAddress(const SocketAddress& address, Socket::Type type) {
-		auto& map(type == Socket::TYPE_DATAGRAM ? _sessionsByAddress[0] : _sessionsByAddress[1]);
-		const auto& it = map.find(address);
-		if (it == map.end())
+	SessionType* findByAddress(Protocol& protocol, const SocketAddress& address) {
+		map<SocketAddress, Session*>& sessionsByAddress = this->sessionsByAddress(protocol);
+		const auto& it = sessionsByAddress.find(address);
+		if (it == sessionsByAddress.end())
 			return NULL;
 		return dynamic_cast<SessionType*>(it->second);
 	}
@@ -89,6 +90,8 @@ struct Sessions : virtual Object {
 	
 private:
 
+	std::map<SocketAddress, Session*> sessionsByAddress(Protocol& protocol);
+
 	void    remove(const std::map<UInt32, Session*>::iterator& it, SESSION_OPTIONS options);
 
 	void	addByPeer(Session& session);
@@ -98,10 +101,10 @@ private:
 	void	removeByAddress(Session& session);
 	void	removeByAddress(const SocketAddress& address, Session& session);
 
-	std::map<UInt32, Session*>			_sessions;
-	std::deque<UInt32>					_freeIds;
-	Entity::Map<Session>				_sessionsByPeerId;
-	std::map<SocketAddress, Session*>	_sessionsByAddress[2]; // 0 - UDP, 1 - TCP
+	std::map<UInt32, Session*>									_sessions;
+	std::deque<UInt32>											_freeIds;
+	Entity::Map<Session>										_sessionsByPeerId;
+	std::map<SocketAddress, std::map<SocketAddress, Session*>>	_sessionsByAddress;
 };
 
 
