@@ -34,7 +34,7 @@ Sessions::~Sessions() {
 	}
 }
 
-std::map<SocketAddress, Session*> Sessions::sessionsByAddress(Protocol& protocol) {
+std::map<SocketAddress, Session*>& Sessions::sessionsByAddress(Protocol& protocol) {
 	return _sessionsByAddress[protocol.address];
 }
 
@@ -76,7 +76,7 @@ void Sessions::removeByAddress(const SocketAddress& address, Session& session) {
 			return; // if no address, was not registered!
 
 		map<SocketAddress, Session*>& sessionsByAddress = this->sessionsByAddress(session.protocol());
-		if (sessionsByAddress.erase(address) == 0) {
+		if (!sessionsByAddress.erase(address)) {
 			ERROR(session.name(), ' ', address, " unfound in address sessions collection");
 			for (auto it = sessionsByAddress.begin(); it != sessionsByAddress.end(); ++it) {
 				if (it->second == &session) {
@@ -106,7 +106,7 @@ void Sessions::addByPeer(Session& session) {
 
 void Sessions::removeByPeer(Session& session) {
 	if (session._sessionsOptions&SESSION_BYPEER) {
-		if (_sessionsByPeerId.erase(session.peer.id) == 0) {
+		if (!_sessionsByPeerId.erase(session.peer.id)) {
 			ERROR(session.name(), ' ', String::Hex(session.peer.id, Entity::SIZE), " unfound in peer sessions collection");
 			for (auto it = _sessionsByPeerId.begin(); it != _sessionsByPeerId.end(); ++it) {
 				if (it->second == &session) {

@@ -90,7 +90,7 @@ struct Sessions : virtual Object {
 	
 private:
 
-	std::map<SocketAddress, Session*> sessionsByAddress(Protocol& protocol);
+	std::map<SocketAddress, Session*>& sessionsByAddress(Protocol& protocol);
 
 	void    remove(const std::map<UInt32, Session*>::iterator& it, SESSION_OPTIONS options);
 
