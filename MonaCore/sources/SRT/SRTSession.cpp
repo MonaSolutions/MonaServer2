@@ -23,7 +23,7 @@ using namespace std;
 
 namespace Mona {
 
-SRTSession::SRTSession(SRTProtocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer) :
+SRTSession::SRTSession(Protocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer) :
 	SocketSession(protocol, pSocket, pPeer), _pSubscription(NULL), _pPublication(NULL), _writer(*pSocket) {
 	
 }
