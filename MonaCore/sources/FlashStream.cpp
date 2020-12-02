@@ -205,7 +205,7 @@ void FlashStream::messageHandler(const string& method, AMFReader& message, Flash
 				pRecorder->onRunning = [&writer, stream]() {
 					writer.writeAMFStatus("NetStream.Record.Start", stream.name() + " recording started");
 				};
-				pRecorder->onStop = [&]() {
+				pRecorder->onStop = [&, pRecorder]() {
 					if(pRecorder->ex)
 						writer.writeAMFStatus("NetStream.Record.Failed", "error", pRecorder->ex);
 					writer.writeAMFStatus("NetStream.Record.Stop", _pPublication->name() + " recording stopped");
