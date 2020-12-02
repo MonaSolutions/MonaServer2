@@ -104,7 +104,7 @@ private:
 	std::map<UInt32, Session*>									_sessions;
 	std::deque<UInt32>											_freeIds;
 	Entity::Map<Session>										_sessionsByPeerId;
-	std::map<SocketAddress, std::map<SocketAddress, Session*>>	_sessionsByAddress;
+	std::map<SocketAddress, std::map<SocketAddress, Session*>>	_sessionsByAddress[2]; // 0 - UDP, 1 - TCP
 };
 
 

@@ -17,7 +17,7 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/Sessions.h"
-#include "Mona/UDProtocol.h"
+#include "Mona/TCProtocol.h"
 #include "Mona/Session.h"
 
 using namespace std;
@@ -35,7 +35,7 @@ Sessions::~Sessions() {
 }
 
 std::map<SocketAddress, Session*>& Sessions::sessionsByAddress(Protocol& protocol) {
-	return _sessionsByAddress[protocol.address];
+	return _sessionsByAddress[dynamic_cast<TCProtocol*>(&protocol) ? 1 : 0][protocol.address];
 }
 
 void Sessions::addByAddress(Session& session) {
