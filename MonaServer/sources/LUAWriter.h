@@ -83,7 +83,7 @@ struct LUAWriter : virtual Static {
 	}
 	static int Flush(lua_State* pState) {
 		SCRIPT_CALLBACK(Type, obj)
-			SCRIPT_WRITE_BOOLEAN(Writer(obj).flush())
+			Writer(obj).flush();
 		SCRIPT_CALLBACK_RETURN
 	}
 	static int Close(lua_State* pState) {
