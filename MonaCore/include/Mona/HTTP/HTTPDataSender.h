@@ -31,7 +31,6 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 		_packet(std::move(packet)), _mime(mime), _code(code), _subMime(subMime), HTTPSender("HTTPDataSender", pRequest, pSocket) {
 	}
 
-
 	DataWriter& writer() {
 		if (!_pWriter) {
 			if (_mime && _subMime) {
@@ -47,7 +46,7 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 	}
 
 private:
-	void run() {
+	void run() override {
 		if(send(_code, _mime, _subMime, _packet.size()))
 			send(_packet);
 	}

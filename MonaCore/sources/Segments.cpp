@@ -23,7 +23,7 @@ using namespace std;
 namespace Mona {
 
 bool Segments::Init(Exception& ex, IOFile& io, Playlist& playlist, bool append) {
-	playlist.removeItems().sequence = 0;
+	playlist.reset();
 
 	FileSystem::ForEach forEach([&](const string& file, UInt16 level) {
 		Path path(file);
@@ -56,12 +56,22 @@ bool Segments::Init(Exception& ex, IOFile& io, Playlist& playlist, bool append) 
 	return FileSystem::ListFiles(ex, playlist.parent(), forEach) >= 0;
 }
 
-Playlist& Segments::Erase(UInt32 count, Playlist& playlist, IOFile& io) {
-	while(count-- && playlist.count()) {
-		FileWriter::Erase(Segment::BuildPath(playlist, playlist.sequence, playlist.durations.front()), io);  // asynchronous deletion!
+Playlist& Segments::Clear(Playlist& playlist, UInt32 maxSegments, IOFile& io) {
+	// erase obsolete file segments (keep one more if maxDuration not reached)
+	UInt32 maxDuration = maxSegments * playlist.maxDuration;
+	while (playlist.count() > (maxSegments + 1) || playlist.duration() > maxDuration) {
+		FileWriter::Erase(Segment::BuildPath(playlist, playlist.sequence, playlist.durations().front()), io);  // asynchronous deletion!
 		playlist.removeItem();
 	}
 	return playlist;
+}
+
+UInt16 Segments::Writer::setDuration(UInt16 value) {
+	// at less one second!
+	_duration = max(value, 1000);
+	if(_duration>_maxDuration)
+		_maxDuration = _duration;
+	return _maxDuration;
 }
 
 bool Segments::Writer::newSegment(UInt32 time, const OnWrite& onWrite) {
@@ -72,23 +82,32 @@ bool Segments::Writer::newSegment(UInt32 time, const OnWrite& onWrite) {
 	}
 	// save _lastTime just for the last sequence,
 	// use "time" otherwise to cut segments compatible with key frame with composition offset: their DTS have to be the segment front
-	if(Util::Distance(_lastTime, time)>0)
+	if (Util::Distance(_lastTime, time) > 0)
 		_lastTime = time;
 	
-	// change sequences if DURATION_TIMEOUT
-	UInt16 duration = UInt16(Util::Distance(_segTime, time));
-	Int16 rest = Segment::MAX_DURATION - duration;
-	if (rest>=0) {
-		// wait number of sequences requested in trying to keep a key on start of sequence
-		if (!_keying || !_sequences)
+	// new segment if DURATION_TIMEOUT
+	Int32 duration = Util::Distance(_segTime, time);
+	if (duration < 0)
+		return false; // can happen if segment starts by a frame with composition offset
+
+	if (_keying) {
+		// Is on key sequence
+		if (!_keys)
+			return false; // wait at less one video key sequence		
+		// wait at less a segment superior to targetduration = round(maxDuration)/3
+		if (duration/1000  < ((_maxDuration+500)/3000))
+			return false; // wait one other key-frames sequence
+	} else {
+		if (_keys) // has video
+			return false; // wait video keying
+		// No video => wait maxDuration
+		if (duration < _maxDuration)
 			return false;
-		// look if rest time to add one new key-frames sequence again
-		if (rest >= (duration / _sequences)) {
-			// check if sequences defined reached
-			if(!sequences || _sequences < sequences)
-				return false;
-		}
 	}
+
+	// memorize the maxDuration to never cut less now
+	if (duration > _maxDuration)
+		_maxDuration = duration;
 
 	// end
 	_writer.endMedia(onWrite);
@@ -96,8 +115,7 @@ bool Segments::Writer::newSegment(UInt32 time, const OnWrite& onWrite) {
 	_segTime = time;
 
 	// begin
-	_sequences = 0;
-	_keying = false;
+	_keys = 0;
 	_writer.beginMedia(onWrite);
 	
 	// Rewrite properties + configs to make segment readable individualy
@@ -119,7 +137,8 @@ bool Segments::Writer::newSegment(UInt32 time, const OnWrite& onWrite) {
 void Segments::Writer::beginMedia(const OnWrite& onWrite) {
 	_first = true;
 	_keying = false;
-	_sequences = 0;
+	_keys = 0;
+	_maxDuration = _duration;
 	_writer.beginMedia(onWrite);
 }
 void Segments::Writer::endMedia(const OnWrite& onWrite) {
@@ -145,8 +164,10 @@ void Segments::Writer::writeAudio(UInt8 track, const Media::Audio::Tag& tag, con
 			_audioConfigs[track].set(tag, packet);
 		else
 			_audioConfigs.erase(track);
-	} else
+	} else {
+		_keying = false;
 		newSegment(tag.time, onWrite);
+	}
 	_writer.writeAudio(track, tag, packet, onWrite);
 }
 
@@ -167,16 +188,16 @@ void Segments::Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, con
 				_keying = true;
 				if (!newSegment(tag.time, onWrite)) {
 					// write all config packet "skip"
-					for (const auto& it : _videoConfigs)
+					for (auto& it : _videoConfigs) {
+						it.second.time = tag.time; // fix timestamp to stay inscreasing
 						_writer.writeVideo(it.first, it.second, it.second, onWrite);
+					}
 				}
-				++_sequences; // after newSegment to avoid to segment on first video
+				++_keys; // after newSegment to avoid to segment on first video
 			}
 			break;
-		case Media::Video::FRAME_INTER:
-		case Media::Video::FRAME_DISPOSABLE_INTER:
-			_keying = false;
 		default:
+			_keying = false;
 			newSegment(tag.time, onWrite);
 	}
 	// not config!
@@ -186,24 +207,33 @@ void Segments::Writer::writeVideo(UInt8 track, const Media::Video::Tag& tag, con
 
 /// SEGMENTS //////
 
-Segments::Segments(UInt8 maxSegments) : _maxDuration(Segment::MIN_DURATION),
-	_started(false), _maxSegments(maxSegments), _sequence(0), _writer(self), sequences(_writer.sequences) {
+Segments::Segments(UInt8 maxSegments) : _started(false), _duration(0), _maxSegments(maxSegments), _sequence(0), _writer(self) {
+	init();
+}
+Segments::Segments(Segments&& segments) : _started(false), _duration(segments._duration), _maxSegments(segments._maxSegments), _sequence(segments._sequence), _writer(self) {
+	init();
+	segments._sequence += segments.count();
+	segments._duration = 0;
+	_segments = std::move(segments._segments);
+}
+
+void Segments::init() {
 	_writer.onSegment = [this](UInt16 duration) {
 		// add the valid segment to _segments
 		_segment.add(_segment.time() + duration);
+		_duration += duration;
 		_segments.emplace_back(move(_segment));
-		if (duration > _maxDuration)
-			_maxDuration = duration;
-		if (_segments.size() > _maxSegments) {
-			++_sequence; // increments just on remove
-			_segments.pop_front();
-		}
+		setMaxSegments(_maxSegments); // clean segments
+		onSegment(duration);
 	};
 }
 
 UInt8 Segments::setMaxSegments(UInt8 maxSegments) {
-	while (_segments.size() > maxSegments) {
+	// erase obsolete segments (keep one more if maxDuration not reached)
+	UInt32 maxDuration = maxSegments * this->maxDuration();
+	while (_segments.size() > (maxSegments+1u) || _duration > maxDuration) {
 		++_sequence; // increments just on remove
+		_duration -= _segments.front().duration();
 		_segments.pop_front();
 	}
 	return _maxSegments = maxSegments;;
@@ -222,10 +252,9 @@ bool Segments::endMedia() {
 		return false;
 	_started = false;
 	_writer.endMedia(nullptr);
-	if (_segments.size())
-		_segments.back().discontinuous = true;
-	// Don't reset _maxDuration and segments, must stays alive for playlist usage,
-	// delete the Segments object to reset all!
+	// reset segment after endMedia because onSegment will emplace_back this last segment
+	_segment.reset();
+	// Don't reset _maxDuration and segments, must stays alive for playlist usage (delete the Segments object to reset all)
 	return true;
 }
 
@@ -244,10 +273,10 @@ const Segment& Segments::operator()(Int32 sequence) const {
 }
 
 Playlist& Segments::to(Playlist& playlist) const {
-	playlist.sequence = _sequence;
-	(UInt64&)playlist.maxDuration = _maxDuration;
+	playlist.reset().sequence = _sequence;
+	(UInt64&)playlist.maxDuration = maxDuration();
 	// Skip the first segment in playlist, because can be deleted by segments before request
-	bool first = true;
+	bool first = _segments.size() >= _maxSegments;
 	for (const Segment& segment : _segments) {
 		if (first) {
 			first = false;
@@ -255,10 +284,12 @@ Playlist& Segments::to(Playlist& playlist) const {
 			++playlist.sequence;
 			continue;
 		}
-		if (segment.discontinuous)
-			playlist.addItem(0);
+		if (segment.discontinuous())
+			playlist.addItem(0); // discontinuous
 		playlist.addItem(segment.duration());
 	}
+	if (!_started)
+		playlist.addItem(0); // end
 	return playlist;
 }
 

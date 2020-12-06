@@ -32,7 +32,7 @@ struct TSReader : virtual Object, MediaReader {
 	// http://dvbsnoop.sourceforge.net/examples/example-pat.html
 	// http://dvd.sourceforge.net/dvdinfo/pes-hdr.html
 
-	TSReader() : _syncFound(false), _syncError(false), _crcPAT(0), _audioTrack(0), _videoTrack(0), _startTime(-1), _timeProperties(_properties.timeChanged()) {}
+	TSReader() : _propVersion(0), _syncFound(false), _syncError(false), _crcPAT(0), _audioTrack(0), _videoTrack(0), _startTime(-1) {}
 	
 private:
 
@@ -77,7 +77,7 @@ private:
 
 	std::map<UInt16, Program>					_programs;
 	Media::Properties							_properties;
-	Time										_timeProperties;
+	UInt32										_propVersion;
 	UInt8										_audioTrack;
 	UInt8										_videoTrack;
 	std::map<UInt16, UInt8>						_pmts;

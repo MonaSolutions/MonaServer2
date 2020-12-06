@@ -107,14 +107,15 @@ bool Path::setExtension(const char* value) {
 const string& Path::search() {
 	if (_search.size())
 		return _search;
+	_search = "?";
 	if(!_pImpl)
-		return _search = "?";
+		return _search;
 	const string& path = _pImpl->path();
-	size_t found = path.find('?');
+	size_t found = path.find_first_of(":?");
 	if (found == string::npos)
-		return _search = "?";
+		return _search;
 	// rebuild path
-	_search = path.c_str() + found;
+	_search += path.c_str() + found + 1;
 	_pImpl.set(String::Data(path.c_str(), found));
 	return _search;
 }

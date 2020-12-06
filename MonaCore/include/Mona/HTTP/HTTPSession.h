@@ -53,9 +53,10 @@ private:
 	/// Note: It is called when processMove is used before a SOAP request
 	void			processOptions(Exception& ex, const HTTP::Header& request);
 
-	/// \brief Process GET & HEAD commands
-	/// Search for a method or a file whitch correspond to the _filePath
-	void			processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters);
+	/*!
+	Process GET & HEAD commands,
+	returns false if error to log */
+	bool			processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters);
 	void			processPost(Exception& ex, HTTP::Request& request, QueryReader& parameters);
 	void			processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters);
 	void			processDelete(Exception& ex, HTTP::Request& request, QueryReader& parameters);

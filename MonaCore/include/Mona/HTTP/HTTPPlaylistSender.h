@@ -29,15 +29,29 @@ namespace Mona {
 Playlist send */
 struct HTTPPlaylistSender : HTTPSender, virtual Object {
 	HTTPPlaylistSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
-		const Segments& segments) : _playlist(pRequest->path), HTTPSender("HTTPPlaylistSender", pRequest, pSocket) {
+		const Path& path, const Segments& segments, std::string&& format = "ts") :
+		_playlist(path), _format(std::move(format)), HTTPSender("HTTPPlaylistSender", pRequest, pSocket) {
 		segments.to(_playlist);
 	}
 
 private:
+	void  run() override;
 
-	void  run();
+	Playlist	_playlist;
+	std::string	_format;
+};
 
-	Playlist _playlist;
+/*!
+Master Playlist send */
+struct HTTPMPlaylistSender : HTTPSender, virtual Object {
+	HTTPMPlaylistSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
+		Playlist::Master&& playlist) : _playlist(std::move(playlist)), HTTPSender("HTTPMPlaylistSender", pRequest, pSocket) {
+	}
+
+private:
+	void  run() override;
+
+	Playlist::Master _playlist;
 };
 
 

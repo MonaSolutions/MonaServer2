@@ -57,6 +57,7 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 			peer.properties().setParams(move(request));
 
 			Exception ex;
+			bool exToLog = false;
 
 			// Upgrade protocol
 			if (request->connection&HTTP::CONNECTION_UPGRADE) {
@@ -78,10 +79,14 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 
 							// WebSocket connection
 							peer.onConnection(ex, pSession->writer, *self); // No response in WebSocket handshake (fail for few clients)
-						} else
+						} else {
 							ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
-					} else
+							exToLog = true;
+						}
+					} else {
 						ex.set<Ex::Unsupported>("Unsupported ", request->upgrade, " upgrade");
+						exToLog = true;
+					}
 				}
 			} else {
 
@@ -101,13 +106,15 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 
 				// onInvocation/<method>/onRead
 				if (!ex && peer) {
+					
 					// Create parameters for onRead/onWrite/onInvocation
 					QueryReader parameters(peer.query.data(), peer.query.size());
 					/// HTTP GET & HEAD
 					switch (request->type) {
 						case HTTP::TYPE_HEAD:
 						case HTTP::TYPE_GET:
-							processGet(ex, request, parameters);
+							if (!processGet(ex, request, parameters))
+								exToLog = true;
 							break;
 						case HTTP::TYPE_POST:
 							processPost(ex, request, parameters);
@@ -122,11 +129,15 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 							processDelete(ex, request, parameters);
 							break;
 						default:
-							ex.set<Ex::Protocol>(name(), ", unsupported command");
+							ex.set<Ex::Protocol>("Unsupported command");
+							exToLog = true;
 					}
 				}
 			}
-	
+			
+			if (exToLog)
+				WARN(name(), ' ', ex);
+
 			if (!died) { // if died _pWriter is null!
 				if (ex) // Return error but keep connection keepalive if required to avoid multiple reconnection (and because HTTP client is valid contrary to a HTTPDecoder error)
 					_pWriter->writeError(ex);
@@ -160,6 +171,7 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 
 
 	_fileWriter.onError = [this](const Exception& ex) {
+		DEBUG(name(), ' ', ex);
 		_pWriter->writeError(ex); // keep session alive, normal error!
 		_fileWriter.close();
 		flush();
@@ -233,7 +245,7 @@ bool HTTPSession::manage() {
 	// check subscription
 	if (_pSubscription) {
 		if (!this->timeout && _pSubscription->streaming().isElapsed(timeout)) { // do just if timeout has been cancelled! (otherwise timeout is managed by session class)
-			INFO(name(), " timeout connection");
+			INFO(name(), ' ', "Timeout connection");
 			kill(ERROR_IDLE);
 			return false;
 		}
@@ -335,14 +347,14 @@ void HTTPSession::processOptions(Exception& ex, const HTTP::Header& request) {
 	HTTP_END_HEADER
 }
 
-void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
+bool HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
 	// use index http option in the case of GET request on a directory
 	
 	Path& file(request.file);
 
 	// Priority on client method
 	if (file.extension().empty() && invoke(ex, request, parameters)) // can be method if not a file (can be a folder)
-		return;
+		return true;
 	ex = nullptr;
 
 	if (!file.isFolder()) {
@@ -356,9 +368,10 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 		Parameters fileProperties;
 		MapWriter<Parameters> mapWriter(fileProperties);
 		if (!peer.onRead(ex, file, parameters, mapWriter)) {
-			if (!ex)
-				ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path, file.name());
-			return;
+			if (ex)
+				return true;
+			ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path, file.name());
+			return false;
 		}
 		// If onRead has been authorised, and that the file is a multimedia file, and it doesn't exists (no VOD)
 		// Subscribe for a live stream with the basename file as stream name
@@ -367,8 +380,10 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 			switch (request->mime) {
 				case MIME::TYPE_TEXT:
 					// subtitle?
-					if (String::ICompare(file.extension(), "vtt") != 0 && String::ICompare(file.extension(), "dat") != 0)
-						return _pWriter->writeFile(file, fileProperties);
+					if (String::ICompare(file.extension(), "vtt") != 0 && String::ICompare(file.extension(), "dat") != 0) {
+						_pWriter->writeFile(file, fileProperties);
+						return true;
+					}
 				case MIME::TYPE_VIDEO:
 				case MIME::TYPE_AUDIO:
 					break;
@@ -380,11 +395,14 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 					if((isPlaylist = String::ICompare(file.extension(), "m3u8") == 0))
 						break;
 				default:;
-					return _pWriter->writeFile(file, fileProperties);
+					_pWriter->writeFile(file, fileProperties);
+					return true;
 			}
 			// LIVE SUBSCRIPTION?
-			if (file.exists())
-				return _pWriter->writeFile(file, fileProperties); // VOD
+			if (file.exists()) {
+				_pWriter->writeFile(file, fileProperties); // VOD
+				return true;
+			}
 			if (request->query == "?") {
 				// request publication properties!
 				const auto& it = api.publications().find(file.baseName());
@@ -392,16 +410,18 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 					DataWriter& writer = _pWriter->writeResponse("json");
 					if (request->type != HTTP::TYPE_HEAD)
 						MapReader<Parameters>(it->second).read(writer);
-				} else // send the information immediatly => doesn't exist!
-					_pWriter->writeError(HTTP_CODE_404, "Publication or file ", file.baseName(), " doesn't exist");
-				return;
+					return true;
+				}
+				// send the information immediatly => doesn't exist!
+				ex.set<Ex::Unfound>("Publication or file ", file.baseName(), " doesn't exist");
+				return false;
 			}
 			if (request->type == HTTP::TYPE_HEAD) {
 				// HEAD, want just immediatly the header format of audio/video live streaming!
 				HTTP_BEGIN_HEADER(*_pWriter->writeResponse())
 					HTTP_ADD_HEADER_LINE(HTTP_LIVE_HEADER)
 				HTTP_END_HEADER
-				return;
+				return true;
 			}
 
 			// Here we have file media (content-type = audio/video) OR a file.m3u8 (isPlaylist=true) which doesn't exists sur the hard disk
@@ -409,49 +429,86 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 			// - segment media => if no publication OR unfound segment signal the error
 			// - media => search if it's a segment, otherwise attempt a subscription (wait publication)
 			Int32 sequence;
-			UInt16 duration;
-			size_t size = string::npos;
-			if (isPlaylist || request->getNumber("segment", sequence)
-				|| ((size = Segment::ReadName(file.baseName(), (UInt32&)sequence, duration)) != string::npos)) {
+			UInt16 duration = 0;
+			size_t size;
+			if (isPlaylist || (size = Segment::ReadName(file.baseName(), (UInt32&)sequence, duration)) != string::npos) {
 
 				string publication = file.baseName();
-				if (size != string::npos)
+				if (!isPlaylist)
 					publication.resize(size);
-				const auto& it = api.publications().find(publication);
-				if (it != api.publications().end()) {
+				auto it = api.publications().lower_bound(publication);
 
-					const Segments& segments(it->second.segments);
-					if (segments) {
-						if (isPlaylist)
-							return _pWriter->writePlaylist(segments);
+				const Segments* pSegments;
+				if (it != api.publications().end() && it->first == publication)
+					pSegments = &it->second.segments;
+				else // search in resources, maybe segments of one old publication
+					pSegments = api.resources.use<Segments>(publication);
+			
+				if (pSegments) {
+					if (*pSegments) {
+						// segmentation enabled
 
-						if (size == string::npos) {
-							// segment argument => sequence is segment index, transforms it in negative to be comptible with segments access by index
-							/// test.ts?segment = 0, last segment => -1
-							/// test.ts?segment = -1, before last segment => -2
-							/// test.ts?segment = 1, first segment => -count()
-							if (sequence > 0)
-								sequence -= segments.count();
-							--sequence;
+						// fix keepalive to save reconnection to grab segments/playlist
+						if (request->connection & HTTP::CONNECTION_KEEPALIVE && pSegments->maxDuration() > timeout)
+							(UInt32&)timeout = pSegments->maxDuration();
+
+						if (isPlaylist) {
+							Parameters params;
+							MapWriter<Parameters> writeParams(params);
+							parameters.read(writeParams);
+							_pWriter->writePlaylist(file, *pSegments, params.getString("format", "ts"));
+							return true;
 						}
-						const Segment& segment = segments(sequence);
-						if (segment) {
-							if (size == string::npos || duration == segment.duration())
-								return _pWriter->writeSegment(segment, fileProperties);
-							// try subscription just in the case of a media (not segment argument)
 
-						} else if (size == string::npos) // informs on segment argument error
-							return _pWriter->writeError(HTTP_CODE_404, "Publication segment ", publication, ' ', sequence, " unavailable");
+						if (!duration) {
+							// Pattern test#AAA.ts => sequence is segment index, transforms it in negative to be comptible with segments access by index
+							/// test0AAA.ts, last segment => -1
+							/// test1AAA.ts, before last segment => -2
+							sequence = -(sequence+1);
+						}
+						const Segment& segment = (*pSegments)(sequence);
+						if (!segment) {
+							ex.set<Ex::Unfound>("Segment ", sequence, " of publication ", publication, " unavailable");
+							return false;
+						}
+						if (!duration || duration == segment.duration()) {
+							Parameters params;
+							MapWriter<Parameters> writeParams(params);
+							parameters.read(writeParams);
+							_pWriter->writeSegment(file, segment, params);
+							return true;
+						}
+						// try subscription just in the case where segment found but doesn't match the publication segment
+					} else if (!duration) {
+						// Playlist OR segment argument
+						ex.set<Ex::Unavailable>("Publication ", publication, " has no segmentation, publisher has to publish with 'segments' parameter");
+						return false;
+					}
 
-					} else if (size == string::npos) // Playlist OR segment argument
-						return _pWriter->writeError(HTTP_CODE_503, "Publication ", publication, " has no segmentation, publisher has to publish with 'segments' parameter");
-
-				} else if(size == string::npos) // Playlist OR segment argument
-					return _pWriter->writeError(HTTP_CODE_404, "Publication or file ", publication, " doesn't exist");
+				} else {
+					if (isPlaylist) {
+						// search if it can be a master-playlist request
+						Playlist::Master playlist(file);
+						while (it != api.publications().end() && it->first.compare(0, publication.size(), publication) == 0) {
+							const Publication& publication((it++)->second);
+							if(publication.segmenting())
+								playlist.items[publication.name()] = publication.maxByteRate();
+						}
+						if(playlist) {
+							_pWriter->writeMasterPlaylist(move(playlist));
+							return true;
+						}
+					}
+					if (!duration) {
+						// Playlist OR segment argument
+						ex.set<Ex::Unfound>("Publication or file ", publication, " doesn't exist");
+						return false;
+					}
+				}
 	
 			}
 			subscribe(ex, file.baseName());
-			return;
+			return true;
 		}
 	}
 
@@ -460,18 +517,19 @@ void HTTPSession::processGet(Exception& ex, HTTP::Request& request, QueryReader&
 	// Redirect to the file (get name to prevent path insertion), if impossible (_index empty or invalid) list directory
 	if (!_index.empty()) {
 		if (_index.find_last_of('.') == string::npos && invoke(ex, request, parameters, _index.c_str())) // can be method!
-			return;
+			return true;
 		ex = nullptr;
 		file.set(file, _index);
 	} else if (!_indexDirectory) {
 		ex.set<Ex::Net::Permission>("No authorization to see the content of ", peer.path.length() ? peer.path : "/");
-		return;
+		return false;
 	}
 
 	Parameters fileProperties;
 	MapWriter<Parameters> mapWriter(fileProperties);
 	parameters.read(mapWriter);
 	_pWriter->writeFile(file, fileProperties); // folder view or index redirection (without pass by onRead because can create a infinite loop)
+	return true;
 }
 
 void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
@@ -480,7 +538,7 @@ void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader
 			Parameters params;
 			MapWriter<Parameters> writer(params);
 			parameters.read(writer);
-			if (params.getNumber("timeout", _timeoutPublication = 0))
+			if (params.getNumber("timeout", _timeoutPublication = timeout))
 				_timeoutPublication *= 1000;
 		}
 	} else

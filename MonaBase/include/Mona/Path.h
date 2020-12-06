@@ -52,7 +52,8 @@ struct Path : virtual Object {
 
 	/*!
 	Try to see if there is a search-query in the path (which is a valid name over unix) and extract it,
-	it rebuild the path without the search-part and returns it */
+	it rebuild the path without the search-part and returns it
+	To be not consufing with query URL the char ':' (prohibited on any file os) is a marker possible in addition of '?' in file name */
 	const std::string&	search();
 
 

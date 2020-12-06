@@ -29,12 +29,11 @@ struct HTTPMediaSender : HTTPSender, virtual Object {
 		const shared<Socket>& pSocket,
 		shared<MediaWriter>& pWriter,
 		Media::Base* pMedia=NULL);
-	~HTTPMediaSender();
 
-	bool hasHeader() const { return _first; }
+	bool hasHeader() const override { return _first; }
 
 private:
-	void run();
+	void run() override;
 
 	bool _first;
 	shared<MediaWriter> _pWriter;

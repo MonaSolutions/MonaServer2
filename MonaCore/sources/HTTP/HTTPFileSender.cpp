@@ -29,21 +29,24 @@ HTTPFileSender::HTTPFileSender(const shared<const HTTP::Header>& pRequest, const
 		File(file, File::MODE_READ), _properties(move(properties)), _mime(MIME::TYPE_UNKNOWN),
 		_pos(0), _step(properties.count()), _stage(0) {
 		_result = _properties.begin(); // do it here to get compatible _properties.begin() and not properties.begin()
+		_protocol = pSocket->isSecure() ? "https://" : "http://";
 }
 
 
 bool HTTPFileSender::load(Exception& ex) {
+	if (loaded())
+		return true;
 	if (File::load(ex)) {
 		/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
 		if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
 			if (send(HTTP_CODE_304)) {// NOT MODIFIED 
-				DEBUG("GET 304 ", pRequest->path, File::name());
+				DEBUG(peerAddress(), " GET 304 ", pRequest->path, File::name());
 				ex.set<Ex::Unfound>(); // to detect end!
 			} else
 				ex.set<Ex::Net::Socket>();
 			return false;
 		}
-		DEBUG("GET 200 ", pRequest->path, File::name());
+		DEBUG(peerAddress(), " GET 200 ", pRequest->path, File::name());
 		return true;
 	}
 
@@ -54,7 +57,7 @@ bool HTTPFileSender::load(Exception& ex) {
 		if (FileSystem::Exists(MAKE_FOLDER(path()))) {
 			/// Redirect to the real folder path
 			// Full URL required here relating RFC2616 section 10.3.3
-			String::Assign(buffer, pSocket->isSecure() ? "https://" : "http://", pRequest->host, pRequest->path, File::name(), '/');
+			String::Assign(buffer, _protocol, pRequest->host, pRequest->path, File::name(), '/');
 			HTTP_BEGIN_HEADER(this->buffer())
 				HTTP_ADD_HEADER("Location", buffer);
 			HTTP_END_HEADER
@@ -101,11 +104,10 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 				return 0;
 		}
 		if(!end)
-			return pSocket->queueing() ? 0 : 0xFFFF; // wait next!
+			return HTTPSender::flushing() ? 0 : 0xFFFF; // wait next!
 	}
 	// END
-	send(Packet::Null()); // to end possible chunked transfer
-	pBuffer.set(); // to get onReaden callback!
+	finalize();
 	return 0;
 }
 

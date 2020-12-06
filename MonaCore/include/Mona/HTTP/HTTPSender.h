@@ -26,14 +26,27 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 
+/*!
+HTTP send,
+Send a HTTP response (or request? TODO) is used directly.
+Children class are mainly used by call to TCPSender::send(pHTTPSender) */
 struct HTTPSender : Runner, virtual Object {
+	NULLABLE(!_pSocket);
+
 	HTTPSender(const char* name,
 		const shared<const HTTP::Header>& pRequest,
-		const shared<Socket>& pSocket) : _chunked(0), pSocket(pSocket), // hold socket to thhe sending (answer even if server falls)
+		const shared<Socket>& pSocket) : _flushing(true), _chunked(0), _pSocket(pSocket), // hold socket to the sending (answer even if server falls)
 		pRequest(pRequest), connection(pRequest->connection), Runner(name), crossOriginIsolated(false) {}
-	virtual ~HTTPSender() { if (!connection) pSocket->shutdown(); }
+	virtual ~HTTPSender() {
+		// if finalize called in descrutor => no more handle on HTTPSender => no need to call socket.onFlush!
+		finalize(false);
+	} 
 
-	bool isFile() const { const Path& path(this->path()); return path && !path.isFolder(); }
+
+	virtual bool flushing() const;
+
+	bool isFile() const;
+	
 
 	virtual bool hasHeader() const { return true; }
 
@@ -43,10 +56,16 @@ struct HTTPSender : Runner, virtual Object {
 	Buffer& buffer();
 
 	/*!
+	Send HTTP header
 	If extraSize=UINT64_MAX + (path() || !mime): Transfer-Encoding: chunked
 	If extraSize=UINT64_MAX + !path(): live streaming => no content-length, live attributes and close on end of response */
 	bool send(const char* code, MIME::Type mime = MIME::TYPE_UNKNOWN, const char* subMime = NULL, UInt64 extraSize = 0);
+	/*!
+	Send HTTP body content */
 	bool send(const Packet& content);
+	/*!
+	Finalize send */
+	void finalize() { finalize(true); }
 
 	template <typename ...Args>
 	bool sendError(const char* code, Args&&... args) {
@@ -56,8 +75,9 @@ struct HTTPSender : Runner, virtual Object {
 	
 protected:
 
+	const SocketAddress& peerAddress() { return _pSocket ? _pSocket->peerAddress() : SocketAddress::Wildcard(); }
+
 	shared<const HTTP::Header> pRequest;
-	shared<Socket>			   pSocket;
 	UInt8					   connection;
 
 
@@ -74,12 +94,15 @@ protected:
 private:
 	virtual const Path& path() const { return Path::Null(); }
 
+	void finalize(bool flush);
 	bool socketSend(const Packet& packet);
-	bool run(Exception&) { run(); return true; }
-	virtual void run() {}
+	virtual bool run(Exception&);
+	virtual void run() { ERROR(name, " not runnable"); }
 
 	shared<Buffer>				_pBuffer;
 	UInt8						_chunked;
+	bool						_flushing;
+	shared<Socket>			    _pSocket; // if null has been shutdown!
 };
 
 

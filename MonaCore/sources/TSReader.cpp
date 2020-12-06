@@ -190,7 +190,7 @@ void TSReader::parsePAT(const UInt8* data, UInt32 size, Media::Source& source) {
 		}
 		_programs.clear();
 		_properties.clear();
-		_timeProperties = _properties.timeChanged();
+		_propVersion = _properties.version;
 		_startTime = -1;
 		_audioTrack = 0; _videoTrack = 0;
 		source.reset();
@@ -283,8 +283,8 @@ void TSReader::parsePMT(const UInt8* data, UInt32 size, UInt8& version, Media::S
 	// ignore 4 CRC bytes
 
 	// Flush PROPERTIES if changed!
-	if (_timeProperties < _properties.timeChanged()) {
-		_timeProperties = _properties.timeChanged();
+	if (_propVersion != _properties.version) {
+		_propVersion = _properties.version;
 		source.addProperties(_properties);
 	}
 }
@@ -394,7 +394,7 @@ void TSReader::onFlush(Packet& buffer, Media::Source& source) {
 	}
 	_programs.clear();
 	_properties.clear();
-	_timeProperties = _properties.timeChanged();
+	_propVersion = _properties.version;
 	_audioTrack = 0; _videoTrack = 0;
 	_pmts.clear();
 	_syncFound = false;

@@ -17,8 +17,8 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/ServerAPI.h"
-#include "Mona/MapWriter.h"
 #include "Mona/MapReader.h"
+#include "Mona/MapWriter.h"
 #include "Mona/URL.h"
 #include "Mona/Logs.h"
 
@@ -28,7 +28,14 @@ using namespace std;
 namespace Mona {
 
 ServerAPI::ServerAPI(std::string& www, map<string, Publication>& publications, const Handler& handler, const Protocols& protocols, const Timer& timer, UInt16 cores) :
-	www(www), _publications(publications), threadPool(cores), protocols(protocols), timer(timer), handler(handler), ioSocket(handler, threadPool), ioFile(handler, threadPool, cores), clients() {
+	www(www), _publications(publications), threadPool(cores), protocols(protocols), timer(timer), handler(handler),
+	ioSocket(handler, threadPool), ioFile(handler, threadPool, cores), clients(), resources(timer) {
+	resources.onCreate = [](const string& name, const string& type, UInt32 lifeTime) {
+		INFO("New ", name , ' ', type, " resource alive during ", lifeTime, "ms");
+	};
+	resources.onRelease = [](const string& name, const string& type) {
+		DEBUG("Release ", name, ' ', type, " resource");
+	};
 }
 
 Publication* ServerAPI::publish(Exception& ex, Path& stream, Client* pClient) {
@@ -41,8 +48,8 @@ Publication* ServerAPI::publish(Exception& ex, Path& stream, Client* pClient) {
 		return NULL;
 	}
 	
-	const auto& it = _publications.emplace(SET, forward_as_tuple(name), forward_as_tuple(name));
-	Publication& publication(it.first->second);
+	const auto& it = _publications.emplace(SET, forward_as_tuple(name), forward_as_tuple(name)).first;
+	Publication& publication(it->second);
 
 	if (publication.publishing()) {
 		ERROR(ex.set<Ex::Intern>(name, " is already publishing"));
@@ -57,26 +64,35 @@ Publication* ServerAPI::publish(Exception& ex, Path& stream, Client* pClient) {
 	}
 
 	// Write static metadata configured
-	if (String::ICompare(getString(name), "publication")==0) {
-		String prop(name,'.');
+	/// common properties for all the publication
+	if (String::ICompare(getString("publication"), "")==0) {
+		String prop("publication.");
 		for (auto& it : range(prop))
 			publication.setString(it.first.c_str()+ prop.size(), it.second);
 	}
+	/// specific properties for this publication
+	if (String::ICompare(getString(name), "publication") == 0) {
+		String prop(name, '.');
+		for (auto& it : range(prop))
+			publication.setString(it.first.c_str() + prop.size(), it.second);
+	}
+
 
 	if (onPublish(ex, publication, pClient)) {
 		if(!stream.extension().empty()) {
 			// RECORD!
-			Path path(www, pClient ? pClient->path : "", name,'.', stream.extension());
+			Path path(www, pClient ? pClient->path : "", name, '.', stream.extension());
 			bool append(false);
 			publication.getBoolean("append", append);
-			MapReader<Parameters> arguments(publication);
-			Parameters parameters;
-			MapWriter<Parameters> properties(parameters);
-			if (onFileAccess(ex, append ? File::MODE_APPEND : File::MODE_WRITE, path, arguments, properties, pClient)) {
+			MapReader<Parameters> params(publication);
+			Parameters props;
+			MapWriter<Parameters> writeProps(props);
+			if (onFileAccess(ex, append ? File::MODE_APPEND : File::MODE_WRITE, path, params, writeProps, pClient)) {
+				if (props.count())
+					WARN("File text properties ", props, " not supported to publication recording");
 				unique<MediaFile::Writer> pFileWriter = MediaFile::Writer::New(ex, path.c_str(), ioFile, publication.getString("format",""));
 				if (pFileWriter) {
-					parameters.getBoolean("append", append);
-					publication.start(move(pFileWriter), append);
+					publication.start(move(pFileWriter));
 					return &publication;
 				}
 				WARN(name, " impossible to record, ", ex);
@@ -93,7 +109,7 @@ Publication* ServerAPI::publish(Exception& ex, Path& stream, Client* pClient) {
 		ex.set<Ex::Permission>("Not allowed to publish ", name);
 	ERROR(ex);
 	if (publication.subscriptions.empty())
-		_publications.erase(it.first);
+		erasePublication(it);
 	return NULL;
 }
 
@@ -105,15 +121,16 @@ void ServerAPI::unpublish(Publication& publication, Client* pClient) {
 		return;
 	}
 	if (publication.publishing()) {
-		publication.start(); // = reset without logs: keep publication.running() until its deletion which must happen AFTER onUnpublish (otherwise a unsubscribe could erase too the publication)
-		if (pClient && !pClient->connection)
-			ERROR("Unpublication client before connection")
-		else
-			onUnpublish(publication, pClient);
-		publication.stop();
+		// onUnpublish inside lambda to keep publication!=false while onUnpublish to avoid that an unsubscribe erase too the publication
+		publication.stop([&]() {
+			if (pClient && !pClient->connection)
+				ERROR("Unpublication client before connection")
+			else
+				onUnpublish(publication, pClient);
+		});
 	}
 	if(publication.subscriptions.empty())
-		_publications.erase(it);
+		erasePublication(it);
 }
 
 bool ServerAPI::subscribe(Exception& ex, string& stream, Subscription& subscription, Client* pClient) {
@@ -168,7 +185,7 @@ bool ServerAPI::subscribe(Exception& ex, const string& stream, Subscription& sub
 
 	if (!subscribe(ex, it->second, subscription, pClient)) {
 		if (!it->second)
-			_publications.erase(it);
+			erasePublication(it);
 		return false;
 	}
 
@@ -248,8 +265,19 @@ void ServerAPI::unsubscribe(Subscription& subscription, Publication* pPublicatio
 		ERROR(pPublication->name()," unsubscription before client connection")
 	else
 		onUnsubscribe(subscription, *pPublication, pClient);
-	if (!*pPublication)
-		_publications.erase(pPublication->name());
+	if (*pPublication)
+		return;
+	// remve empty publication
+	const auto& it = _publications.find(pPublication->name());
+	if(it != _publications.end())
+		erasePublication(it);
+}
+
+void ServerAPI::erasePublication(const map<string, Publication>::const_iterator& it) {
+	Segments& segments = (Segments&)it->second.segments;
+	if (segments)
+		resources.create<Segments>(it->first, segments.duration(), std::move(segments));
+	_publications.erase(it);
 }
 
 

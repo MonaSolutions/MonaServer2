@@ -403,5 +403,8 @@
     <ClInclude Include="include\Mona\SRT.h">
       <Filter>Net</Filter>
     </ClInclude>
+    <ClInclude Include="include\Mona\Resources.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

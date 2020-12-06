@@ -88,7 +88,7 @@ const string& Session::name() const {
 	if (!_name.empty())
 		return _name;
 	// use peer.protocol rather _protocol.name to expect session morphing
-	return String::Assign(_name, peer.protocol, '-', _id, '@', peer.address);
+	return String::Assign(_name, peer.protocol, ' ', _id, '-', peer.address);
 }
 
 void Session::onParameters(const Parameters& parameters) {

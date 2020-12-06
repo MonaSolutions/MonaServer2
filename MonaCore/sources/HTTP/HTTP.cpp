@@ -31,7 +31,7 @@ HTTP::Header::Header(const Socket& socket, bool rendezVous) : accessControlReque
 	mime(MIME::TYPE_UNKNOWN),
 	type(TYPE_UNKNOWN),
 	version(0),
-	connection(CONNECTION_CLOSE),
+	connection(CONNECTION_KEEPALIVE), // KEEPALIVE BY DEFAULT for HTTP 1.1
 	ifModifiedSince(0),
 	subMime(NULL),
 	origin(NULL),
@@ -43,6 +43,7 @@ HTTP::Header::Header(const Socket& socket, bool rendezVous) : accessControlReque
 	range(NULL),
 	chunked(false),
 	code(NULL),
+	forceText(false),
 	rendezVous(rendezVous) {
 }
 

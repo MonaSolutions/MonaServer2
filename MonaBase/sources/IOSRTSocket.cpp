@@ -22,13 +22,6 @@ using namespace std;
 
 namespace Mona {
 
-IOSRTSocket::IOSRTSocket(const Handler& handler, const ThreadPool& threadPool, const char* name) : IOSocket(handler, threadPool, name), _epoll(0) {
-}
-
-IOSRTSocket::~IOSRTSocket() {
-	
-}
-
 
 bool IOSRTSocket::subscribe(Exception& ex, const shared<Socket>& pSocket) {
 	lock_guard<mutex> lock(_mutex); // must protect "start" + _system (to avoid a write operation on restarting) + _subscribers increment

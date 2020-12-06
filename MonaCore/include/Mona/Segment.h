@@ -28,11 +28,6 @@ Class to save a segment, limited in size to UInt16 duration*/
 struct Segment : virtual Object  {
 	NULLABLE(!count())
 
-	enum : UInt16 {
-		MIN_DURATION = 1000,
-		MAX_DURATION = 11000
-	};
-
 	/*!
 	Format segment name in the format NAME.S### with ### duration encoded, and S the sequence number */
 	template<typename BufferType>
@@ -57,13 +52,18 @@ struct Segment : virtual Object  {
 		return Path(path.parent(), path.baseName(), '.', sequence, WriteDuration(duration, buffer), '.', path.extension());
 	}
 	
-	Segment() : _lastTime(0), discontinuous(false) {}
-	Segment(const Segment& segment) : _lastTime(segment._lastTime), discontinuous(false), _medias(segment._medias) {
+	Segment() : _lastTime(0), _discontinuous(false) {}
+	Segment(const Segment& segment) : _lastTime(segment._lastTime), 
+		_discontinuous(segment._discontinuous), _medias(segment._medias) {
 		if (segment._pFirstTime)
 			_pFirstTime.set(*segment._pFirstTime);
 	}
+	Segment(Segment&& segment) : _lastTime(segment._lastTime), _pFirstTime(std::move(segment._pFirstTime)),
+		_discontinuous(segment._discontinuous), _medias(std::move(segment._medias)) {
+		segment._discontinuous = false;
+	}
 
-	bool discontinuous;
+	bool discontinuous() const { return _discontinuous; }
 
 	typedef std::vector<shared<const Media::Base>>::const_iterator const_iterator;
 	const_iterator	begin() const { return _medias.begin(); }
@@ -73,7 +73,7 @@ struct Segment : virtual Object  {
 	UInt32			time() const { return _pFirstTime ? *_pFirstTime : 0;  }
 	UInt16			duration() const { return _pFirstTime ? UInt16(Util::Distance(*_pFirstTime, _lastTime)) : 0; }
 
-	void			clear() { _medias.clear(); _pFirstTime.reset(); }
+	void			reset() { _discontinuous = true; _medias.clear(); _pFirstTime.reset(); }
 
 	template<typename MediaType, typename ...Args>
 	bool			add(Args&&... args) {
@@ -96,6 +96,7 @@ private:
 	std::vector<shared<const Media::Base>> _medias;
 	unique<UInt32>						   _pFirstTime;
 	UInt32								   _lastTime;
+	bool								   _discontinuous;
 };
 
 } // namespace Mona

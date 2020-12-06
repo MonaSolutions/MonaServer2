@@ -24,11 +24,24 @@ namespace Mona {
 
 
 struct Playlist : Path, virtual Object {
-	NULLABLE(durations.empty())
-	/*!
-	Write a playlist type live (memory) */
-	static bool Write(Exception& ex, const Playlist& playlist, Buffer& buffer);
+	NULLABLE(_durations.empty())
 
+	/*!
+	Playlist master, path+name+bandwidth */
+	struct Master : Path {
+		NULLABLE(items.empty())
+		Master(const Path& path) : Path(path) {}
+		Master(Master&& playlist) : Path(std::move(playlist)), items(std::move(playlist.items)) {}
+		std::map<std::string, UInt64> items;
+	};
+	/*!
+	Write a master playlist */
+	static bool Write(Exception& ex, const std::string& type, const Playlist::Master& playlist, Buffer& buffer);
+
+
+	/*!
+	Write a playlist type static (VOD or live-memory) */
+	static bool Write(Exception& ex, const std::string& type, const Playlist& playlist, Buffer& buffer);
 	/*!
 	Write a playlist type event (file) */
 	struct Writer : FileWriter, virtual Object {
@@ -38,23 +51,33 @@ struct Playlist : Path, virtual Object {
 	
 	private:
 		virtual void open(const Playlist& playlist) = 0;
-		virtual void write(UInt32 sequence, UInt16 duration) = 0;
+		virtual void write(const std::string& format, UInt32 sequence, UInt16 duration) = 0;
 		// set close private to allow child class to write a last sequence in desctructor on end-of-file (END-LIST for example) in 
 		void close() { FileWriter::close(); } 
 	};
 
 	/*!
-	Represents a playlist, fix maxDuration on item addition and sequence on remove item*/
-	Playlist(const Path& path) : Path(path), sequence(0), maxDuration(0) {}
+	Represents a playlist, fix maxDuration on item addition and sequence on remove item
+	Path must informs on name and format playlist by its extension: ts/mp4 */
+	Playlist(const Path& path) : Path(path), sequence(0), maxDuration(0), _duration(0) {}
+
 
 	UInt32						sequence;
-	UInt64						maxDuration;
-	const std::deque<UInt16>	durations;
-	UInt32						count() const { return durations.size(); }
+	UInt16						maxDuration;
+	UInt32						duration() const { return _duration; }
+	const std::deque<UInt16>	durations() const { return _durations; }
+	UInt32						count() const { return _durations.size(); }
 
+	template <typename ...Args>
+	Playlist&					setPath(Args&&... args) { Path::set(std::forward<Args>(args)...); return self; }
 	Playlist&					addItem(UInt16 duration);
 	Playlist&					removeItem();
-	Playlist&					removeItems();
+	Playlist&					reset();
+private:
+	void set() {} // make private Path::set, use setPath rather
+
+	UInt32				_duration;
+	std::deque<UInt16>	_durations;
 };
 
 } // namespace Mona

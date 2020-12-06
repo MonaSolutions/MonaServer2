@@ -279,6 +279,10 @@ struct Media : virtual Static {
 	};
 	static const char* CodecToString(Media::Audio::Codec codec) { return Audio::CodecToString(codec); }
 
+	static unique<Media::Base> New(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { return new Audio(tag, packet, track); }
+	static unique<Media::Base> New(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { return new Video(tag, packet, track); }
+	static unique<Media::Base> New(Media::Data::Type type, const Packet& packet, UInt8 track = 0) { return new Data(type, packet, track); }
+
 
 	// AUDIO => 10CCCCCC SSSSSSSS RRRRR0IN [NNNNNNNN] TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
 	/// C = codec
@@ -319,9 +323,15 @@ struct Media : virtual Static {
 		Add properties but without overloading of existing, alone way to clear properties is a explicit "clear" (done by publication/source reset) */
 		UInt32		addProperties(UInt8 track, DataReader& reader);
 		void		addProperties(UInt8 track, Media::Data::Type type, const Packet& packet);
-
+		/*!
+		Clear all track properties (prefixed by T.) */
 		void    clearTracks();
+		/*!
+		Clear a track property (prefixed by T.),
+		If track=0 it removes the common properties (without T. prefix) */
 		void	clear(UInt8 track);
+		/*!
+		Clear all properties */
 		void	clear() { Parameters::clear(); }
 	protected:
 		void onParamInit();

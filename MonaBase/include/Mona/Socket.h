@@ -145,7 +145,8 @@ struct Socket : virtual Object, Net::Stats {
 	Returns size of data sent immediatly (or -1 if error, for TCP socket a SHUTDOWN_SEND is done, so socket will be disconnected) */
 	int			 write(Exception& ex, const Packet& packet, int flags = 0) { return write(ex, packet, SocketAddress::Wildcard(), flags); }
 	int			 write(Exception& ex, const Packet& packet, const SocketAddress& address, int flags = 0);
-
+	/*!
+	Flush packets and call onFlush if no more packets to send, return false on error */
 	bool		 flush(Exception& ex) { return flush(ex, false); }
 
 	template <typename ...Args>

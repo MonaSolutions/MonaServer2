@@ -168,6 +168,7 @@ struct HTTP : virtual Static {
 
 		MIME::Type		mime;
 		const char*		subMime;
+		bool			forceText;
 
 		HTTP::Type		type;
 		Path			path;

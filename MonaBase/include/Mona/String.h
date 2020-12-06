@@ -74,8 +74,8 @@ struct String : std::string {
 
 
 	struct Comparator {
-		bool operator()(const std::string& value1, const std::string& value2) const { return String::ICompare(value1, value2)<0; }
-		bool operator()(const char* value1, const char* value2) const { return String::ICompare(value1, value2)<0; }
+		bool operator()(const std::string& value1, const std::string& value2) const { return value1.compare(value2) < 0; }
+		bool operator()(const char* value1, const char* value2) const { return strcmp(value1, value2) < 0; }
 	};
 	struct IComparator {
 		bool operator()(const std::string& value1, const std::string& value2) const { return String::ICompare(value1, value2)<0; }

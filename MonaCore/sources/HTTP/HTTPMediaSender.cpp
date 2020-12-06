@@ -32,23 +32,20 @@ HTTPMediaSender::HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
 	_pWriter = pWriter;
 }
 
-HTTPMediaSender::~HTTPMediaSender() {
-	if (_first || _pMedia)
-		connection = HTTP::CONNECTION_KEEPALIVE;
-}
-
 void HTTPMediaSender::run() {
 	MediaWriter::OnWrite onWrite([this](const Packet& packet) { send(packet); });
 	if (_first) {
 		// first packet streaming
 		if (send(HTTP_CODE_200, _pWriter->mime(), _pWriter->subMime(), UINT64_MAX))
 			_pWriter->beginMedia(onWrite);
-		if(!_pMedia)
-			return;
-	} else if (!_pMedia)
-		return _pWriter->endMedia(onWrite);
-
-	return _pWriter->writeMedia(*_pMedia, onWrite);
+		connection = HTTP::CONNECTION_KEEPALIVE;
+	}
+	
+	if (_pMedia) {
+		_pWriter->writeMedia(*_pMedia, onWrite);
+		connection = HTTP::CONNECTION_KEEPALIVE;
+	} else if (!_first)
+		_pWriter->endMedia(onWrite);
 }
 
 

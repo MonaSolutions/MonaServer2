@@ -140,7 +140,7 @@ struct Util : virtual Static {
 			return false; // to expect null writer 
 
 		UInt32 bits(0), oldSize(append ? buffer.size() : 0);
-		UInt32 accumulator(oldSize + (size / 4 * 3));
+		UInt32 accumulator(oldSize + UInt32(ceil(size / 4.0 * 3)));
 		const UInt8* end(data+size);
 
 		if (buffer.size()<accumulator)

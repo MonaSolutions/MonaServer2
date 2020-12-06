@@ -172,25 +172,6 @@ MP4Reader::Box& MP4Reader::Box::operator-=(UInt32 readen) {
 	return *this;
 }
 
-void MP4Reader::Track::writeProperties(Media::Properties& properties) {
-	if (!lang[0])
-		return;
-	struct TrackReader : DataReader {
-		TrackReader(const Track& track) : _track(track), DataReader(Packet::Null(), OTHER) {}
-	private:
-		bool readOne(UInt8 type, DataWriter& writer) {
-			writer.beginObject();
-			writer.writePropertyName(*_track.pType == Media::TYPE_AUDIO ? "audioLang" : "textLang");
-			writer.writeString(_track.lang, strlen(_track.lang));
-			writer.endObject();
-			return true;
-		}
-		const Track& _track;
-	} reader(self);
-	properties.addProperties(_track, reader);
-}
-
-
 UInt32 MP4Reader::parse(Packet& buffer, Media::Source& source) {
 	UInt32 rest = parseData(buffer, source);
 	_position += buffer.size() - rest;
@@ -239,7 +220,8 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 				_chunks.clear();
 				_ids.clear();
 				_failed = false;
-				
+				_properties.clear();
+				_propVersion = _properties.version;
 				_boxes.emplace_back();
 				continue;
 			case FOURCC('m', 'o', 'o', 'f'): // MOOF
@@ -289,11 +271,11 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 					break;
 				_sequence = sequence;
 				// report lost just if audios/videos/datas have occured, otherwise useless (allow to tolerate first sequence assignation)
-				if (!_datas && !_audios && !_videos)
+				if (_failed || (!_datas && !_audios && !_videos))
 					break;
 				_medias.emplace_hint(_medias.end(),
 					_times.empty() ? (_medias.empty() ? 0 : _medias.rbegin()->first) : _times.begin()->first,
-					pair<Track*, Media::Base*>(NULL, new Lost(range<UInt32>(_offset - _position))) // lost approximation
+					new Lost(range<UInt32>(_offset - _position)) // lost approximation
 				);
 				break;
 			}
@@ -742,7 +724,9 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 			}
 			case FOURCC('m', 'd', 'a', 't'): { // MDAT
 				// DATA
-				while(!_failed && reader.available()) {
+				if (_failed)
+					break;
+				while(reader.available()) {
 					if (_tracks.empty()) {
 						ERROR("No tracks information before mdat (No support of mdat box before moov box)");
 						_failed = true;
@@ -812,7 +796,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 										track = ++_audios;
 										if(type.config) {
 											type.audio.isConfig = true;
-											_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Audio(type.audio, type.config, track)));
+											addMedia(time, track, type.audio, type.config);
 											++_times[time]; // to match with times synchro
 											type.audio.isConfig = false;
 										}
@@ -823,7 +807,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								}
 						  //	DEBUG("Audio ", type.audio.time);
 								if (track && size) // if size == 0 => silence!
-									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Audio(type.audio, Packet(packet, reader.current(), size), track)));
+									addMedia(time, track, type.audio, Packet(packet, reader.current(), size));
 								break;
 							case Media::TYPE_VIDEO: {
 								type.video.time = time;
@@ -834,7 +818,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 										track = ++_videos;
 										if(type.config) {
 											type.video.frame = Media::Video::FRAME_CONFIG;
-											_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Video(type.video, type.config, track)));
+											addMedia(time, track, type.video, type.config);
 											++_times[time]; // to match with times synchro
 										}
 									} else {
@@ -881,7 +865,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 								BinaryReader mov_text(reader.current(), size);
 								UInt16 length = mov_text.read16();
 								if (length && length <= mov_text.available()) // TODO: Use a reference to "packet" like in Media::Audio above
-									_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Data(type.data, Packet(mov_text.current(), length), 1)));
+									addMedia(time, track, type.data, Packet(mov_text.current(), length));
 								// TODO: Extract "styl" and others boxes types (hlit, hclr, twrp)
 							}
 							default:; // ignored!
@@ -889,7 +873,7 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 
 						// Add a media to match times reference if no media added!
 						if (mediaSizes == _medias.size())
-							_medias.emplace(time, pair<Track*, Media::Base*>(NULL, NULL));
+							_medias.emplace(time, nullptr);
 
 						// determine next time
 						Repeat& repeat = track.durations.front();
@@ -932,9 +916,13 @@ UInt32 MP4Reader::parseData(const Packet& packet, Media::Source& source) {
 	return 0;
 }
 
-
 void MP4Reader::flushMedias(Media::Source& source) {
-	Media::Properties properties;
+	_pTrack = NULL; // reset _pTrack assignation in addMedia
+	if (_propVersion != _properties.version) {
+		// write properties in first!
+		_propVersion = _properties.version;
+		source.addProperties(_properties);
+	}
 	auto it = _medias.begin();
 	for (; it != _medias.end(); ++it) {
 		if (!_times.empty()) {
@@ -943,18 +931,15 @@ void MP4Reader::flushMedias(Media::Source& source) {
 			if(it->first== _times.begin()->first && !--_times.begin()->second)
 				_times.erase(_times.begin());
 		}
-		if (!it->second.second)
-			continue;
-		Media::Base& media = *it->second.second;
-		if (media.type) {
-			it->second.first->writeProperties(properties);
+		if (!it->second)
+			continue; // just a packet to match _timers reference
+		Media::Base& media = *it->second;
+		if (media.type)
 			source.writeMedia(media);
-		} else
+		else
 			source.reportLost(media.type, ((Lost&)media).lost);
 	}
 	_medias.erase(_medias.begin(), it);
-	if (properties.count())
-		source.addProperties(properties);
 }
 
 void MP4Reader::onFlush(Packet& buffer, Media::Source& source) {
@@ -966,21 +951,21 @@ void MP4Reader::onFlush(Packet& buffer, Media::Source& source) {
 	_chunks.clear();
 	_tracks.clear();
 	_ids.clear();
-	
+
 	_offset = _position = 0;
 	_firstMoov = true;
 
 	MediaReader::onFlush(buffer, source);
 }
 
-template <class VideoType>
+template<typename VideoType>
 void MP4Reader::frameToMedias(Track& track, UInt32 time, const Packet& packet) {
 	BinaryReader frames(packet.data(), packet.size());
 	Media::Video::Tag& tag = track.pType->video;
 	tag.frame = Media::Video::FRAME_UNSPECIFIED;
 	const UInt8* frame = NULL;
 	UInt32 frameSize;
-	Media::Video* pLastVideo = NULL;
+	bool hasVideo = false;
 	while (frames.available()>4) {
 
 		UInt8 frameType = VideoType::NalType(frames.current()[4]);
@@ -992,25 +977,28 @@ void MP4Reader::frameToMedias(Track& track, UInt32 time, const Packet& packet) {
 					if (VideoType::Frames[frameType] == Media::Video::FRAME_CONFIG) {
 						// complete config packet!
 						frameSize += frames.next(frames.read32()) + 4;
-						if (pLastVideo)
+						if (hasVideo)
 							++_times[time]; // to match with times synchro
-						_medias.emplace(time, pair<Track*, Media::Base*>(&track, pLastVideo = new Media::Video(tag, track.pType->config = Packet(frame, frameSize), track)));
+						hasVideo = true;
+						addMedia(time, track, tag, track.pType->config = Packet(frame, frameSize));
 						frame = NULL;
 						continue;
 					} // else new frame is not a config part
 					if (prevType == VideoType::NAL_SPS) {
-						if (pLastVideo)
+						if (hasVideo)
 							++_times[time]; // to match with times synchro
-						_medias.emplace(time, pair<Track*, Media::Base*>(&track, pLastVideo = new Media::Video(tag, track.pType->config = Packet(frame, frameSize), track)));
+						hasVideo = true;
+						addMedia(time, track, tag, track.pType->config = Packet(frame, frameSize));
 					} // else ignore 8 alone packet
 				} // else erase duplicate config type
 				frame = NULL;
 			}
 			else if (VideoType::Frames[frameType] == Media::Video::FRAME_CONFIG) {
 				// flush what before config packet
-				if (pLastVideo)
+				if (hasVideo)
 					++_times[time]; // to match with times synchro
-				_medias.emplace(time, pair<Track*, Media::Base*>(&track, pLastVideo = new Media::Video(tag, Packet(packet, frame, frameSize), track)));
+				hasVideo = true;
+				addMedia(time, track, tag, Packet(packet, frame, frameSize));
 				frame = NULL;
 			}
 		}
@@ -1025,12 +1013,12 @@ void MP4Reader::frameToMedias(Track& track, UInt32 time, const Packet& packet) {
 
 	if (!frame)
 		return;
-	if (pLastVideo)
+	if (hasVideo)
 		++_times[time]; // to match with times synchro
 	if (tag.frame == Media::Video::FRAME_CONFIG)
-		_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Video(tag, track.pType->config.set(frame, frameSize), track)));
+		addMedia(time, track, tag, track.pType->config.set(frame, frameSize));
 	else
-		_medias.emplace(time, pair<Track*, Media::Base*>(&track, new Media::Video(tag, Packet(packet, frame, frameSize), track)));
+		addMedia(time, track, tag, Packet(packet, frame, frameSize));
 }
 
 } // namespace Mona

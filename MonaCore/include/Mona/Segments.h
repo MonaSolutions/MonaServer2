@@ -24,6 +24,7 @@ namespace Mona {
 
 
 struct Segments : virtual Object, Media::Target, private MediaWriter {
+	typedef Event<void(UInt16 duration)> ON(Segment);
 	NULLABLE(!_maxSegments) // no real sense to use in writing/reading if _maxSegments==0
 
 	enum : UInt8 {
@@ -35,14 +36,17 @@ struct Segments : virtual Object, Media::Target, private MediaWriter {
 	static bool Init(Exception& ex, IOFile& io, Playlist& playlist, bool append = false);
 	/*!
 	Clear files not include in playlist  */
-	static Playlist& Erase(UInt32 count, Playlist& playlist, IOFile& io);
+	static Playlist& Clear(Playlist& playlist, UInt32 maxSegments, IOFile& io);
 	
 	struct Writer : MediaWriter, virtual Object {
-		typedef Event<void(UInt16 duration)> ON(Segment);
+		OnSegment		onSegment;
 
-		Writer(MediaWriter& writer, UInt8 sequences = 1) : _writer(writer), sequences(sequences) {}
+		Writer(MediaWriter& writer, UInt16 duration = 0) : _writer(writer), _maxDuration(0) {
+			setDuration(duration);
+		}
 	
-		UInt8 sequences;
+		UInt16   duration() const { return _maxDuration; }
+		UInt16   setDuration(UInt16 value);
 	
 		const char*	format() const { return _writer.format(); }
 		virtual MIME::Type	mime() const { return _writer.mime(); }
@@ -63,24 +67,30 @@ struct Segments : virtual Object, Media::Target, private MediaWriter {
 		std::map<UInt8, Media::Audio::Config>	_audioConfigs;
 		std::map<UInt8, Media::Video::Config>	_videoConfigs;
 		bool									_keying;
-		UInt8									_sequences;
+		UInt8									_keys;
 
 		bool									_first;
 		UInt32									_segTime;
 		UInt32									_lastTime;
+		UInt16									_duration;
+		UInt16									_maxDuration;
 	};
 
 	/*!
-	Not allow easly to configure "sequences" (setter are available for) because in live-memory the best is to have always 1 keyframe by sequence */
+	Not allow easly to configure "duration" (setter are available for) because in live-memory the best is to have always 1 keyframe by segment */
 	Segments(UInt8 maxSegments = DEFAULT_SEGMENTS);
+	Segments(Segments&& segments);
 
-	UInt8&		sequences;
-	
+	UInt32		sequence() const { return _sequence; }
 	UInt32		count() const { return _segments.size(); }
 
 	const UInt8	maxSegments() const { return _maxSegments; }
 	UInt8		setMaxSegments(UInt8 maxSegments);
-	UInt32		maxDuration() const { return _maxDuration; }
+
+	UInt32		duration() const { return _duration; }
+
+	UInt16		maxDuration() const { return _writer.duration(); }
+	UInt16		setMaxDuration(UInt16 value) { return _writer.setDuration(value); }
 
 	Segments&	operator=(std::nullptr_t) { setMaxSegments(0);  return self; }
 	/*!
@@ -96,21 +106,23 @@ struct Segments : virtual Object, Media::Target, private MediaWriter {
 	// Methods to write Segments
 	/*!
 	beginMedia, can be called multiple time (MBR) */
-	bool beginMedia(const std::string& name) override;
 	bool writeProperties(const Media::Properties& properties) override { return write(properties, nullptr); }
 	bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable = true) override { return write(track, tag, packet, nullptr); }
 	bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable = true) override { return write(track, tag, packet, nullptr); }
 	bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable = true) override { return write(track, type, packet, nullptr); }
 	bool endMedia() override;
-
 private:
-	void flush() {} // private to mark it explicitly as useless
+	void init();
+	// private to explain that it's not necessary to call it, is made in "write"
+	bool beginMedia(const std::string& name) override;
+	// private to mark it explicitly as useless
+	void flush() {} 
+
 
 	template<typename ...Args>
 	bool write(Args&&... args) {
-		DEBUG_ASSERT(_started);
-		if(!_started)
-			return false; // Stream not begin!
+		if (!_started)
+			beginMedia(String::Empty());
 		_writer.writeMedia(std::forward<Args>(args)...);
 		return true;
 	}
@@ -135,9 +147,9 @@ private:
 	Segment				_segment;
 	UInt32				_sequence;
 	UInt8				_maxSegments;
-	UInt32				_maxDuration;
 	Writer				_writer;
 	bool				_started;
+	UInt32				_duration;
 };
 
 } // namespace Mona

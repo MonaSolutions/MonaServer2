@@ -26,8 +26,8 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/HTTP/HTTPMediaSender.h"
 #include "Mona/HTTP/HTTPFileSender.h"
 #include "Mona/HTTP/HTTPFolderSender.h"
-#include "Mona/HTTP/HTTPSegmentSender.h"
 #include "Mona/HTTP/HTTPPlaylistSender.h"
+#include "Mona/HTTP/HTTPSegmentSender.h"
 
 namespace Mona {
 
@@ -40,7 +40,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	void			beginRequest(const shared<const HTTP::Header>& pRequest);
 	void			endRequest();
 
-	UInt64			queueing() const { return _session->queueing(); }
+	UInt64			queueing() const override { return _session->queueing() + _flushings.size(); }
 
 	void			clear() { _pResponse.reset(); _senders.clear();  }
 
@@ -54,8 +54,9 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	void			writeSetCookie(const std::string& key, DataReader& reader);
 
 	void			writeFile(const Path& file, Parameters& properties);
-	void			writeSegment(const Segment& segment, Parameters& properties) { newSender<HTTPSegmentSender>(true, segment, properties); }
-	void			writePlaylist(const Segments& segments) { newSender<HTTPPlaylistSender>(true, segments); }
+	void			writeSegment(const Path& path, const Segment& segment, Parameters& params) { newSender<HTTPSegmentSender>(true, path, segment, params); }
+	void			writePlaylist(const Path& path, const Segments& segments, std::string&& format = "ts") { newSender<HTTPPlaylistSender>(true, path, segments, std::move(format)); }
+	void			writeMasterPlaylist(Playlist::Master&& playlist) { newSender<HTTPMPlaylistSender>(true, std::move(playlist)); }
 
 	BinaryWriter&   writeRaw(const char* code);
 	DataWriter&     writeResponse(const char* subMime);
@@ -73,14 +74,14 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	void			writeError(const char* code, Args&&... args) { newSender<HTTPErrorSender>(true, code, std::forward<Args>(args)...); }
 
 	bool			answering() const { return !_flushings.empty() || _session->queueing(); }
-	void			flush() { Writer::flush(); }
+	void			flush() override;
 
 private:
-	void			flush(const shared<HTTPSender>& pSender);
-	void			flushing();
-	void			closing(Int32 error=0, const char* reason = NULL);
+	void			flushing() override;
+	void			closing(Int32 error=0, const char* reason = NULL) override;
 
 	DataWriter&		writeMessage(bool isResponse);
+
 
 	template <typename SenderType, typename ...Args>
 	shared<SenderType> newSender(Args&&... args) {
@@ -89,27 +90,27 @@ private:
 
 	template <typename SenderType, typename ...Args>
 	shared<SenderType> newSender(bool isResponse, Args&&... args) {
-		if (!*this || !_pRequest) // if closed or has never gotten any request!
+		if (!self || !_pRequest) // if closed or has never gotten any request!
 			return nullptr;
+
 		shared<SenderType> pSender(SET, _pRequest, _session.socket(), std::forward<Args>(args)...);
 		pSender->setCookies(_pSetCookie);
 		pSender->crossOriginIsolated = crossOriginIsolated;
 		if(isResponse) {
 			if (_pResponse) {
 				if(_requesting)
-					WARN("Response already written on ", _session.name()) // override the response, but should not happen, this warn can to check the code if happen
+					WARN("Response already written on ", _session.name()) // override the response, but should not happen (warn to check the code if happen)
 				else
 					flush(); // force flush!
 			}
 			_pResponse = pSender;
 		} else
 			_senders.emplace_back(pSender);
-		return pSender;
+		return std::move(pSender);
 	}
 
 	File::OnError						_onFileError;
-	File::OnReaden						_onFileReaden;
-
+	
 	shared<MediaWriter>					_pMediaWriter;
 	TCPSession&							_session;
 	shared<Buffer>						_pSetCookie;

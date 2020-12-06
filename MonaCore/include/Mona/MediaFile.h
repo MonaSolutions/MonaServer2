@@ -108,6 +108,7 @@ struct MediaFile : virtual Static  {
 		IOFile&		io;
 		UInt64		queueing() const { return _pFile ? _pFile->queueing() : 0; }
 		bool		segmented() const { return _pPlaylistWriter.operator bool(); }
+		UInt32		segments() const { return _segments; }
 
 		const MediaWriter* operator->() const { return _pWriter.get(); }
 
@@ -133,7 +134,7 @@ struct MediaFile : virtual Static  {
 		struct File : FileWriter, Playlist, virtual Object {
 			NULLABLE(!FileWriter::operator bool())
 
-			File(const std::string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylistWriter, UInt32 segments, UInt8 sequences, IOFile& io);
+			File(const std::string& name, const Path& path, const shared<MediaWriter>& pWriter, const shared<Playlist::Writer>& pPlaylistWriter, UInt32 segments, UInt16 duration, IOFile& io);
 			~File();
 
 			File& open(bool append = true);
@@ -165,17 +166,17 @@ struct MediaFile : virtual Static  {
 			void process(Exception& ex, File& file);
 		};
 
-		struct ChangeSequences : Write, virtual Object {
-			ChangeSequences(const shared<File>& pFile, UInt8 sequences) : Write(pFile), sequences(sequences) {}
-			const UInt8	sequences;
-			void process(Exception& ex, File& file) { if (typeid(*file) == typeid(Segments::Writer)) ((Segments::Writer&)*file).sequences = sequences; }
+		struct ChangeDuration : Write, virtual Object {
+			ChangeDuration(const shared<File>& pFile, UInt16 duration) : Write(pFile), duration(duration) {}
+			const UInt16 duration;
+			void process(Exception& ex, File& file) { if (typeid(*file) == typeid(Segments::Writer)) ((Segments::Writer&)*file).setDuration(duration); }
 		};
 		struct ChangeSegments : Write, virtual Object {
 			ChangeSegments(const shared<File>& pFile, UInt32 segments) : Write(pFile), segments(segments) {}
 			const UInt32 segments;
 			void process(Exception& ex, File& file) {
-				if (file.segments && file.count()>file.segments)
-					Segments::Erase(file.count() - file.segments, file, file.io);
+				if(segments)
+					Segments::Clear(file, segments, file.io);
 			}
 		};
 
@@ -194,7 +195,7 @@ struct MediaFile : virtual Static  {
 		shared<MediaWriter>		 _pWriter;
 		UInt16					 _writeTrack;
 		bool					 _append;
-		UInt8					 _sequences;
+		UInt16					 _duration;
 		UInt32					 _segments;
 		shared<Playlist::Writer> _pPlaylistWriter;
 	};

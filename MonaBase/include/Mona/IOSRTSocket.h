@@ -24,9 +24,10 @@ details (or else see http://mozilla.org/MPL/2.0/).
 namespace Mona {
 
 struct IOSRTSocket : virtual IOSocket, virtual Object {
-	IOSRTSocket(const Handler& handler, const ThreadPool& threadPool, const char* name = "IOSRTSocket");
-	~IOSRTSocket();
-
+	IOSRTSocket(const Handler& handler, const ThreadPool& threadPool, const char* name = "IOSRTSocket") :
+		IOSocket(handler, threadPool, name), _epoll(0) {
+	}
+	
 	virtual bool			subscribe(Exception& ex, const shared<Socket>& pSocket);
 	
 	virtual void			unsubscribe(Socket* pSocket);
@@ -35,9 +36,9 @@ struct IOSRTSocket : virtual IOSocket, virtual Object {
 private:
 	virtual bool			run(Exception& ex, const volatile bool& requestStop);
 
-	int						_epoll;
+	int									_epoll;
 	std::map<SRTSOCKET, weak<Socket>>	_sockets;
-	std::mutex				_mutexSockets;
+	std::mutex							_mutexSockets;
 };
 
 

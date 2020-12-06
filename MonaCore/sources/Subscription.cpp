@@ -36,12 +36,12 @@ bool Subscription::MediaTrack::setLastTime(UInt32 time) {
 
 Subscription::Subscription(Media::Target& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
 	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _seekTime(0),
-	_audios(true), _videos(true), _datas(true), _timeoutMBRUP(10000), _medias(self), _updating(0), _duration(0) {
+	_audios(true), _videos(true), _datas(true), _timeoutMBRUP(10000), _medias(self), _updating(0), _duration(0), _paramVersion(0){
 }
 
 Subscription::Subscription(Media::TrackTarget& target) : pPublication(NULL), _pNextPublication(NULL), _target(target), _ejected(EJECTED_NONE),
 	_flushable(0), audios(_audios), videos(_videos), datas(_datas), _streaming(0), _firstTime(true), _timeout(0), _startTime(0), _seekTime(0),
-	_audios(false), _videos(false), _datas(false), _timeoutMBRUP(10000), _medias(self), _updating(0), _duration(0) {
+	_audios(false), _videos(false), _datas(false), _timeoutMBRUP(10000), _medias(self), _updating(0), _duration(0), _paramVersion(0) {
 }
 
 Subscription::~Subscription() {
@@ -155,8 +155,8 @@ bool Subscription::start() {
 		return false;
 	if (_streaming) {
 		// already streaming: just compute congestion + 
-		if (_timeProperties<timeChanged()) {
-			_timeProperties = timeChanged();
+		if (_paramVersion != version) {
+			_paramVersion = version;
 			DEBUG(name(), " subscription parameters ", self);
 			if(!pPublication)
 				writeProperties(self); // if no publication media params are also the media medatata
@@ -362,7 +362,7 @@ void Subscription::parseTime(const char* time) {
 		case '+':
 			String::ToNumber(time + 1, _seekTime);
 		case 'a': // or "absolute"
-			_seekTime = _startTime + _seekTime;
+			_seekTime += _startTime;
 			break;
 		case 'r': // or "relative"
 			break;

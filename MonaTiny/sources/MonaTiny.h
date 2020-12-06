@@ -37,27 +37,27 @@ protected:
 
 	//// Server Events /////
 
-	void onStart();
-	void onManage();
-	void onStop();
+	void onStart() override;
+	void onManage() override;
+	void onStop() override;
 	
 
 	//// Client Events /////
-	SocketAddress& onHandshake(const Path& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection);
-	void onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams);
-	void onDisconnection(Client& client);
+	SocketAddress& onHandshake(const Path& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) override;
+	void onConnection(Exception& ex, Client& client, DataReader& inParams, DataWriter& outParams) override;
+	void onDisconnection(Client& client) override;
 
-	void onAddressChanged(Client& client, const SocketAddress& oldAddress);
-	bool onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType);
-	bool onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient);
+	void onAddressChanged(Client& client, const SocketAddress& oldAddress) override;
+	bool onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) override;
+	bool onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) override;
 
 	//// Publication Events /////
 
-	bool onPublish(Exception& ex, Publication& publication, Client* pClient);
-	void onUnpublish(Publication& publication, Client* pClient);
+	bool onPublish(Exception& ex, Publication& publication, Client* pClient) override;
+	void onUnpublish(Publication& publication, Client* pClient) override;
 
-	bool onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient);
-	void onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient);
+	bool onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient) override;
+	void onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient) override;
 
 	TerminateSignal&			_terminateSignal;
 	std::map<std::string,App*>	_applications;

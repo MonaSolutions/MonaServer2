@@ -272,7 +272,7 @@ private:
 	UInt32					_duration;
 
 	Time					_streaming;
-	Time					_timeProperties;
+	UInt32					_paramVersion;
 
 	// When the subscription starts on a publication running wit video we have to wait the first key video frame
 	// We can bufferize in this case audio gotten between since the last interval frame

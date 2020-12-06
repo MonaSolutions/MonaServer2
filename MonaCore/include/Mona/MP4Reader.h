@@ -31,15 +31,10 @@ struct MP4Reader : virtual Object, MediaReader {
 	// https://developer.apple.com/library/content/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
 	// https://w3c.github.io/media-source/isobmff-byte-stream-format.html
 	// With fragments box = > http://l.web.umkc.edu/lizhu/teaching/2016sp.video-communication/ref/mp4.pdf
-	MP4Reader() : _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _datas(0), _firstMoov(true), _sequence(0) {}
+	MP4Reader() : _propVersion(0), _boxes(1), _position(0), _failed(false), _offset(0), _videos(0), _audios(0), _datas(0), _firstMoov(true), _sequence(0) {}
 
 private:
-	UInt32  parse(Packet& buffer, Media::Source& source);
-	void	onFlush(Packet& buffer, Media::Source& source);
-
-	UInt32  parseData(const Packet& packet, Media::Source& source);
-	void	flushMedias(Media::Source& source);
-
+	
 	struct Box : virtual Object {
 		Box() { operator=(nullptr); }
 		const char* name() const { return _size ? _name : "undefined"; }
@@ -97,8 +92,6 @@ private:
 		operator UInt8() const { return _track; }
 		Track& operator=(UInt8 track) { _track = track; return *this; }
 
-		void writeProperties(Media::Properties& properties);
-
 		char						lang[4]; // if lang[0]==0 => undefined!
 
 		double						time;
@@ -121,27 +114,48 @@ private:
 		UInt8 _track;
 	};
 
-	template <class VideoType>
+	UInt32  parse(Packet& buffer, Media::Source& source);
+	void	onFlush(Packet& buffer, Media::Source& source);
+
+	UInt32  parseData(const Packet& packet, Media::Source& source);
+	void	flushMedias(Media::Source& source);
+
+	template<typename TagType>
+	void addMedia(UInt32 time, Track& track, const TagType& tag, const Packet& packet) {
+		unique<Media::Base> pMedia = Media::New(tag, packet, track);
+		if (_pTrack != &track) {
+			// write properties
+			_pTrack = &track;
+			if(track.lang[0])
+				_properties.setString(String(track, '.', pMedia->type == Media::TYPE_AUDIO ? "audioLang" : "textLang"), track.lang, strlen(track.lang));
+		}
+		_medias.emplace(time, std::move(pMedia));
+	}
+
+	template<typename VideoType>
 	void	frameToMedias(Track& track, UInt32 time, const Packet& packet);
 
-	UInt32															_sequence;
-	UInt32															_position;
-	UInt64															_offset;
-	bool															_failed;
-	UInt8															_audios;
-	UInt8															_videos;
-	UInt8															_datas;
+	UInt32										_sequence;
+	UInt32										_position;
+	UInt64										_offset;
+	bool										_failed;
+	UInt8										_audios;
+	UInt8										_videos;
+	UInt8										_datas;
 
-	std::map<UInt64, Track*>										_chunks; // stco
-	std::deque<Box>													_boxes;
-	std::deque<Track>												_tracks;
-	std::map<UInt32,Track*>											_ids;
-	std::map<UInt32, UInt32>										_times;
-	std::multimap<UInt32, std::pair<Track*, unique<Media::Base>>>	_medias;
+	std::map<UInt64, Track*>					_chunks; // stco
+	std::deque<Box>								_boxes;
+	std::deque<Track>							_tracks;
+	std::map<UInt32,Track*>						_ids;
+	std::map<UInt32, UInt32>					_times;
+	std::multimap<UInt32, unique<Media::Base>>	_medias;
 
-	Track*															_pTrack;
-	Fragment														_fragment;
-	bool															_firstMoov;
+	Track*										_pTrack;
+	Fragment									_fragment;
+	bool										_firstMoov;
+
+	Media::Properties							_properties;
+	UInt32										_propVersion;
 };
 
 

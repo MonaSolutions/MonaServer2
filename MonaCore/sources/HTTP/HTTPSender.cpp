@@ -17,12 +17,49 @@ details (or else see http://www.gnu.org/licenses/).
 */
 
 #include "Mona/HTTP/HTTPSender.h"
+#include "Mona/HTTP/HTTPFileSender.h"
 #include "Mona/Session.h"
 
 using namespace std;
 
 
 namespace Mona {
+
+bool HTTPSender::flushing() const {
+	if (!_flushing)
+		return false;
+	if (!_pSocket)
+		return false;
+	return _pSocket->queueing() ? true : false;
+}
+
+
+void HTTPSender::finalize(bool flush) {
+	_flushing = false;
+	if (!_pSocket)
+		return;
+	if (_chunked) {
+		static const Packet EndChunk(EXPAND("\r\n0\r\n\r\n"));
+		if (_chunked < 2)
+			socketSend(EndChunk + 2);
+		else
+			socketSend(EndChunk);
+	}
+	if (!connection) {
+		// close the connection
+		_pSocket->shutdown();
+	} else if (flush) {
+		// send the onFlush signal!
+		Exception ex;
+		_pSocket->flush(ex);
+	}
+	// finalize send!
+	_pSocket = nullptr;
+}
+
+bool HTTPSender::isFile() const {
+	return typeid(HTTPFileSender) == typeid(self);
+}
 
 Buffer& HTTPSender::buffer() {
 	if (!_pBuffer)
@@ -40,37 +77,62 @@ void HTTPSender::setCookies(shared<Buffer>& pSetCookie) {
 	_pBuffer->append(EXPAND("\r\n\r\n"));
 }
 
+bool HTTPSender::run(Exception& ex) {
+	if (!_pSocket) {
+		Socket::SetException(NET_ECONNABORTED, ex);
+		return false;
+	}
+	// look if we are on a HTTPSender which must run just one time
+	_flushing = false;
+	bool flush = flushing();
+	_flushing = true;  // reset _flushing to make flushable() usable in run to detect socket queueing
+	run();
+	if(!flushing())
+		finalize(flush);
+	return true;
+}
+
+bool HTTPSender::socketSend(const Packet& packet) {
+	if (!_pSocket)
+		return false;
+	if (!packet) {
+		WARN(_pSocket->isSecure() ? "HTTPS empty packet to " : "HTTP empty packet to ", _pSocket->peerAddress());
+		return true;
+	}
+	Exception ex;
+	DUMP_RESPONSE(_pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), _pSocket->peerAddress());
+	int result = _pSocket->write(ex, packet);
+	if (ex || result < 0)
+		DEBUG(ex);
+	if (result >= 0)
+		return true;
+	// no shutdown required, already done by write!
+	_pSocket = nullptr;
+	return false;
+}
+
 bool HTTPSender::send(const Packet& content) {
+	if (!_pSocket)
+		return false;
 	if (pRequest->type == HTTP::TYPE_HEAD)
 		return true;
 	if (_chunked) {
 		shared<Buffer> pBuffer(SET);
-		if (_chunked == 2)
-			pBuffer->append(EXPAND("\r\n")); // prefix
-		else
+		if (_chunked < 2)
 			++_chunked;
+		else
+			pBuffer->append(EXPAND("\r\n")); // prefix
 		String::Append(*pBuffer, String::Format<UInt32>("%X", content.size()), "\r\n");
-		if(!content)
-			pBuffer->append(EXPAND("\r\n")); // end!
 		if (!socketSend(Packet(pBuffer)))
 			return false;
 	}
 	return socketSend(content);
 }
 
-bool HTTPSender::socketSend(const Packet& packet) {
-	if (!packet)
-		return true;
-	Exception ex;
-	DUMP_RESPONSE(pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), pSocket->peerAddress());
-	int result = pSocket->write(ex, packet);
-	if (ex || result<0)
-		DEBUG(ex);
-	// no shutdown required, already done by write!
-	return result >= 0;
-}
-
 bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UInt64 extraSize) {
+	if (!_pSocket)
+		return false;
+
 	// COMPUTE SIZE
 	const UInt8* headerEnd = _pBuffer ? _pBuffer->data() : NULL;
 	if (headerEnd) {
@@ -88,17 +150,28 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UI
 
 	/// Last modified
 	const Path& path = this->path();
-	if (path)
-		String::Append(*pBuffer, "\r\nLast-Modified: ", String::Date(path.lastChange(), Date::FORMAT_HTTP));
+	if (path) {
+		Int64 lastChange = path.lastChange();
+		if(lastChange) // otherwise doesn't exist on the disk, always request a new version (virtual File? See HTTPSegmentSender for example)
+			String::Append(*pBuffer, "\r\nLast-Modified: ", String::Date(lastChange, Date::FORMAT_HTTP));
+	}
 
 	/// Content Type/length
-	if (mime)  // If no mime type as "304 Not Modified" response or HTTPWriter::writeRaw which write itself content-type => no content!
+	_chunked = false;
+	if (mime) {  // If no mime type as "304 Not Modified" response or HTTPWriter::writeRaw to write itself content-type => no content!
+		if(pRequest->forceText) {
+			// trick to visualize in browser application file
+			// ex: "http://localhost/test.m3u8:" allows to see its content in the browser
+			mime = MIME::TYPE_TEXT;
+			subMime = "plain; charset=utf-8";
+		}
 		MIME::Write(String::Append(*pBuffer, "\r\nContent-Type: "), mime, subMime);
+	}
 	if (extraSize == UINT64_MAX) {
 		if (path || !mime) {
 			// Transfer-Encoding: chunked!
 			pBuffer->append(EXPAND("\r\nTransfer-Encoding: chunked"));
-			_chunked = 1;
+			_chunked = true;
 		} else {
 			// live => no content-length + live attributes + close on end
 			pBuffer->append(EXPAND("\r\n" HTTP_LIVE_HEADER));

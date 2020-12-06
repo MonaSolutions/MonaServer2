@@ -37,7 +37,10 @@ void TCPSession::connect() {
 	AUTO_ERROR(success = TCPClient::connect(ex, socket()), name());
 	if (!success)
 		return kill(ERROR_SOCKET);
-	onFlush = [this]() { flush(); }; // allow to signal end of congestion, and so was congestion so force flush (HTTPSession/HTTPFileSender uses it for example to continue to read a file)
+	onFlush = [this]() {
+		// allow to signal end of congestion, and so was congestion so force flush (HTTPSession/HTTPFileSender uses it for example to continue to read a file)
+		flush();
+	}; 
 }
 
 void TCPSession::kill(Int32 error, const char* reason) {

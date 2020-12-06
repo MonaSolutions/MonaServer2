@@ -24,40 +24,50 @@ using namespace std;
 namespace Mona {
 
 HTTPSegmentSender::HTTPSegmentSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
-		const Segment& segment, Parameters& properties) : _segment(segment), _properties(move(properties)),
-		HTTPSender("HTTPSegmentSender", pRequest, pSocket),
+		const Path& path, const Segment& segment, Parameters& params) : _segment(segment), _path(path),
+		HTTPSender("HTTPSegmentSender", pRequest, pSocket), _subscription(self),
 		_onWrite([this](const Packet& packet) {
 			if(!send(packet))
 				_pWriter.reset(); // connection death! Stop subscription!
 		}) {
+	_subscription.setParams(move(params));
+	_itMedia = _segment.begin();
 }
 
-void HTTPSegmentSender::run() {
-	/* TODO Il me faut réécrire HTTPWriter pour avoir un systeme pour envoyer des HTTPSender en attente avec un
-	onFlush/flus() etc.. pour l'utiliser ici pour envoer les medias du segment un par un et pouvoir le mettre en pause en cas
-	de congestion. Le pb de ce redesign est HTTPFileSender qui est un FileDecoder, pour avoir le pointeur pSender faire certainement
-	un HTTPSender::Flush(...pSender) static qui permettrait dans le cas où le sender est un File de faire les appels à 
-	api.ioFile.read(pSender) et dans le cas où ça n'est pas un File utiliser le onFlush etc... */
 
-	const char* subType;
-	MIME::Type mime = MIME::Read(pRequest->path, subType);
-	if(mime) {
-		_pWriter = MediaWriter::New(subType);
-		if (_pWriter) {
-			send(HTTP_CODE_200, mime, subType, UINT64_MAX);
-			// use subscription to support properties subscription
-			Subscription subscription(self);
-			subscription.setParams(move(_properties));
-			for (const shared<const Media::Base>& pMedia : _segment) {
-				subscription.writeMedia(*pMedia);
-				if (!_pWriter)
-					return; // connection death!
-			}
-			subscription.flush();
-		} else
-			sendError(HTTP_CODE_501, "Segment ", pRequest->path.name(), " of type ", pRequest->path.extension(), " not supported");
-	} else
-		sendError(HTTP_CODE_406, "Segment ", pRequest->path.name(), " with a non acceptable type ", pRequest->path.extension());
+void HTTPSegmentSender::run() {
+	if (!_pWriter) {
+		if (_itMedia == _segment.end()) {
+			sendError(HTTP_CODE_404, "Segment ", _path.name(), " empty");
+			return;
+		}
+		const char* subMime = pRequest->subMime;
+		MIME::Type mime = pRequest->mime;
+		if (!mime)
+			mime = MIME::Read(_path, subMime);
+		if (!mime) {
+			sendError(HTTP_CODE_406, "Segment ", _path.name(), " with a non acceptable type ", subMime);
+			return;
+		}
+		_pWriter = MediaWriter::New(subMime);
+		if (!_pWriter) {
+			sendError(HTTP_CODE_501, "Segment ", _path.name(), " not supported");
+			return;
+		}
+		send(HTTP_CODE_200, mime, subMime, UINT64_MAX);
+	}
+
+	// use subscription to support properties subscription
+	while(_itMedia != _segment.end()) {
+		const Media::Base* pMedia = (_itMedia++)->get();
+		_lastTime = pMedia->time(); // fix time (have to be strictly absolute, subscription is on a isolated segment)
+		_subscription.writeMedia(*pMedia);
+		if (!_pWriter)
+			return; // connection death!
+		if (HTTPSender::flushing())
+			return; // socket queueing, wait!
+	}
+	_subscription.reset();
 }
 
 bool HTTPSegmentSender::beginMedia(const std::string& name) {
@@ -75,13 +85,15 @@ bool HTTPSegmentSender::writeProperties(const Media::Properties& properties) {
 bool HTTPSegmentSender::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
 	if (!_pWriter)
 		return false;
-	_pWriter->writeAudio(track, tag, packet, _onWrite);
+	// fix time (have to be strictly absolute, subscription is on a isolated segment)
+	_pWriter->writeAudio(track, Media::Audio::Tag(tag, _lastTime), packet, _onWrite);
 	return true;
 }
 bool HTTPSegmentSender::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
 	if (!_pWriter)
 		return false;
-	_pWriter->writeVideo(track, tag, packet, _onWrite);
+	// fix time (have to be strictly absolute, subscription is on a isolated segment)
+	_pWriter->writeVideo(track, Media::Video::Tag(tag, _lastTime), packet, _onWrite);
 	return true;
 }
 bool HTTPSegmentSender::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) {

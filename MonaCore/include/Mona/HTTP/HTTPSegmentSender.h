@@ -26,29 +26,35 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 /*!
-Segment send */
+Media Segment send,
+send with TCPSender::send(pHTTPSender) but keep a reference on until get a onFlush,
+If after onFlush the pHTTPSender.unique() && !pHTTPSender->flushing() the media has been fully sent, otherwise recall TCPSender::send(pHTTPSender) */
 struct HTTPSegmentSender : HTTPSender, private Media::Target, virtual Object {
 	
 	HTTPSegmentSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
-		const Segment& segment, Parameters& properties);
+		const Path& path, const Segment& segment, Parameters& params);
 
+	bool flushing() const override { return _itMedia != _segment.end(); }
+	const Path& path() const override { return _path; }
 
 private:
-	const Path& path() const { return pRequest->path; }
 
-	void  run();
+	void run() override;
 
-	bool beginMedia(const std::string& name);
-	bool writeProperties(const Media::Properties& properties);
-	bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
-	bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable);
-	bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable);
-	bool endMedia();
+	bool beginMedia(const std::string& name) override;
+	bool writeProperties(const Media::Properties& properties) override;
+	bool writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) override;
+	bool writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) override;
+	bool writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) override;
+	bool endMedia() override;
 
 	MediaWriter::OnWrite	_onWrite;
 	unique<MediaWriter>		_pWriter;
 	const Segment			_segment;
-	Parameters				_properties;
+	Segment::const_iterator _itMedia;
+	Subscription			_subscription; // use subscription to support properties subscription
+	Path					_path;
+	UInt32					_lastTime;
 };
 
 

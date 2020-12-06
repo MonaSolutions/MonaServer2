@@ -23,6 +23,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/AVC.h"
 #include "Mona/HEVC.h"
 #include "Mona/Logs.h"
+#include "Mona/Util.h"
 
 using namespace std;
 
@@ -72,6 +73,8 @@ bool TSWriter::Track::addLang(const char* textLang) {
 		return false;
 	}
 	_langs.emplace_back(textLang);
+	// max size is 4: match CC channels max option + don't exceed PAT table of 188 bytes!
+	DEBUG_ASSERT(_langs.size() <= 4);
 	return true;
 }
 bool TSWriter::Track::parseLang(UInt8 track, const Media::Properties& properties) {
@@ -168,37 +171,38 @@ void TSWriter::writePMT(BinaryWriter& writer, UInt32 time) {
 			writer.write16(0xE000 | (_pidPCR = (FIRST_VIDEO_PID+it.first)));
 			writer.write16(0xF000);
 		}
-		writer.write8(it.second.codec==Media::Video::CODEC_HEVC ? 0x24 : 0x1b); // HEVC/H264 codec
+		const Track& track = it.second;
+		writer.write8(track.codec==Media::Video::CODEC_HEVC ? 0x24 : 0x1b); // HEVC/H264 codec
 		writer.write16(0xE000 | (FIRST_VIDEO_PID+it.first));
 		
-		UInt16 esiSize = UInt16(it.second.langs().size())*6;
+		UInt16 esiSize = UInt16(track.langs().size())*6;
 		if (esiSize)
 			esiSize += 3;
 		writer.write16(0xF000 | esiSize);
 		if (!esiSize)
 			continue;
-		writer.write(0xe0 | (esiSize - 2));
-		for(UInt8 i = 0; i<4; ++i)
-			writer.write(it.second.lang(i).data(), 3).write8(0xc0 | ((it.first*4)+i)).write16(0x3FFF);
+		writer.write8(0xe0 | (esiSize - 2));
+		for(UInt8 i = 0; i<track.langs().size(); ++i)
+			writer.write(track.lang(i).data(), 3).write8(0xc0 | ((it.first*4)+i)).write16(0x3FFF);
 	}
 	for (const auto& it : _audios) {
 		if (!_pidPCR) {
 			writer.write16(0xE000 | (_pidPCR = (FIRST_AUDIO_PID+it.first)));
 			writer.write16(0xF000);
 		}
-
-		if (it.second)
+		const Track& track = it.second;
+		if (track)
 			writer.write8(0x0f);
 		else
 			writer.write8(0x03); // MP3 codec
 		writer.write16(0xE000 | (FIRST_AUDIO_PID+it.first));
 
 		UInt16 esiSize = 0;
-		if (!it.second.langs().empty())
+		if (!track.langs().empty())
 			esiSize += 6;
 		writer.write16(0xF000 | esiSize);
 		if (esiSize)
-			writer.write8(0x0a).write8(4).write(it.second.lang().data(), 3).write8(0);
+			writer.write8(0x0a).write8(4).write(track.lang().data(), 3).write8(0);
 	}
 
 	// Write len
@@ -257,8 +261,9 @@ void TSWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packe
 		it->second->writeAudio(tag, packet, onAudioWrite, finalSize);
 	} else // MP3
 		writeES(writer, itPID->first, itPID->second, tag.time, 0, packet, packet.size());
-	onWrite(Packet(pBuffer));
 
+	if(!pBuffer->empty())
+		onWrite(Packet(pBuffer));
 //	if (_canWrite || _toWrite)
 //		int breakPoint = 0;
 }
@@ -296,7 +301,9 @@ void TSWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packe
 		writeES(writer, itPID->first, itPID->second, tag.time, tag.compositionOffset, packet, finalSize, tag.frame==Media::Video::FRAME_KEY);
 	});
 	it->second->writeVideo(tag, packet, onVideoWrite, finalSize);
-	onWrite(Packet(pBuffer));
+
+	if (!pBuffer->empty())
+		onWrite(Packet(pBuffer));
 	//	if (_canWrite || _toWrite)
 	//		int breakPoint = 0;
 }
@@ -338,7 +345,7 @@ UInt8 TSWriter::writePES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt3
 
 UInt8 TSWriter::writePES(BinaryWriter& writer, UInt16 pid, UInt8& counter, UInt32 time, UInt16 compositionOffset, bool randomAccess, UInt32 size) {
 
-	if (_changed || abs(Int32(time-_timePMT)) >= PMT_PERIOD)
+	if (_changed || Util::Distance(_timePMT, time) >= PMT_PERIOD)
 		writePMT(writer, time); // send periodic PMT infos
 	
 	UInt64 pts(0), dts(0);

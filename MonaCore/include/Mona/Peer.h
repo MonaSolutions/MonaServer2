@@ -55,11 +55,11 @@ struct Peer : Client, virtual Object {
 	SocketAddress& onHandshake(SocketAddress& redirection);
 
 	bool onInvocation(Exception& ex, const std::string& name, DataReader& reader, UInt8 responseType = 0);
-	/// \brief call the onRead lua function ang get result in properties
-	/// \param filePath : relative path to the file (important : the directory will be erase)
-	/// \param parameters : gives parameters to the function onRead()
-	/// \param properties : recieve output parameters returned by onRead()
+	/*!
+	Read access, arguments are the request arguments, and properties are the "<%%> pattern" to replace in read file */
 	bool onRead(Exception& ex, Path& file, DataReader& arguments, DataWriter& properties) { return onFileAccess(ex, File::MODE_READ, file, arguments, properties); }
+	/*!
+	Write access, arguments are the request arguments, and properties are the "<%%> pattern" to replace in write file */
 	bool onWrite(Exception& ex, Path& file, DataReader& arguments, DataWriter& properties) { return onFileAccess(ex, File::MODE_WRITE, file, arguments, properties); }
 	bool onDelete(Exception& ex, Path& file, DataReader& arguments) { return onFileAccess(ex, File::MODE_DELETE, file, arguments, DataWriter::Null()); }
 

@@ -34,7 +34,7 @@ struct HTTPFolderSender : HTTPSender, virtual Object {
 	const Path& path() const { return _folder; }
 private:
 
-	void  run();
+	void  run() override;
 
 	Parameters				_properties;
 	Path					_folder;

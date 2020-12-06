@@ -79,30 +79,16 @@ private:
 
 
 HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(false), _session(session), crossOriginIsolated(false),
-	_onFileReaden([this](shared<Buffer>& pBuffer, bool end) {
-#if !defined(_DEBUG)
-		if (_flushings.empty())
-			return;
-#endif
-		if (_flushings.front()->isFile()) {
-			shared<HTTPFileSender> pFile = static_pointer_cast<HTTPFileSender>(_flushings.front());
-			_session.api.ioFile.unsubscribe(pFile);
-		}
-		_flushings.pop_front();
-		while (!_flushings.empty()) {
-			if (_flushings.front()->isFile())
-				return _session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front())); // wait onFileReaden!
-			_session.send(_flushings.front());
-			_flushings.pop_front();
-		}
-	}),
 	_onFileError([this](const Exception& ex) {
+		// flushing front must be the file (otherwise = bug)
+#if !defined(_DEBUG)
+		if (!_flushings.empty())
+#endif
+			_flushings.front()->finalize();
 		if (ex.cast<Ex::Net::Socket>()) // socket shutdown (WARN already displaid)
 			return;
-		if (ex.cast<Ex::Unfound>()) { // loading error!
-			shared<Buffer> pBuffer;
-			return _onFileReaden(pBuffer, true);
-		}
+		if (ex.cast<Ex::Unfound>()) // loading error!
+			return flush();
 		ERROR(ex);
 		_session->shutdown(); // can't repair the session (client wait content-length!)
 	}) {
@@ -137,47 +123,51 @@ void HTTPWriter::endRequest() {
 	_requesting = false;
 }
 
-void HTTPWriter::flush(const shared<HTTPSender>& pSender) {
-	if (pSender->isFile()) {
-		shared<HTTPFileSender> pFileSender = static_pointer_cast<HTTPFileSender>(pSender);
-		_session.api.ioFile.subscribe(pFileSender, (File::Decoder*)pFileSender.get(), _onFileReaden, _onFileError);
-		if (_flushings.empty())
-			_session.api.ioFile.read(pFileSender);
-	} else if (_flushings.empty())
-		return _session.send(pSender);
 
-	_flushings.emplace_back(pSender);
+void HTTPWriter::flush() {
+	Writer::flush();
+	// RESUME FLUSHINGS
+	while (!_flushings.empty()) {
+		const shared<HTTPSender>& pSender = _flushings.front();
+		if (!pSender.unique())
+			return; // always processing
+		if (pSender->isFile()) {
+			shared<HTTPFileSender> pFile = static_pointer_cast<HTTPFileSender>(_flushings.front());
+			if (*pFile) {
+				_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(pSender));
+				return; // wait onFileReaden! 
+			}
+			_session.api.ioFile.unsubscribe(pFile);
+		} else if(*pSender) {
+			_session.send(pSender);
+			if(pSender->flushing())
+				return; // wait end of flushing/queueing
+		}
+		_flushings.pop_front();
+	}
 }
 
+
 void HTTPWriter::flushing() {
+	// SENDERS => FLUSHINGS
 	if (_requesting) // during request wait the main response before flush
 		return;
 
-	bool flushing = !_flushings.empty(); // to avoid to considerate new add on following code when restart read in end of this method
-
 	if (_pResponse) {
 		--_requestCount;
-		flush(_pResponse);
-		_pResponse.reset();
+		_flushings.emplace_back(move(_pResponse));
 	}
 	while(!_senders.empty()) {
 		shared<HTTPSender>& pSender = _senders.front();
-		if (!pSender->hasHeader()) {
-			// partial message (without header) always sends!
-			flush(pSender);
-		} else {
+		if (pSender->hasHeader()) {
 			// send requestCount packet with header!
 			if (!_requestCount)
 				break;
 			--_requestCount;
-			flush(pSender);
-		}
+		} // else partial message (without header) always sends!
+		_flushings.emplace_back(move(pSender));
 		_senders.pop_front();
 	};
-
-	// continue to read the file if paused on congestion
-	if (flushing && !_session->queueing() && _flushings.front().unique()) // if !_flushings.front().unique() => is reading (+ can cause a double call to _onFileReaden)
-		_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(_flushings.front()));
 }
 
 void HTTPWriter::writeSetCookie(const string& key, DataReader& reader) {
@@ -200,18 +190,19 @@ void HTTPWriter::writeSetCookie(const string& key, DataReader& reader) {
 }
 
 void HTTPWriter::writeFile(const Path& file, Parameters& properties) {
-	if(file.isFolder())
+	if (!file.isFolder()) {
+		shared<HTTPFileSender> pFileSender = newSender<HTTPFileSender>(true, file, properties);
+		_session.api.ioFile.subscribe(pFileSender, (File::Decoder*)pFileSender.get(), nullptr, _onFileError);
+	} else
 		newSender<HTTPFolderSender>(true, file, properties);
-	else
-		newSender<HTTPFileSender>(true, file, properties);
 }
 
 DataWriter& HTTPWriter::writeMessage(bool isResponse) {
 	shared<HTTPDataSender> pSender;
-	if (!_pRequest->mime) // JSON by default
-		pSender = newSender<HTTPDataSender>(isResponse, HTTP_CODE_200, MIME::TYPE_APPLICATION, "json");
-	else
+	if (_pRequest->mime)
 		pSender = newSender<HTTPDataSender>(isResponse, HTTP_CODE_200, _pRequest->mime, _pRequest->subMime);
+	else // else JSON by default
+		pSender = newSender<HTTPDataSender>(isResponse, HTTP_CODE_200, MIME::TYPE_APPLICATION, "json");
 	return pSender ? pSender->writer() : DataWriter::Null();
 }
 

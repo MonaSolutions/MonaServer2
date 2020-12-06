@@ -34,7 +34,7 @@ struct HTTPErrorSender : HTTPSender, virtual Object {
 	}
 
 private:
-	void run() { send(_code, MIME::TYPE_TEXT, "html; charset=utf-8"); }
+	void run() override { send(_code, MIME::TYPE_TEXT, "html; charset=utf-8"); }
 
 	const char*				_code;
 };

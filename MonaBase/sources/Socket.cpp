@@ -30,7 +30,7 @@ Socket::Socket(Type type) :
 #if !defined(_WIN32)
 	_pWeakThis(NULL), 
 #endif
-	_opened(false), _pDecoder(NULL), _externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0),
+	_pHandler(NULL), _opened(false), _pDecoder(NULL), _externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(0), _sendTime(0), _id(NET_INVALID_SOCKET), _threadReceive(0),
 	onError(_onError) {
 
 	if (type < TYPE_OTHER) {
@@ -48,7 +48,7 @@ Socket::Socket(NET_SOCKET id, const sockaddr& addr, Type type) : _peerAddress(ad
 #if !defined(_WIN32)
 	_pWeakThis(NULL),
 #endif
-	_opened(false), _pDecoder(NULL), _externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0),
+	_pHandler(NULL), _opened(false), _pDecoder(NULL), _externDecoder(false), _nonBlockingMode(false), _listening(false), _receiving(0), _queueing(0), _recvBufferSize(Net::GetRecvBufferSize()), _sendBufferSize(Net::GetSendBufferSize()), _reading(0), _sending(false), type(type), _recvTime(Time::Now()), _sendTime(0), _id(id), _threadReceive(0),
 	onError(_onError) {
 
 	if (type < TYPE_OTHER)
@@ -533,16 +533,23 @@ bool Socket::flush(Exception& ex, bool deleting) {
 				// is connecting, can't send more now (wait onFlush)
 				ex = nullptr;
 				break;
-			} else if (type == TYPE_STREAM) {
+			}
+			if (type == TYPE_STREAM) {
 				// fail to send few reliable data, shutdown send!
-				close(); // shutdown system to avoid to try to send before shutdown!
+				if(!deleting)
+					close(); // shutdown system to avoid to try to send before shutdown!
 				return false;
 			}
 		}
 		_sendings.pop_front();
 	}
-	if (!deleting && written && !(_queueing -= written))
+	if (deleting)
+		return true;
+	if (written && !(_queueing -= written))
 		_sending = false;
+	// signal the onFlush in intern, on every call to flush!
+	if (_sendings.empty() && _pHandler)
+		_pHandler->queue(_onFlush);
 	return true;
 }
 

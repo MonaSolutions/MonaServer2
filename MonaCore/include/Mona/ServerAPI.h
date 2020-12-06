@@ -27,6 +27,7 @@ details (or else see http://www.gnu.org/licenses/).
 #include "Mona/TLS.h"
 #include "Mona/Protocols.h"
 #include "Mona/Client.h"
+#include "Mona/Resources.h"
 
 namespace Mona {
 
@@ -39,6 +40,7 @@ struct ServerAPI : virtual Object, Parameters {
 
 	const Protocols&			protocols;
 	const Entity::Map<Client>	clients;
+	Resources					resources;
 	
 	const std::map<std::string, Publication>&	publications() { return _publications; }
 
@@ -81,12 +83,14 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION
+	/*!
+	File access (read, write/append), arguments are the request argument, and properties are the "<%%> pattern" to replace in read/write file */
 	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) { return !mode; }  // Exception::SOFTWARE
 
-	virtual bool			onPublish(Exception& ex, Publication& publication, Client* pClient){return true;}
+	virtual bool			onPublish(Exception& ex, Publication& publication, Client* pClient) { return true; }
 	virtual void			onUnpublish(Publication& publication, Client* pClient){}
 
-	virtual bool			onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient){return true;}
+	virtual bool			onSubscribe(Exception& ex, Subscription& subscription, Publication& publication, Client* pClient) { return true; }
 	virtual void			onUnsubscribe(Subscription& subscription, Publication& publication, Client* pClient){}
 
 protected:
@@ -101,8 +105,10 @@ private:
 
 	Publication*			publish(Exception& ex, Path& stream, Client* pClient);
 	void					unpublish(Publication& publication, Client* pClient);
+	void					erasePublication(const std::map<std::string, Publication>::const_iterator& it);
 
 	std::map<std::string, Publication>&	_publications;
+
 };
 
 

@@ -120,7 +120,7 @@ ADD_TEST(Socket) {
 
 	CHECK(sender.sendTo(ex, EXPAND("hello10msg"), SocketAddress(IPAddress::Loopback(), receiver->address().port())) == 10 && !ex)
 
-	CHECK(handler.join(3)==3); // 3 with IOSocket::Write of UDPReceiver
+	CHECK(handler.join(3)==3); // 3 with IOSocket::Write (onFlush) of UDPReceiver
 }
 
 

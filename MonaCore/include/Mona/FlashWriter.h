@@ -54,7 +54,7 @@ struct FlashWriter : Writer, Media::TrackTarget, virtual Object {
 	virtual bool			writeProperties(const Media::Properties& properties);
 	virtual bool			endMedia();
 
-	void					flush() { Writer::flush(); }
+	void					flush() override { Writer::flush(); }
 
 	void					setCallbackHandle(double value) { _callbackHandle = value; _callbackHandleOnAbort = 0; }
 	void					resetCallbackHandle() { _callbackHandle = _callbackHandleOnAbort = 0; }

@@ -50,7 +50,7 @@ struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	bool			writeProperties(const Media::Properties& properties);
 	bool			endMedia();
 
-	void			flush() { Writer::flush(); }
+	void			flush() override { Writer::flush(); }
 private:
 	
 	void			flushing();

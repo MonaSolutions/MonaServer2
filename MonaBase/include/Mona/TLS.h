@@ -52,7 +52,7 @@ struct TLS : virtual Object {
 
 	private:
 		int	 receive(Exception& ex, void* buffer, UInt32 size, int flags, SocketAddress* pAddress);
-		bool flush(Exception& ex, bool deleting);
+		bool flush(Exception& ex, bool deleting) override;
 		bool close(Socket::ShutdownType type = SHUTDOWN_BOTH);
 
 		Mona::Socket* newSocket(Exception& ex, NET_SOCKET sockfd, const sockaddr& addr);

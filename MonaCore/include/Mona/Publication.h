@@ -75,19 +75,28 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 	const MediaTracks<VideoTrack>&  videos;
 	const Tracks<DataTrack>&		datas;
 
+	/*!
+	Returns true if publication is segmenting in memory (segments) or file (recording),
+	If segmenting publication is available in HLS */
+	bool							segmenting() const { return _segmenting; }
+	/*!
+	Memory segmentation */
 	const Segments&					segments;
+							
 
 	UInt16							latency() const { return _latency; }
 	UInt64							byteRate() const { return _byteRate; }
+	UInt64							maxByteRate() const { return _maxByteRate; }
 	double							lostRate() const { return _lostRate; }
 	UInt32							currentTime() const;
 	UInt32							lastTime() const;
 
 	const std::set<Subscription*>	subscriptions;
 
-	void							start(unique<MediaFile::Writer>&& pRecorder = nullptr, bool append = false);
+	void							start(unique<MediaFile::Writer>&& pRecorder = nullptr);
 	void							reset();
-	void							stop();
+	typedef std::function<void()>	OnStop;
+	void							stop(const OnStop& onStop = nullptr);
 	bool							publishing() const { return _publishing ? true : false; }
 
 
@@ -121,14 +130,13 @@ struct Publication : Media::Source, Media::Properties, virtual Object {
 
 private:
 	void flushProperties();
-
-	void startRecording(unique<MediaFile::Writer>&& pRecorder, bool append);
 	void stopRecording();
 
 	// Media::Properties overrides
 	void onParamChange(const std::string& key, const std::string* pValue);
 	void onParamClear();
 
+	UInt64							_maxByteRate;
 	ByteRate						_byteRate;
 	LostRate						_lostRate;
 
@@ -138,17 +146,18 @@ private:
 
 	UInt16							_latency;
 
-	Int8							_publishing;
+	Int8							_publishing; // 0 stopped, -1 reseted, 1 publishing
 	std::string						_name;
 
 	bool							_new;
 	bool							_newLost;
-	Time							_timeProperties;
+	UInt32							_propVersion;
 
 	unique<Subscription>			_pRecording;
 
 	// segmentation support (HLS/DASH)
 	Segments						_segments;
+	bool							_segmenting;
 };
 
 

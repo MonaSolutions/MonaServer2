@@ -23,9 +23,14 @@ namespace Mona {
 
 struct M3U8 : virtual Static {
 	/*!
-	Write a M3U8 type live (memory)
+	Write a M3U8 master playlist
+	https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/creating_a_master_playlist */
+	static Buffer& Write(const Playlist::Master& playlist, Buffer& buffer);
+
+	/*!
+	Write a M3U8 type static (live-memory or VOD)
 	https://developer.apple.com/documentation/http_live_streaming/example_playlists_for_http_live_streaming/live_playlist_sliding_window_construction */
-	static Buffer& Write(const Playlist& playlist, Buffer& buffer, bool isEvent = false);
+	static Buffer& Write(const Playlist& playlist, Buffer& buffer, const char* type = NULL);
 
 	/*!
 	Write a M3U8 type event (file)
@@ -35,10 +40,8 @@ struct M3U8 : virtual Static {
 		~Writer();
 
 	private:
-		void    open(const Playlist& playlist);
-		void    write(UInt32 sequence, UInt16 duration);
-
-		std::string _ext;
+		void    open(const Playlist& playlist) override;
+		void    write(const std::string& format, UInt32 sequence, UInt16 duration) override;
 	};
 
 };

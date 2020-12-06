@@ -25,15 +25,21 @@ details (or else see http://www.gnu.org/licenses/).
 namespace Mona {
 
 /*!
-File send */
+File send,
+- call io.subscribe(pFileSender, (File::Decoder*)pFileSender.get(), onFileReaden, onFileError)
+- call io.read(pFileSender) to start file sending
+- on pSocket.onFlush and if pFileSender.unique() recall io.read(pFileSender)
+- on onFileReaden the file has been fully sent */
 struct HTTPFileSender : HTTPSender, File, File::Decoder, virtual Object {
+	NULLABLE(!HTTPSender::operator bool())
 	
 	HTTPFileSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
 		const Path& file, Parameters& properties);
 
-	const Path& path() const { return self; }
+	const Path& path() const override { return self; }
 
 private:
+	void				run() override { ERROR(HTTPSender::name, " not runnable, read me with ioFile.read(pFileSender)"); }
 	bool				load(Exception& ex);
 	UInt32				decode(shared<Buffer>& pBuffer, bool end);
 	const std::string*	search(char c);
@@ -42,6 +48,7 @@ private:
 	Parameters				_properties;
 	MIME::Type				_mime;
 	const char*				_subMime;
+	const char*				_protocol;
 
 	// For search!
 	Parameters::const_iterator	_result;

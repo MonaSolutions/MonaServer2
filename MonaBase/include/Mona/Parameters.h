@@ -28,6 +28,7 @@ struct Parameters : String::Object<Parameters> {
 	
 	typedef std::map<std::string, std::string, String::IComparator>::const_iterator const_iterator;
 	typedef std::map<std::string, std::string, String::IComparator>::key_compare key_compare;
+	typedef std::map<std::string, std::string, String::IComparator>::value_type value_type;
 
 	struct ForEach {
 		ForEach(const const_iterator& begin, const const_iterator& end) : _begin(begin), _end(end) {}
@@ -38,12 +39,14 @@ struct Parameters : String::Object<Parameters> {
 		const_iterator  _end;
 	};
 
-	Parameters() {}
-	Parameters(Parameters&& other) { setParams(std::move(other));  }
-	Parameters& setParams(Parameters&& other);
+	Parameters() : version(0) {}
+	Parameters(std::initializer_list<value_type>&& params) : _pMap(SET, std::move(params)), version(0) {}
+	Parameters(std::nullptr_t) : version(0) {}
+	Parameters(Parameters&& other) : version(other.version) { setParams(std::move(other));  }
 
+	Parameters&		  setParams(Parameters&& other);
 	const Parameters& parameters() const { return self; }
-
+	
 	const_iterator	begin() const { return params().begin(); }
 	const_iterator	end() const { return params().end(); }
 	const_iterator  lower_bound(const std::string& key) const { return params().lower_bound(key); }
@@ -52,8 +55,9 @@ struct Parameters : String::Object<Parameters> {
 	ForEach			range(const std::string& prefix) const;
 	UInt32			count() const { return params().size(); }
 
-
-	const Time&		timeChanged() const { return _timeChanged; }
+	/*!
+	Allow to identify parameter change since a previous version */
+	const UInt32	version;
 
 
 	Parameters&		clear(const std::string& prefix = String::Empty());
@@ -116,25 +120,20 @@ struct Parameters : String::Object<Parameters> {
 	}
 
 
-	static const Parameters& Null() { static Parameters Null(nullptr); return Null; }
+	static const Parameters& Null() { static const Parameters Null({}); return Null; }
 
 protected:
-	Parameters(const Parameters& other) { setParams(other); }
+	Parameters(const Parameters& other) : version(other.version) { setParams(other); }
 	Parameters& setParams(const Parameters& other);
 
-	virtual void onParamChange(const std::string& key, const std::string* pValue) { _timeChanged.update(); onChange(key, pValue); }
-	virtual void onParamClear() { _timeChanged.update(); onClear(); }
+	virtual void onParamChange(const std::string& key, const std::string* pValue) { ++(UInt32&)version; onChange(key, pValue); }
+	virtual void onParamClear() { ++(UInt32&)version; onClear(); }
 
 private:
 	virtual const std::string* onParamUnfound(const std::string& key) const { return onUnfound(key); }
 	virtual void onParamInit() {}
 
 	const std::map<std::string, std::string, String::IComparator>& params() const { if (!_pMap) ((Parameters&)self).onParamInit(); return _pMap ? *_pMap : *Null()._pMap; }
-
-
-	Parameters(std::nullptr_t) : _pMap(SET) {} // Null()
-
-	Time _timeChanged;
 
 	// shared because a lot more faster than using st::map move constructor!
 	// Also build _pMap just if required, and then not erase it but clear it (more faster that reset the shared)

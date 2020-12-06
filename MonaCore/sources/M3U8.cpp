@@ -21,48 +21,65 @@ using namespace std;
 
 namespace Mona {
 
+#define HEADER		  "#EXTM3U"
 #define DISCONTINUITY "\n#EXT-X-DISCONTINUITY"
-#define ENDLIST		  "\n#EXT-X-ENDLIST"
+#define ENDLIST		  "\n#EXT-X-ENDLIST\n" // \n at end of file (ffmpeg makes it)
 
+#define WRITE_EXTINF(BUFFER, DURATION) String::Append(BUFFER, "\n#EXTINF:", String::Format<double>("%.3f", DURATION / 1000.0), ",\n")
 
-Buffer& M3U8::Write(const Playlist& playlist, Buffer& buffer, bool isEvent) {
-	UInt32 sequence = playlist.sequence;
-	String::Append(buffer, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:",
-		ceil(playlist.maxDuration/1000.0), "\n#EXT-X-MEDIA-SEQUENCE:", sequence);
-	if (isEvent)
-		String::Append(buffer, "\n#EXT-X-PLAYLIST-TYPE:EVENT");
-	for(UInt32 duration : playlist.durations) {
-		if(duration) {
-			String::Append(buffer, "\n#EXTINF:", String::Format<double>("%.3f", duration / 1000.0), "\n");
-			String::Append(Segment::WriteName(playlist.baseName(), sequence++, duration, buffer), playlist.extension());
-		} else
-			String::Append(buffer, DISCONTINUITY);
+Buffer& M3U8::Write(const Playlist::Master& playlist, Buffer& buffer) {
+	String::Append(buffer, HEADER);
+	for (const auto& it : playlist.items) {
+		String::Append(buffer, "\n#EXT-X-STREAM-INF:BANDWIDTH=", it.second*8); // bit/s
+		String::Append(buffer, "\n", playlist.parent(), playlist.name(), '/', it.first, ".m3u8");
 	}
 	return buffer;
 }
 
+Buffer& M3U8::Write(const Playlist& playlist, Buffer& buffer, const char* type) {
+	UInt32 sequence = playlist.sequence;
+	//  Round maxDuration, HLS tolerate a segment duration superior of 0.5 to target-duration
+	// "Media Segments MUST NOT exceed the target duration by more than 0.5 seconds"
+	String::Append(buffer, HEADER, "\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:",
+		(playlist.maxDuration+500) / 1000, "\n#EXT-X-MEDIA-SEQUENCE:", sequence); 
+	if (type)
+		String::Append(buffer, "\n#EXT-X-PLAYLIST-TYPE:", type);
+	else // else is a live playlist (not VOD or EVENT)
+		String::Append(buffer, "\n#EXT-X-ALLOW-CACHE:NO");
+	UInt32 i = 0;
+	for (UInt32 duration : playlist.durations()) {
+		++i;
+		if (duration) {
+			WRITE_EXTINF(buffer, duration);
+			String::Append(Segment::WriteName(playlist.baseName(), sequence++, duration, buffer), '.', playlist.extension());
+		} else if(i==playlist.count())
+			String::Append(buffer, i < playlist.count() ? DISCONTINUITY : ENDLIST);
+	}
+	return buffer;
+}
+
+
 M3U8::Writer::~Writer() {
-	// add DISCONTINUITY rather ENDLIST otherwise impossible to append next time!
 	if (!opened())
 		return;
+	// add ENDLIST to be playable by some player as VLC
 	static const Packet EndList(EXPAND(ENDLIST));
 	FileWriter::write(EndList);
 }
 
 void M3U8::Writer::open(const Playlist& playlist) {
-	_ext = playlist.extension();
 	FileWriter::open(Path(playlist.parent(), playlist.baseName(), ".m3u8"));
 	shared<Buffer> pBuffer(SET);
-	Write(playlist, *pBuffer, true);
+	Write(playlist, *pBuffer, "EVENT");
 	if(playlist)
 		String::Append(*pBuffer, DISCONTINUITY);
 	FileWriter::write(Packet(pBuffer));
 }
 
-void M3U8::Writer::write(UInt32 sequence, UInt16 duration) {
+void M3U8::Writer::write(const string& format, UInt32 sequence, UInt16 duration) {
 	shared<Buffer> pBuffer(SET);
-	String::Append(*pBuffer, "\n#EXTINF:", String::Format<double>("%.3f", duration / 1000.0), ",\n");
-	String::Append(Segment::WriteName(self->baseName(), sequence, duration, *pBuffer), '.', _ext);
+	WRITE_EXTINF(*pBuffer, duration);
+	String::Append(Segment::WriteName(self->baseName(), sequence, duration, *pBuffer), '.', format);
 	FileWriter::write(Packet(pBuffer));
 }
 

@@ -23,17 +23,32 @@ using namespace std;
 
 namespace Mona {
 
-
-void HTTPPlaylistSender::run() {
+template<typename SenderType, typename PlaylistType>
+static void Send(SenderType& sender, const PlaylistType& playlist, const Path& type, const HTTP::Header& request) {
 	Exception ex;
 	bool success;
-	AUTO_ERROR(success = Playlist::Write(ex, _playlist, buffer()), "Playlist ", _playlist.name());
+	AUTO_ERROR(success = Playlist::Write(ex, type.extension(), playlist, sender.buffer()), typeof<PlaylistType>());
 	if (success) {
-		const char* subType;
-		MIME::Type mime = MIME::Read(_playlist, subType);
-		send(HTTP_CODE_200, mime, subType);
+		const char* subMime = request.subMime;
+		MIME::Type mime = request.mime;
+		if (!mime)
+			mime = MIME::Read(type, subMime);
+		sender.send(HTTP_CODE_200, mime, subMime);
 	} else
-		sendError(HTTP_CODE_406, ex);
+		sender.sendError(HTTP_CODE_406, ex);
+}
+
+
+void HTTPPlaylistSender::run() {
+	Path type = _playlist;
+	_playlist.setExtension(_format);
+	Send(self, _playlist, type, *pRequest);
+}
+
+void HTTPMPlaylistSender::run() {
+	Path type = _playlist;
+	_playlist.set(_playlist.parent());
+	Send(self, _playlist, type, *pRequest);
 }
 
 

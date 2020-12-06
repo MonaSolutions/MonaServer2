@@ -322,6 +322,7 @@
     <ClInclude Include="include\Mona\Process.h" />
     <ClInclude Include="include\Mona\ByteRate.h" />
     <ClInclude Include="include\Mona\Proxy.h" />
+    <ClInclude Include="include\Mona\Resources.h" />
     <ClInclude Include="include\Mona\Runner.h" />
     <ClInclude Include="include\Mona\ServerApplication.h" />
     <ClInclude Include="include\Mona\Signal.h" />

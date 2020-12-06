@@ -25,10 +25,20 @@ using namespace std;
 
 namespace Mona {
 
-Publication::Publication(const string& name): _latency(0), segments(_segments), _segments(0),
-	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate),
+Publication::Publication(const string& name): _latency(0), segments(_segments), _segments(0), _segmenting(false),
+	audios(_audios), videos(_videos), datas(_datas), _lostRate(_byteRate), _maxByteRate(0), _propVersion(0),
 	_publishing(0),_new(false), _newLost(false), _name(name) {
 	DEBUG("New publication ",name);
+	_segments.onSegment = [this](UInt16 duration) {
+		DEBUG("New ", _name, " segment of ", duration, "ms (segments: ", _segments.sequence(), "-", _segments.sequence() + _segments.count() - 1, ", maxDuration: ", _segments.maxDuration(),")");
+		/*// UNCOMMENT TO DEBUG M3U8 SEGMENTS GENERATION
+		Exception todo;
+		Buffer buffer;
+		Playlist playlist(Path(_name, ".ts"));
+		_segments.to(playlist);
+		Playlist::Write(todo, "m3u8", playlist, buffer);
+		NOTE(buffer);*/
+	};
 }
 
 Publication::~Publication() {
@@ -86,25 +96,18 @@ void Publication::reportLost(Media::Type type, UInt32 lost, UInt8 track) {
 	_lostRate += lost;
 }
 
-
-void Publication::startRecording(unique<MediaFile::Writer>&& pRecorder, bool append) {
-	stopRecording();
-	pRecorder->start(self); // start MediaFile::Writer before subscription!
-	NOTE("Start ", _name, "=>", pRecorder->path.name(), " recording");
-	_pRecording.set(*pRecorder.release());
-	_pRecording->pPublication = this;
-	_pRecording->setBoolean("append",append);
-	((set<Subscription*>&)subscriptions).emplace(_pRecording.get());
-}
-
 void Publication::stopRecording() {
 	if (!_pRecording)
 		return;
 	NOTE("Stop ", _name, "=>", _pRecording->target<MediaFile::Writer>().path.name(), " recording");
 	((set<Subscription*>&)subscriptions).erase(_pRecording.get());
 	_pRecording->pPublication = NULL;
-	delete &_pRecording->target<MediaFile::Writer>();
+	MediaFile::Writer& writer = _pRecording->target<MediaFile::Writer>();
+	if (writer.segmented())
+		_segmenting = false;
+	delete &writer;
 	_pRecording.reset();
+	// not starts memory-segmenting (if argument "segments") to keep accessible files from recording
 }
 
 MediaFile::Writer* Publication::recorder() {
@@ -115,85 +118,93 @@ MediaFile::Writer* Publication::recorder() {
 	return &_pRecording->target<MediaFile::Writer>();
 }
 
-void Publication::start(unique<MediaFile::Writer>&& pRecorder, bool append) {
-	if (!_publishing) {
+void Publication::start(unique<MediaFile::Writer>&& pRecorder) {
+	// if already started => RESET LOG
+	// if reseted => JUST RECORDING/sEGMENTS LOGS
+	// if stopped => START LOG
+	if (!_publishing) { // new publication
+		_publishing = -1; // starting but not need to reset currently
+		_propVersion = version; // useless to dispatch metadata changes, will be done on next media by Subscriber side!
 		INFO("Publication ", _name, ' ', self, " started");
-		_publishing = 1;
-	} else if(_publishing>0) {
-		// reset!
-		_publishing = -1;
-		_audios.clear();
-		_videos.clear();
-		_datas.clear();
-		_latency = 0;
-		_new = _newLost = false;
-
-		// Erase track metadata just!
-		clearTracks();
-
-		auto it = subscriptions.begin();
-		while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
-			Subscription* pSubscription(*it++);
-			if (pSubscription->pPublication != this && pSubscription->pPublication)
-				continue; // subscriber not yet subscribed
-			pSubscription->pPublication = this;
-			pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
-		}
-		// reset is a call to endMedia + beginMedia
-		if (_segments) {
-			_segments.beginMedia(name());
-			_segments.endMedia();
-		}
-	}
-	_timeProperties = timeChanged(); // useless to dispatch metadata changes, will be done on next media by Subscriber side!
+	} else
+		reset(); // set _publishing=-1
 	// no flush here, wait first flush or first media to allow to subscribe to onProperties event for a publisher!
-	
-	const char* pSegments = getString("segments");
-	UInt8 segments = 0;
-	if (pSegments)
-		segments = String::ToNumber(pSegments, segments = Segments::DEFAULT_SEGMENTS);
 
-	if (pRecorder) {
-		// no double segmentation (files + memory) required!
+	UInt8 segments;
+	_segmenting = false;
+	if (pRecorder) { // start recording
+		stopRecording();
+		NOTE("Start ", _name, "=>", pRecorder->path.name(), " recording");
+		pRecorder->start(self); // start MediaFile::Writer before subscription!
 		if (pRecorder->segmented()) {
-			segments = 0;
-			pSegments = "";
+			_segmenting = true;
+			segments = pRecorder->segments();
 		}
-		// start recording, "segments" parameters is used in intern if segmented
-		startRecording(move(pRecorder), append);
+		_pRecording.set(*pRecorder.release());
+		_pRecording->pPublication = this;
+		((set<Subscription*>&)subscriptions).emplace(_pRecording.get());
+	}
+	// start or stop live segmenting
+	const char* strSegments = _segmenting ? NULL : getString("segments");
+	if (_segments.setMaxSegments(strSegments ? String::ToNumber<UInt8, Segments::DEFAULT_SEGMENTS>(strSegments) : 0)) {
+		_segmenting = true;
+		segments = _segments.maxSegments();
+		_segments.setMaxDuration(getNumber<UInt16>("duration"));
 	}
 
-	// start live segmenting
-	if (_segments.setMaxSegments(segments)) { // else disable live segmenting
-		getNumber("sequences", _segments.sequences = 1); // by default 1 key by segment to be closer to live
-		_segments.beginMedia(name());
-	}
-
-	if (!pSegments)
+	// display segmenting log =>
+	if (!_segmenting)
 		return;
 	if(segments)
-		INFO("Publication ", _name, ' ', segments, "segmenting, support playlist (m3u8) subscription")
+		INFO("Publication ", _name, ' ', segments, " segmenting, support playlist (m3u8) subscription")
 	else
 		INFO("Publication ", _name, " segmenting, support playlist (m3u8) subscription");
 }
 
 void Publication::reset() {
-	if (_publishing<=0)
-		return; // already reseted!
-	INFO("Publication ", _name, " reseted");
-	start();
+	if (_publishing <= 0)
+		return; // stopped or already reseted
+	if (_publishing == 1) // trick to avoid log on call from stop()
+		INFO("Publication ", _name, " reseted");
+	_publishing = -1;
+	_audios.clear();
+	_videos.clear();
+	_datas.clear();
+	_latency = 0;
+	_maxByteRate = 0;
+	_new = _newLost = false;
+
+	// Erase track metadata just!
+	clearTracks();
+
+	auto it = subscriptions.begin();
+	while (it != subscriptions.end()) { // using "while" rather "for each" because "reset" can remove an element of "subscriptions"!
+		Subscription* pSubscription(*it++);
+		if (pSubscription->pPublication != this && pSubscription->pPublication)
+			continue; // subscriber not yet subscribed
+		pSubscription->pPublication = this;
+		pSubscription->reset(); // call writer.endMedia on subscriber side and do the flush!
+	}
+	if (_segments)
+		_segments.endMedia(); // will include a DISCONTINUITY segment on restart
+
+	// useless to dispatch metadata changes, will be done on next media by Subscriber side!
+	_propVersion = version;
 }
 
-void Publication::stop() {
+void Publication::stop(const OnStop& onStop) {
 	if (!_publishing)
 		return;
-	Media::Properties::clear();
 	if (_publishing > 0)
-		start(); // reset!
-	stopRecording(); // after the reset to call the endWriter!
-	_publishing = 0;
+		_publishing = 2; // trick to skip reseted log!
+	reset(); // in first to call the subscriptions endWriter
+	if (onStop)
+		onStop();
+	stopRecording(); // after onStop to possibly record last user activity
+	_publishing = 0; // in last to avoid an "publication osbolete" interpretation which could delete publication (a unsubscribe can erase too the publication)
 	INFO("Publication ", _name, " stopped");
 }
+
 
 void Publication::flush(UInt16 ping) {
 	if(_publishing && ping)
@@ -206,8 +217,14 @@ void Publication::flush() {
 		ERROR("Publication flush called on publication ", _name, " stopped");
 		return;
 	}
+	// compute maxByteRate
+	UInt64 byteRate = _byteRate;
+	if (byteRate>_maxByteRate)
+		_maxByteRate = byteRate;
+	// set publishing to 1 (invalid reset)
 	_publishing = 1;
-	flushProperties(); // to send metadata if need!
+	// send properties if need
+	flushProperties(); 
 	if (!_new)
 		return;
 	_new = false;
@@ -399,9 +416,9 @@ void Publication::onParamClear() {
 }
 
 void Publication::flushProperties() {
-	if (_timeProperties >= Media::Properties::timeChanged())
+	if (_propVersion == version)
 		return;
-	_timeProperties = Media::Properties::timeChanged();
+	_propVersion = version;
 	// Logs before subscription logs!
 	if (self)
 		INFO("Write ", _name, " publication properties ", self)

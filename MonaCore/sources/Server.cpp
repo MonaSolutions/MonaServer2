@@ -188,6 +188,7 @@ bool Server::run(Exception&, const volatile bool& requestStop) {
 
 	// release memory
 	INFO("Server memory release...");
+	resources.clear();
 	Buffer::Allocator::Set();
 
 	_www.clear();

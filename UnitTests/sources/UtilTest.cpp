@@ -119,11 +119,22 @@ ADD_TEST(Base64) {
 	CHECK(Util::FromBase64(Result));
 	CHECK(memcmp(Result.data(), data, sizeof(data)) == 0);
 
-	// CHECK Base64URL (on UInt16 encoding)
+
+
+	// CHECK Base64URL on UInt16 encoding
 	for (UInt16 i = 0; i < 0xFFFF; ++i) {
 		UInt16 bin = Byte::To16Network(i);
 		Util::ToBase64URL(BIN &bin, 2, Result);
 		CHECK(Result.size() == 4 && Result.back() == '=');
+		Util::FromBase64URL(Result);
+		CHECK(Byte::From16Network(*(UInt16*)Result.data()) == i);
+	}
+
+	// CHECK Base64URL on UInt16 encoding without = padding
+	for (UInt16 i = 0; i < 0xFFFF; ++i) {
+		UInt16 bin = Byte::To16Network(i);
+		Result.resize(Util::ToBase64URL(BIN &bin, 2, Result));
+		CHECK(Result.size() == 3 && Result.back() != '=');
 		Util::FromBase64URL(Result);
 		CHECK(Byte::From16Network(*(UInt16*)Result.data()) == i);
 	}

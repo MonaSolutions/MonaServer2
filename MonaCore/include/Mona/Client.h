@@ -83,7 +83,7 @@ struct Client : Entity, virtual Object, Net::Stats {
 	DataWriter&					writeResponse(UInt8 type = 0) { return writer().writeResponse(type); }
 	void						writeRaw(DataReader& arguments, const Packet& packet = Packet::Null()) { writer().writeRaw(arguments, packet); }
 	void						writeRaw(const Packet& packet) { writer().writeRaw(packet); }
-	bool						flush() { return writer().flush(); }
+	void						flush() { return writer().flush(); }
 	void						close(Int32 error = 0, const char* reason = NULL) { writer().close(error, reason); }
 
 protected:
