@@ -95,10 +95,7 @@ bool HTTPSender::run(Exception& ex) {
 bool HTTPSender::socketSend(const Packet& packet) {
 	if (!_pSocket)
 		return false;
-	if (!packet) {
-		WARN(_pSocket->isSecure() ? "HTTPS empty packet to " : "HTTP empty packet to ", _pSocket->peerAddress());
-		return true;
-	}
+	DEBUG_ASSERT(packet); // check just in debug that the packet contains data
 	Exception ex;
 	DUMP_RESPONSE(_pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), _pSocket->peerAddress());
 	int result = _pSocket->write(ex, packet);

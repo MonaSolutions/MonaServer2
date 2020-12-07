@@ -47,7 +47,7 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 
 private:
 	void run() override {
-		if(send(_code, _mime, _subMime, _packet.size()))
+		if(send(_code, _mime, _subMime, _packet.size()) && _packet.size())
 			send(_packet);
 	}
 
