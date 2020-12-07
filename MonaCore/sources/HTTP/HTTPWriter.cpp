@@ -84,7 +84,7 @@ HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(fals
 #if !defined(_DEBUG)
 		if (!_flushings.empty())
 #endif
-			_flushings.front()->finalize();
+			_flushings.pop_front();
 		if (ex.cast<Ex::Net::Socket>()) // socket shutdown (WARN already displaid)
 			return;
 		if (ex.cast<Ex::Unfound>()) // loading error!
