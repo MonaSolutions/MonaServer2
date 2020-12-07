@@ -31,25 +31,33 @@ HTTP send,
 Send a HTTP response (or request? TODO) is used directly.
 Children class are mainly used by call to TCPSender::send(pHTTPSender) */
 struct HTTPSender : Runner, virtual Object {
-	NULLABLE(!_pSocket);
+	/*!
+	If onEnd is set you must wait onEnd signal to release this HTTPSender,
+	+ resend the HTTPSender on every socket.onFlush if !flushing() */
+	typedef Event<void()>	ON(End);
 
+	
 	HTTPSender(const char* name,
 		const shared<const HTTP::Header>& pRequest,
-		const shared<Socket>& pSocket) : _flushing(true), _chunked(0), _pSocket(pSocket), // hold socket to the sending (answer even if server falls)
+		const shared<Socket>& pSocket) : _end(false), pHandler(NULL), _chunked(0), _pSocket(pSocket), // hold socket to the sending (answer even if server falls)
 		pRequest(pRequest), connection(pRequest->connection), Runner(name), crossOriginIsolated(false) {}
 	virtual ~HTTPSender() {
-		// if finalize called in descrutor => no more handle on HTTPSender => no need to call socket.onFlush!
-		finalize(false);
+		onEnd = nullptr; // useless to call onFlush, no more handle on this HTTPSender
+		end();
 	} 
 
 
-	virtual bool flushing() const;
+	bool flushing() const { return pHandler && _pSocket->queueing() ? true : false; }
 
 	bool isFile() const;
 	
 
 	virtual bool hasHeader() const { return true; }
 
+	/*!
+	Set pHandler on construction to works in asynchronous way:
+	pause if socket queueing and wait socket.onFlush */
+	const Handler*	pHandler;
 	bool crossOriginIsolated;
 	void setCookies(shared<Buffer>& pSetCookie);
 
@@ -65,7 +73,7 @@ struct HTTPSender : Runner, virtual Object {
 	bool send(const Packet& content);
 	/*!
 	Finalize send */
-	void finalize() { finalize(true); }
+	void end();
 
 	template <typename ...Args>
 	bool sendError(const char* code, Args&&... args) {
@@ -94,15 +102,16 @@ protected:
 private:
 	virtual const Path& path() const { return Path::Null(); }
 
-	void finalize(bool flush);
 	bool socketSend(const Packet& packet);
 	virtual bool run(Exception&);
-	virtual void run() { ERROR(name, " not runnable"); }
+	/*!
+	must return end if finished, otherwise false */
+	virtual bool run() { ERROR(name, " not runnable"); return true; }
 
 	shared<Buffer>				_pBuffer;
 	UInt8						_chunked;
-	bool						_flushing;
-	shared<Socket>			    _pSocket; // if null has been shutdown!
+	bool						_end;
+	shared<Socket>			    _pSocket;
 };
 
 

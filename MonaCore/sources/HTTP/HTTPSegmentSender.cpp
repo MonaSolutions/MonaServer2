@@ -35,11 +35,11 @@ HTTPSegmentSender::HTTPSegmentSender(const shared<const HTTP::Header>& pRequest,
 }
 
 
-void HTTPSegmentSender::run() {
+bool HTTPSegmentSender::run() {
 	if (!_pWriter) {
 		if (_itMedia == _segment.end()) {
 			sendError(HTTP_CODE_404, "Segment ", _path.name(), " empty");
-			return;
+			return true;
 		}
 		const char* subMime = pRequest->subMime;
 		MIME::Type mime = pRequest->mime;
@@ -47,27 +47,28 @@ void HTTPSegmentSender::run() {
 			mime = MIME::Read(_path, subMime);
 		if (!mime) {
 			sendError(HTTP_CODE_406, "Segment ", _path.name(), " with a non acceptable type ", subMime);
-			return;
+			return true;
 		}
 		_pWriter = MediaWriter::New(subMime);
 		if (!_pWriter) {
 			sendError(HTTP_CODE_501, "Segment ", _path.name(), " not supported");
-			return;
+			return true;
 		}
 		send(HTTP_CODE_200, mime, subMime, UINT64_MAX);
 	}
 
 	// use subscription to support properties subscription
 	while(_itMedia != _segment.end()) {
+		if (HTTPSender::flushing())
+			return false;; // socket queueing, wait!
 		const Media::Base* pMedia = (_itMedia++)->get();
 		_lastTime = pMedia->time(); // fix time (have to be strictly absolute, subscription is on a isolated segment)
 		_subscription.writeMedia(*pMedia);
 		if (!_pWriter)
-			return; // connection death!
-		if (HTTPSender::flushing())
-			return; // socket queueing, wait!
+			return true; // connection death!
 	}
 	_subscription.reset();
+	return true;
 }
 
 bool HTTPSegmentSender::beginMedia(const std::string& name) {

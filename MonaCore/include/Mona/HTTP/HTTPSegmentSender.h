@@ -34,12 +34,11 @@ struct HTTPSegmentSender : HTTPSender, private Media::Target, virtual Object {
 	HTTPSegmentSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
 		const Path& path, const Segment& segment, Parameters& params);
 
-	bool flushing() const override { return _itMedia != _segment.end(); }
 	const Path& path() const override { return _path; }
 
 private:
 
-	void run() override;
+	bool run() override;
 
 	bool beginMedia(const std::string& name) override;
 	bool writeProperties(const Media::Properties& properties) override;

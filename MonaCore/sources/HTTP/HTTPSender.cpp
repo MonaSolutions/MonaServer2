@@ -25,18 +25,8 @@ using namespace std;
 
 namespace Mona {
 
-bool HTTPSender::flushing() const {
-	if (!_flushing)
-		return false;
-	if (!_pSocket)
-		return false;
-	return _pSocket->queueing() ? true : false;
-}
-
-
-void HTTPSender::finalize(bool flush) {
-	_flushing = false;
-	if (!_pSocket)
+void HTTPSender::end() {
+	if (_end)
 		return;
 	if (_chunked) {
 		static const Packet EndChunk(EXPAND("\r\n0\r\n\r\n"));
@@ -45,16 +35,16 @@ void HTTPSender::finalize(bool flush) {
 		else
 			socketSend(EndChunk);
 	}
-	if (!connection) {
-		// close the connection
-		_pSocket->shutdown();
-	} else if (flush) {
-		// send the onFlush signal!
-		Exception ex;
-		_pSocket->flush(ex);
+	_end = true; // after chunk writing
+	if (onEnd) {
+		// send the onEnd signal!
+		if (pHandler)
+			pHandler->queue(onEnd);
+		else
+			onEnd();
 	}
-	// finalize send!
-	_pSocket = nullptr;
+	if (!connection) // close the connection
+		_pSocket->shutdown();
 }
 
 bool HTTPSender::isFile() const {
@@ -78,22 +68,15 @@ void HTTPSender::setCookies(shared<Buffer>& pSetCookie) {
 }
 
 bool HTTPSender::run(Exception& ex) {
-	if (!_pSocket) {
-		Socket::SetException(NET_ECONNABORTED, ex);
-		return false;
-	}
-	// look if we are on a HTTPSender which must run just one time
-	_flushing = false;
-	bool flush = flushing();
-	_flushing = true;  // reset _flushing to make flushable() usable in run to detect socket queueing
-	run();
-	if(!flushing())
-		finalize(flush);
+	if (_end)
+		return true; // can happen on send again to pulse, not an exception
+	if (run())
+		end();
 	return true;
 }
 
 bool HTTPSender::socketSend(const Packet& packet) {
-	if (!_pSocket)
+	if (_end)
 		return false;
 	DEBUG_ASSERT(packet); // check just in debug that the packet contains data
 	Exception ex;
@@ -104,12 +87,12 @@ bool HTTPSender::socketSend(const Packet& packet) {
 	if (result >= 0)
 		return true;
 	// no shutdown required, already done by write!
-	_pSocket = nullptr;
+	_end = true; //  end!
 	return false;
 }
 
 bool HTTPSender::send(const Packet& content) {
-	if (!_pSocket)
+	if (_end)
 		return false;
 	if (pRequest->type == HTTP::TYPE_HEAD)
 		return true;
@@ -127,7 +110,7 @@ bool HTTPSender::send(const Packet& content) {
 }
 
 bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UInt64 extraSize) {
-	if (!_pSocket)
+	if (_end)
 		return false;
 
 	// COMPUTE SIZE

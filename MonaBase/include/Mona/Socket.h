@@ -67,7 +67,7 @@ struct Socket : virtual Object, Net::Stats {
 
 	NET_SOCKET			id() const { return _id; }
 	operator NET_SOCKET() const { return _id; }
-
+	
 	virtual bool		isSecure() const { return false; }
 
 	Time				recvTime() const { return _recvTime.load(); }
@@ -146,7 +146,7 @@ struct Socket : virtual Object, Net::Stats {
 	int			 write(Exception& ex, const Packet& packet, int flags = 0) { return write(ex, packet, SocketAddress::Wildcard(), flags); }
 	int			 write(Exception& ex, const Packet& packet, const SocketAddress& address, int flags = 0);
 	/*!
-	Flush packets and call onFlush if no more packets to send, return false on error */
+	Flush packets, return false on socket error */
 	bool		 flush(Exception& ex) { return flush(ex, false); }
 
 	template <typename ...Args>

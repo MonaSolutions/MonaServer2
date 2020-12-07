@@ -33,7 +33,7 @@ struct HTTPMediaSender : HTTPSender, virtual Object {
 	bool hasHeader() const override { return _first; }
 
 private:
-	void run() override;
+	bool run() override;
 
 	bool _first;
 	shared<MediaWriter> _pWriter;

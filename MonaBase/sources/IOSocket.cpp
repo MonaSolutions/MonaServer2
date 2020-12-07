@@ -408,7 +408,23 @@ void IOSocket::write(const shared<Socket>& pSocket, int error) {
 	struct Send : Action {
 		Send(int error, const shared<Socket>& pSocket) : Action("SocketSend", error, pSocket) {}
 	private:
-		bool process(Exception& ex, const shared<Socket>& pSocket) { return pSocket->flush(ex); }
+		bool process(Exception& ex, const shared<Socket>& pSocket) {
+			if (!pSocket->flush(ex))	
+				return false;	
+			// handle if no more queueing data (and on first time allow to get connection info!)	
+			if (!pSocket->queueing())	
+				handle<Handle>(pSocket);	
+			return true;	
+		}	
+		struct Handle : Action::Handle {	
+			Handle(const char* name, const shared<Socket>& pSocket, const Exception& ex) : Action::Handle(name, pSocket, ex) {}	
+		private:	
+			void handle(const shared<Socket>& pSocket) {	
+				if (!pSocket->queueing()) // check again on handle, "queueing" can had changed	
+					pSocket->_onFlush();	
+			}	
+		};
+
 	};
 	threadPool.queue<Send>(0, error, pSocket);
 }

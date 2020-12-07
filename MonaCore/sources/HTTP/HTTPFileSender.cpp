@@ -107,7 +107,7 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 			return HTTPSender::flushing() ? 0 : 0xFFFF; // wait next!
 	}
 	// END
-	finalize();
+	this->end();
 	return 0;
 }
 

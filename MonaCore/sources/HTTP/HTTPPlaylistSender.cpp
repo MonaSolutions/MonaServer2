@@ -39,16 +39,18 @@ static void Send(SenderType& sender, const PlaylistType& playlist, const Path& t
 }
 
 
-void HTTPPlaylistSender::run() {
+bool HTTPPlaylistSender::run() {
 	Path type = _playlist;
 	_playlist.setExtension(_format);
 	Send(self, _playlist, type, *pRequest);
+	return true;
 }
 
-void HTTPMPlaylistSender::run() {
+bool HTTPMPlaylistSender::run() {
 	Path type = _playlist;
 	_playlist.set(_playlist.parent());
 	Send(self, _playlist, type, *pRequest);
+	return true;
 }
 
 

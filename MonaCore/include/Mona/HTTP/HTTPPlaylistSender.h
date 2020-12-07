@@ -35,7 +35,7 @@ struct HTTPPlaylistSender : HTTPSender, virtual Object {
 	}
 
 private:
-	void  run() override;
+	bool  run() override;
 
 	Playlist	_playlist;
 	std::string	_format;
@@ -49,7 +49,7 @@ struct HTTPMPlaylistSender : HTTPSender, virtual Object {
 	}
 
 private:
-	void  run() override;
+	bool  run() override;
 
 	Playlist::Master _playlist;
 };

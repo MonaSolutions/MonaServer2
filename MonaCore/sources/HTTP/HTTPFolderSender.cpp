@@ -27,11 +27,11 @@ HTTPFolderSender::HTTPFolderSender(const shared<const HTTP::Header>& pRequest, c
 	const Path& folder, Parameters& properties) : HTTPSender("HTTPFolderSender", pRequest, pSocket), _folder(folder), _properties(move(properties)) {
 }
 
-void HTTPFolderSender::run() {
+bool HTTPFolderSender::run() {
 	// FOLDER
 	if (!_folder.exists()) {
 		sendError(HTTP_CODE_404, "The requested URL ", pRequest->path, "/ not found on the server");
-		return;
+		return true;
 	}
 
 	HTTP::Sort		sort(HTTP::SORT_ASC);
@@ -57,6 +57,7 @@ void HTTPFolderSender::run() {
 		send(HTTP_CODE_200, MIME::TYPE_TEXT, "html; charset=utf-8");
 	else
 		sendError(HTTP_CODE_500, "List folder files, ", ex);
+	return true;
 }
 
 

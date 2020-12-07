@@ -46,9 +46,10 @@ struct HTTPDataSender : HTTPSender, virtual Object {
 	}
 
 private:
-	void run() override {
+	bool run() override {
 		if(send(_code, _mime, _subMime, _packet.size()) && _packet.size())
 			send(_packet);
+		return true;
 	}
 
 	const char*				_code;

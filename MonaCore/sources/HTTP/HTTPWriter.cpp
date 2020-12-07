@@ -79,16 +79,24 @@ private:
 
 
 HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(false), _session(session), crossOriginIsolated(false),
-	_onFileError([this](const Exception& ex) {
-		// flushing front must be the file (otherwise = bug)
+	_onSenderEnd([this]() {
 #if !defined(_DEBUG)
-		if (!_flushings.empty())
+		if (_flushings.empty()) {
+			CRITIC(_session.name(), " HTTPSender::onEnd without flushing sender");
+			return;
+		}
 #endif
-			_flushings.pop_front();
+		if(_flushings.front()->isFile())
+			_session.api.ioFile.unsubscribe(static_pointer_cast<HTTPFileSender>(_flushings.front()));
+		_flushings.pop_front();
+		flush();
+
+	}),
+	_onFileError([this](const Exception& ex) {
 		if (ex.cast<Ex::Net::Socket>()) // socket shutdown (WARN already displaid)
 			return;
 		if (ex.cast<Ex::Unfound>()) // loading error!
-			return flush();
+			return _onSenderEnd();
 		ERROR(ex);
 		_session->shutdown(); // can't repair the session (client wait content-length!)
 	}) {
@@ -129,20 +137,17 @@ void HTTPWriter::flush() {
 	// RESUME FLUSHINGS
 	while (!_flushings.empty()) {
 		const shared<HTTPSender>& pSender = _flushings.front();
-		if (!pSender.unique())
-			return; // always processing
-		if (pSender->isFile()) {
-			shared<HTTPFileSender> pFile = static_pointer_cast<HTTPFileSender>(_flushings.front());
-			if (*pFile) {
+		if (pSender->flushing())
+			return; // wait socket onFlush
+		// send or resend
+		if (pSender.unique()) {
+			if (pSender->isFile())
 				_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(pSender));
-				return; // wait onFileReaden! 
-			}
-			_session.api.ioFile.unsubscribe(pFile);
-		} else if(*pSender) {
-			_session.send(pSender);
-			if(pSender->flushing())
-				return; // wait end of flushing/queueing
+			else
+				_session.send(pSender);
 		}
+		if (pSender->onEnd)
+			return; // wait onEnd!
 		_flushings.pop_front();
 	}
 }
@@ -192,9 +197,18 @@ void HTTPWriter::writeSetCookie(const string& key, DataReader& reader) {
 void HTTPWriter::writeFile(const Path& file, Parameters& properties) {
 	if (!file.isFolder()) {
 		shared<HTTPFileSender> pFileSender = newSender<HTTPFileSender>(true, file, properties);
+		if (!pFileSender)
+			return;
+		pFileSender->onEnd = _onSenderEnd;
 		_session.api.ioFile.subscribe(pFileSender, (File::Decoder*)pFileSender.get(), nullptr, _onFileError);
 	} else
 		newSender<HTTPFolderSender>(true, file, properties);
+}
+
+void HTTPWriter::writeSegment(const Path& path, const Segment& segment, Parameters& params) {
+	shared<HTTPSegmentSender> pSender = newSender<HTTPSegmentSender>(true, path, segment, params);
+	if (pSender)
+		pSender->onEnd = _onSenderEnd;
 }
 
 DataWriter& HTTPWriter::writeMessage(bool isResponse) {

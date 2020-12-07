@@ -54,7 +54,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 	void			writeSetCookie(const std::string& key, DataReader& reader);
 
 	void			writeFile(const Path& file, Parameters& properties);
-	void			writeSegment(const Path& path, const Segment& segment, Parameters& params) { newSender<HTTPSegmentSender>(true, path, segment, params); }
+	void			writeSegment(const Path& path, const Segment& segment, Parameters& params);
 	void			writePlaylist(const Path& path, const Segments& segments, std::string&& format = "ts") { newSender<HTTPPlaylistSender>(true, path, segments, std::move(format)); }
 	void			writeMasterPlaylist(Playlist::Master&& playlist) { newSender<HTTPMPlaylistSender>(true, std::move(playlist)); }
 
@@ -96,6 +96,7 @@ private:
 		shared<SenderType> pSender(SET, _pRequest, _session.socket(), std::forward<Args>(args)...);
 		pSender->setCookies(_pSetCookie);
 		pSender->crossOriginIsolated = crossOriginIsolated;
+		pSender->pHandler = &_session.api.handler;
 		if(isResponse) {
 			if (_pResponse) {
 				if(_requesting)
@@ -109,6 +110,7 @@ private:
 		return std::move(pSender);
 	}
 
+	HTTPSender::OnEnd					_onSenderEnd;
 	File::OnError						_onFileError;
 	
 	shared<MediaWriter>					_pMediaWriter;

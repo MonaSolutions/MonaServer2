@@ -32,7 +32,7 @@ HTTPMediaSender::HTTPMediaSender(const shared<const HTTP::Header>& pRequest,
 	_pWriter = pWriter;
 }
 
-void HTTPMediaSender::run() {
+bool HTTPMediaSender::run() {
 	MediaWriter::OnWrite onWrite([this](const Packet& packet) { send(packet); });
 	if (_first) {
 		// first packet streaming
@@ -46,6 +46,7 @@ void HTTPMediaSender::run() {
 		connection = HTTP::CONNECTION_KEEPALIVE;
 	} else if (!_first)
 		_pWriter->endMedia(onWrite);
+	return true;
 }
 
 
