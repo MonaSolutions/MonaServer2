@@ -101,7 +101,7 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					if (!_pHeader->mime) {
 						// Trick => "path/file:" transform an MIME application to MIME test to visiualize its content in browser
 						// ex: "http://localhost/test.m3u8:" allows to see its content in the browser
-						if (_file.name().back() == ':' && _pHeader->type == HTTP::TYPE_GET && !_file.exists()) {
+						if (_file.name().size() && _file.name().back() == ':' && _pHeader->type == HTTP::TYPE_GET && !_file.exists()) {
 							_file.search(); // remove ':'
 							_pHeader->forceText = true;
 						}
