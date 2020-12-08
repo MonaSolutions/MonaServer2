@@ -107,7 +107,7 @@ private:
 			_pResponse = pSender;
 		} else
 			_senders.emplace_back(pSender);
-		return std::move(pSender);
+		return pSender;
 	}
 
 	HTTPSender::OnEnd					_onSenderEnd;
