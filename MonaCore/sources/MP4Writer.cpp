@@ -331,12 +331,14 @@ void MP4Writer::flush(const OnWrite& onWrite, Int8 reset) {
 
 								if (vps) {
 									UInt32 sizePos = writer.size();
-									BinaryWriter(pBuffer->data() + sizePos, 4).write32(HEVC::WriteVideoConfig(writer.next(4).write(EXPAND("hvcC")), vps, sps, pps).size() - sizePos);
+									HEVC::WriteVideoConfig(writer.next(4).write(EXPAND("hvcC")), vps, sps, pps);
+									BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 								}
 								else if (sps) {
 									// file:///C:/Users/mathieu/Downloads/standard8978%20(1).pdf => 5.2.1.1
 									UInt32 sizePos = writer.size();
-									BinaryWriter(pBuffer->data() + sizePos, 4).write32(AVC::WriteVideoConfig(writer.next(4).write(EXPAND("avcC")), sps, pps).size() - sizePos);
+									AVC::WriteVideoConfig(writer.next(4).write(EXPAND("avcC")), sps, pps);
+									BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 								}
 								BinaryWriter(pBuffer->data() + sizePos, 4).write32(writer.size() - sizePos);
 							} // avc1
