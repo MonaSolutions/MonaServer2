@@ -15,7 +15,7 @@ override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D
 override INCLUDES+=-I../MonaBase/include/ -I../MonaCore/include/ -I../ -I/usr/local/opt/openssl/include/
 override LIBDIRS+=-L../MonaBase/lib/ -L../MonaCore/lib/
 override LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,../MonaCore/lib/,-rpath,/usr/local/lib/,-rpath,/usr/local/lib64/"
-override LIBS+=-pthread -lMonaBase -lMonaCore -lcrypto -lssl
+override LIBS+=-pthread -lMonaBase -lMonaCore -lcrypto -lssl -latomic
 ifdef ENABLE_SRT
 	override CFLAGS += -DENABLE_SRT
 	override LIBS += -lsrt
