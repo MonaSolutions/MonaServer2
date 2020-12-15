@@ -15,10 +15,13 @@ override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D
 override INCLUDES+=-I../MonaBase/include/ -I../ -I/usr/local/opt/openssl/include/
 override LIBDIRS+=-L../MonaBase/lib/
 override LDFLAGS+="-Wl,-rpath,../MonaBase/lib/,-rpath,/usr/local/lib/,-rpath,/usr/local/lib64/"
-override LIBS+=-pthread -lMonaBase -lcrypto -lssl -latomic
+override LIBS+=-pthread -lMonaBase -lcrypto -lssl
 ifdef ENABLE_SRT
 	override CFLAGS += -DENABLE_SRT
 	override LIBS += -lsrt
+endif
+ifneq ($(shell ldconfig -p | grep libatomic),)
+	override LIBS += -latomic 
 endif
 ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
     override LIBDIRS+=-L/usr/local/opt/openssl/lib/
