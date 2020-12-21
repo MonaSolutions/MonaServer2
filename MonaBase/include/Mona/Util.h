@@ -38,12 +38,26 @@ struct Util : virtual Static {
 
 	static const Parameters& Environment();
 	 
+	template<typename Number>
+	static Number GCD(Number x, Number y) {
+		x = Mona::abs(x);
+		y = Mona::abs(y);
+		while (y) {
+			Number t = y;
+			y = x % y;
+			x = t;
+		}
+		return x;
+	}
+
 	static UInt64	Random();
 	template<typename Type>
 	static Type		Random() { return Type(Random()); } // cast gives the modulo!
 	static void		Random(UInt8* data, UInt32 size) { for (UInt32 i = 0; i < size; ++i) data[i] = UInt8(Random()); }
 
-	static const UInt8 UInt8Generators[];
+
+	static bool ReadIniFile(const std::string& path, Parameters& parameters);
+
 
 	template<typename Type, typename ResultType = typename std::make_signed<Type>::type>
 	static ResultType Distance(Type pt1, Type pt2) {
@@ -82,7 +96,37 @@ struct Util : virtual Static {
 		return pt - distance;
 	}
 
-	static bool ReadIniFile(const std::string& path, Parameters& parameters);
+
+	template<typename Number>
+	struct UniformGen : virtual Object {
+		UniformGen(Number max, Number min = 0) : _max(max), _min(min), _next(min) {
+			Number limit = max + 1 - min;
+			_step = (Number)std::round(limit / 1.61803398875);
+			Number leftStep = _step;
+			while (true) {
+				if (_step <= limit) {
+					if (GCD(limit, _step) == 1)
+						return;
+					++_step;
+				} else if (!leftStep)
+					break;
+				if (leftStep && GCD(limit, --leftStep) == 1) {
+					_step = leftStep;
+					return;
+				}
+			}
+			_step = 1;
+		}
+		operator Number() const { return _next; }
+		Number operator++() { return _next = AddDistance(_next, _step, _max, _min); }
+		Number operator--() { return _next = AddDistance(_next, -(typename std::make_signed<Number>::type)_step, _max, _min); }
+	private:
+		Number _min;
+		Number _max;
+		Number _next;
+		Number _step;
+	};
+
 
 	/*!
 	Encode to base64URL, returns the size without '=' padding */

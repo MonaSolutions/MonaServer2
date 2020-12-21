@@ -34,7 +34,7 @@ bool TestDistance(TypeD distance, Type p1, Type p2, Type max, Type min = 0) {
 	return -distance == Util::Distance(p2, p1, max, min);
 }
 
-ADD_TEST(distance) {
+ADD_TEST(Distance) {
 	CHECK(TestDistance(-3, 0, 5, 7));
 	CHECK(TestDistance(-3, 2, 7, 9, 2));
 	
@@ -86,11 +86,12 @@ static bool TestDecode(string data, const char* result, UInt32 size) {
 }
 
 ADD_TEST(Generators) {
-	UInt8 max = (Util::Random() % 129) + 128;
-	set<UInt8> ids;
-	UInt8 next = 0;
-	for (UInt8 i = 0; i < max; ++i)
-		CHECK(ids.emplace(next = (next + Util::UInt8Generators[max]) % max).second);
+	for (UInt16 max = 0; max < 512; ++max) {
+		Util::UniformGen<UInt16> gen(max);
+		set<UInt16> ids;
+		for (UInt16 i = 0; i <= max; ++i)
+			CHECK(ids.emplace(++gen).second);
+	}
 }
 
 ADD_TEST(Base64) {
