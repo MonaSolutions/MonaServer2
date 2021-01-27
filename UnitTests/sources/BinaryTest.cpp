@@ -25,9 +25,14 @@ using namespace std;
 
 namespace BinaryTest {
 
-template <typename ...Args>
-void Write(Args&&... args) {
-	BinaryWriter writer(args ...);
+Mona::Buffer& Buffer() {
+	static Mona::Buffer Buffer(256);
+	return Buffer;
+}
+
+void Write(Byte::Order order) {
+	
+	BinaryWriter writer(Buffer().data(), Buffer().size(), order);
 
 	bool bval = true;
 	writer.write(&bval, sizeof(bval));
@@ -56,19 +61,31 @@ void Write(Args&&... args) {
 	writer.write7Bit<UInt32>(10000);
 	writer.write7Bit<UInt32>(100000);
 	writer.write7Bit<UInt32>(1000000);
+	writer.write7Bit<UInt32>(0xFFFFFFFE);
+	writer.write7Bit<UInt32>(0xFFFFFFFF);
 
 	writer.write7Bit<UInt64>(100);
 	writer.write7Bit<UInt64>(1000);
 	writer.write7Bit<UInt64>(10000);
 	writer.write7Bit<UInt64>(100000);
 	writer.write7Bit<UInt64>(1000000);
+	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFE);
+	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFF);
+
+	writer.write7Bit<UInt64>(100, 4);
+	writer.write7Bit<UInt64>(1000, 4);
+	writer.write7Bit<UInt64>(10000, 4);
+	writer.write7Bit<UInt64>(100000, 4);
+	writer.write7Bit<UInt64>(1000000, 4);
+	writer.write7Bit<UInt64>(0xFFFFFFFE, 4);
+	writer.write7Bit<UInt64>(0xFFFFFFFF, 4);
+	writer.write7Bit<UInt64>(0x100000000, 4);
 
 	writer.write("RAW");
 }
 
-template <typename ...Args>
-void Read(Args&&... args) {
-	BinaryReader reader(args ...);
+void Read(Byte::Order order) {
+	BinaryReader reader(Buffer().data(), Buffer().size(), order);
 	bool b;
 	reader.read(sizeof(b), (char*)&b);
 	CHECK(b);
@@ -113,48 +130,48 @@ void Read(Args&&... args) {
 	reader.read(sizeof(doublev), (char *)&doublev);
 	CHECK(doublev == -1.5);
 
-	UInt32 uint32v = reader.read7Bit<UInt32>();
-	CHECK(uint32v == 100);
-	uint32v = reader.read7Bit<UInt32>();
-	CHECK(uint32v == 1000);
-	uint32v = reader.read7Bit<UInt32>();
-	CHECK(uint32v == 10000);
-	uint32v = reader.read7Bit<UInt32>();
-	CHECK(uint32v == 100000);
-	uint32v = reader.read7Bit<UInt32>();
-	CHECK(uint32v == 1000000);
+	CHECK(reader.read7Bit<UInt32>() == 100);
+	CHECK(reader.read7Bit<UInt32>() == 1000);
+	CHECK(reader.read7Bit<UInt32>() == 10000);
+	CHECK(reader.read7Bit<UInt32>() == 100000);
+	CHECK(reader.read7Bit<UInt32>() == 1000000);
+	CHECK(reader.read7Bit<UInt32>() == 0xFFFFFFFE);
+	CHECK(reader.read7Bit<UInt32>() == 0xFFFFFFFF);
 
-	uint64v = reader.read7Bit<UInt64>();
-	CHECK(uint64v == 100);
-	uint64v = reader.read7Bit<UInt64>();
-	CHECK(uint64v == 1000);
-	uint64v = reader.read7Bit<UInt64>();
-	CHECK(uint64v == 10000);
-	uint64v = reader.read7Bit<UInt64>();
-	CHECK(uint64v == 100000);
-	uint64v = reader.read7Bit<UInt64>();
-	CHECK(uint64v == 1000000);
+	CHECK(reader.read7Bit<UInt64>() == 100);
+	CHECK(reader.read7Bit<UInt64>() == 1000);
+	CHECK(reader.read7Bit<UInt64>() == 10000);
+	CHECK(reader.read7Bit<UInt64>() == 100000);
+	CHECK(reader.read7Bit<UInt64>() == 1000000);
+	CHECK(reader.read7Bit<UInt64>() == 0xFFFFFFFFFFFFFFFE);
+	CHECK(reader.read7Bit<UInt64>() == 0xFFFFFFFFFFFFFFFF);
+
+	CHECK(reader.read7Bit<UInt64>(4) == 100);
+	CHECK(reader.read7Bit<UInt64>(4) == 1000);
+	CHECK(reader.read7Bit<UInt64>(4) == 10000);
+	CHECK(reader.read7Bit<UInt64>(4) == 100000);
+	CHECK(reader.read7Bit<UInt64>(4) == 1000000);
+	CHECK(reader.read7Bit<UInt64>(4) == 0x1FFFFFFF);
+	CHECK(reader.read7Bit<UInt64>(4) == 0x1FFFFFFF);
+	CHECK(reader.read7Bit<UInt64>(4) == 0x1FFFFFFF);
+
 
 	CHECK(String::ICompare(STR reader.current(), 3, "RAW")==0);
 }
 
-
 ADD_TEST(Native) {
-	Buffer buffer(128);
-	Write(buffer.data(),buffer.size(), Byte::ORDER_NATIVE);
-	Read(buffer.data(),buffer.size(), Byte::ORDER_NATIVE);
+	Write(Byte::ORDER_NATIVE);
+	Read(Byte::ORDER_NATIVE);
 }
 
 ADD_TEST(BigEndian) {
-	Buffer buffer(128);
-	Write(buffer.data(),buffer.size(), Byte::ORDER_BIG_ENDIAN);
-	Read(buffer.data(),buffer.size(), Byte::ORDER_BIG_ENDIAN);
+	Write(Byte::ORDER_BIG_ENDIAN);
+	Read(Byte::ORDER_BIG_ENDIAN);
 }
 
 ADD_TEST(LittleEndian) {
-	Buffer buffer(128);
-	Write(buffer.data(),buffer.size(), Byte::ORDER_LITTLE_ENDIAN);
-	Read(buffer.data(), buffer.size(), Byte::ORDER_LITTLE_ENDIAN);
+	Write(Byte::ORDER_LITTLE_ENDIAN);
+	Read(Byte::ORDER_LITTLE_ENDIAN);
 }
 
 }

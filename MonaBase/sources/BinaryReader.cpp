@@ -15,6 +15,7 @@ details (or else see http://mozilla.org/MPL/2.0/).
 */
 
 #include "Mona/BinaryReader.h"
+#include "Mona/Exceptions.h"
 
 using namespace std;
 
@@ -105,8 +106,9 @@ float BinaryReader::readFloat() {
 
 template<typename ValueType>
 ValueType BinaryReader::read7Bit(UInt8 bytes) {
-	UInt8 byte;
+	DEBUG_ASSERT(bytes>0);
 	ValueType result = 0;
+	UInt8 byte;
 	do {
 		byte = read8();
 		if (!--bytes)
