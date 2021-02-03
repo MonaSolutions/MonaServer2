@@ -23,7 +23,7 @@ using namespace std;
 
 namespace Mona {
 
-bool RTP_MPEG::writeAudio(Media::Audio::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
+bool RTP_MPEG::writeAudio(const Media::Audio::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
 	if (!writer) { // After header (new RTP packet)
 		if (canWrite < 4)
 			return false;
@@ -38,7 +38,7 @@ bool RTP_MPEG::writeAudio(Media::Audio::Tag tag, BinaryReader& reader, BinaryWri
 	return true;
 }
 
-bool RTP_MPEG::writeVideo(Media::Video::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
+bool RTP_MPEG::writeVideo(const Media::Video::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
 	ERROR("RTP_MPEG profile has no video ability implemented yet");
 	return false;
 }

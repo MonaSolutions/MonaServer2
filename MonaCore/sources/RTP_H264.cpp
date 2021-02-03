@@ -24,12 +24,12 @@ using namespace std;
 namespace Mona {
 
 
-bool RTP_H264::writeAudio(Media::Audio::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
+bool RTP_H264::writeAudio(const Media::Audio::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
 	ERROR("RTP_H264 is a video RTP profile and can't write any audio frame");
 	return false;
 }
 
-bool RTP_H264::writeVideo(Media::Video::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
+bool RTP_H264::writeVideo(const Media::Video::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) {
 	if (tag.codec != Media::Video::CODEC_H264) {
 		ERROR("RTP_H264 profile supports only H264 video codec");
 		return false;

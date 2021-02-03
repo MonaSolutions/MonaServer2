@@ -53,8 +53,8 @@ private:
 
 		byte = reader.read8();
 		UInt8 playloadType(byte & 0x7F);
-		if (playloadType != _profile.playloadType()) {
-			ERROR(typeof<RTP_ProfileType>()," configured to receive ",_profile.playloadType()," playload type and not ",playloadType)
+		if (playloadType != _profile.playloadType) {
+			ERROR(typeof<RTP_ProfileType>()," configured to receive ",_profile.playloadType," playload type and not ",playloadType)
 			return 0;
 		}
 

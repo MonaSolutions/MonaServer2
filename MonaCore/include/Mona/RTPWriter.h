@@ -69,6 +69,10 @@ struct RTPWriter : MediaWriter, virtual Object {
 	
 private:
 
+
+	bool writeMedia(const Media::Audio::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) { return _profile.writeAudio(tag, reader, writer, canWrite); }
+	bool writeMedia(const Media::Video::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite) { return _profile.writeVideo(tag, reader, writer, canWrite); }
+
 	template<typename TagType>
 	void write(UInt8 track, const TagType& tag, const Packet& packet, const OnWrite& onWrite) {
 		if (!onWrite)
@@ -110,10 +114,7 @@ private:
 			}
 	
 			UInt32 written(writer.size());
-			if (isAudio)
-				flush = _profile.writeAudio(tag, reader, writer, canWrite);
-			else
-				flush = _profile.writeVideo(tag, reader, writer, canWrite);
+			flush = writeMedia(tag, reader, writer, canWrite);
 			written -= writer.size()>written ? written : writer.size();
 
 			/// post condition checking

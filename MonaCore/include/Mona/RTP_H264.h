@@ -34,8 +34,8 @@ struct RTP_H264 : virtual Object {
 	UInt8	track;
 
 	// Write
-	bool writeAudio(Media::Audio::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite);
-	bool writeVideo(Media::Video::Tag tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite);
+	bool writeAudio(const Media::Audio::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite);
+	bool writeVideo(const Media::Video::Tag& tag, BinaryReader& reader, BinaryWriter& writer, UInt16 canWrite);
 
 	// Read
 	void parse(UInt32 time, UInt8 extension, UInt16 lost, const Packet& packet, Media::Source& source);
