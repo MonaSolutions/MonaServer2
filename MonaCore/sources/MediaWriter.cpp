@@ -101,7 +101,7 @@ unique<MediaWriter> MediaWriter::New(const char* subMime) {
 
 
 void MediaWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
-	DEBUG(typeof(self), " doesn't support data writing operation");
+	DEBUG(TypeOf(self), " doesn't support data writing operation");
 }
 void MediaWriter::writeMedia(const Media::Base& media, const OnWrite& onWrite) {
 	switch (media.type) {
@@ -116,33 +116,33 @@ void MediaWriter::writeMedia(const Media::Base& media, const OnWrite& onWrite) {
 			return writeData(media.track, data.tag, media, onWrite);
 		}
 		default:
-			WARN(typeof(self), " write a unknown media");
+			WARN(TypeOf(self), " write a unknown media");
 	}
 }
 
 void MediaTrackWriter::writeData(Media::Data::Type type, const Packet& packet, const OnWrite& onWrite, UInt32& finalSize) {
-	DEBUG(typeof(self), " doesn't support data writing operation");
+	DEBUG(TypeOf(self), " doesn't support data writing operation");
 }
 void MediaTrackWriter::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!track) {
 		UInt32 finalSize;
 		writeAudio(tag, packet, onWrite, finalSize);
 	} else
-		WARN(typeof(self), " doesn't support multitrack")
+		WARN(TypeOf(self), " doesn't support multitrack")
 }
 void MediaTrackWriter::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
 	if (!track) {
 		UInt32 finalSize;
 		writeVideo(tag, packet, onWrite, finalSize);
 	} else
-		WARN(typeof(self), " doesn't support multitrack")
+		WARN(TypeOf(self), " doesn't support multitrack")
 }
 void MediaTrackWriter::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
 	if (!track) {
 		UInt32 finalSize;
 		writeData(type, packet, onWrite, finalSize);
 	} else
-		WARN(typeof(self), " doesn't support multitrack")
+		WARN(TypeOf(self), " doesn't support multitrack")
 }
 
 } // namespace Mona

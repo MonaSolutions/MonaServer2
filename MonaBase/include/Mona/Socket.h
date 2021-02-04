@@ -198,7 +198,7 @@ private:
 	bool getOption(Exception& ex, int level, int option, Type& value) const {
 		if (_ex) {
 			if (_ex.cast<Ex::Intern>())
-				ex.set<Ex::Unsupported>("Option ", option," of type ", typeof<Type>()," not supported by ", typeof(self));
+				ex.set<Ex::Unsupported>("Option ", option," of type ", TypeOf<Type>()," not supported by ", TypeOf(self));
 			else
 				ex = _ex;
 			return false;
@@ -214,7 +214,7 @@ private:
 	bool setOption(Exception& ex, int level, int option, Type value) {
 		if (_ex) {
 			if (_ex.cast<Ex::Intern>())
-				ex.set<Ex::Unsupported>("Option ", option, " of type ", typeof<Type>(), " not supported by ", typeof(self));
+				ex.set<Ex::Unsupported>("Option ", option, " of type ", TypeOf<Type>(), " not supported by ", TypeOf(self));
 			else
 				ex = _ex;
 			return false;

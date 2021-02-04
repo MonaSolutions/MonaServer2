@@ -77,7 +77,7 @@ extern "C" {
 
 #define SCRIPT_BEGIN(STATE)										if(lua_State* __pState = STATE) {
 
-#define SCRIPT_MEMBER_FUNCTION_BEGIN(OBJ,MEMBER,...)			if(Script::FromObject(__pState,OBJ)) { for(const char* __name : {MEMBER, __VA_ARGS__}) { lua_pushstring(__pState, __name); lua_rawget(__pState,-2); if(!lua_isfunction(__pState,-1)) { lua_pop(__pState,1); continue; } lua_getfenv(__pState, -1); lua_rawseti(__pState, LUA_REGISTRYINDEX, LUA_ENVIRONINDEX); int __top=lua_gettop(__pState); lua_pushvalue(__pState,-2); const std::string& __type = typeof<std::remove_const<decltype(OBJ)>::type>();
+#define SCRIPT_MEMBER_FUNCTION_BEGIN(OBJ,MEMBER,...)			if(Script::FromObject(__pState,OBJ)) { for(const char* __name : {MEMBER, __VA_ARGS__}) { lua_pushstring(__pState, __name); lua_rawget(__pState,-2); if(!lua_isfunction(__pState,-1)) { lua_pop(__pState,1); continue; } lua_getfenv(__pState, -1); lua_rawseti(__pState, LUA_REGISTRYINDEX, LUA_ENVIRONINDEX); int __top=lua_gettop(__pState); lua_pushvalue(__pState,-2); const std::string& __type = TypeOf<std::remove_const<decltype(OBJ)>::type>();
 #define SCRIPT_FUNCTION_BEGIN(NAME,REFERENCE)					{ thread_local lua_Debug __Debug; if (REFERENCE==LUA_ENVIRONINDEX && lua_getstack(_pState, 0, &__Debug)==1) lua_pushvalue(__pState, LUA_ENVIRONINDEX); else lua_rawgeti(__pState,LUA_REGISTRYINDEX, REFERENCE);  const char* __name = NAME; if (lua_istable(__pState, -1)) lua_getfield(__pState, -1, __name); else lua_pushvalue(__pState, -1); if(!lua_isfunction(__pState,-1)) lua_pop(__pState,1); else for(;;) { lua_getfenv(__pState, -1); lua_rawseti(__pState, LUA_REGISTRYINDEX, LUA_ENVIRONINDEX); int __top=lua_gettop(__pState); const std::string& __type = Mona::String::Empty();
 #define SCRIPT_FUNCTION_CALL_WITHOUT_LOG						const char* __err=NULL; if(lua_pcall(__pState,lua_gettop(__pState)-__top,LUA_MULTRET,0)) { __err = lua_tostring(__pState,-1); lua_pop(__pState,1); } int __lastArg=lua_gettop(__pState); int __arg=--__top; 
 #define SCRIPT_FUNCTION_CALL									const char* __err=NULL; if(lua_pcall(__pState,lua_gettop(__pState)-__top,LUA_MULTRET,0)) SCRIPT_ERROR(__err = Script::LastError(__pState)); int __lastArg=lua_gettop(__pState); int __arg=--__top; 
@@ -178,7 +178,7 @@ struct Script : virtual Static {
 
 	template<typename Type>
 	static Type& AddObject(lua_State *pState, Type& object, Int8 autoRemove=0) {
-		//NOTE("add ", typeof<Type>(), " ", &object);
+		//NOTE("add ", TypeOf<Type>(), " ", &object);
 
 		// __index table
 		lua_newtable(pState);
@@ -239,7 +239,7 @@ struct Script : virtual Static {
 
 	template<typename Type, int index = 0>
 	static void RemoveObject(lua_State *pState, Type& object) {
-		//NOTE("remove ", typeof<Type>(), " " , &object);
+		//NOTE("remove ", TypeOf<Type>(), " " , &object);
 		if (index)
 			lua_pushvalue(pState, index);
 		else if (!FromObject<Type>(pState, object))
@@ -305,7 +305,7 @@ struct Script : virtual Static {
 			lua_pop(pState, 2); // remove this + metatable
 			if (withLogs) {
 				SCRIPT_BEGIN(pState)
-					SCRIPT_ERROR(typeof<typename std::remove_cv<Type>::type>(), " argument invalid, call method with ':' colon operator")
+					SCRIPT_ERROR(TypeOf<typename std::remove_cv<Type>::type>(), " argument invalid, call method with ':' colon operator")
 				SCRIPT_END
 			}
 			return NULL;
@@ -316,7 +316,7 @@ struct Script : virtual Static {
 			return pThis;
 		if (withLogs) {
 			SCRIPT_BEGIN(pState)
-				SCRIPT_ERROR(typeof<typename std::remove_cv<Type>::type>(), " object deleted")
+				SCRIPT_ERROR(TypeOf<typename std::remove_cv<Type>::type>(), " object deleted")
 			SCRIPT_END
 		}
 		return NULL;
@@ -328,7 +328,7 @@ struct Script : virtual Static {
 			int top = lua_gettop(pState);
 			if (top > 1) { // with argument = setter
 				SCRIPT_BEGIN(pState)
-					SCRIPT_ERROR("No setter for ", typeof<typename std::remove_cv<Type>::type>());
+					SCRIPT_ERROR("No setter for ", TypeOf<typename std::remove_cv<Type>::type>());
 				SCRIPT_END
 				return 0;
 			}
@@ -397,9 +397,9 @@ private:
 
 	template<typename Type>
 	static void AddType(lua_State* pState, Type& object) {
-		//DEBUG("ADD ", typeof<Type>(),' ', &object);
+		//DEBUG("ADD ", TypeOf<Type>(),' ', &object);
 		if (FromObject(pState, object))
-			FATAL_ERROR("A LUA", typeof<Type>() ,' ', &object, " was not released properly");
+			FATAL_ERROR("A LUA", TypeOf<Type>() ,' ', &object, " was not released properly");
 		DEBUG_ASSERT(!FromObject(pState, object));
 		DEBUG_ASSERT(_AddTop != 0); // else is a call in a bad location (not encapsulated in AddObject)
 		int top = abs(_AddTop);
@@ -475,7 +475,7 @@ private:
 
 	template<typename Type>
 	static void RemoveType(lua_State* pState, Type& object) {
-		//DEBUG("REM ", typeof<Type>(), ' ', &object);
+		//DEBUG("REM ", TypeOf<Type>(), ' ', &object);
 		DEBUG_ASSERT(_RemoveTop != 0); // else is a call in a bad location (not encapsulated in RemoveObject pr DeleteObject)
 		bool fixStack = UInt32(lua_gettop(pState)) > _RemoveTop;
 		if (fixStack)
@@ -514,7 +514,7 @@ private:
 
 	template<typename Type>
 	static int ToString(lua_State* pState) {
-		String str(typeof<typename std::remove_cv<Type>::type>(), '_', lua_topointer(pState, 1));
+		String str(TypeOf<typename std::remove_cv<Type>::type>(), '_', lua_topointer(pState, 1));
 		lua_pushlstring(pState, str.data(), str.size());
 		return 1;
 	}
@@ -557,7 +557,7 @@ private:
 			else if (lua_isnil(pState, 2))
 				SCRIPT_WRITE_BOOLEAN(!object)
 			else
-				SCRIPT_ERROR("Comparison impossible between one ", typeof<Type>()," and one ",lua_typename(pState,lua_type(pState,2)))
+				SCRIPT_ERROR("Comparison impossible between one ", TypeOf<Type>()," and one ",lua_typename(pState,lua_type(pState,2)))
 		SCRIPT_CALLBACK_RETURN
 	}
 
@@ -568,7 +568,7 @@ private:
 			if (pObject)
 				SCRIPT_WRITE_BOOLEAN(object < *pObject)
 			else
-				SCRIPT_ERROR("Comparison impossible between one ", typeof<Type>()," and one ",lua_typename(pState,lua_type(pState,2)))
+				SCRIPT_ERROR("Comparison impossible between one ", TypeOf<Type>()," and one ",lua_typename(pState,lua_type(pState,2)))
 		SCRIPT_CALLBACK_RETURN
 	}
 
@@ -581,7 +581,7 @@ private:
 			else if (lua_isnil(pState, 2))
 				SCRIPT_WRITE_BOOLEAN(!object)
 			else
-				SCRIPT_ERROR("Comparison impossible between one ", typeof<Type>()," and one ",lua_typename(pState,lua_type(pState,2)))
+				SCRIPT_ERROR("Comparison impossible between one ", TypeOf<Type>()," and one ",lua_typename(pState,lua_type(pState,2)))
 		SCRIPT_CALLBACK_RETURN
 	}
 

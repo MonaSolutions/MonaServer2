@@ -78,7 +78,7 @@ bool DataReader::read(UInt8 type, DataWriter& writer) {
 		return false;
 	UInt32 count(read(writer, 1));
 	if (count>1) {
-		WARN(typeof(*this), " has written many object for just one reading of type ",type);
+		WARN(TypeOf(*this), " has written many object for just one reading of type ",type);
 		return true;
 	}
 	return count==1;

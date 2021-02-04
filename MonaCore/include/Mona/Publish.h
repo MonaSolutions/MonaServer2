@@ -94,16 +94,16 @@ private:
 	template<typename MediaType>
 	struct Write : Action, private MediaType, virtual Object {
 		template<typename ...Args>
-		Write(const shared<Source*>& ppSource, Args&&... args) : Action(typeof<Write<MediaType>>().c_str(), ppSource), MediaType(std::forward<Args>(args)...) {}
+		Write(const shared<Source*>& ppSource, Args&&... args) : Action(TypeOf<Write<MediaType>>().c_str(), ppSource), MediaType(std::forward<Args>(args)...) {}
 		void run(Source& source) { source.writeMedia(self); }
 	};
 
 	template<typename Type, typename ...Args>
 	void queue(Args&&... args) {
 		if (!*_ppSource)
-			ERROR("Publish ", name(), " has failed, impossible to ", typeof<Type>())
+			ERROR("Publish ", name(), " has failed, impossible to ", TypeOf<Type>())
 		else if (!_api.handler.tryQueue<Type>(_ppSource, std::forward<Args>(args)...))
-			ERROR("Server stopped, impossible to ", typeof<Type>(), " ", name());
+			ERROR("Server stopped, impossible to ", TypeOf<Type>(), " ", name());
 	}
 
 	unique<Path>		_pStream; // if is set => source is a publication (otherwise _ppSource points to source constructor argument)

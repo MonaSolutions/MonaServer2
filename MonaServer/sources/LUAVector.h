@@ -48,7 +48,7 @@ struct LUAVector : virtual Static {
 					if(index<=vector.size())
 						PushValue(pState, vector, --index);
 					else
-						SCRIPT_ERROR("out of 1-", vector.size(), ' ', typeof<VectorType>(), " range");
+						SCRIPT_ERROR("out of 1-", vector.size(), ' ', TypeOf<VectorType>(), " range");
 				}
 			} else if(const char* name = lua_tostring(pState, arg) && strcmp(name, "len") == 0)
 				SCRIPT_WRITE_FUNCTION(&Len)

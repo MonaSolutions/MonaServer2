@@ -28,15 +28,15 @@ namespace BaseTest {
 template<typename Type>
 struct Obj {};
 
-ADD_TEST(typeof) {
+ADD_TEST(TypeOf) {
 	Buffer buffer;
-	CHECK(typeof(buffer) == "Buffer");
+	CHECK(TypeOf(buffer) == "Buffer");
 	int i;
-	CHECK(typeof(i) == "int");
+	CHECK(TypeOf(i) == "int");
 	XMLParser::XMLState state;
-	CHECK(typeof(state) == "XMLParser::XMLState");
+	CHECK(TypeOf(state) == "XMLParser::XMLState");
 	Obj<Buffer> type;
-	CHECK(typeof(type) == "BaseTest::Obj<Buffer>");
+	CHECK(TypeOf(type) == "BaseTest::Obj<Buffer>");
 }
 
 ADD_TEST(parameters) {

@@ -49,7 +49,7 @@ struct Server : protected ServerAPI, private Thread {
 		shared<ActionType> pAction(SET, api(), std::forward<Args>(args)...);
 		if (handler.tryQueue(pAction))
 			return std::move(pAction);
-		ERROR("Start ", typeof(self), " before to ", typeof<ActionType>());
+		ERROR("Start ", TypeOf(self), " before to ", TypeOf<ActionType>());
 		return nullptr;
 	}
 

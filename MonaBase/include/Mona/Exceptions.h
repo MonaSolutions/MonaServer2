@@ -104,7 +104,7 @@ struct Exception : virtual Object {
 	ExType& set(Args&&... args) {
 		ExType& ex = _pEx.set<ExType>();
 		if (String::Assign<std::string>(ex, std::forward<Args>(args)...).empty())
-			String::Assign(ex, typeof<ExType>()," exception");
+			String::Assign(ex, TypeOf<ExType>()," exception");
 		return ex;
 	}
 	Exception& reset() { _pEx.reset();  return *this; }

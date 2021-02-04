@@ -64,7 +64,7 @@ public:
 		if (!resource.pObject) {
 			resource.onTimer = [&](UInt32 delay) {
 				delete (Type*)resource.pObject;
-				onRelease(resource.name, typeof<Type>());
+				onRelease(resource.name, TypeOf<Type>());
 				_resources.erase(resource);
 				return 0;
 			};
@@ -74,7 +74,7 @@ public:
 		resource.pObject = new typename std::remove_cv<Type>::type(std::forward<Args>(args)...);
 		// set the timer
 		timer.set(resource.onTimer, lifeTime);
-		onCreate(resource.name, typeof<Type>(), lifeTime);
+		onCreate(resource.name, TypeOf<Type>(), lifeTime);
 		return *(Type*)resource.pObject;
 	}
 

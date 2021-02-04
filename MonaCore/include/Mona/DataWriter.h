@@ -51,7 +51,7 @@ struct DataWriter : virtual Object {
 	// if serializer don't support a mixed object, set the object as the first element of the array
 	virtual UInt64 beginObjectArray(UInt32 size) { UInt64 ref(beginArray(size+1)); beginObject(); return ref; }
 
-	virtual UInt64 beginMap(Exception& ex, UInt32 size, bool weakKeys = false) { ex.set<Ex::Format>(typeof(*this)," doesn't support map type, a object will be written rather");  return beginObject(); }
+	virtual UInt64 beginMap(Exception& ex, UInt32 size, bool weakKeys = false) { ex.set<Ex::Format>(TypeOf(*this)," doesn't support map type, a object will be written rather");  return beginObject(); }
 	virtual void   endMap() { endObject(); }
 
 	virtual void   reset() { writer.clear(); }

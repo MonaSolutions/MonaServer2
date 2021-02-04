@@ -39,7 +39,7 @@ UInt32 SRTReader::parse(Packet& buffer, Media::Source& source) {
 						break;
 					if (memcmp(cur, signature, size) != 0) {
 						if (!_syncError) {
-							WARN(typeof(self), " waits ", signature, " signature");
+							WARN(TypeOf(self), " waits ", signature, " signature");
 							_syncError = true;
 						}
 						++cur;

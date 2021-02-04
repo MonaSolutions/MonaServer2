@@ -32,7 +32,7 @@ UInt32 ReferableReader::read(DataWriter& writer, UInt32 count) {
 	UInt32 result(DataReader::read(writer,count));
 	for (auto& it : _references) {
 		if (it.second.level>0)
-			WARN(typeof(*this)," has open some complex objects withoiut closing them")
+			WARN(TypeOf(*this)," has open some complex objects withoiut closing them")
 	}
 	_references.clear();
 	_recursive = false;
@@ -69,7 +69,7 @@ void ReferableReader::writeRepeatable(UInt64 readerRef, UInt64 writerRef) {
 
 bool ReferableReader::tryToRepeat(DataWriter& writer, UInt64 reference) {
 	if (reference == 0) {
-		ERROR(typeof(*this)," reference can't be null");
+		ERROR(TypeOf(*this)," reference can't be null");
 		writer.writeNull();
 		return true;
 	}
@@ -79,7 +79,7 @@ bool ReferableReader::tryToRepeat(DataWriter& writer, UInt64 reference) {
 	if (it->second.value > 0 && writer.repeat(it->second.value))
 		return true;
 	if (it->second.level) {
-		ERROR("Impossible to repeat ",typeof(*this)," reference, ", typeof(writer), " doesn't support fully cyclic referencing")
+		ERROR("Impossible to repeat ",TypeOf(*this)," reference, ", TypeOf(writer), " doesn't support fully cyclic referencing")
 		writer.writeNull();
 		return true;
 	}
@@ -88,20 +88,20 @@ bool ReferableReader::tryToRepeat(DataWriter& writer, UInt64 reference) {
 
 bool ReferableReader::writeReference(DataWriter& writer, UInt64 reference) {
 	if (reference == 0) {
-		ERROR(typeof(*this)," reference can't be null");
+		ERROR(TypeOf(*this)," reference can't be null");
 		writer.writeNull();
 		return true;
 	}
 	auto it(_references.find(reference));
 	if (it == _references.end()) {
-		ERROR(typeof(*this)," reference ",reference," unfound");
+		ERROR(TypeOf(*this)," reference ",reference," unfound");
 		writer.writeNull();
 		return true;
 	}
 	if (it->second.value > 0 && writer.repeat(it->second.value))
 		return true;
 	if (it->second.level) {
-		ERROR("Impossible to repeat ",typeof(*this)," reference, ", typeof(writer), " doesn't support fully cyclic referencing")
+		ERROR("Impossible to repeat ",TypeOf(*this)," reference, ", TypeOf(writer), " doesn't support fully cyclic referencing")
 		writer.writeNull();
 		return true;
 	}

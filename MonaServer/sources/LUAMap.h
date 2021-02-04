@@ -157,10 +157,10 @@ struct LUAMap : virtual Static {
 					int count = keying && !std::is_const<MapType>::value ? m.erase(key) : -1;
 					if (count < 0) {
 						if (keying) {
-							SCRIPT_ERROR("Impossible to erase ", key, " of ", typeof<ObjType>())
+							SCRIPT_ERROR("Impossible to erase ", key, " of ", TypeOf<ObjType>())
 							keying = false;
 						} else
-							SCRIPT_ERROR("Use explicit table(params):clear() function to clear ", typeof<ObjType>());
+							SCRIPT_ERROR("Use explicit table(params):clear() function to clear ", TypeOf<ObjType>());
 						count = 0;
 					}
 					SCRIPT_WRITE_INT(count); // to match "clear" which returns size removed + just log error (error not detectable in LUA, too complicated to handle, just read the error)
@@ -183,7 +183,7 @@ struct LUAMap : virtual Static {
 							if (_m.clear(_pPrefix) < 0) {
 								_failed = true;
 								SCRIPT_BEGIN(_reader.lua())
-									SCRIPT_ERROR("Impossible to clear ", typeof<ObjType>())
+									SCRIPT_ERROR("Impossible to clear ", TypeOf<ObjType>())
 								SCRIPT_END
 							}
 						}
@@ -192,7 +192,7 @@ struct LUAMap : virtual Static {
 							if (!_m.set(key, _reader.nextType() < DataReader::OTHER ? _reader : ScriptReader::Null(), _parameters)) {
 								_failed = true;
 								SCRIPT_BEGIN(_reader.lua())
-									SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<ObjType>())
+									SCRIPT_ERROR("Impossible to set ", key, " of ", TypeOf<ObjType>())
 								SCRIPT_END
 							} else
 								lua_pop(_reader.lua(), 1); // remove new value pushed!
@@ -222,7 +222,7 @@ struct LUAMap : virtual Static {
 					} else // SET
 						keying = false;
 					if (!keying && (std::is_const<MapType>::value || !m.set(key, reader, parameters))) {
-						SCRIPT_ERROR("Impossible to set ", key, " of ", typeof<ObjType>())
+						SCRIPT_ERROR("Impossible to set ", key, " of ", TypeOf<ObjType>())
 						SCRIPT_WRITE_NIL
 					}
 				}
@@ -240,7 +240,7 @@ struct LUAMap : virtual Static {
 						// :clear()
 						int count = m.clear(ToKey(pState, 2, key) ? &key : NULL);
 						if (count < 0) {
-							SCRIPT_ERROR("Impossible to clear right elements of ", typeof<ObjType>())
+							SCRIPT_ERROR("Impossible to clear right elements of ", TypeOf<ObjType>())
 							count = -count+1;
 						}
 						SCRIPT_WRITE_INT(count);

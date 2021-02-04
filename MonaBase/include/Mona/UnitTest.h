@@ -40,7 +40,7 @@ struct UnitTest : private Application {
 
 	template<typename TestType>
 	static bool AddTest() { 
-		const std::string& type = typeof<TestType>();
+		const std::string& type = TypeOf<TestType>();
 		Tests().emplace(SET, std::forward_as_tuple(type.data(), type.find("::")), std::forward_as_tuple(std::make_unique<TestType>(type)));
 		return true;
 	}

@@ -410,7 +410,7 @@ void Media::Source::writeMedia(const Media::Base& media) {
 			return writeData(data.tag, media, media.track);
 		}
 		default:
-			WARN(typeof(self), " write an unknown media ", UInt8(media.type));
+			WARN(TypeOf(self), " write an unknown media ", UInt8(media.type));
 	}
 }
 
@@ -428,31 +428,31 @@ Media::Source& Media::Source::Null() {
 }
 
 bool Media::Target::beginMedia(const string& name) {
-	ERROR(typeof(self), " doesn't support media streaming");
+	ERROR(TypeOf(self), " doesn't support media streaming");
 	return false;
 }
 bool Media::Target::writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(self), " doesn't support audio streaming");
+	WARN(TypeOf(self), " doesn't support audio streaming");
 	return true;
 }
 bool Media::Target::writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(self), " doesn't support video streaming");
+	WARN(TypeOf(self), " doesn't support video streaming");
 	return true;
 }
 bool Media::Target::writeData(UInt8 track, Media::Data::Type type, const Packet& packet, bool reliable) {
-	WARN(typeof(self), " doesn't support data streaming");
+	WARN(TypeOf(self), " doesn't support data streaming");
 	return true;
 }
 bool Media::TrackTarget::writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(self), " doesn't support audio streaming");
+	WARN(TypeOf(self), " doesn't support audio streaming");
 	return true;
 }
 bool Media::TrackTarget::writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) {
-	WARN(typeof(self), " doesn't support video streaming");
+	WARN(TypeOf(self), " doesn't support video streaming");
 	return true;
 }
 bool Media::TrackTarget::writeData(Media::Data::Type type, const Packet& packet, bool reliable) {
-	WARN(typeof(self), " doesn't support data streaming");
+	WARN(TypeOf(self), " doesn't support data streaming");
 	return true;
 }
 

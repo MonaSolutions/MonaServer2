@@ -54,7 +54,7 @@ private:
 		byte = reader.read8();
 		UInt8 playloadType(byte & 0x7F);
 		if (playloadType != _profile.playloadType) {
-			ERROR(typeof<RTP_ProfileType>()," configured to receive ",_profile.playloadType," playload type and not ",playloadType)
+			ERROR(TypeOf<RTP_ProfileType>()," configured to receive ",_profile.playloadType," playload type and not ",playloadType)
 			return 0;
 		}
 
@@ -66,7 +66,7 @@ private:
 		UInt32 ssrc(reader.read32());
 		if (ssrc != _ssrc) {
 			if (_first)
-				WARN(typeof<RTP_ProfileType>()," SSRC have changed, ", _ssrc, " => ", ssrc);
+				WARN(TypeOf<RTP_ProfileType>()," SSRC have changed, ", _ssrc, " => ", ssrc);
 			_ssrc = ssrc;
 		}
 

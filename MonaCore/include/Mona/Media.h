@@ -347,7 +347,7 @@ struct Media : virtual Static {
 	/*!
 	To write a media part from source (just a part of one media, so no beginMedia/endMedia and writeProperties) */
 	struct Source : virtual Object {
-		virtual const std::string&	name() const { return typeof(self); }
+		virtual const std::string&	name() const { return TypeOf(self); }
 
 		virtual void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;
 		virtual void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) = 0;

@@ -298,14 +298,14 @@ inline RangeType range(Type value) {
 		return value > 0 ? std::numeric_limits<RangeType>::max() : result; // result signed and value unsigned => result max
 	return value < 0 ? 0 : result; // result unsigned and value signed => 0
 }
-const std::string& typeof(const std::type_info& info);
+const std::string& TypeOf(const std::type_info& info);
 template<typename ObjectType>
-inline const std::string& typeof(const ObjectType& object) { return typeof(typeid(object)); }
+inline const std::string& TypeOf(const ObjectType& object) { return TypeOf(typeid(object)); }
 /*!
-Try to prefer this template typeof version, because is the more faster*/
+Try to prefer this template TypeOf version, because is the more faster*/
 template<typename ObjectType>
-inline const std::string& typeof() {
-	static const std::string& Type(typeof(typeid(ObjectType)));
+inline const std::string& TypeOf() {
+	static const std::string& Type(TypeOf(typeid(ObjectType)));
 	return Type;
 }
 

@@ -80,13 +80,13 @@ private:
 		bool isAudio(typeid(TagType) == typeid(Media::Audio::Tag));
 		UInt8 playloadType(_profile.playloadType);
 		if (!playloadType) {
-			ERROR(typeof<RTP_ProfileType>(), " profile doesn't support ", Media::CodecToString(tag.codec), isAudio ? " audio" : " video");
+			ERROR(TypeOf<RTP_ProfileType>(), " profile doesn't support ", Media::CodecToString(tag.codec), isAudio ? " audio" : " video");
 			return;
 		}
 
 		if (track != _profile.track) {
 			if (!_profile.supportTracks) {
-				ERROR(typeof<RTP_ProfileType>()," profile doesn't support multiple tracks, ", isAudio ? "audio track " : "video track ", track, " ignored");
+				ERROR(TypeOf<RTP_ProfileType>()," profile doesn't support multiple tracks, ", isAudio ? "audio track " : "video track ", track, " ignored");
 				return;
 			}
 			_profile.track = track;
@@ -123,11 +123,11 @@ private:
 				if (!flush)
 					break; // no flush + no write, stop!
 				if (writer.size() <= 12) { // just header, flush can't increase canWrite
-					ERROR(typeof<RTP_ProfileType>()," requires size which superior to the MTU ", mtuSize, " size configured");
+					ERROR(TypeOf<RTP_ProfileType>()," requires size which superior to the MTU ", mtuSize, " size configured");
 					break;
 				}
 			} else if(written>canWrite) {
-				WARN(typeof<RTP_ProfileType>()," packet with ", writer.size()," size exceeds the MTU ", mtuSize, " size configured");
+				WARN(TypeOf<RTP_ProfileType>()," packet with ", writer.size()," size exceeds the MTU ", mtuSize, " size configured");
 				canWrite = 0;
 			} else
 				canWrite -= written;

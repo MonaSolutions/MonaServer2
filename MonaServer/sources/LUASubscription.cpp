@@ -97,7 +97,7 @@ static int streaming(lua_State *pState) {
 }
 static int target(lua_State *pState) {
 	SCRIPT_CALLBACK(Subscription, subscription)
-		SCRIPT_WRITE_STRING(typeof(subscription.target())); // When "Subscription" = subscription intern, else will be the ProtocolWriter!
+		SCRIPT_WRITE_STRING(TypeOf(subscription.target())); // When "Subscription" = subscription intern, else will be the ProtocolWriter!
 	SCRIPT_CALLBACK_RETURN
 }
 

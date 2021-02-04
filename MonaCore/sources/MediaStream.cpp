@@ -98,12 +98,12 @@ void MediaStream::stop() {
 }
 shared<const Socket> MediaStream::socket() const {
 	if (type>0)
-		WARN(typeof(self), " should implement socket()");
+		WARN(TypeOf(self), " should implement socket()");
 	return nullptr;
 }
 shared<const File> MediaStream::file() const {
 	if (type == TYPE_FILE)
-		WARN(typeof(self), " should implement file()");
+		WARN(TypeOf(self), " should implement file()");
 	return nullptr;
 }
 

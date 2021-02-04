@@ -62,9 +62,9 @@ struct Event<Result(Args ...)> : virtual Object {
 	Assign lambda function */
 	Event& operator=(std::function<Result(Args...)>&& function) {
 		if (!_pFunction)
-			FATAL_ERROR("Null event ", typeof(*this), " can't assign function ", typeof(function));
+			FATAL_ERROR("Null event ", TypeOf(*this), " can't assign function ", TypeOf(function));
 		if (*_pFunction)
-			FATAL_ERROR("Event ", typeof(*this), " already subscribed, unsubscribe before with nullptr assignement");
+			FATAL_ERROR("Event ", TypeOf(*this), " already subscribed, unsubscribe before with nullptr assignement");
 		*_pFunction = std::move(function);
 		return *this;
 	}
@@ -72,9 +72,9 @@ struct Event<Result(Args ...)> : virtual Object {
 	Subscribe to event */
 	Event& operator=(const Event& event) {
 		if (!_pFunction)
-			FATAL_ERROR(typeof(event), " try to subscribe to null event");
+			FATAL_ERROR(TypeOf(event), " try to subscribe to null event");
 		if (*_pFunction)
-			FATAL_ERROR("Event ", typeof(*this), " already subscribed, unsubscribe before with nullptr assignement");
+			FATAL_ERROR("Event ", TypeOf(*this), " already subscribed, unsubscribe before with nullptr assignement");
 		*_pFunction = [weakFunction = weak<std::function<Result(Args...)>>(event._pFunction)](Args... args) {
 			shared<std::function<Result(Args...)>> pFunction(weakFunction.lock());
 			return (pFunction && *pFunction) ? (*pFunction)(std::forward<Args>(args)...) : Result();
@@ -83,9 +83,9 @@ struct Event<Result(Args ...)> : virtual Object {
 	}
 	Event& operator=(const Event&& event) {
 		if (!_pFunction)
-			FATAL_ERROR(typeof(event), " try to subscribe to null event");
+			FATAL_ERROR(TypeOf(event), " try to subscribe to null event");
 		if (*_pFunction)
-			FATAL_ERROR("Event ", typeof(*this), " already subscribed, unsubscribe before with nullptr assignement");
+			FATAL_ERROR("Event ", TypeOf(*this), " already subscribed, unsubscribe before with nullptr assignement");
 		_pFunction = event._pFunction;
 		return *this;
 	}

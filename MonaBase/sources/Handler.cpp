@@ -47,7 +47,7 @@ UInt32 Handler::flush(bool last) {
 
 bool Handler::tryQueue(const Event<void()>& onResult) const {
 	struct Result : Runner, virtual Object {
-		Result(const Event<void()>& onResult) : _onResult(move(onResult)), Runner(typeof(onResult).c_str()) {}
+		Result(const Event<void()>& onResult) : _onResult(move(onResult)), Runner(TypeOf(onResult).c_str()) {}
 		bool run(Exception& ex) { _onResult(); return true; }
 	private:
 		Event<void()>	_onResult;

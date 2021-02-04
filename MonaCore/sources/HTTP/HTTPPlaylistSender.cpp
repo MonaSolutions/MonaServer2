@@ -27,7 +27,7 @@ template<typename SenderType, typename PlaylistType>
 static void Send(SenderType& sender, const PlaylistType& playlist, const Path& type, const HTTP::Header& request) {
 	Exception ex;
 	bool success;
-	AUTO_ERROR(success = Playlist::Write(ex, type.extension(), playlist, sender.buffer()), typeof<PlaylistType>());
+	AUTO_ERROR(success = Playlist::Write(ex, type.extension(), playlist, sender.buffer()), TypeOf<PlaylistType>());
 	if (success) {
 		const char* subMime = request.subMime;
 		MIME::Type mime = request.mime;

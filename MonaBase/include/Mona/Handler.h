@@ -52,7 +52,7 @@ struct Handler : virtual Object {
 	template<typename ResultType, typename ...Args>
 	bool tryQueue(const Event<void(ResultType)>& onResult, Args&&... args) const {
 		struct Result : Runner, virtual Object {
-			Result(const Event<void(ResultType)>& onResult, Args&&... args) : _result(std::forward<Args>(args)...), _onResult(std::move(onResult)), Runner(typeof<ResultType>().c_str()) {}
+			Result(const Event<void(ResultType)>& onResult, Args&&... args) : _result(std::forward<Args>(args)...), _onResult(std::move(onResult)), Runner(TypeOf<ResultType>().c_str()) {}
 			bool run(Exception& ex) { _onResult(_result); return true; }
 		private:
 			Event<void(ResultType)>								_onResult;
@@ -68,27 +68,27 @@ struct Handler : virtual Object {
 	template<typename RunnerType, typename = typename std::enable_if<std::is_constructible<shared<Runner>, RunnerType>::value>::type>
 	void queue(RunnerType&& pRunner) const {
 		if (!tryQueue(std::forward<RunnerType>(pRunner)))
-			FATAL_ERROR("Impossible to queue ", typeof<RunnerType>());
+			FATAL_ERROR("Impossible to queue ", TypeOf<RunnerType>());
 	}
 	/*!
 	Build and queue a RunnerType, returns false if failed */
 	template <typename RunnerType, typename ...Args>
 	void queue(Args&&... args) const {
 		if(!tryQueue(std::make_shared<RunnerType>(std::forward<Args>(args)...)))
-			FATAL_ERROR("Impossible to queue ", typeof<RunnerType>());
+			FATAL_ERROR("Impossible to queue ", TypeOf<RunnerType>());
 	}
 	/*!
 	Queue an event with arguments call, returns false if failed */
 	template<typename ResultType, typename ...Args>
 	void queue(const Event<void(ResultType)>& onResult, Args&&... args) const {
 		if(!tryQueue(onResult, std::forward<Args>(args)...))
-			FATAL_ERROR("Impossible to queue ", typeof(onResult));
+			FATAL_ERROR("Impossible to queue ", TypeOf(onResult));
 	}
 	/*!
 	Queue an event without argument, returns false if failed */
 	void queue(const Event<void()>& onResult) const {
 		if(!tryQueue(onResult))
-			FATAL_ERROR("Impossible to queue ", typeof(onResult));
+			FATAL_ERROR("Impossible to queue ", TypeOf(onResult));
 	}
 
 private:

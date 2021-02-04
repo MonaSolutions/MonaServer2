@@ -42,7 +42,7 @@ const string* Protocol::onParamUnfound(const string& key) const {
 SocketAddress Protocol::load(Exception& ex) {
 	if (_pGateway)
 		return _pGateway->address;
-	ERROR(typeof(self)," must overload Protocol::load method");
+	ERROR(TypeOf(self)," must overload Protocol::load method");
 	return SocketAddress::Wildcard();
 }
 

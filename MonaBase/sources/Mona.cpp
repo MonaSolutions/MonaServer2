@@ -158,7 +158,7 @@ const UInt16 ASCII::_CharacterTypes[128] =  {
 	/* 7f DEL */ CONTROL
 };
 
-const string& typeof(const type_info& info) {
+const string& TypeOf(const type_info& info) {
 	static map<size_t, string> Types;
 	static std::atomic_flag  _FastMutex; // keep mutex because and not thread_local because can be used for Runner!
 	while (_FastMutex.test_and_set(std::memory_order_acquire))
