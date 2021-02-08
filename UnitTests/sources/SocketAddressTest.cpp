@@ -26,7 +26,6 @@ using namespace Mona;
 
 namespace SocketAddressTest {
 
-static string _Buffer;
 
 ADD_TEST(Behavior) {
 	
@@ -42,11 +41,6 @@ ADD_TEST(Behavior) {
 	CHECK(sa.host() == "192.168.1.100");
 	CHECK(sa.port() == 100);
 
-	CHECK(sa.set(ex, "192.168.1.100", "100") && !ex);
-	CHECK(sa.host() == "192.168.1.100");
-	CHECK(sa.port() == 100);
-
-
 	CHECK(sa.set(ex, "192.168.1.100", Net::ResolvePort(ex, "ftp")) && !ex)
 	CHECK(sa.host() == "192.168.1.100");
 	CHECK(sa.port() == 21);
@@ -61,32 +55,37 @@ ADD_TEST(Behavior) {
 	CHECK(!sa.set(ex, "192.168.2.260", 80) && ex);
 	ex = NULL;
 
-	CHECK(!sa.set(ex, "192.168.2.120", "80000") && ex);
-	ex = NULL;
-
-	CHECK(sa.set(ex,_Buffer.assign("192.168.2.120:88")) && !ex);
+	CHECK(sa.set(ex,"192.168.2.120:88") && !ex);
 	CHECK(sa.host() == "192.168.2.120");
 	CHECK(sa.port() == 88);
 
-	CHECK(!sa.set(ex, _Buffer.assign("[192.168.2.120]:88")) && ex);
+	CHECK(!sa.set(ex, "[192.168.2.120]:88") && ex);
 	ex = NULL;
 	
 	CHECK(!sa.set(ex, "[192.168.2.260]") && ex);
 	ex = NULL;
 
-	CHECK(!sa.set(ex, _Buffer.assign("[192.168.2.260:88")) && ex);
+	CHECK(!sa.set(ex, "[192.168.2.260:88") && ex);
 	ex = NULL;
 	
 	CHECK(sa.set(ex, "192.168.1.100", 100) && !ex);
 	SocketAddress sa2;
-	CHECK(sa2.set(ex, _Buffer.assign("192.168.1.100:100")) && !ex);
+	CHECK(sa2.set(ex, "192.168.1.100:100") && !ex);
 	CHECK(sa == sa2);
 
-	CHECK(sa.set(ex, "192.168.1.101", "99") && !ex);
+	CHECK(sa.set(ex, "192.168.1.101", 99) && !ex);
 	CHECK(sa2 < sa);
 
-	CHECK(sa2.set(ex, "192.168.1.101", "102") && !ex);
+	CHECK(sa2.set(ex, "192.168.1.101", 102) && !ex);
 	CHECK(sa < sa2);
+
+
+	UInt16 port;
+	CHECK(SocketAddress::ParsePort("url:1234", port) == 3 && port == 1234);
+	port = 0;
+	CHECK(SocketAddress::ParsePort("url:123x", port) == string::npos && !port);
+	CHECK(SocketAddress::ParsePort("127.0.0.1:1234", port)  == 9 && port == 1234);
+	
 }
 
 ADD_TEST(ToString) {
@@ -123,49 +122,48 @@ ADD_TEST(Behavior6) {
 	CHECK(sa.host() == "1080::8:600:200a:425c");
 	CHECK(sa.port() == 100);
 
-	CHECK(sa.set(ex, "1080::8:600:200A:425C", "100") && !ex);
-	CHECK(sa.host() == "1080::8:600:200a:425c");
-	CHECK(sa.port() == 100);
-
 
 	CHECK(sa.set(ex, "1080::8:600:200A:425C", Net::ResolvePort(ex, "ftp")) && !ex);
 	CHECK(sa.host() == "1080::8:600:200a:425c");
 	CHECK(sa.port() == 21);
 
-	CHECK(sa.set(ex, "1080::0001", "65535") && !ex);
+	CHECK(sa.set(ex, "1080::0001", 65535) && !ex);
 	CHECK(sa.host() == "1080::1");
 	CHECK(sa.port() == 65535);
 
 	CHECK(!sa.set(ex, "1080::8:600:200A:FFFFF", 80) && ex);
 	ex = NULL;
 	
-	CHECK(!sa.set(ex, "1080::8:600:200A:425C", "80000") && ex);
-	ex = NULL;
-
-	CHECK(sa.set(ex,_Buffer.assign("[1080::8:600:200A:425C]:88")) && !ex);
+	CHECK(sa.set(ex,"[1080::8:600:200A:425C]:88") && !ex);
 	CHECK(sa.host() == "1080::8:600:200a:425c");
 	CHECK(sa.port() == 88);
 
-	CHECK(!sa.set(ex, _Buffer.assign("[1080::8:600:200A:425C]")) && ex);
+	CHECK(!sa.set(ex, "[1080::8:600:200A:425C]") && ex);
 	ex = NULL;
 
-	CHECK(!sa.set(ex,_Buffer.assign("[1080::8:600:200A:425C:88]")) && ex);
+	CHECK(!sa.set(ex,"[1080::8:600:200A:425C:88]") && ex);
 	ex = NULL;
 	
 	CHECK(sa.set(ex,"1080::8:600:200A:425C", 100) && !ex);
 	SocketAddress sa2;
-	CHECK(sa2.set(ex,_Buffer.assign("[1080::8:600:200A:425C]:100")) && !ex);
+	CHECK(sa2.set(ex,"[1080::8:600:200A:425C]:100") && !ex);
 	CHECK(sa == sa2);
 
-	CHECK(sa.set(ex,"1080::8:600:200A:425D", "99") && !ex);
+	CHECK(sa.set(ex,"1080::8:600:200A:425D", 99) && !ex);
 	CHECK(sa2 < sa);
 
-	CHECK(sa2.set(ex, "1080::8:600:200A:425D", "102") && !ex);
+	CHECK(sa2.set(ex, "1080::8:600:200A:425D", 102) && !ex);
 	CHECK(sa < sa2);
 
-	CHECK(sa.set(ex, "1080::0001", "100") && !ex);
-	CHECK(sa2.set(ex, "1080::1", "100") && !ex);
+	CHECK(sa.set(ex, "1080::0001", 100) && !ex);
+	CHECK(sa2.set(ex, "1080::1", 100) && !ex);
 	CHECK(sa == sa2);
+
+	UInt16 port;
+	CHECK(SocketAddress::ParsePort("[1080::8:600:200A:425C]:1234", port) == 23 && port == 1234);
+	port = 0;
+	CHECK(SocketAddress::ParsePort("[1080::8:600:200A:425C]:123x", port) == string::npos && !port);
+	CHECK(SocketAddress::ParsePort("1080::8:600:200A:1234", port) == string::npos && !port);
 }
 
 ADD_TEST(Comparisons6) {

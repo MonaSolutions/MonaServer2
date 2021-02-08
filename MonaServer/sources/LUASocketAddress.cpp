@@ -55,47 +55,43 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, Socket
 		return true;
 	}
 
-	if (lua_type(pState, index)==LUA_TSTRING) { // lua_type because can be encapsulated in a lua_next
-		const char* value = lua_tostring(pState,index);
-		if (lua_type(pState, ++index) == LUA_TSTRING)
-			return *value == '@' ? address.setWithDNS(ex, value + 1, lua_tostring(pState, index)) : address.set(ex, value, lua_tostring(pState, index));
-		port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
-		for(;;) {
-			if (isNum)
-				return *value == '@' ? address.setWithDNS(ex, value + 1, port) : address.set(ex, value, port);
-			--index;
-			// try with default port (if already set on address?)
-			bool result = *value == '@' ? address.setWithDNS(ex, value + 1) : address.set(ex, value);
-			if (result || !(port = address.port()) || !ex.cast<Ex::Net::Address::Port>())
-				return result;
-			isNum = true;
-		}
-	}
-	
-	if(lua_istable(pState,index)) {
-		// In first SocketAddress because can be also a IPAddress!
-		SocketAddress* pOther = Script::ToObject<SocketAddress>(pState, index);
-		if (pOther) {
-			address.set(*pOther);
-			return true;
-		}
-		IPAddress* pHost = Script::ToObject<IPAddress>(pState, index);
-		if (pHost) {
-			if (lua_type(pState, ++index)==LUA_TSTRING)
-				return address.set(ex, *pHost, lua_tostring(pState, index));
-			port = range<UInt16>(lua_tointegerx(pState, index, &isNum));
-			if (isNum || (port = address.port())) {
-				address.set(*pHost, port);
+	const char* host;
+
+	// lua_type because can be encapsulated in a lua_next
+	switch (lua_type(pState, index)) {
+		case LUA_TSTRING:
+			host = lua_tostring(pState, index);
+			if (*host == '@' ? !address.host().setWithDNS(ex, host + 1) : !address.host().set(ex, host))
+				return false;
+			break;
+		case LUA_TTABLE:
+			// In first SocketAddress because can be also a IPAddress!
+			SocketAddress* pOther = Script::ToObject<SocketAddress>(pState, index);
+			if (pOther) {
+				address.set(*pOther);
 				return true;
 			}
-			--index;
-			ex.set<Ex::Net::Address::Port>("Missing port number in ", *pHost);
-			return 0;
-		}
+			IPAddress* pHost = Script::ToObject<IPAddress>(pState, index);
+			if (pHost) {
+				host = address.host().set(*pHost).c_str();
+				break;
+			}
+		default:
+			ex.set<Ex::Net::Address>("No valid SocketAddress arguments");
+			return false;
 	}
 
-	ex.set<Ex::Net::Address>("No valid SocketAddress arguments");
-	return 0;
+	port = range<UInt16>(lua_tointegerx(pState, ++index, &isNum));
+	if (isNum) {
+		address.setPort(port);
+		return true;
+	}
+	// try with default port (set on address before call to LUASocketAddress::From)
+	--index;
+	if (address.port())
+		return true;
+	ex.set<Ex::Net::Address::Port>("Missing port number in ", host);
+	return false;
 }
 
 }

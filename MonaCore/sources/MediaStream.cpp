@@ -214,26 +214,16 @@ unique<MediaStream> MediaStream::New(Exception& ex, Media::Source& source, const
 		if (toBind)
 			addr.erase(0, 1);
 
-		Exception exc;
-		IPAddress host;
-
-		if (!address.host().set(exc, addr)) { // just host? (ipv6 with : for example)
-			// if no ':' => just an host => has failed!
-			size_t portPos = addr.rfind(':');
-			if (portPos==string::npos) {
-				ex = exc;
+		if (!address.set(ex, addr)) {
+			if (!ex.cast<Ex::Net::Address::Port>())
 				return nullptr;
-			}
-			// has port!
-			addr[portPos] = 0;
-			if (!address.set(ex, addr, addr.c_str() + portPos + 1))
-				return nullptr;
-		} else {
+			ex = nullptr;
+			// port missing, take protocol port
 			UInt16 port = Net::ResolvePort(ex, protocol.c_str());
-			if (!port) // no port, search with protocol maybe?
+			if (!port || !address.set(ex, addr, port))
 				return nullptr;
-			address.setPort(port);
 		}
+
 		if (!address.host())
 			toBind = true;
 	}

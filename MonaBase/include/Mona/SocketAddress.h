@@ -59,10 +59,6 @@ struct SocketAddress : private IPAddress, virtual Object {
 	set SocketAddress from a given IP and a given port */
 	SocketAddress& set(const IPAddress& host, UInt16 port) { IPAddress::set(host, port); return *this; }
 	/*!
-	set SocketAddress from a given IP and a parsed port */
-	bool set(Exception& ex, const IPAddress& host, const std::string& port) { return set(ex, host, port.c_str()); }
-	bool set(Exception& ex, const IPAddress& host, const char* port);
-	/*!
 	Set SocketAddress from binary data */
 	SocketAddress& set(BinaryReader& reader, Family family = IPv4);
 	/*!
@@ -72,25 +68,13 @@ struct SocketAddress : private IPAddress, virtual Object {
 	bool setWithDNS(Exception& ex, const std::string& host, UInt16 port) { return setIntern(ex, host.c_str(), port, true); }
 	bool setWithDNS(Exception& ex, const char* host, UInt16 port) { return setIntern(ex, host, port, true); }
 	/*!
-	set SocketAddress from a parsed IP and a parsed port */
-	bool set(Exception& ex, const std::string& host, const std::string& port) { return setIntern(ex, host.c_str(), port.c_str(), false); }
-	bool set(Exception& ex, const char* host,		 const std::string& port) { return setIntern(ex, host, port.c_str(), false); }
-	bool set(Exception& ex, const std::string& host, const char* port) { return setIntern(ex, host.c_str(), port, false); }
-	bool set(Exception& ex, const char* host,		 const char* port) { return setIntern(ex, host, port, false); }
-	bool setWithDNS(Exception& ex, const std::string& host, const std::string& port) { return setIntern(ex, host.c_str(), port.c_str(), true); }
-	bool setWithDNS(Exception& ex, const char* host,		const std::string& port) { return setIntern(ex, host, port.c_str(), true); }
-	bool setWithDNS(Exception& ex, const std::string& host, const char* port) { return setIntern(ex, host.c_str(), port, true); }
-	bool setWithDNS(Exception& ex, const char* host,		const char* port) { return setIntern(ex, host, port, true); }
-	/*!
 	set SocketAddress from a parsed IP:port */
-	bool set(Exception& ex, const std::string& hostAndPort) { return setIntern(ex, hostAndPort.c_str(), false); }
-	bool set(Exception& ex, const char* hostAndPort) { return setIntern(ex, hostAndPort, false); }
-	bool setWithDNS(Exception& ex, const std::string& hostAndPort) { return setIntern(ex, hostAndPort.c_str(), true); }
-	bool setWithDNS(Exception& ex, const char* hostAndPort) { return setIntern(ex, hostAndPort, true); }
+	bool set(Exception& ex, const std::string& hostAndPort) { return setIntern(ex, hostAndPort.data(), hostAndPort.size(), false); }
+	bool set(Exception& ex, const char* hostAndPort) { return setIntern(ex, hostAndPort, std::string::npos, false); }
+	bool setWithDNS(Exception& ex, const std::string& hostAndPort) { return setIntern(ex, hostAndPort.data(), hostAndPort.size(), true); }
+	bool setWithDNS(Exception& ex, const char* hostAndPort) { return setIntern(ex, hostAndPort, std::string::npos, true); }
 	
 	SocketAddress&  setPort(UInt16 port) { IPAddress::setPort(port); return self; }
-	bool			setPort(Exception& ex, const char* port);
-	bool			setPort(Exception& ex, const std::string& port) { return setPort(ex, port.c_str()); }
 
 	SocketAddress& reset() { IPAddress::reset(); return self; }
 
@@ -113,15 +97,22 @@ struct SocketAddress : private IPAddress, virtual Object {
 	// Returns a wildcard IPv4 or IPv6 address (0.0.0.0) with port to 0
 	static const SocketAddress& Wildcard(IPAddress::Family family = IPAddress::IPv4);
 
-	static UInt16 SplitLiteral(const char* value, std::string& host);
-	static UInt16 SplitLiteral(const std::string& value, std::string& host) { return SplitLiteral(value.data(),host); }
+	/*!
+	Parse port and returns size of address part if port found, otherwise returns string::npos */
+	static std::size_t ParsePort(const char* address, UInt16& port) { return ParsePort(address, std::string::npos, port); }
+	/*!
+	Parse port and returns size of address part if port found, otherwise returns string::npos */
+	static std::size_t ParsePort(const char* address, std::size_t size, UInt16& port);
+	/*!
+	Parse port and returns size of address part if port found, otherwise returns string::npos */
+	static std::size_t ParsePort(const std::string& address, UInt16& port) { return ParsePort(address.data(), address.size(), port); }
+	/*!
+	Parse port and returns size of address part if port found, otherwise returns string::npos, resize automatically address  */
+	static std::size_t ParsePort(std::string& address, UInt16& port);
 
 private:
-	bool setIntern(Exception& ex, const char* hostAndPort, bool resolveHost);
-	bool setIntern(Exception& ex, const char* host, const char* port, bool resolveHost);
+	bool setIntern(Exception& ex, const char* hostAndPort, std::size_t size, bool resolveHost);
 	bool setIntern(Exception& ex, const char* host, UInt16 port, bool resolveHost) { return resolveHost ? IPAddress::setWithDNS(ex, host, port) : IPAddress::set(ex, host, port); }
-
-	
 
 };
 

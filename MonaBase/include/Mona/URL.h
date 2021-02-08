@@ -35,7 +35,7 @@ to write use directly String like that =>
 String(protocol, "://", address, "/", String::URI(path), '?', String::URI(query)); */
 struct URL : virtual Static {
 	/*!
-	Parse URL, assign protocol and address and return request ("/request" if aboluste) */
+	Parse URL, assign protocol and address and return request ("/request" if absolute) */
 	static const char* Parse(const std::string& url, std::string& protocol, std::string& address) { std::size_t size(url.size()); return Parse(url.data(), size, protocol, address); }
 	static const char* Parse(const char* url, std::string& protocol, std::string& address) { std::size_t size(std::string::npos); return Parse(url, size, protocol, address); }
 	static const char* Parse(const char* url, std::size_t& size, std::string& protocol, std::string& address);

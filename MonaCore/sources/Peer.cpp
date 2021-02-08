@@ -61,8 +61,8 @@ bool Peer::setServerAddress(const string& address) {
 		return setServerAddress(serverAddress);
 	if (!ex.cast<Ex::Net::Address::Port>())
 		return false;
-	// address contains just host!
-	if(serverAddress.set(ex, address, this->serverAddress.port()))
+	// address contains just host?
+	if (serverAddress.set(ex, address, this->serverAddress.port()))
 		return setServerAddress(serverAddress);
 	return false;
 }
