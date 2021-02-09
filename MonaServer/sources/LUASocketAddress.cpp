@@ -64,7 +64,7 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, Socket
 			if (*host == '@' ? !address.host().setWithDNS(ex, host + 1) : !address.host().set(ex, host))
 				return false;
 			break;
-		case LUA_TTABLE:
+		case LUA_TTABLE: {
 			// In first SocketAddress because can be also a IPAddress!
 			SocketAddress* pOther = Script::ToObject<SocketAddress>(pState, index);
 			if (pOther) {
@@ -76,6 +76,7 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, Socket
 				host = address.host().set(*pHost).c_str();
 				break;
 			}
+		}
 		default:
 			ex.set<Ex::Net::Address>("No valid SocketAddress arguments");
 			return false;
