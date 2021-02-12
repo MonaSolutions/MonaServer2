@@ -25,6 +25,7 @@ template<typename ...Args>
 struct StreamData : virtual Object {
 
 	bool addStreamData(const Packet& packet, UInt32 limit, Args... args) {
+		skipBufferLimit = false;
 		// Call onStreamData just one time to prefer recursivity rather "while repeat", and allow a "flush" info!
 		UInt32 rest;
 		shared<Buffer> pBuffer(std::move(_pBuffer)); // because onStreamData returning 0 can delete this!
@@ -38,7 +39,7 @@ struct StreamData : virtual Object {
 		}
 		if (!rest) // no rest, can have deleted this, so return immediatly!
 			return true;
-		if (rest > limit) // test limit on rest no before to allow a pBuffer in input of limit size + pBuffer stored = limit size too
+		if (!skipBufferLimit && rest > limit) // test limit on rest no before to allow a pBuffer in input of limit size + pBuffer stored = limit size too
 			return false;
 		_pBuffer = std::move(pBuffer);
 		if (!_pBuffer) { // copy!
@@ -57,6 +58,11 @@ struct StreamData : virtual Object {
 	}
 	void clearStreamData() { _pBuffer.reset(); }
 	shared<Buffer>& clearStreamData(shared<Buffer>& pBuffer) { return pBuffer = std::move(_pBuffer); }
+
+protected:
+	StreamData() : skipBufferLimit(false) {}
+
+	bool skipBufferLimit;
 
 private:
 	virtual UInt32 onStreamData(Packet& buffer, Args... args) = 0;
