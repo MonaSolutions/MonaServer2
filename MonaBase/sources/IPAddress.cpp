@@ -346,7 +346,7 @@ struct IPAddress::IPv6Impl : IPAddress::IPImpl, virtual Object {
 	}
 
 	static bool Parse(const char* address, shared<IPImpl>& pAddress) {
-		if (!*address)
+		if (!*address) // empty address
 			return false;
 #if defined(_WIN32)
 		if (String::ICompare(address, "localhost") == 0)

@@ -31,29 +31,36 @@ namespace Mona {
 This class provides an interface to the domain name service.
 An internal DNS cache is used to speed up name lookups. */
 struct DNS : virtual Static {
-	// Returns a HostEntry object containing the DNS information for the host with the given name
+	/*!
+	Returns a HostEntry object containing the DNS information for the host with the given name */
 	static bool HostByName(Exception& ex, const std::string& hostname, HostEntry& host) { return HostByName(ex, hostname.data(), host); }
+	/*!
+	Returns a HostEntry object containing the DNS information for the host with the given name */
 	static bool HostByName(Exception& ex, const char* hostname, HostEntry& host);
-		
-	// Returns a HostEntry object containing the DNS information for the host with the given IP address
-	// BEWARE blocking method!!
+	/*!
+	Returns a HostEntry object containing the DNS information for the host with the given IP address
+	/!\ BEWARE blocking method!! */
 	static bool HostByAddress(Exception& ex, const IPAddress& address, HostEntry& host);
-
-	// Returns a HostEntry object containing the DNS information for the host with the given IP address or host name
-	// BEWARE blocking method!!
+	/*!
+	Returns a HostEntry object containing the DNS information for the host with the given IP address or host name
+	/!\ BEWARE blocking method!! */
 	static bool Resolve(Exception& ex, const std::string& address, HostEntry& host)  { return Resolve(ex, address.data(), host); }
+	/*!
+	Returns a HostEntry object containing the DNS information for the host with the given IP address or host name
+	/!\ BEWARE blocking method!! */
 	static bool Resolve(Exception& ex, const char* address, HostEntry& host);
-		
-	// Returns a HostEntry object containing the DNS information for this host
-	// BEWARE blocking method!!
+	/*!
+	Returns a HostEntry object containing the DNS information for this host
+	/!\ BEWARE blocking method!! */
 	static bool ThisHost(Exception& ex,HostEntry& host);
-
-	// Returns the host name of this host
+	/*!
+	Returns the host name of this host */
 	static bool HostName(Exception& ex, std::string& host);
 
 private:
 
-	// Set the exception according to the getaddrinfo() error code
+	/*!
+	Set the exception according to the getaddrinfo() error code */
 	template <typename ...Args>
 	static void SetAIError(Exception& ex, int error, Args&&... args) {
 		ex.set<Ex::Net::Address::Ip>(gai_strerror(error), std::forward<Args>(args)...);

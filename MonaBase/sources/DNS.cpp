@@ -29,6 +29,10 @@ namespace Mona {
 
 
 bool DNS::HostByName(Exception& ex, const char* hostname, HostEntry& host) {
+	if (!*hostname) {
+		ex.set<Ex::Net::Address::Ip>("empty hostname");
+		return false;
+	}
 	struct addrinfo* pAI;
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof(hints));

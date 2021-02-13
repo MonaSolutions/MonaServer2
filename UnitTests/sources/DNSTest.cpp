@@ -28,8 +28,9 @@ ADD_TEST(HostByName) {
 	Exception ex;
 	HostEntry hostEntry;
 
-	DNS::HostByName(ex, "aliastest.appinf.com", hostEntry);
-	CHECK(!ex)
+	CHECK(!DNS::HostByName(ex, "", hostEntry) && ex);
+
+	CHECK(DNS::HostByName(ex = nullptr, "aliastest.appinf.com", hostEntry) && !ex)
 	// different systems report different canonical names, unfortunately.
 	CHECK(hostEntry.name() == "dnstest.appinf.com" || hostEntry.name() == "aliastest.appinf.com");
 
