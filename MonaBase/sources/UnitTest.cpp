@@ -51,7 +51,7 @@ int UnitTest::main() {
 
 void UnitTest::defineOptions(Exception& ex, Options& options) {
 
-	options.add(ex, "module", "m", "Specify the module to run.")
+	options.add(ex, "module", "m", "Specify the module to run ('--module=all' will run all modules).")
 		.argument("module");
 
 	options.add(ex, "loop", "x", "Specify the number of loop to execute for every test to run.")
