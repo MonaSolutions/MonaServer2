@@ -128,18 +128,18 @@ private:
 	}
 
 	// Method to write current segment
-	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) {
+	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) override {
 		Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
 		const Packet& packet = properties.data(type);
 		DEBUG_CHECK(_segment.add<Media::Data>(type, packet, 0, true));
 	}
-	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) {
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) override {
 		DEBUG_CHECK(_segment.add<Media::Data>(type, packet, track));
 	}
-	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) override {
 		DEBUG_CHECK(_segment.add<Media::Audio>(tag, packet, track));
 	}
-	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) {
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) override {
 		DEBUG_CHECK(_segment.add<Media::Video>(tag, packet, track));
 	}
 

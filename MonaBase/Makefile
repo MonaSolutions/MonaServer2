@@ -24,7 +24,7 @@ endif
 # Variables fixed
 ifeq ($(OS),Darwin)
 	LIB=lib/libMonaBase.dylib
-	SHARED=-dynamiclib -install_name ./../MonaBase/$(LIB)
+	SHARED=-dynamiclib -install_name $(CURDIR)/$(LIB)
 else
 	LIB=lib/libMonaBase.so
 	AR=lib/libMonaBase.a

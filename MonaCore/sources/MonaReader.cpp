@@ -52,7 +52,7 @@ bool MonaReader::Read(const Packet& packet, Media::Source& source) {
 			return true;
 		}
 		default:
-			ERROR("Unknown type ", type);
+			ERROR("Unknown type ", UInt8(type));
 	}
 	return false;
 }

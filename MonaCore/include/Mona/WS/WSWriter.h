@@ -43,12 +43,12 @@ struct WSWriter : Writer, Media::TrackTarget, virtual Object {
 	void			writePing(const Time& connectionTime) { write(WS::TYPE_PING)->write32(range<UInt32>(connectionTime.elapsed())); }
 	void			writePong(const Packet& packet) { newSender(WS::TYPE_PONG, packet); }
 
-	bool			beginMedia(const std::string& name);
-	bool			writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable);
-	bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable);
-	bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable);
-	bool			writeProperties(const Media::Properties& properties);
-	bool			endMedia();
+	bool			beginMedia(const std::string& name) override;
+	bool			writeAudio(const Media::Audio::Tag& tag, const Packet& packet, bool reliable) override;
+	bool			writeVideo(const Media::Video::Tag& tag, const Packet& packet, bool reliable) override;
+	bool			writeData(Media::Data::Type type, const Packet& packet, bool reliable) override;
+	bool			writeProperties(const Media::Properties& properties) override;
+	bool			endMedia() override;
 
 	void			flush() override { Writer::flush(); }
 private:
