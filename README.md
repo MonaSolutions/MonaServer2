@@ -52,7 +52,11 @@ make ENABLE_SRT=1
 ```
 
 ### Start
-Start executable file *./MonaServer/MonaServer*
+Start executable :
+```
+cd MonaServer
+./MonaServer
+```
 
 ## Windows setup
 
