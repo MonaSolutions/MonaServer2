@@ -78,7 +78,7 @@ bool HTTPSender::run(Exception& ex) {
 bool HTTPSender::socketSend(const Packet& packet) {
 	if (_end)
 		return false;
-	DEBUG_ASSERT(packet); // check just in debug that the packet contains data
+	DEBUG_ASSERT(packet); // check just in debug that this call is useless (in release works)
 	Exception ex;
 	DUMP_RESPONSE(_pSocket->isSecure() ? "HTTPS" : "HTTP", packet.data(), packet.size(), _pSocket->peerAddress());
 	int result = _pSocket->write(ex, packet);

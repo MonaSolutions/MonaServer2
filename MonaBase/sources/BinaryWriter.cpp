@@ -85,14 +85,16 @@ BinaryWriter& BinaryWriter::writeFloat(float value) {
 
 template<typename ValueType>
 BinaryWriter& BinaryWriter::write7Bit(typename common_type<ValueType>::type value, UInt8 bytes) {
-	DEBUG_ASSERT(bytes-->0);
-	UInt8 bits = bytes * 7 + 1;
-	typename make_unsigned<ValueType>::type front = value >> (bits - 1);
-	if (!front) {
-		bits -= 8;
-		while (!(value >> bits) && (bits -= 7));
-	} else if (front > 0xFFu)
-		value = numeric_limits<decltype(front)>::max();
+	DEBUG_ASSERT(bytes>0);
+	UInt8 bits = --bytes * 7;
+	ValueType front = bits > numeric_limits<ValueType>::digits ? 0 : (value >> bits);
+	if (front) {
+		++bits;
+		if (front > 0xFFu)
+			value = numeric_limits<ValueType>::max();
+	} else
+		while ((bits -= 7) && !(value >> bits));
+
 	while (bits>1) {
 		write8(0x80 | UInt8(value >> bits));
 		bits -= 7;

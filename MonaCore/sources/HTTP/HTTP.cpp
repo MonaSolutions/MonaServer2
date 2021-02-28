@@ -293,14 +293,12 @@ HTTP::RendezVous::~RendezVous() {
 bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) {
 	// read join and resolve parameters
 	bool join = false;
-	const char* to = NULL;
-	URL::ForEachParameter forEach([&join, &to, &pHeader](string& key, const char* value) {
+	Parameters params;
+	URL::ForEachParameter forEach([&](string& key, const char* value) {
 		if (String::ICompare(key, "join") == 0)
 			join = !value || !String::IsFalse(value);
-		else if (String::ICompare(key, "from") == 0)
-			pHeader->upgrade = pHeader->setString(key, value).c_str();
-		else if (String::ICompare(key, "to") == 0)
-			to = pHeader->setString(key, value).c_str();
+		else
+			params.setParameter(key, value ? value : "");
 		return true;
 	});
 	URL::ParseQuery(pHeader->query, forEach);
@@ -313,32 +311,22 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 			// found!
 			shared<Socket> pRemoteSocket = it->second->lock();
 			if (pRemoteSocket) {
-				if (!to || String::ICompare(pHeader->code = to, it->second->from) == 0) {
-					const Remote* pRemote = it->second.get();
-					if (!join || packet) { // no release RDV if join without packet!
-						it->second.release();
-						_remotes.erase(it);
-						join = false;
-					} // else to == NULL!
-					lock.unlock(); // unlock
+				unique<const Remote> pRemote = move(it->second);
+				_remotes.erase(it);
+				lock.unlock(); // unlock
 
-					Request local(Path::Null(), pHeader, packet, true); // pHeader captured!
-					// Send remote to local (request)
-					send(pSocket, local, *pRemote, pRemoteSocket->peerAddress());
-					if (!join) {
-						// Send local to remote (response)
-						send(pRemoteSocket, *pRemote, local, pSocket->peerAddress());
-						delete pRemote;
-					}
-					return true;
-				}
-				// response match a previous request => 410
-				join = false;
-			} else
-				it = _remotes.erase(it); // peer not found!
-		}
-		if (!join && !to) {
-			unique<Remote> pRemote(SET, pHeader, packet, pSocket);
+				Request local(Path::Null(), pHeader, packet, true); // pHeader captured!
+				// Send remote to local
+				send(pSocket, local, *pRemote, pRemoteSocket->peerAddress(), pRemote->params);
+				// Send local to remote
+				send(pRemoteSocket, *pRemote, local, pSocket->peerAddress(), params);
+				return true;
+			} // else peer expired
+			it = _remotes.erase(it);
+		} // else path not found
+		if (!join) {
+			// wait meeting
+			unique<Remote> pRemote(SET, pHeader, packet, pSocket, params);
 			_remotes.emplace_hint(it, SET, forward_as_tuple((*pRemote)->path.c_str()), forward_as_tuple(move(pRemote)));
 			return true;
 		} // else peer not found => 410
@@ -348,20 +336,25 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 	return false;
 }
 
-void HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from) {
+void HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from, const Parameters& params) {
 	// Send local to remote
 	HTTPSender sender("RDVSender", pHeader, pSocket);
 	HTTP_BEGIN_HEADER(sender.buffer())
-		HTTP_ADD_HEADER("Access-Control-Expose-Headers", "from")
-		const char* id = message->getString("from");
-		if(id)
-			HTTP_ADD_HEADER("from", from, ", ", id)
-		else
-			HTTP_ADD_HEADER("from", from)
+		// Access-Control-Expose-Headers
+		String::Append(__writer, "Access-Control-Expose-Headers: address, peerAddress");
+		for (const auto& it : params)
+			String::Append(__writer, ", ", it.first);
+		String::Append(__writer, "\r\n");
+		// Params (Query becomes Headers)
+		HTTP_ADD_HEADER("address", from)
+		HTTP_ADD_HEADER("peerAddress", pSocket->peerAddress())
+		for (const auto& it : params)
+			HTTP_ADD_HEADER(it.first, it.second);
 	HTTP_END_HEADER
 	if (!pHeader->code) {
 		sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size());
-		sender.send(message);
+		if(message.size())
+			sender.send(message);
 	} else
 		sender.send(HTTP_CODE_200);
 }

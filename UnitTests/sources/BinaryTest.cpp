@@ -26,7 +26,7 @@ using namespace std;
 namespace BinaryTest {
 
 Mona::Buffer& Buffer() {
-	static Mona::Buffer Buffer(256);
+	static Mona::Buffer Buffer(512);
 	return Buffer;
 }
 
@@ -56,6 +56,8 @@ void Write(Byte::Order order) {
 	double dVal = -1.5;
 	writer.write(&dVal, sizeof(dVal));
 
+	writer.write7Bit<UInt16>(0x7F);
+
 	writer.write7Bit<UInt32>(100);
 	writer.write7Bit<UInt32>(1000);
 	writer.write7Bit<UInt32>(10000);
@@ -64,6 +66,11 @@ void Write(Byte::Order order) {
 	writer.write7Bit<UInt32>(0xFFFFFFFE);
 	writer.write7Bit<UInt32>(0xFFFFFFFF);
 
+	writer.write7Bit<UInt32>(127, 6);
+	writer.write7Bit<UInt32>(128, 6);
+	writer.write7Bit<UInt32>(0xFFFFFFFE, 6);
+	writer.write7Bit<UInt32>(0xFFFFFFFF, 6);
+
 	writer.write7Bit<UInt64>(100);
 	writer.write7Bit<UInt64>(1000);
 	writer.write7Bit<UInt64>(10000);
@@ -71,6 +78,13 @@ void Write(Byte::Order order) {
 	writer.write7Bit<UInt64>(1000000);
 	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFE);
 	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFF);
+
+	writer.write7Bit<UInt64>(127, 10);
+	writer.write7Bit<UInt64>(128, 10);
+	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFE, 10);
+	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFF, 10);
+	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFE, 11);
+	writer.write7Bit<UInt64>(0xFFFFFFFFFFFFFFFF, 11);
 
 	writer.write7Bit<UInt64>(100, 4);
 	writer.write7Bit<UInt64>(1000, 4);
@@ -130,6 +144,8 @@ void Read(Byte::Order order) {
 	reader.read(sizeof(doublev), (char *)&doublev);
 	CHECK(doublev == -1.5);
 
+	CHECK(reader.read7Bit<UInt16>() == 0x7F);
+
 	CHECK(reader.read7Bit<UInt32>() == 100);
 	CHECK(reader.read7Bit<UInt32>() == 1000);
 	CHECK(reader.read7Bit<UInt32>() == 10000);
@@ -138,6 +154,11 @@ void Read(Byte::Order order) {
 	CHECK(reader.read7Bit<UInt32>() == 0xFFFFFFFE);
 	CHECK(reader.read7Bit<UInt32>() == 0xFFFFFFFF);
 
+	CHECK(reader.read7Bit<UInt32>(6) == 127);
+	CHECK(reader.read7Bit<UInt32>(6) == 128);
+	CHECK(reader.read7Bit<UInt32>(6) == 0xFFFFFFFE);
+	CHECK(reader.read7Bit<UInt32>(6) == 0xFFFFFFFF);
+
 	CHECK(reader.read7Bit<UInt64>() == 100);
 	CHECK(reader.read7Bit<UInt64>() == 1000);
 	CHECK(reader.read7Bit<UInt64>() == 10000);
@@ -145,6 +166,13 @@ void Read(Byte::Order order) {
 	CHECK(reader.read7Bit<UInt64>() == 1000000);
 	CHECK(reader.read7Bit<UInt64>() == 0xFFFFFFFFFFFFFFFE);
 	CHECK(reader.read7Bit<UInt64>() == 0xFFFFFFFFFFFFFFFF);
+
+	CHECK(reader.read7Bit<UInt64>(10) == 127);
+	CHECK(reader.read7Bit<UInt64>(10) == 128);
+	CHECK(reader.read7Bit<UInt64>(10) == 0xFFFFFFFFFFFFFFFE);
+	CHECK(reader.read7Bit<UInt64>(10) == 0xFFFFFFFFFFFFFFFF);
+	CHECK(reader.read7Bit<UInt64>(11) == 0xFFFFFFFFFFFFFFFE);
+	CHECK(reader.read7Bit<UInt64>(11) == 0xFFFFFFFFFFFFFFFF);
 
 	CHECK(reader.read7Bit<UInt64>(4) == 100);
 	CHECK(reader.read7Bit<UInt64>(4) == 1000);

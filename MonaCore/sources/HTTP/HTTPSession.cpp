@@ -38,8 +38,11 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 	_onRequest([this](HTTP::Request& request) {
 		// Invalid packet, answer with the appropriate response and useless to keep the session opened!
 		// Do it after beginRequest/endRequest to get permission to write error response
-		if (request.ex)
+		if (request.ex) {
+			if(request)
+				_pWriter->beginRequest(request).endRequest();
 			return kill(TO_ERROR(request.ex));
+		}
 
 		if (request) { // else progressive! => PUT or POST media!
 

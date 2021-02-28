@@ -37,7 +37,7 @@ struct HTTPWriter : Writer, Media::Target, virtual Object {
 
 	bool			crossOriginIsolated;
 
-	void			beginRequest(const shared<const HTTP::Header>& pRequest);
+	HTTPWriter&		beginRequest(const shared<const HTTP::Header>& pRequest);
 	void			endRequest();
 
 	UInt64			queueing() const override { return _session->queueing() + _flushings.size(); }

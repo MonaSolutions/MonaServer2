@@ -123,10 +123,11 @@ void HTTPWriter::closing(Int32 error, const char* reason) {
 }
 
 
-void HTTPWriter::beginRequest(const shared<const HTTP::Header>& pRequest) {
+HTTPWriter& HTTPWriter::beginRequest(const shared<const HTTP::Header>& pRequest) {
 	++_requestCount;
 	_pRequest = pRequest;
 	_requesting = true;
+	return self;
 }
 
 void HTTPWriter::endRequest() {

@@ -150,7 +150,7 @@ private:
 // run the assertion just in debug
 #define		DEBUG_ASSERT(ASSERT)		{}
 // assertion with run guarantee
-#define		DEBUG_CHECK(RUN)			{ RUN; }
+#define		DEBUG_CHECK(RUN)			{ if(RUN); }
 #define		FATAL_ERROR(...)			{ throw std::runtime_error(Mona::String(__VA_ARGS__,", " __FILE__ "[" LINE_STRING "]"));}
 
 #endif

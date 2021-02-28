@@ -217,7 +217,7 @@ struct HTTP : virtual Static {
 		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) { if (_pHeader) setParams(*_pHeader); }
 		/*!
 		exception */
-		Message(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true) { pHeader.reset(); }
+		Message(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true), _pHeader(std::move(pHeader)) {} // Exception => no need to parse params!
 		/*!
 		media packet */
 		Message(shared<Header>& pHeader, Media::Base* pMedia) : lost(0), pMedia(pMedia), _pHeader(std::move(pHeader)), flush(false) { if (_pHeader) setParams(*_pHeader); }
@@ -276,11 +276,11 @@ struct HTTP : virtual Static {
 		bool meet(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket);
 
 	private:
-		void send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from);
+		void send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from, const Parameters& params);
 		struct Remote : Request, weak<Socket>, virtual Object {
-			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket) : from(self->upgrade),
-				weak<Socket>(pSocket), Request(Path::Null(), pHeader, std::move(packet), true) {}
-			const char* from;
+			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket, Parameters& params) :
+				weak<Socket>(pSocket), Request(Path::Null(), pHeader, std::move(packet), true), params(std::move(params)) {}
+			const Parameters params;
 		};
 		struct Comparator {
 			bool operator()(const char* path1, const char* path2) const { return String::ICompare(path1, path2)<0; }

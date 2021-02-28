@@ -44,8 +44,10 @@ struct HTTProtocol : TCProtocol, virtual Object {
 	shared<HTTP::RendezVous> pRendezVous;
 
 	SocketAddress load(Exception& ex) {
-		if (getBoolean<false>("rendezVous"))
+		if (getBoolean<false>("rendezVous")) {
+			INFO(name, " RendezVous service started");
 			pRendezVous.set(api.timer);
+		}
 		return TCProtocol::load(ex);
 	}
 
