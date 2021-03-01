@@ -86,8 +86,8 @@ protected:
 
 	const SocketAddress& peerAddress() { return _pSocket ? _pSocket->peerAddress() : SocketAddress::Wildcard(); }
 
-	shared<const HTTP::Header> pRequest;
-	UInt8					   connection;
+	const shared<const HTTP::Header> pRequest;
+	UInt8							 connection;
 
 
 	template <typename ...Args>

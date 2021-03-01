@@ -40,7 +40,6 @@ bool HTTPFileSender::load(Exception& ex) {
 	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
 	if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
 		// NOT MODIFIED
-		ex.set<Ex::Intern>(); // to detect "not an error" on HTTPWriter size
 		DEBUG(peerAddress(), " GET 304 ", pRequest->path, File::name());
 		send(HTTP_CODE_304);
 		return false;
@@ -53,6 +52,7 @@ bool HTTPFileSender::load(Exception& ex) {
 	string buffer;
 
 	if (ex.cast<Ex::Unfound>()) {
+		ex = nullptr;
 		// File doesn't exists but maybe folder exists?
 		if (FileSystem::Exists(MAKE_FOLDER(path()))) {
 			/// Redirect to the real folder path
@@ -70,7 +70,6 @@ bool HTTPFileSender::load(Exception& ex) {
 	} else
 		sendError(HTTP_CODE_401, "Impossible to open ", pRequest->path, File::name(), " file");
 
-	ex.set<Ex::Intern>(); // to detect "not an error" on HTTPWriter size
 	return false;
 }
 
@@ -94,7 +93,7 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 			_subMime = "octet-stream";
 		}
 		if (!send(HTTP_CODE_200, _mime, _subMime, end ? size : UINT64_MAX)) {
-			this->end();
+			this->end(); // to avoid to read again
 			return 0;
 		}
 	}
@@ -102,7 +101,7 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 	if (pRequest->type != HTTP::TYPE_HEAD) {
 		for (Packet& packet : packets) {
 			if (!send(packet)) {
-				this->end();
+				this->end(); // to avoid to read again
 				return 0;
 			}
 		}
