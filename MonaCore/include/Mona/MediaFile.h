@@ -58,7 +58,7 @@ struct MediaFile : virtual Static  {
 				_name(name), _handler(handler), _pReader(pReader), _path(path), _pMedias(pMedias) {}
 
 		private:
-			UInt32 decode(shared<Buffer>& pBuffer, bool end);
+			UInt32 decode(shared<Buffer>& pBuffer, bool end) override;
 
 			void writeAudio(const Media::Audio::Tag& tag, const Packet& packet, UInt8 track = 1) { if(!_mediaTimeGotten) _mediaTimeGotten = !tag.isConfig; writeMedia<Media::Audio>(tag, packet, track); }
 			void writeVideo(const Media::Video::Tag& tag, const Packet& packet, UInt8 track = 1) { if (!_mediaTimeGotten) _mediaTimeGotten = tag.frame != Media::Video::FRAME_CONFIG; writeMedia<Media::Video>(tag, packet, track); }

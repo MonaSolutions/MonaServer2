@@ -43,7 +43,7 @@ private:
 		Decoder(const Handler& handler, const shared<Socket>& pSocket, const SocketAddress& address) : _pSocket(pSocket), _handler(handler), _address(address) {}
 
 	private:
-		void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
+		void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) override;
 		shared<Socket> _pSocket;
 		const Handler& _handler;
 		SocketAddress  _address;

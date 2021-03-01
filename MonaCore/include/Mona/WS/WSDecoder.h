@@ -31,7 +31,7 @@ struct WSDecoder : Socket::Decoder, private StreamData<Socket&>, virtual Object 
 
 	WSDecoder(const Handler& handler, const char* name = NULL);
 
-	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) { decode(Packet(pBuffer), address, pSocket); }
+	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) override { decode(Packet(pBuffer), address, pSocket); }
 	void decode(const Packet& packet, const SocketAddress& address, const shared<Socket>& pSocket);
 private:
 	const char* name(const Socket& socket) const { return _name ? _name : (socket.isSecure() ? "WSS" : "WS"); }

@@ -31,7 +31,7 @@ struct RTMFPDecoder : Socket::Decoder, virtual Object {
 	RTMFPDecoder(const shared<RendezVous>& pRendezVous, const Handler& handler, const ThreadPool& threadPool);
 
 private:
-	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
+	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) override;
 
 	struct Handshake;
 	bool finalizeHandshake(UInt32 id, const SocketAddress& address, shared<RTMFPReceiver>& pReceiver);

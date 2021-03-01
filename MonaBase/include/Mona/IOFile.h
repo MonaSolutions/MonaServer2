@@ -29,7 +29,8 @@ namespace Mona {
 IOFile performs asynchrone writing and reading operation,
 It uses a Thread::ProcessorCount() threads with low priority to load/read/write files
 Indeed even if SSD drive allows parallel reading and writing operation every operation sollicate too the CPU,
-so it's useless to try to exceeds number of CPU core (Thread::ProcessorCount() has been tested and approved with file load) */
+so it's useless to try to exceeds number of CPU core (Thread::ProcessorCount() has been tested and approved with file load)
+Trick: shared<File> pFile becomes "unique" when there is no more usage by parallel thread */
 struct IOFile : virtual Object, Thread { // Thread is for file watching!
 
 	IOFile(const Handler& handler, const ThreadPool& threadPool, UInt16 cores=0);

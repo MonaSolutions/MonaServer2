@@ -62,7 +62,7 @@ struct Decoder : virtual Object, Socket::Decoder {
 		} while (packet += 5);
 	}
 private:
-	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+	void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) override {
 		Packet packet(pBuffer);
 		decode(packet, address);
 	}
@@ -134,7 +134,7 @@ ADD_TEST(File) {
 		typedef Event<void(Decoded&)> ON(Decoded);
 		Decoder(const Handler& handler) : _handler(handler) {}
 	private:
-		UInt32 decode(shared<Buffer>& pBuffer, bool end) {
+		UInt32 decode(shared<Buffer>& pBuffer, bool end) override {
 			CHECK(Thread::CurrentId() != Thread::MainId);
 			Packet packet(pBuffer);
 			_handler.queue(onDecoded, packet, end);

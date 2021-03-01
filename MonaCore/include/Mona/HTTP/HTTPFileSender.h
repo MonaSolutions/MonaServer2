@@ -28,8 +28,8 @@ namespace Mona {
 File send,
 - call io.subscribe(pFileSender, (File::Decoder*)pFileSender.get(), onFileReaden, onFileError)
 - call io.read(pFileSender) to start file sending
-- on pSocket.onFlush and if pFileSender.unique() recall io.read(pFileSender)
-- on onFileReaden the file has been fully sent */
+- on pSocket.onFlush and if pFileSender.unique() && *pFileSender recall io.read(pFileSender)
+- on onEnd the file has been fully sent */
 struct HTTPFileSender : HTTPSender, File, File::Decoder, virtual Object {
 	HTTPFileSender(const shared<const HTTP::Header>& pRequest, const shared<Socket>& pSocket,
 		const Path& file, Parameters& properties);
@@ -39,7 +39,7 @@ struct HTTPFileSender : HTTPSender, File, File::Decoder, virtual Object {
 private:
 	bool				run() override { ERROR(HTTPSender::name, " not runnable, read me with ioFile.read(pFileSender)"); return true; }
 	bool				load(Exception& ex);
-	UInt32				decode(shared<Buffer>& pBuffer, bool end);
+	UInt32				decode(shared<Buffer>& pBuffer, bool end) override;
 	const std::string*	search(char c);
 	UInt32				generate(const Packet& packet, std::deque<Packet>& packets);
 

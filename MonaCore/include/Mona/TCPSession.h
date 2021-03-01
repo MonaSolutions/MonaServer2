@@ -31,11 +31,11 @@ struct TCPSession : SocketSession, TCPClient, virtual Object {
 
 	void connect(); // to override the connect of TCPClient!
 
+	virtual	void kill(Int32 error = 0, const char* reason = NULL) override;
+
 protected:
 	TCPSession(Protocol& protocol, const shared<Socket>& pSocket);
 	TCPSession(Protocol& protocol, const shared<Socket>& pSocket, shared<Peer>& pPeer);
-
-	virtual	void kill(Int32 error = 0, const char* reason = NULL);
 
 	/*!
 	Subscribe to this event to receive data in child session, or overloads newDecoder() function */

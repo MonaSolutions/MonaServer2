@@ -31,7 +31,7 @@ struct SRTSession : SocketSession, virtual Object {
 
 private:
 	bool	manage();
-	void	kill(Int32 error = 0, const char* reason = NULL);
+	void	kill(Int32 error = 0, const char* reason = NULL) override;
 
 	void	flush() { if (_pWriter) _pWriter->flush(); }
 

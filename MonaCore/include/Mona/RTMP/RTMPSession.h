@@ -32,7 +32,7 @@ struct RTMPSession : TCPSession, virtual Object {
 private:
 	bool			manage();
 	void			flush();
-	void			kill(Int32 error=0, const char* reason = NULL);
+	void			kill(Int32 error=0, const char* reason = NULL) override;
 	
 	Socket::Decoder*			newDecoder();
 	RTMPDecoder::OnRequest	   _onRequest;

@@ -348,15 +348,15 @@ void HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const He
 		// Params (Query becomes Headers)
 		HTTP_ADD_HEADER("address", from)
 		HTTP_ADD_HEADER("peerAddress", pSocket->peerAddress())
+		HTTP_ADD_HEADER("first", message.flush)
 		for (const auto& it : params)
 			HTTP_ADD_HEADER(it.first, it.second);
 	HTTP_END_HEADER
-	if (!pHeader->code) {
-		sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size());
-		if(message.size())
-			sender.send(message);
-	} else
-		sender.send(HTTP_CODE_200);
+
+	sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size());
+	if(message.size())
+		sender.send(message);
+
 }
 
 

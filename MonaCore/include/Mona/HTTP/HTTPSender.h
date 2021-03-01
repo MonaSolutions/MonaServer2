@@ -31,6 +31,7 @@ HTTP send,
 Send a HTTP response (or request? TODO) is used directly.
 Children class are mainly used by call to TCPSender::send(pHTTPSender) */
 struct HTTPSender : Runner, virtual Object {
+	NULLABLE(_end);
 	/*!
 	If onEnd is set you must wait onEnd signal to release this HTTPSender,
 	+ resend the HTTPSender on every socket.onFlush if !flushing() */

@@ -39,7 +39,7 @@ private:
 	void			flush();
 
 	void			disconnection(); // usefull for Protocol upgrade like WebSocket upgrade
-	void			kill(Int32 error=0, const char* reason = NULL);
+	void			kill(Int32 error=0, const char* reason = NULL) override;
 
 	bool			handshake(HTTP::Request& request);
 

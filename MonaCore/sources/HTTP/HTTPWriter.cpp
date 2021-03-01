@@ -79,7 +79,7 @@ private:
 
 
 HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(false), _session(session), crossOriginIsolated(false),
-	_onSenderEnd([this]() {
+	_onSenderEnd([&]() {
 #if !defined(_DEBUG)
 		if (_flushings.empty()) {
 			CRITIC(_session.name(), " HTTPSender::onEnd without flushing sender");
@@ -94,13 +94,15 @@ HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(fals
 		flush();
 
 	}),
-	_onFileError([this](const Exception& ex) {
-		if (ex.cast<Ex::Net::Socket>()) // socket shutdown (WARN already displaid)
-			return;
-		if (ex.cast<Ex::Unfound>()) // loading error!
+	_onFileError([&](const Exception& ex) {
+		if (ex.cast<Ex::Intern>()) // trick to solve HTTPFileSender::load override
 			return _onSenderEnd();
-		ERROR(ex);
-		_session->shutdown(); // can't repair the session (client wait content-length!)
+		// Don't call _onSenderEnd() to avoid to write new response with flush call,
+		// kill will not write a new response because pFile is not unique (IOFile::ErrorHandler has a handler on)
+		if (!ex.cast<Ex::Net::Socket>()) // if socket shutdown WARN already displaid
+			WARN(ex);
+		// File error kill the session => can't repair the session (client wait content-length!)
+		_session.kill(Session::ToError(ex));
 	}) {
 }
 
@@ -143,7 +145,7 @@ void HTTPWriter::flush() {
 		if (pSender->flushing())
 			return; // wait socket onFlush
 		// send or resend
-		if (pSender.unique()) {
+		if (pSender.unique() && *pSender) {
 			if (pSender->isFile())
 				_session.api.ioFile.read(static_pointer_cast<HTTPFileSender>(pSender));
 			else

@@ -36,20 +36,20 @@ HTTPFileSender::HTTPFileSender(const shared<const HTTP::Header>& pRequest, const
 bool HTTPFileSender::load(Exception& ex) {
 	if (loaded())
 		return true;
-	if (File::load(ex)) {
-		/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
-		if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
-			if (send(HTTP_CODE_304)) {// NOT MODIFIED 
-				DEBUG(peerAddress(), " GET 304 ", pRequest->path, File::name());
-				ex.set<Ex::Unfound>(); // to detect end!
-			} else
-				ex.set<Ex::Net::Socket>();
-			return false;
-		}
-		DEBUG(peerAddress(), " GET 200 ", pRequest->path, File::name());
-		return true;
+
+	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
+	if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
+		// NOT MODIFIED
+		ex.set<Ex::Intern>(); // to detect "not an error" on HTTPWriter size
+		DEBUG(peerAddress(), " GET 304 ", pRequest->path, File::name());
+		send(HTTP_CODE_304);
+		return false;
 	}
 
+	DEBUG(peerAddress(), " GET 200 ", pRequest->path, File::name());
+	if (File::load(ex))
+		return true;
+	
 	string buffer;
 
 	if (ex.cast<Ex::Unfound>()) {
@@ -64,14 +64,13 @@ bool HTTPFileSender::load(Exception& ex) {
 			HTML_BEGIN_COMMON_RESPONSE(this->buffer(), "Moved Permanently")
 				String::Append(this->buffer(), "The document has moved <a href=\"", buffer, "\">here</a>.");
 			HTML_END_COMMON_RESPONSE(buffer)
-			if (!send(HTTP_CODE_301, MIME::TYPE_TEXT, "html; charset=utf-8"))
-				ex.set<Ex::Net::Socket>();
-		} else if (!sendError(HTTP_CODE_404, "The requested URL ", pRequest->path, File::name(), " was not found on the server"))
-			ex.set<Ex::Net::Socket>();
-	} else if (sendError(HTTP_CODE_401, "Impossible to open ", pRequest->path, File::name(), " file"))
-		ex.set<Ex::Unfound>(); // to be detected by HTTPWriter like a loading error!
-	else
-		ex.set<Ex::Net::Socket>();
+			send(HTTP_CODE_301, MIME::TYPE_TEXT, "html; charset=utf-8");
+		} else
+			sendError(HTTP_CODE_404, "The requested URL ", pRequest->path, File::name(), " was not found on the server");
+	} else
+		sendError(HTTP_CODE_401, "Impossible to open ", pRequest->path, File::name(), " file");
+
+	ex.set<Ex::Intern>(); // to detect "not an error" on HTTPWriter size
 	return false;
 }
 
@@ -94,14 +93,18 @@ UInt32 HTTPFileSender::decode(shared<Buffer>& pBuffer, bool end) {
 			_mime = MIME::TYPE_APPLICATION;
 			_subMime = "octet-stream";
 		}
-		if (!send(HTTP_CODE_200, _mime, _subMime, end ? size : UINT64_MAX))
+		if (!send(HTTP_CODE_200, _mime, _subMime, end ? size : UINT64_MAX)) {
+			this->end();
 			return 0;
+		}
 	}
 	// CONTENT
 	if (pRequest->type != HTTP::TYPE_HEAD) {
 		for (Packet& packet : packets) {
-			if (!send(packet))
+			if (!send(packet)) {
+				this->end();
 				return 0;
+			}
 		}
 		if(!end)
 			return HTTPSender::flushing() ? 0 : 0xFFFF; // wait next!

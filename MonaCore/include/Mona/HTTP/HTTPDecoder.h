@@ -36,7 +36,7 @@ struct HTTPDecoder : Socket::Decoder, private StreamData<const shared<Socket>&>,
 	HTTPDecoder(const Handler& handler, const std::string& www, const shared<HTTP::RendezVous>& pRendezVous, const char* name = NULL);
 
 protected:
-	void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket);
+	void   decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) override;
 	UInt32 onStreamData(Packet& buffer, const shared<Socket>& pSocket);
 
 private:

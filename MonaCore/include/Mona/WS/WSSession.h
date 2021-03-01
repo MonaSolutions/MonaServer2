@@ -42,7 +42,7 @@ private:
 	void		publish(Exception& ex, Path& stream);
 	void		unpublish();
 
-	void		kill(Int32 error = 0, const char* reason = NULL);
+	void		kill(Int32 error = 0, const char* reason = NULL) override;
 
 	/// \brief Read message and call method if needed
 	/// \param packet Content message to read

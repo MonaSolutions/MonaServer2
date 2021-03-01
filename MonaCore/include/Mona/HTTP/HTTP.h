@@ -279,7 +279,7 @@ struct HTTP : virtual Static {
 		void send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from, const Parameters& params);
 		struct Remote : Request, weak<Socket>, virtual Object {
 			Remote(shared<Header>& pHeader, const Packet& packet, const shared<Socket>& pSocket, Parameters& params) :
-				weak<Socket>(pSocket), Request(Path::Null(), pHeader, std::move(packet), true), params(std::move(params)) {}
+				weak<Socket>(pSocket), Request(Path::Null(), pHeader, std::move(packet), false), params(std::move(params)) {}
 			const Parameters params;
 		};
 		struct Comparator {

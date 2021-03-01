@@ -28,7 +28,7 @@ namespace Mona {
 Socket::Decoder* STUNProtocol::newDecoder() {
 	struct Decoder : Socket::Decoder, virtual Object {
 	private:
-		void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) {
+		void decode(shared<Buffer>& pBuffer, const SocketAddress& address, const shared<Socket>& pSocket) override {
 			Packet packet(pBuffer); // capture pBuffer to not call onReception event (see Socket::decode comments)
 			DUMP_REQUEST("STUN", packet.data(), packet.size(), address);
 
