@@ -61,7 +61,7 @@ bool LUASocketAddress::From(Exception& ex, lua_State *pState, int& index, Socket
 	switch (lua_type(pState, index)) {
 		case LUA_TSTRING:
 			host = lua_tostring(pState, index);
-			if (*host == '@' ? !address.host().setWithDNS(ex, host + 1) : !address.host().set(ex, host))
+			if (*host == '@' ? !address.setWithDNS(ex, host + 1) : !address.set(ex, host))
 				return false;
 			break;
 		case LUA_TTABLE: {
