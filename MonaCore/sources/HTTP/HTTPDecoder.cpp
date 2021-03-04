@@ -239,8 +239,12 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 					}
 					String::Scoped scoped(STR buffer.data());
 					if (String::ICompare(signifiant, EXPAND("HTTP")) != 0) { // else is response!
-						if (!(_pHeader->type = HTTP::ParseType(signifiant, _pRendezVous.operator bool()))) {
+						if (!(_pHeader->type = HTTP::ParseType(signifiant))) {
 							_ex.set<Ex::Protocol>("Unknown HTTP type ", String::Data(signifiant, 3));
+							break;
+						}
+						if (_pHeader->type == HTTP::TYPE_RDV && !_pRendezVous) {
+							_ex.set<Ex::Protocol>("Request disabled HTTP Rendezvous service (HTTP.RDV=false)");
 							break;
 						}
 						_pHeader->setString("type", HTTP::TypeToString(_pHeader->type));
@@ -370,7 +374,7 @@ bool HTTPDecoder::throwError(Socket& socket, bool onReceive) {
 			_ex.set<Ex::Protocol>(name(socket), " unsupport request");
 	}
 	socket.shutdown(_code ? Socket::SHUTDOWN_BOTH : Socket::SHUTDOWN_RECV);
-	ERROR(_ex)
+	ERROR(_ex, " from ", socket.peerAddress());
 	receive(_ex); // to signal HTTPDecoder user!;
 	return true;
 }

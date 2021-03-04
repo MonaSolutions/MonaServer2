@@ -158,7 +158,7 @@ struct HTTP : virtual Static {
 
 	static const char*	 ErrorToCode(Int32 error);
 
-	static Type			 ParseType(const char* value, bool withRDV=false);
+	static Type			 ParseType(const char* value);
 	static UInt8		 ParseConnection(const char* value);
 
 	static bool			 WriteDirectoryEntries(Exception& ex, BinaryWriter& writer, const std::string& fullPath, const std::string& path, SortBy sortBy = SORTBY_NAME, Sort sort = SORT_ASC);

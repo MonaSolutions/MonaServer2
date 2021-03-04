@@ -116,6 +116,7 @@ template<> void Script::ObjInit(lua_State *pState, UDPSocket& socket) {
 		SCRIPT_BEGIN(pState)
 			SCRIPT_MEMBER_FUNCTION_BEGIN(socket, "onPacket")
 				Script::NewObject(pState, new Packet(pBuffer));
+				SCRIPT_WRITE_ADDRESS(address);
 				SCRIPT_FUNCTION_CALL
 			SCRIPT_FUNCTION_END
 		SCRIPT_END

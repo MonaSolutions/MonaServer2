@@ -253,7 +253,10 @@ ADD_TEST(Split) {
 	String::ForEach forEach([&test](UInt32 index,const char* value) {
 		switch (test) {
 			case 0:
-				CHECK(strcmp(value, "bidule")==0)
+				if (*value)
+					CHECK(strcmp(value, "bidule") == 0)
+				else
+					CHECK(index == 0);
 				break;
 			case 1: {
 				if (index == 0)
@@ -281,18 +284,31 @@ ADD_TEST(Split) {
 		return true;
 	});
 
-	string s = "bidule"; test = 0;
+	string s = "";
+	CHECK(String::Split(s, "|", forEach) == 1);
+	CHECK(String::Split(s, "|", forEach, SPLIT_IGNORE_EMPTY) == 0);
+
+	s = "bidule";
 	CHECK(String::Split(s,"|",forEach) == 1);
 	
 	s = "abc | def | ghi"; test = 1;
 	CHECK(String::Split(s,"|",forEach) == 3);
 
-	s = "abc | def | ghi|"; test = 1;
+	s = "abc | def | ghi|";
+	test = 1;
 	CHECK(String::Split(s,"|",forEach) == 4);
 	test = 1;
 	CHECK(String::Split(s,"|",forEach, SPLIT_IGNORE_EMPTY) == 3);
 	test = 2;
 	CHECK(String::Split(s,"|",forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM) == 3);
+
+	s = "abc , def | ghi,";
+	test = 1;
+	CHECK(String::Split(s, "|,", forEach) == 4);
+	test = 1;
+	CHECK(String::Split(s, ",|", forEach, SPLIT_IGNORE_EMPTY) == 3);
+	test = 2;
+	CHECK(String::Split(s, "|,", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM) == 3);
 }
 
 ADD_TEST(ToLower) {

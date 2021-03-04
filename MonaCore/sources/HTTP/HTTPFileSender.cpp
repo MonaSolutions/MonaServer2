@@ -37,20 +37,20 @@ bool HTTPFileSender::load(Exception& ex) {
 	if (loaded())
 		return true;
 
-	/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
-	if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
-		// NOT MODIFIED
-		DEBUG(peerAddress(), " GET 304 ", pRequest->path, File::name());
-		send(HTTP_CODE_304);
-		return false;
+	DEBUG(peerAddress(), " GET 200 ", pRequest->path, File::name());
+	if (File::load(ex)) {
+		/// not modified if there is no parameters file (impossible to determinate if the parameters have changed since the last request)
+		if (!_properties.count() && pRequest->ifModifiedSince >= lastChange()) {
+			// NOT MODIFIED
+			DEBUG(peerAddress(), " GET 304 ", pRequest->path, File::name());
+			send(HTTP_CODE_304);
+			return false;
+		}
+		return true;
 	}
 
-	DEBUG(peerAddress(), " GET 200 ", pRequest->path, File::name());
-	if (File::load(ex))
-		return true;
 	
 	string buffer;
-
 	if (ex.cast<Ex::Unfound>()) {
 		ex = nullptr;
 		// File doesn't exists but maybe folder exists?

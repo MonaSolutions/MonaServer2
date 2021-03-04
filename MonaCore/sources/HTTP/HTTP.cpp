@@ -85,7 +85,7 @@ void HTTP::Header::set(const char* key, const char* value) {
 	} else if (String::ICompare(key, "access-control-request-method") == 0) {
 
 		String::ForEach forEach([this](UInt32 index, const char* value) {
-			Type type(ParseType(value, rendezVous));
+			Type type(ParseType(value));
 			if (!type)
 				WARN("Access-control-request-method, unknown ", value, " type")
 			else
@@ -140,10 +140,10 @@ const char* HTTP::ErrorToCode(Int32 error) {
 	}
 }
 
-HTTP::Type HTTP::ParseType(const char* value, bool withRDV) {
+HTTP::Type HTTP::ParseType(const char* value) {
 	switch (strlen(value)) {
 		case 3:
-			if (withRDV && String::ICompare(value, "RDV") == 0)
+			if (String::ICompare(value, "RDV") == 0)
 				return TYPE_RDV;
 			if(String::ICompare(value, "GET") == 0)
 				return TYPE_GET;
