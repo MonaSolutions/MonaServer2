@@ -80,6 +80,14 @@ ADD_TEST(Parse) {
 #else
 	CheckURL("/C:/path?name=value", "", "", "/C:/path", "?name=value");
 #endif
+	CheckURL("localhost", "", "", "localhost", "");
+	CheckURL("localhost:8008", "", "localhost:8008", "", "");
+	CheckURL("2001:0db8:0000:0000:0000:0000:1428:57ab", "", "2001:0db8:0000:0000:0000:0000:1428:57ab", "", "");
+	CheckURL("::1", "", "::1", "", "");
+	CheckURL("[::1]:8008", "", "[::1]:8008", "", "");
+	CheckURL("http://::1/", "http", "::1", "", ""); // (incorrect in the browser)
+	CheckURL("http://[::1]/", "http", "[::1]", "", "");
+	CheckURL("http://[::1]/path/test?params", "http", "[::1]", "path/test", "?params");
 
 	CheckURL(" rtmp://","rtmp", "", "", "");
 	CheckURL("rtmp://127.0.0.1", "rtmp", "127.0.0.1", "", "");

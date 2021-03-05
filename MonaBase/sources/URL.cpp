@@ -62,6 +62,10 @@ const char* URL::Parse(const char* url, size_t& size, string& protocol, string& 
 				}
 			default: /// other char!
 				if (level) {
+					if (level == 1) {
+						String::Assign(address, protocol, ":");
+						protocol.clear();
+					}
 					level = 3;
 					address += *cur;
 				} else {
