@@ -61,23 +61,27 @@ const char* URL::Parse(const char* url, size_t& size, string& protocol, string& 
 					break;
 				}
 			default: /// other char!
-				if (level) {
-					level = 3;
-					address += *cur;
-				} else {
-					if (trimLeft) {
-						if(isspace(*cur))
-							break;
-						trimLeft = false;
-					}
-					protocol += *cur;
+				switch (level) {
+					case 0:
+						if (trimLeft) {
+							if (isspace(*cur))
+								break;
+							trimLeft = false;
+						}
+						protocol += *cur;
+						break;
+					case 1:
+						String::Assign(address, protocol, ':');
+						protocol.clear();
+					default:
+						level = 3;
+						address += *cur;
 				}
-					
 		}
 		if (level > 3)
 			break;
 		++cur;
-		if(rest !=string::npos)
+		if(rest != string::npos)
 			--rest;
 	};
 

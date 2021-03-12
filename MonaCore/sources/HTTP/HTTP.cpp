@@ -310,16 +310,17 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 		if (it != _remotes.end() && String::ICompare(it->first, pHeader->path) == 0) {
 			// found!
 			shared<Socket> pRemoteSocket = it->second->lock();
-			if (pRemoteSocket) {
+			if (pRemoteSocket // else socket expired
+				&& pRemoteSocket->peerAddress() != pSocket->peerAddress()) { // HTTP can't sends two consecutive requests
 				unique<const Remote> pRemote = move(it->second);
 				_remotes.erase(it);
 				lock.unlock(); // unlock
 
+				shared<HTTP::Header> pHeaderHold = pHeader;
 				Request local(Path::Null(), pHeader, packet, true); // pHeader captured!
-				// Send remote to local
-				send(pSocket, local, *pRemote, pRemoteSocket->peerAddress(), pRemote->params);
-				// Send local to remote
-				send(pRemoteSocket, *pRemote, local, pSocket->peerAddress(), params);
+				if (!send(pRemoteSocket, *pRemote, local, pSocket->peerAddress().host(), params))
+					return meet(pHeaderHold, packet, pSocket); // remote has shutdown, try again to meet someone!
+				send(pSocket, local, *pRemote, pRemoteSocket->peerAddress().host(), pRemote->params);
 				return true;
 			} // else peer expired
 			it = _remotes.erase(it);
@@ -336,27 +337,26 @@ bool HTTP::RendezVous::meet(shared<Header>& pHeader, const Packet& packet, const
 	return false;
 }
 
-void HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const SocketAddress& from, const Parameters& params) {
+bool HTTP::RendezVous::send(const shared<Socket>& pSocket, const shared<const Header>& pHeader, const Request& message, const string& from, const Parameters& params) {
 	// Send local to remote
 	HTTPSender sender("RDVSender", pHeader, pSocket);
 	HTTP_BEGIN_HEADER(sender.buffer())
 		// Access-Control-Expose-Headers
-		String::Append(__writer, "Access-Control-Expose-Headers: address, peerAddress");
+		String::Append(__writer, "Access-Control-Expose-Headers: host, peerHost, first");
 		for (const auto& it : params)
 			String::Append(__writer, ", ", it.first);
 		String::Append(__writer, "\r\n");
 		// Params (Query becomes Headers)
-		HTTP_ADD_HEADER("address", from)
-		HTTP_ADD_HEADER("peerAddress", pSocket->peerAddress())
+		HTTP_ADD_HEADER("host", from)
+		HTTP_ADD_HEADER("peerHost", pSocket->peerAddress().host())
 		HTTP_ADD_HEADER("first", message.flush)
 		for (const auto& it : params)
 			HTTP_ADD_HEADER(it.first, it.second);
 	HTTP_END_HEADER
 
-	sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size());
-	if(message.size())
-		sender.send(message);
-
+	if(!sender.send(HTTP_CODE_200, message->mime, message->subMime, message.size()))
+		return false;
+	return message.size() ? sender.send(message) : true;
 }
 
 

@@ -81,6 +81,9 @@ ADD_TEST(Parse) {
 	CheckURL("/C:/path?name=value", "", "", "/C:/path", "?name=value");
 #endif
 
+	CheckURL("localhost", "", "", "localhost", ""); // localhost is path
+	CheckURL("localhost:8080", "", "localhost:8080", "", ""); // localhost is address
+
 	CheckURL(" rtmp://","rtmp", "", "", "");
 	CheckURL("rtmp://127.0.0.1", "rtmp", "127.0.0.1", "", "");
 	CheckURL("rtmp://127.0.0.1:1234/", "rtmp", "127.0.0.1:1234", "", "");
