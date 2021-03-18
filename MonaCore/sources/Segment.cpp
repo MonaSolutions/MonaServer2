@@ -35,7 +35,8 @@ size_t Segment::ReadName(const string& name, UInt32& sequence, UInt16& duration)
 		return string::npos; // no valid number S sequence
 	// extract duration
 	string text;
-	DEBUG_CHECK(Util::FromBase64URL(BIN code, 3, text));
+	Util::FromBase64URL(BIN code, 3, text);
+	DEBUG_ASSERT(text.size()>0);
 	duration = Byte::From16Network(*(UInt16*)text.data());
 	return size;
 }

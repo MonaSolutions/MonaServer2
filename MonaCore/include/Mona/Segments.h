@@ -131,16 +131,15 @@ private:
 	void writeProperties(const Media::Properties& properties, const OnWrite& onWrite) override {
 		Media::Data::Type type(Media::Data::TYPE_UNKNOWN);
 		const Packet& packet = properties.data(type);
-		DEBUG_CHECK(_segment.add<Media::Data>(type, packet, 0, true));
+		addSegment<Media::Data>(type, packet, 0, true);
 	}
-	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) override {
-		DEBUG_CHECK(_segment.add<Media::Data>(type, packet, track));
-	}
-	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) override {
-		DEBUG_CHECK(_segment.add<Media::Audio>(tag, packet, track));
-	}
-	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) override {
-		DEBUG_CHECK(_segment.add<Media::Video>(tag, packet, track));
+	void writeData(UInt8 track, Media::Data::Type type, const Packet& packet, const OnWrite& onWrite) override { addSegment<Media::Data>(type, packet, track); }
+	void writeAudio(UInt8 track, const Media::Audio::Tag& tag, const Packet& packet, const OnWrite& onWrite) override { addSegment<Media::Audio>(tag, packet, track); }
+	void writeVideo(UInt8 track, const Media::Video::Tag& tag, const Packet& packet, const OnWrite& onWrite) override { addSegment<Media::Video>(tag, packet, track); }
+	template <typename MediaType, typename ...Args>
+	void addSegment(Args&&... args) {
+		bool added = _segment.add<MediaType>(std::forward<Args>(args) ...);
+		DEBUG_ASSERT(added);
 	}
 
 	std::deque<Segment>	_segments;
