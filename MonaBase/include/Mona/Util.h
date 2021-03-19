@@ -51,9 +51,12 @@ struct Util : virtual Static {
 	}
 
 	static UInt64	Random();
-	template<typename Type>
-	static Type		Random() { return Type(Random()); } // cast gives the modulo!
+	template<typename Number>
+	static Number	Random() { return Number(Random()); } // cast gives the modulo!
+	template<typename Number>
+	static Number	Random(Number max, Number min = 0) { return min + (Util::Random() % (max - min + 1)); }
 	static void		Random(UInt8* data, UInt32 size) { for (UInt32 i = 0; i < size; ++i) data[i] = UInt8(Random()); }
+	
 
 
 	static bool ReadIniFile(const std::string& path, Parameters& parameters);
@@ -99,7 +102,7 @@ struct Util : virtual Static {
 
 	template<typename Number>
 	struct UniformGen : virtual Object {
-		UniformGen(Number max, Number min = 0) : _max(max), _min(min), _next(min) {
+		UniformGen(Number max, Number min = 0) : max(max), min(min), _next(min) {
 			Number limit = max + 1 - min;
 			_step = (Number)std::round(limit / 1.61803398875);
 			Number leftStep = _step;
@@ -117,12 +120,15 @@ struct Util : virtual Static {
 			}
 			_step = 1;
 		}
+
+		const Number min;
+		const Number max;
+
 		operator Number() const { return _next; }
-		Number operator++() { return _next = AddDistance(_next, _step, _max, _min); }
-		Number operator--() { return _next = AddDistance(_next, -(typename std::make_signed<Number>::type)_step, _max, _min); }
+		Number operator=(Number value) { return _next = Mona::max(min, Mona::min(max, value)); }
+		Number operator++() { return _next = AddDistance(_next, _step, max, min); }
+		Number operator--() { return _next = AddDistance(_next, -(typename std::make_signed<Number>::type)_step, max, min); }
 	private:
-		Number _min;
-		Number _max;
 		Number _next;
 		Number _step;
 	};
