@@ -48,9 +48,9 @@ ADD_TEST(Behavior) {
 	ex = NULL;
 
 
-	DEBUG_CHECK(sa.setWithDNS(ex,"localhost", 80) && !ex);
-	DEBUG_CHECK(sa.host() == "127.0.0.1");
-	DEBUG_CHECK(sa.port() == 80);
+	CHECK(sa.setWithDNS(ex,"localhost", 80) && !ex);
+	CHECK(sa.host() == "127.0.0.1");
+	CHECK(sa.port() == 80);
 
 	CHECK(!sa.set(ex, "192.168.2.260", 80) && ex);
 	ex = NULL;

@@ -38,8 +38,8 @@ struct Util : virtual Static {
 
 	static const Parameters& Environment();
 	 
-	template<typename Number>
-	static Number GCD(Number x, Number y) {
+	template<typename Number, typename Number2>
+	static Number GCD(Number x, Number2 y) {
 		x = Mona::abs(x);
 		y = Mona::abs(y);
 		while (y) {
@@ -88,7 +88,7 @@ struct Util : virtual Static {
 				pt = min;
 				distance -= delta + 1;
 			}
-			return pt + distance;
+			return Type(pt + distance);
 		}
 		// move on the left (distance<0), TypeD is necessary signed!
 		distance = -typename std::make_signed<TypeD>::type(distance);
@@ -96,24 +96,29 @@ struct Util : virtual Static {
 			pt = max;
 			distance -= delta + 1;
 		}
-		return pt - distance;
+		return Type(pt - distance);
 	}
 
 
 	template<typename Number>
 	struct UniformGen : virtual Object {
-		UniformGen(Number max, Number min = 0) : max(max), min(min), _next(min) {
-			Number limit = max + 1 - min;
-			_step = (Number)std::round(limit / 1.61803398875);
-			Number leftStep = _step;
+		UniformGen(Number max = std::numeric_limits<Number>::max(), Number min = 0) : max(max), min(min), _next(min) {
+			UInt64 limit = max - min + 1;
+			if (!limit) {
+				// has UInt64 round-up!
+				_step = Number(11400714819322458111llu);
+				return;
+			}
+			_step = Number(limit / 1.61803398875);
+			Number leftStep = ++_step;
 			while (true) {
 				if (_step <= limit) {
-					if (GCD(limit, _step) == 1)
+					if (Util::GCD(limit, _step) == 1)
 						return;
 					++_step;
 				} else if (!leftStep)
 					break;
-				if (leftStep && GCD(limit, --leftStep) == 1) {
+				if (leftStep && Util::GCD(limit, --leftStep) == 1) {
 					_step = leftStep;
 					return;
 				}

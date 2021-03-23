@@ -121,23 +121,23 @@ ADD_TEST(ParseQuery) {
 	Parameters properties;
 	CHECK(!URL::ParseQuery("?", properties).count())
 	CHECK(URL::ParseQuery("name1=value1&name2=value2", properties).count() == 2)
-	DEBUG_CHECK(properties.getString("name1", value) && value == "value1");
-	DEBUG_CHECK(properties.getString("name2", value) && value == "value2");
+	CHECK(properties.getString("name1", value) && value == "value1");
+	CHECK(properties.getString("name2", value) && value == "value2");
 	properties.clear();
 	CHECK(URL::ParseQuery("?name1=value1&name2=value2", properties).count() == 2)
-	DEBUG_CHECK(properties.getString("name1", value) && value == "value1");
-	DEBUG_CHECK(properties.getString("name2", value) && value == "value2");
+	CHECK(properties.getString("name1", value) && value == "value1");
+	CHECK(properties.getString("name2", value) && value == "value2");
 	properties.clear();
 
 
 	string test("name1=one%20space&name2=%22one double quotes%22&name3=percent:%25&name4=%27simple quotes%27");
 	CHECK(URL::ParseQuery(test, properties).count() == 4); // test "count" + DecodeUrI
-	DEBUG_CHECK(properties.getString("name1", value) && value == "one space");
-	DEBUG_CHECK(properties.getString("name2", value) && value == "\"one double quotes\"");
-	DEBUG_CHECK(properties.getString("name3", value) && value == "percent:%");
-	DEBUG_CHECK(properties.getString("name4", value) && value == "'simple quotes'");
+	CHECK(properties.getString("name1", value) && value == "one space");
+	CHECK(properties.getString("name2", value) && value == "\"one double quotes\"");
+	CHECK(properties.getString("name3", value) && value == "percent:%");
+	CHECK(properties.getString("name4", value) && value == "'simple quotes'");
 	CHECK(URL::ParseQuery("longquery://test;:/one%*$^/fin=value~", properties).count() == 5)
-		DEBUG_CHECK(properties.getString("longquery://test;:/one%*$^/fin", value) && value == "value~");
+	CHECK(properties.getString("longquery://test;:/one%*$^/fin", value) && value == "value~");
 
 	bool next(true);
 	URL::ForEachParameter forEach([&next](const string& name, const char* value) { return next; });

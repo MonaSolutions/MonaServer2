@@ -54,29 +54,29 @@ struct SuccessParser : XMLParser {
 
 	bool onXMLInfos(const char* name, Parameters& attributes) {
 		CHECK(_order++ == 1);
-		DEBUG_CHECK(strcmp(name, "xml") == 0);
-		DEBUG_CHECK(attributes.getString("encoding",_StringBuffer) && _StringBuffer=="UTF-8");
-		DEBUG_CHECK(attributes.getNumber<int>("version")==1);
+		DEBUG_ASSERT(strcmp(name, "xml") == 0);
+		DEBUG_ASSERT(attributes.getString("encoding",_StringBuffer) && _StringBuffer=="UTF-8");
+		DEBUG_ASSERT(attributes.getNumber<int>("version")==1);
 		return _oneShoot;
 	}
 
 	bool onStartXMLElement(const char* name, Parameters& attributes) {
 		CHECK(_order == 2 || _order == 4);
 		if (_order == 2)
-			DEBUG_CHECK(strcmp(name, "root") == 0)
+			DEBUG_ASSERT(strcmp(name, "root") == 0)
 		else
-			DEBUG_CHECK(strcmp(name, "full") == 0)
-		DEBUG_CHECK(attributes.getString("name",_StringBuffer) && _StringBuffer=="value");
+			DEBUG_ASSERT(strcmp(name, "full") == 0)
+		DEBUG_ASSERT(attributes.getString("name",_StringBuffer) && _StringBuffer=="value");
 		++_order;
 		return _oneShoot;
 	}
 	bool onInnerXMLElement(const char* name, const char* data, UInt32 size) {
 		CHECK(_order == 3 || _order == 6);
-		DEBUG_CHECK(strcmp(name, "root") == 0)
+		DEBUG_ASSERT(strcmp(name, "root") == 0)
 		if (_order == 3)
-			DEBUG_CHECK(size==36 && memcmp(data, "r      <one> is not a XML element  d",size) == 0)
+			DEBUG_ASSERT(size==36 && memcmp(data, "r      <one> is not a XML element  d",size) == 0)
 		else {
-			DEBUG_CHECK(size == 5 && memcmp(data, "SALUT", size) == 0)
+			DEBUG_ASSERT(size == 5 && memcmp(data, "SALUT", size) == 0)
 			save(_state);
 		}
 		++_order;
@@ -85,9 +85,9 @@ struct SuccessParser : XMLParser {
 	bool onEndXMLElement(const char* name) {
 		CHECK(_order == 5 || _order == 7 || _order == 8);
 		if (_order == 5)
-			DEBUG_CHECK(strcmp(name, "full") == 0)
+			DEBUG_ASSERT(strcmp(name, "full") == 0)
 		else {
-			DEBUG_CHECK(strcmp(name, "root") == 0)
+			DEBUG_ASSERT(strcmp(name, "root") == 0)
 			if (_state)
 				reset(_state);
 			_state.clear();
