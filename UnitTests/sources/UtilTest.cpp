@@ -92,6 +92,10 @@ ADD_TEST(Generators) {
 		for (UInt16 i = 0; i <= max; ++i)
 			CHECK(ids.emplace(++gen).second);
 	}
+
+	CHECK(Util::UniformGen<UInt16>().operator++() > 1);
+	CHECK(Util::UniformGen<UInt32>().operator++() > 1);
+	CHECK(Util::UniformGen<UInt64>().operator++() > 1);
 }
 
 ADD_TEST(Base64) {
