@@ -119,9 +119,8 @@ UInt32 HTTPDecoder::onStreamData(Packet& buffer, const shared<Socket>& pSocket) 
 						if(!_file.isFolder())
 							_pHeader->path.set(_pHeader->path, _file.name(), '/');
 						_pWSDecoder.set(_handler, _name);
-						_pHeader->pWSDecoder = _pWSDecoder;
 						// following is WebSocket data, not read the content!
-						receive(Packet::Null(), true); // flush immediatly the swithing protocol response!
+						receive(_pWSDecoder); // flush immediatly the swithing protocol response!
 						if(buffer)
 							_pWSDecoder->decode(buffer, pSocket->peerAddress(), pSocket);
 						return 0;

@@ -39,6 +39,8 @@ struct Client : Entity, virtual Object, Net::Stats {
 
 	const char*					protocol;
 
+	virtual const char*			authentification() const { return NULL; }
+
 	/*!
 	Can be usefull in some protocol implementation to allow to change client property (like HTTP and Cookie),
 	reader has in first argument the value to assign and the rest is assignation parameters */
@@ -98,8 +100,7 @@ private:
 	Parameters					_properties;
 	UInt16						_ping;
 	UInt32						_rto;
-	double						_rttvar;
-	
+	double						_rttvar;	
 };
 
 

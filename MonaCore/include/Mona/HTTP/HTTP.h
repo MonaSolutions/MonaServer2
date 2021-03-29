@@ -195,8 +195,6 @@ struct HTTP : virtual Static {
 
 		bool			rendezVous;
 
-		shared<WSDecoder>	pWSDecoder;
-
 		void			set(const char* key, const char* value);
 	};
 
@@ -208,6 +206,7 @@ struct HTTP : virtual Static {
 		Media::Base*			pMedia;
 		UInt32					lost;
 		const bool				flush;
+		shared<WSDecoder>		pWSDecoder;
 	
 		const Header* operator->() const { return _pHeader.get(); }
 		const Header& operator*() const { return *_pHeader; }
@@ -215,6 +214,7 @@ struct HTTP : virtual Static {
 		bool unique() const { return _pHeader.unique(); }
 	protected:
 		Message(shared<Header>& pHeader, const Packet& packet, bool flush) : lost(0), pMedia(NULL), flush(flush), Packet(std::move(packet)), _pHeader(std::move(pHeader)) { if (_pHeader) setParams(*_pHeader); }
+		Message(shared<Header>& pHeader, const shared<WSDecoder>& pDecoder) : lost(0), pMedia(NULL), flush(true), Packet(Packet::Null()), pWSDecoder(pDecoder), _pHeader(std::move(pHeader)) { if (_pHeader) setParams(*_pHeader); }
 		/*!
 		exception */
 		Message(shared<Header>& pHeader, const Exception& ex) : lost(0), pMedia(NULL), ex(ex), flush(true), _pHeader(std::move(pHeader)) {} // Exception => no need to parse params!
@@ -234,39 +234,15 @@ struct HTTP : virtual Static {
 	};
 
 	struct Request : Message, virtual Object {
-		Request(const Path& file, shared<Header>& pHeader, const Packet& packet, bool flush) : file(file), Message(pHeader, packet, flush) {}
-		/*!
-		exception */
-		Request(const Path& file, shared<Header>& pHeader, const Exception& ex) : file(file), Message(pHeader, ex) {}
-		/*!
-		media packet */
-		Request(const Path& file, shared<Header>& pHeader, Media::Base* pMedia) : file(file), Message(pHeader, pMedia) {}
-		/*!
-		media lost infos */
-		Request(const Path& file, shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : file(file), Message(pHeader, type, lost, track) {}
-		/*!
-		media reset, flush or publish end */
-		Request(const Path& file, shared<Header>& pHeader, bool endMedia, bool flush) : file(file), Message(pHeader, endMedia, flush) {}
-		
+		template <typename ...Args>
+		Request(const Path& file, Args&&... args) : file(file), Message(std::forward<Args>(args) ...) {}
 		Path	file;
 	};
 
 	struct Response : Message, virtual Object {
-		Response(UInt16 code, shared<Header>& pHeader, const Packet& packet, bool flush) : code(code), Message(pHeader, packet, flush) {}
-		/*!
-		exception */
-		Response(UInt16 code, shared<Header>& pHeader, const Exception& ex) : code(code), Message(pHeader, ex) {}
-		/*!
-		media packet */
-		Response(UInt16 code, shared<Header>& pHeader, Media::Base* pMedia) : code(code), Message(pHeader, pMedia) {}
-		/*!
-		media lost infos */
-		Response(UInt16 code, shared<Header>& pHeader, Media::Type type, UInt32 lost, UInt8 track = 0) : code(code), Message(pHeader, type, lost, track) {}
-		/*!
-		media reset, flush or publish end */
-		Response(UInt16 code, shared<Header>& pHeader, bool endMedia, bool flush) : code(code), Message(pHeader, endMedia, flush) {}
-
-		UInt16 code;
+		template <typename ...Args>
+		Response(UInt16 code, Args&&... args) : code(code), Message(std::forward<Args>(args) ...) {}
+		UInt16	code;
 	};
 
 	struct RendezVous : virtual Object {

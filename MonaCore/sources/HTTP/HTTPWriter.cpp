@@ -107,6 +107,7 @@ HTTPWriter::HTTPWriter(TCPSession& session) : _requestCount(0), _requesting(fals
 }
 
 void HTTPWriter::closing(Int32 error, const char* reason) {
+	endRequest(); // endRequest!
 	// if normal close, or negative error (can't answer), or no before request (one request = one response) => no response
 	if (error <= 0 || !_requestCount)
 		return;

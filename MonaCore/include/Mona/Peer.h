@@ -34,6 +34,7 @@ struct Peer : Client, virtual Object {
 	~Peer();
 
 	Parameters&					properties() { return (Parameters&)Client::properties(); }
+	const char*					authentification() const override;
 
 	void						setAddress(const SocketAddress& address);
 	/*!
@@ -66,7 +67,9 @@ struct Peer : Client, virtual Object {
 private:
 	bool onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties);
 
-	ServerAPI& _api;
+	ServerAPI&			_api;
+	mutable std::string	_auth;
+	mutable UInt32		_authVersion;
 };
 
 } // namespace Mona

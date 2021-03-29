@@ -203,7 +203,7 @@ void MonaServer::onAddressChanged(Client& client,const SocketAddress& oldAddress
 
 bool MonaServer::onInvocation(Exception& ex, Client& client, const string& name, DataReader& reader, UInt8 responseType) {
 	static const char* const OnMessage("onMessage");
-	const char* method = name.empty() ? OnMessage : name.c_str();
+	const char* method = name.size() ? name.c_str() : OnMessage;
 	SCRIPT_BEGIN(_pState)
 		SCRIPT_MEMBER_FUNCTION_BEGIN(client, method, OnMessage)
 			if(!name.empty() && SCRIPT_FUNCTION_NAME == OnMessage)
@@ -218,10 +218,7 @@ bool MonaServer::onInvocation(Exception& ex, Client& client, const string& name,
 				SCRIPT_READ_NEXT(ScriptReader(_pState, SCRIPT_NEXT_READABLE).read(client.writer().writeResponse(responseType)));
 		SCRIPT_FUNCTION_END
 	SCRIPT_END
-	if(!method)
-		return true;
-	ex.set<Ex::Application>("Method client ", name, " not found in application ", client.path.length() ? client.path : "/");
-	return false;
+	return method ? true : false;
 }
 
 bool MonaServer::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) {

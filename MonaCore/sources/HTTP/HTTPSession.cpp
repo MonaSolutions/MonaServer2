@@ -66,22 +66,21 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 			if (request->connection&HTTP::CONNECTION_UPGRADE) {
 				if (handshake(request))  {
 					// Upgrade to WebSocket
-					if (request->pWSDecoder) {
+					if (request.pWSDecoder) {
 						Protocol* pProtocol(this->api.protocols.find(self->isSecure() ? "WSS" : "WS"));
 						if (pProtocol) {
 							// Close HTTP
 							disconnection();
 		
 							// Create WSSession
-							WSSession* pSession = new WSSession(*pProtocol, self, request->pWSDecoder);
-							_pUpgradeSession = pSession;
 							HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
 								HTTP_ADD_HEADER("Upgrade", "WebSocket")
 								WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
 							HTTP_END_HEADER
 
 							// WebSocket connection
-							peer.onConnection(ex, pSession->writer, *self); // No response in WebSocket handshake (fail for few clients)
+							/// No response in WebSocket handshake (fail for few clients)
+							peer.onConnection(ex, _pUpgradeSession.set<WSSession>(*pProtocol, self, move(request.pWSDecoder)).writer, *self);
 						} else {
 							ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
 							exToLog = true;
@@ -142,8 +141,13 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 				WARN(name(), ' ', ex);
 
 			if (!died) { // if died _pWriter is null!
-				if (ex) // Return error but keep connection keepalive if required to avoid multiple reconnection (and because HTTP client is valid contrary to a HTTPDecoder error)
+				if (ex) {// Return error but keep connection keepalive if required to avoid multiple reconnection (and because HTTP client is valid contrary to a HTTPDecoder error)
 					_pWriter->writeError(ex);
+					if (_pUpgradeSession) {
+						_pUpgradeSession->kill(ERROR_SOCKET); // no WebSocket response!
+						return kill();
+					}
+				}
 				_pWriter->endRequest();
 			}
 		} else if(_fileWriter) {
@@ -544,30 +548,19 @@ void HTTPSession::processPost(Exception& ex, HTTP::Request& request, QueryReader
 			if (params.getNumber("timeout", _timeoutPublication = timeout))
 				_timeoutPublication *= 1000;
 		}
-	} else
-		processPut(ex, request, parameters); // data or file append (as behavior as PUT)	
+	} else if (request.file.isFolder() || request.file.extension().empty())
+		invoke(ex, request, parameters);	
+	else // POST to append to file!
+		writeFile(ex, request, parameters);
 }
 
 void HTTPSession::processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
-	if (request.file.extension().empty() && invoke(ex, request, parameters))
-		return;
-	ex = nullptr;
-	// write file or create folder
-	Parameters properties;
-	MapWriter<Parameters> props(properties);
-	bool append(request->type == HTTP::TYPE_POST);
-	struct AppendReader : DataReader {
-		AppendReader() : DataReader(Packet::Null(), STRING) {}
-		bool readOne(UInt8 type, DataWriter& writer) { writer.writeString(EXPAND("append")); return true; }
-	} appendReader;
-	SplitReader params(parameters, append ? appendReader : DataReader::Null());
-	if (peer.onWrite(ex, request.file, params, props)) {
-		properties.getBoolean("append", append);
-		_EOWFlags = 0;
-		_fileWriter.open(request.file, append);
-		_EOWFlags = (request.file.exists() ? 0 : 2) | (request->progressive ? 0 : 1); // before open otherwise onFlush will close the writer!
-		_fileWriter.write(request);
-	} // else "ex" is necessary set so HTTP session will be killed!
+	// Write (create or append) file/folder JUST if regular extension on the file, else it's a RPC call.
+	// Important to avoid confusing the both and get not the right error
+	if(request.file.isFolder() ? request.size() : request.file.extension().empty())
+		invoke(ex, request, parameters);
+	else
+		writeFile(ex, request, parameters);
 }
 
 void HTTPSession::processDelete(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
@@ -578,6 +571,25 @@ void HTTPSession::processDelete(Exception& ex, HTTP::Request& request, QueryRead
 	_EOWFlags = 0;
 	if (peer.onDelete(ex, request.file, parameters)) // else "ex" is necessary set so HTTP session will be killed!	
 		_fileWriter.open(request.file).erase();
+}
+
+bool HTTPSession::writeFile(Exception& ex, HTTP::Request& request, QueryReader& parameters) {
+	Parameters properties;
+	MapWriter<Parameters> props(properties);
+	bool append(request->type == HTTP::TYPE_POST);
+	struct AppendReader : DataReader {
+		AppendReader() : DataReader(Packet::Null(), STRING) {}
+		bool readOne(UInt8 type, DataWriter& writer) { writer.writeString(EXPAND("append")); return true; }
+	} appendReader;
+	SplitReader params(parameters, append ? appendReader : DataReader::Null());
+	if (!peer.onWrite(ex, request.file, params, props))
+		return false;
+	properties.getBoolean("append", append);
+	_EOWFlags = 0;
+	_fileWriter.open(request.file, append);
+	_EOWFlags = (request.file.exists() ? 0 : 2) | (request->progressive ? 0 : 1); // before open otherwise onFlush will close the writer!
+	_fileWriter.write(request);
+	return true;
 }
 
 bool HTTPSession::invoke(Exception& ex, HTTP::Request& request, QueryReader& parameters, const char* name) {

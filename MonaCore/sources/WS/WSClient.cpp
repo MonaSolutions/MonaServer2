@@ -82,14 +82,14 @@ bool WSClient::connect(Exception& ex, const SocketAddress& addr, const string& r
 			onError(response.ex);
 			return disconnect();
 		}
-		if (!response || !response->pWSDecoder) {
+		if (!response || !response.pWSDecoder) {
 			Exception ex;
 			ex.set<Ex::Protocol>("Connection ", serverAddress, " failed");
 			onError(ex);
 			return disconnect();
 		}
 		_pHTTPHeader = response;
-		_pHTTPHeader->pWSDecoder->onMessage = _onMessage;
+		response.pWSDecoder->onMessage = _onMessage;
 		setPing(connection.elapsed()); // set the ping immediatly with the first response!
 	};
 	_onMessage = [this](WS::Message& message) {

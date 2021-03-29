@@ -85,7 +85,9 @@ struct ServerAPI : virtual Object, Parameters {
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION
 	/*!
 	File access (read, write/append), arguments are the request argument, and properties are the "<%%> pattern" to replace in read/write file */
-	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) { return !mode; }  // Exception::SOFTWARE
+	virtual bool			onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties, Client* pClient) {
+		return (!mode || !pClient || pClient->authentification()) ? true : false;  // Exception::SOFTWARE
+	} 
 
 	virtual bool			onPublish(Exception& ex, Publication& publication, Client* pClient) { return true; }
 	virtual void			onUnpublish(Publication& publication, Client* pClient){}

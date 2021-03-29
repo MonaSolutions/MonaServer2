@@ -25,7 +25,7 @@ using namespace std;
 
 namespace Mona {
 
-WSSession::WSSession(Protocol& protocol, TCPSession& session, const shared<WSDecoder>& pDecoder) : Session(protocol, session), writer(session), _pSubscription(NULL), _pPublication(NULL),
+WSSession::WSSession(Protocol& protocol, TCPSession& session, shared<WSDecoder>&& pDecoder) : Session(protocol, session), writer(session), _pDecoder(move(pDecoder)), _pSubscription(NULL), _pPublication(NULL),
 	_onMessage([this](WS::Message& message) {
 		Exception ex;
 
@@ -101,7 +101,7 @@ WSSession::WSSession(Protocol& protocol, TCPSession& session, const shared<WSDec
 		if (message.flush)
 			flush();
 	}) {
-	pDecoder->onMessage = _onMessage;
+	_pDecoder->onMessage = _onMessage;
 }
 
 void WSSession::kill(Int32 error, const char* reason) {

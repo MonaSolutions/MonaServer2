@@ -30,13 +30,50 @@ using namespace std;
 
 namespace Mona {
 
-Peer::Peer(ServerAPI& api, const char* protocol, const SocketAddress& address) : _api(api), pingTime(0), // pingTime to 0 in beginning to force ping on session beginning for protocols requiring a writePing to compute it
+Peer::Peer(ServerAPI& api, const char* protocol, const SocketAddress& address) : _authVersion(0), _api(api), pingTime(0), // pingTime to 0 in beginning to force ping on session beginning for protocols requiring a writePing to compute it
 	Client(protocol, address) {
 }
 
 Peer::~Peer() {
 	if (connection)
 		CRITIC("Client ", String::Hex(id, Entity::SIZE), " deleting whereas connected, onDisconnection forgotten");
+}
+
+const char* Peer::authentification() const {
+	if (_authVersion != Client::properties().version) {
+		_authVersion = Client::properties().version;
+		_auth.clear();
+		// Basic Auth
+		const string* pAuthorization = Client::properties().getParameter("authorization");
+		if (!pAuthorization)
+			return NULL;
+
+		String::ForEach forEach([&](UInt32 index, const char* value) {
+			switch (index) {
+				case 0:
+					if (String::ICompare(value, "basic") == 0)
+						return true;
+					WARN("Doesn't support a ", value, " authentification for client ", address);
+					break;
+				case 1: {
+					Buffer buffer;
+					Util::FromBase64(BIN value, strlen(value), buffer);
+					const UInt8* pass = BIN memchr(buffer.data(), ':', buffer.size());
+					if (!pass)
+						break;
+					UInt32 passSize = buffer.size() - (++pass - buffer.data());
+					(_auth = "users.").append(STR buffer.data(), buffer.size() - passSize - 1);
+					const string* pPass = _api.getParameter(_auth);
+					if (!pPass || pPass->size() != passSize || memcmp(pPass->data(), pass, passSize))
+						_auth.clear();
+				}
+				default:;
+			}
+			return false;
+		});
+		String::Split(*pAuthorization, " \r\n", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
+	}
+	return _auth.size() ? (_auth.c_str() + 6) : NULL;
 }
 
 void Peer::setAddress(const SocketAddress& address) {
@@ -148,20 +185,20 @@ bool Peer::onInvocation(Exception& ex, const string& name, DataReader& reader, U
 	if (_api.onInvocation(ex, *this, name, reader, responseType))
 		return true;
 	// method not found!
-	if(!ex)
-		ex.set<Ex::Application>("Method client ", name, " not found in application ", path.length() ? path : "/"); // no log just in this case!
+	if (!ex)
+		ex.set<Ex::Application>("No Method client ", name, name.size() ? " " : "", "found in application ", path.length() ? path : "/"); // no log just in this case!
 	return false; // method not found!
 }
 
 bool Peer::onFileAccess(Exception& ex, File::Mode mode, Path& file, DataReader& arguments, DataWriter& properties) {
 	if (!connection) {
-		CRITIC(ex.set<Ex::Intern>(path, file.name(), " access by a not connected client"));
+		CRITIC(ex.set<Ex::Intern>(file, " access by a not connected client"));
 		return false;
 	}
 	if(_api.onFileAccess(ex,mode,file, arguments, properties, this))
 		return true;
 	if (!ex)
-		ERROR(ex.set<Ex::Permission>(path, file.name(), " access denied by application ", path.length() ? path : "/"));
+		ERROR(ex.set<Ex::Permission>(file, " access denied"));
 	return false;
 }
 

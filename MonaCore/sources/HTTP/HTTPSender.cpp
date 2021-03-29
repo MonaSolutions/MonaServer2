@@ -128,6 +128,11 @@ bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UI
 	/// Date + Mona
 	String::Append(*pBuffer, "\r\nDate: ", String::Date(Date::FORMAT_HTTP), "\r\nServer: Mona");
 
+	if (strcmp(code, HTTP_CODE_401)==0) {
+		// HTTP Auth Basic
+		String::Append(*pBuffer, "\r\nWWW-Authenticate: Basic realm=\"", pRequest->host, '/', pRequest->path,'"');
+	}
+
 	/// Last modified
 	const Path& path = this->path();
 	if (path) {

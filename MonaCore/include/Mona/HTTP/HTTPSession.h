@@ -61,6 +61,7 @@ private:
 	void			processPut(Exception& ex, HTTP::Request& request, QueryReader& parameters);
 	void			processDelete(Exception& ex, HTTP::Request& request, QueryReader& parameters);
 
+	bool			writeFile(Exception& ex, HTTP::Request& request, QueryReader& parameters);
 	bool			invoke(Exception& ex, HTTP::Request& request, QueryReader& parameters, const char* name = NULL);
 
 	unique<HTTPWriter>  _pWriter; // pointer to release source on session::kill
