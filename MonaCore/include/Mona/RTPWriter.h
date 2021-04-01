@@ -99,7 +99,7 @@ private:
 		while (!flush) {
 	
 			if(!_pBuffer)
-				_pBuffer.set(SET);
+				_pBuffer.set();
 			BinaryWriter writer(*_pBuffer);
 
 			if (!writer) {

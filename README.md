@@ -64,8 +64,7 @@ cd MonaServer
 A [Windows 32-bit](https://sourceforge.net/projects/monaserver/files/MonaServer/MonaServer_Win32.zip/download) and a [ Windows 64-bit](https://sourceforge.net/projects/monaserver/files/MonaServer/MonaServer_Win64.zip/download) zipped packages are provided to test MonaServer. However we recommend to build the github version from the sources for production use.
 
 ### Requirements
-- [C++ vc_redist.x86 Visual Studio 2015 package](https://www.microsoft.com/it-it/download/details.aspx?id=48145)
-- [Microsoft Visual Studio Express 2015 for Windows Desktop](https://my.visualstudio.com/Downloads?q=visual%20studio%202015&wt.mc_id=o~msft~vscom~older-downloads)
+- [Microsoft Visual Studio Community 2019 for Windows Desktop](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=16)
 - To enable [SRT Protocol] download and build [SRT], put the header files in *External/include* and the libraries in *External/lib* and *External/lib64* (with a *d* sufix for the debug librairies):
 ```
 MonaServer/External/lib>dir                 MonaServer/External/lib>dir
