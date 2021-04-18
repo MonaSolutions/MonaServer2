@@ -67,7 +67,7 @@ A [Windows 32-bit](https://sourceforge.net/projects/monaserver/files/MonaServer/
 - [Microsoft Visual Studio Community 2019 for Windows Desktop](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=16)
 - To enable [SRT Protocol] download and build [SRT], put the header files in *External/include* and the libraries in *External/lib* and *External/lib64* (with a *d* sufix for the debug librairies):
 ```
-MonaServer/External/lib>dir                 MonaServer/External/lib>dir
+./External/lib>dir                 ./External/lib>dir
     srt/srt.h                                   pthread_lib.lib
     srt/logging_api.h                           pthread_libd.lib
     srt/platform_sys.h                          srt_static.lib
