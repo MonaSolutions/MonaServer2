@@ -79,7 +79,9 @@ struct ServerAPI : virtual Object, Parameters {
 
 	// events	
 	virtual SocketAddress& 	onHandshake(const Path& path, const std::string& protocol, const SocketAddress& address, const Parameters& properties, SocketAddress& redirection) { return redirection; }
-	virtual void			onConnection(Exception& ex,Client& client, DataReader& inParams, DataWriter& outParams) {} // Exception::SOFTWARE, Exception::APPLICATION
+	/*!
+	Call on Connection client, you can reject the connection in set an exception. In such case onDisconnection is not called. */
+	virtual void			onConnection(Exception& ex,Client& client, DataReader& inParams, DataWriter& outParams) {}
 	virtual void			onDisconnection(Client& client) {}
 	virtual void			onAddressChanged(Client& client,const SocketAddress& oldAddress) {}
 	virtual bool			onInvocation(Exception& ex, Client& client, const std::string& name, DataReader& arguments, UInt8 responseType) { return false; } // Exception::SOFTWARE, Exception::APPLICATION

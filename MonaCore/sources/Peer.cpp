@@ -44,34 +44,33 @@ const char* Peer::authentification() const {
 		_authVersion = Client::properties().version;
 		_auth.clear();
 		// Basic Auth
-		const string* pAuthorization = Client::properties().getParameter("authorization");
-		if (!pAuthorization)
+		const char* type = Client::properties().getString("authorization");
+		if (!type)
 			return NULL;
 
-		String::ForEach forEach([&](UInt32 index, const char* value) {
-			switch (index) {
-				case 0:
-					if (String::ICompare(value, "basic") == 0)
-						return true;
-					WARN("Doesn't support a ", value, " authentification for client ", address);
-					break;
-				case 1: {
-					Buffer buffer;
-					Util::FromBase64(BIN value, strlen(value), buffer);
-					const UInt8* pass = BIN memchr(buffer.data(), ':', buffer.size());
-					if (!pass)
-						break;
-					UInt32 passSize = buffer.size() - (++pass - buffer.data());
-					(_auth = "users.").append(STR buffer.data(), buffer.size() - passSize - 1);
-					const string* pPass = _api.getParameter(_auth);
-					if (!pPass || pPass->size() != passSize || memcmp(pPass->data(), pass, passSize))
-						_auth.clear();
-				}
-				default:;
+		const char* authorization = strpbrk(type, ": \r\n");
+		if (authorization) {
+			String::Scoped scoped(authorization);
+			if (String::ICompare(type, "basic") != 0) {
+				WARN("Doesn't support a ", type, " authentification for client ", address);
+				return NULL;
 			}
-			return false;
-		});
-		String::Split(*pAuthorization, " \r\n", forEach, SPLIT_IGNORE_EMPTY | SPLIT_TRIM);
+			++authorization;
+		}
+		else {
+			authorization = type;
+		}
+
+		Buffer buffer;
+		Util::FromBase64(BIN authorization, strlen(authorization), buffer);
+		const UInt8* pass = BIN memchr(buffer.data(), ':', buffer.size());
+		if (!pass)
+			return NULL;
+		UInt32 passSize = buffer.size() - (++pass - buffer.data());
+		(_auth = "users.").append(STR buffer.data(), buffer.size() - passSize - 1);
+		const string* pPass = _api.getParameter(_auth);
+		if (!pPass || pPass->size() != passSize || memcmp(pPass->data(), pass, passSize))
+			_auth.clear();
 	}
 	return _auth.size() ? (_auth.c_str() + 6) : NULL;
 }
