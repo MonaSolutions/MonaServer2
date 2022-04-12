@@ -205,6 +205,12 @@ bool Util::ReadIniFile(const string& path, Parameters& parameters) {
 		}
 
 		if (vSize) {
+			// remove comments
+			const char* comments = strchr(value, ';');
+			if (comments && (cur - comments) < vSize) {
+				vSize -= cur - comments;
+			}
+
 			vSize = String::Trim(value, vSize);
 			// remove quote on value
 			if (vSize > 1 && value[0] == value[vSize - 1] && (value[0] == '"' || value[0] == '\'')) {
