@@ -207,7 +207,7 @@ bool Util::ReadIniFile(const string& path, Parameters& parameters) {
 		if (vSize) {
 			// remove comments
 			const char* comments = strchr(value, ';');
-			if (comments && (cur - comments) < vSize) {
+			if (comments && (size_t)(cur - comments) < vSize) {
 				vSize -= cur - comments;
 			}
 
