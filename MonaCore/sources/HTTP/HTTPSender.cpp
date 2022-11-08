@@ -106,7 +106,7 @@ bool HTTPSender::send(const Packet& content) {
 		if (!socketSend(Packet(pBuffer)))
 			return false;
 	}
-	return socketSend(content);
+	return content ? socketSend(content) : true;
 }
 
 bool HTTPSender::send(const char* code, MIME::Type mime, const char* subMime, UInt64 extraSize) {

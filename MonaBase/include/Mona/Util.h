@@ -172,7 +172,7 @@ struct Util : virtual Static {
 			}
 		}
 		// Any trailing bits that are missing.
-		if (bits > 0) {
+		if (bits) {
 			accumulator <<= 6 - bits;
 			*current++ = table[accumulator & 0x3Fu];
 		}
@@ -226,8 +226,8 @@ struct Util : virtual Static {
 			bits += 6;
 			if (bits >= 8) {
 				bits -= 8;
-				size++;
-				*out++ = ((accumulator >> bits) & 0xFFu);
+				++size;
+				*out++ = (accumulator >> bits) & 0xFFu;
 			}
 		}
 		buffer.resize(oldSize+size);
