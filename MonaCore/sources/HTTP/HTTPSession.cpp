@@ -71,16 +71,20 @@ HTTPSession::HTTPSession(Protocol& protocol, const shared<Socket>& pSocket) : TC
 						if (pProtocol) {
 							// Close HTTP
 							disconnection();
-		
-							// Create WSSession
-							HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
-								HTTP_ADD_HEADER("Upgrade", "WebSocket")
-								WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
-							HTTP_END_HEADER
 
 							// WebSocket connection
 							/// No response in WebSocket handshake (fail for few clients)
 							peer.onConnection(ex, _pUpgradeSession.set<WSSession>(*pProtocol, self, move(request.pWSDecoder)).writer, *self);
+
+							// Create WSSession
+							HTTP_BEGIN_HEADER(_pWriter->writeRaw(HTTP_CODE_101)) // "101 Switching Protocols"
+								HTTP_ADD_HEADER("Upgrade", "WebSocket")
+								string protocols;
+								if (peer.properties().getString("sec-websocket-protocol", protocols)) {
+									String::Append(__writer, "Sec-WebSocket-Protocol: ", protocols, "\r\n");
+								}
+							WS::WriteKey(__writer.write(EXPAND("Sec-WebSocket-Accept: ")), request->secWebsocketKey).write("\r\n");
+							HTTP_END_HEADER
 						} else {
 							ex.set<Ex::Unavailable>("Unavailable ", request->upgrade, " protocol");
 							exToLog = true;
