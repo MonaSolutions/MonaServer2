@@ -18,10 +18,17 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y libluajit-5.1-dev
     - name: make
-      run: make
-    - name: Test
-      run: ls -al
-      working-directory: ./UnitTests
+      # run: make
+      run: |
+        cd ./MonaBase
+        make
+        cd ../UnitTests
+        make
     - name: Run UnitTests
       run: ./UnitTests -m=all
+      working-directory: ./UnitTests
+    - name: Test
+      run: |
+        ls -al
+        cat UnitTests.log/0.log
       working-directory: ./UnitTests
