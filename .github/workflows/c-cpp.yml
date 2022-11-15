@@ -18,17 +18,11 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y libluajit-5.1-dev
     - name: make
-      # run: make
-      run: |
-        cd ./MonaBase
-        make
-        cd ../UnitTests
-        make
+      run: make
     - name: Run UnitTests
-      run: ./UnitTests -m=all
-      working-directory: ./UnitTests
-    - name: Test
       run: |
-        ls -al
+        ./UnitTests -m=all
+        # TODO: Remove the following command when ConsoleLogger is fixed
+        # (_isInteractive is false in our case and there is no way to configure it)
         cat UnitTests.log/0.log
       working-directory: ./UnitTests
