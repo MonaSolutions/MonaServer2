@@ -20,4 +20,4 @@ jobs:
     - name: make
       run: make
     - name: Run UnitTests
-      run: cd UnitTests && ./UnitTests
+      run: cd UnitTests && ./UnitTests -m=all
