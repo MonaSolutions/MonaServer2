@@ -19,7 +19,9 @@ jobs:
         sudo apt-get install -y libluajit-5.1-dev
     - name: make
       run: make
+    - name: Test
+      run: ls -al
+      working-directory: ./UnitTests
     - name: Run UnitTests
       run: ./UnitTests -m=all
-      shell: bash {0}
       working-directory: ./UnitTests
