@@ -20,6 +20,6 @@ jobs:
     - name: make
       run: make
     - name: Run UnitTests
-      run: |
-        cd UnitTests
-        ./UnitTests -m=all
+      run: ./UnitTests -m=all
+      shell: bash {0}
+      working-directory: ./UnitTests
