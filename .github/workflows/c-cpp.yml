@@ -15,8 +15,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Install luajit
       run: |
-        apt-get update -y
-        apt-get install -y luajit
+        sudo apt-get update -y
+        sudo apt-get install -y luajit
     - name: make
       run: make
     - name: Run UnitTests
