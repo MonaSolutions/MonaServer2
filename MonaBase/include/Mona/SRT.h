@@ -220,10 +220,8 @@ private:
 //
 #if defined(_MSC_VER)
 #if defined(_DEBUG)
-#pragma comment(lib, "pthread_libd.lib")
 #pragma comment(lib, "srt_staticd.lib")
 #else
-#pragma comment(lib, "pthread_lib.lib")
 #pragma comment(lib, "srt_static.lib")
 #endif
 #endif
