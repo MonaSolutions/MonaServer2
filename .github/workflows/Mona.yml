@@ -30,7 +30,7 @@ jobs:
           
       - name: Unit Tests
         run: |
-          ./UnitTests
+          ./UnitTests -m=all
           cat UnitTests.log/0.log
         working-directory: UnitTests/
   
@@ -56,7 +56,7 @@ jobs:
 
       - name: Unit Tests
         run: |
-          ./UnitTests
+          ./UnitTests -m=all
           cat UnitTests.log/0.log
         working-directory: UnitTests/
 
@@ -74,7 +74,6 @@ jobs:
 
         - name: Build
           run: |
-            cd MonaServer2
             msbuild Mona.sln
 
         - name: Upload Artifact 
@@ -85,9 +84,9 @@ jobs:
 
         - name: Unit Tests
           run: |
-            UnitTests.exe
+            UnitTests.exe -m=all
             cat UnitTests.log/0.log
-          working-directory: UnitTests/Debug/
+          working-directory: UnitTests/Release/
           
 
   build-linux:
@@ -104,8 +103,6 @@ jobs:
 
           - name: Build
             run: |
-              git clone https://github.com/MonaSolutions/MonaServer2.git
-              cd MonaServer2
               make -j${nproc}
 
           - name: Upload Artifact 
@@ -116,6 +113,6 @@ jobs:
 
           - name: Unit Tests
             run: |
-              ./UnitTests
+              ./UnitTests -m=all
               cat UnitTests.log/0.log
             working-directory: UnitTests/
