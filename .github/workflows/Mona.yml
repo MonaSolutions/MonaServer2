@@ -46,6 +46,8 @@ jobs:
 
       - name: Build
         run: |
+          export OPENSSL_INCLUDE_DIR="$(brew --prefix openssl)/include"
+          export OPENSSL_LIB_DIR="$(brew --prefix openssl)/lib"
           make -j${nproc}
 
       - name: Upload Artifact 
@@ -85,8 +87,7 @@ jobs:
         - name: Unit Tests
           run: |
             UnitTests.exe -m=all
-            cat UnitTests.log/0.log
-          working-directory: UnitTests/Release/
+          working-directory: UnitTests/Debug/
           
 
   build-linux:
