@@ -60,7 +60,7 @@ jobs:
         - name: Unit Tests
           run: |
             cp debug\* .
-            .\UnitTests.exe -m=all"
+            .\UnitTests.exe -m=all
             cat UnitTests.log/0.log
           working-directory: UnitTests/
 
