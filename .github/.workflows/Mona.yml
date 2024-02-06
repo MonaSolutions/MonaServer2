@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+jobs:
+  build-macOS-x64:
+    runs-on: macos-12
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Install Deps
+        run: brew install luajit --HEAD
+
+      - name: Build
+        run: |
+          make -j${nproc}
+
+      - name: Upload Artifact 
+        uses: actions/upload-artifact@v4
+        with: 
+          name: MonaServer-macOS-x64
+          path: MonaServer
+          
+      - name: Unit Tests
+        run: |
+          ./UnitTests
+          cat UnitTests.log/0.log
+        working-directory: UnitTests/
+  
+
+  build-macOS-m1:
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Install Deps
+        run: brew install luajit --HEAD
+
+      - name: Build
+        run: |
+          make -j${nproc}
+
+      - name: Upload Artifact 
+        uses: actions/upload-artifact@v4
+        with: 
+          name: MonaServer-macOS-M1
+          path: MonaServer
+
+      - name: Unit Tests
+        run: |
+          ./UnitTests
+          cat UnitTests.log/0.log
+        working-directory: UnitTests/
+
+
+  build-windows:
+      runs-on: windows-latest
+
+      steps:
+        - uses: actions/checkout@master
+        
+        - name: Setup VSC
+          uses: TheMrMilchmann/setup-msvc-dev@v3
+          with:
+            arch: x64
+
+        - name: Build
+          run: |
+            cd MonaServer2
+            msbuild Mona.sln
+
+        - name: Upload Artifact 
+          uses: actions/upload-artifact@v4
+          with: 
+            name: MonaServer-Win
+            path: MonaServer
+
+        - name: Unit Tests
+          run: |
+            UnitTests.exe
+            cat UnitTests.log/0.log
+          working-directory: UnitTests/Debug/
+          
+
+  build-linux:
+        runs-on: ubuntu-latest
+
+        steps:
+          - uses: actions/checkout@master
+
+          - name: Install Deps
+            run: |
+              git clone https://github.com/LuaJIT/LuaJIT.git
+              cd LuaJIT
+              make -j${nproc} && sudo make install
+
+          - name: Build
+            run: |
+              git clone https://github.com/MonaSolutions/MonaServer2.git
+              cd MonaServer2
+              make -j${nproc}
+
+          - name: Upload Artifact 
+            uses: actions/upload-artifact@v4
+            with: 
+              name: MonaServer-Linux
+              path: MonaServer
+
+          - name: Unit Tests
+            run: |
+              ./UnitTests
+              cat UnitTests.log/0.log
+            working-directory: UnitTests/
