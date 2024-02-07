@@ -23,8 +23,8 @@ endif
 
 # Variables fixed
 ifeq ($(OS),Darwin)
-	LIB=../MonaCore/lib/libMonaCore.dylib
-	SHARED=-dynamiclib -install_name @executable_path/$(LIB)
+	LIB=lib/libMonaCore.dylib
+	SHARED=-dynamiclib -install_name @executable_path/../MonaCore/$(LIB)
 else
 	LIB=lib/libMonaCore.so
 	SHARED=-shared
