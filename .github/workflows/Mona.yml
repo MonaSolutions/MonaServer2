@@ -24,7 +24,7 @@ jobs:
           mkdir -p MonaBin/MonaBase/lib && mkdir -p MonaBin/MonaCore/lib
           cp MonaBase/lib/*.dylib MonaBin/MonaBase
           cp MonaCore/lib/*.dylib MonaBin/MonaCore
-          cp -r MonaServer/* MonaBin
+          cp -r MonaServer MonaBin
 
       - name: Upload Artifact 
         uses: actions/upload-artifact@v4
@@ -54,6 +54,8 @@ jobs:
         - name: Build
           run: |
             msbuild Mona.sln
+            cp MonaServer/debug/* MonaServer
+            rm -R MonaServer/Debug
 
         - name: Upload Artifact 
           uses: actions/upload-artifact@v4
@@ -87,7 +89,7 @@ jobs:
               mkdir -p MonaBin/MonaBase/lib && mkdir -p MonaBin/MonaCore/lib
               cp MonaBase/lib/*.so MonaBin/MonaBase/lib
               cp MonaCore/lib/*.so MonaBin/MonaCore/lib
-              cp -r MonaServer/* MonaBin
+              cp -r MonaServer MonaBin
 
           - name: Upload Artifact 
             uses: actions/upload-artifact@v4
