@@ -21,9 +21,9 @@ jobs:
       - name: Build
         run: |
           make -j${nproc}
-          mkdir -p MonaBin/MonaBase/lib && mkdir -p MonaBin/MonaCore/lib
-          cp MonaBase/lib/*.dylib MonaBin/MonaBase/lib
-          cp MonaCore/lib/*.dylib MonaBin/MonaCore/lib
+          mkdir -p MonaBin/MonaServer/lib
+          cp MonaBase/lib/*.dylib MonaBin/MonaServer/lib
+          cp MonaCore/lib/*.dylib MonaBin/MonaServer/lib
           cp -r MonaServer MonaBin
 
       - name: Upload Artifact 
