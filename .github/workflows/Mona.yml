@@ -21,12 +21,16 @@ jobs:
       - name: Build
         run: |
           make -j${nproc}
+          mkdir -p MonaBin/MonaBase/lib && mkdir -p MonaBin/MonaCore/lib
+          cp MonaBase/lib/*.dylib MonaBin/MonaBase
+          cp MonaCore/lib/*.dylib MonaBin/MonaCore
+          cp -r MonaServer/* MonaBin
 
       - name: Upload Artifact 
         uses: actions/upload-artifact@v4
         with: 
           name: MonaServer-macOS-x64
-          path: MonaServer
+          path: MonaBin
           
     # TODO: Unit Tests don't work on mac for some reason    
       # - name: Unit Tests
@@ -80,12 +84,16 @@ jobs:
           - name: Build
             run: |
               make -j${nproc}
+              mkdir -p MonaBin/MonaBase/lib && mkdir -p MonaBin/MonaCore/lib
+              cp MonaBase/lib/*.so MonaBin/MonaBase/lib
+              cp MonaCore/lib/*.so MonaBin/MonaCore/lib
+              cp -r MonaServer/* MonaBin
 
           - name: Upload Artifact 
             uses: actions/upload-artifact@v4
             with: 
               name: MonaServer-Linux
-              path: MonaServer
+              path: MonaBin
 
           - name: Unit Tests
             run: |
