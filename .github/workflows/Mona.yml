@@ -62,7 +62,7 @@ jobs:
             cp MonaServer/debug/MonaServer.exe MonaBin/
             cp MonaTiny/debug/MonaTiny.exe MonaBin/
             cp MonaServer/MonaServer.ini MonaBin/
-            cp MonaServer/External/lib/lua51.dll MonaBin/
+            cp MonaServer/External/lib64/lua51.dll MonaBin/
 
         - name: Upload Artifact 
           uses: actions/upload-artifact@v4
