@@ -9,10 +9,11 @@ endif
 # Variables with default values
 CXX?=g++
 EXEC?=MonaServer
-EXE_LINKER_FLAGS?=-Wl,--disable-new-dtags
 
 ifeq ($(OS),Darwin)
-	override EXE_LINKER_FLAGS?=-Wl
+	EXE_LINKER_FLAGS?=-Wl
+else
+	EXE_LINKER_FLAGS?=-Wl,--disable-new-dtags
 endif
 
 # Variables extendable
