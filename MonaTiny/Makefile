@@ -12,7 +12,7 @@ EXEC?=MonaTiny
 EXE_LINKER_FLAGS?=-Wl,--disable-new-dtags
 
 ifeq ($(OS),Darwin)
-	EXE_LINKER_FLAGS?=-Wl
+	override EXE_LINKER_FLAGS?=-Wl
 endif
 
 # Variables extendable
