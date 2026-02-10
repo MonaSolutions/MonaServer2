@@ -10,11 +10,18 @@ endif
 CXX?=g++
 
 # Variables extendable
-override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64 -Wall -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-exceptions 
-override INCLUDES+=-I./include/ -I/usr/local/opt/openssl/include/
+override CFLAGS+=-D_GLIBCXX_USE_C99 -std=c++14 -D__BIG_ENDIAN__=$(BIG_ENDIAN) -D_FILE_OFFSET_BITS=64 -Wall -Wno-deprecated-declarations -Wno-reorder -Wno-terminate -Wunknown-pragmas -Wno-unknown-warning-option -Wno-exceptions 
+override INCLUDES+=-I./include/
 override LIBS+=-lcrypto -lssl
-ifneq ("$(wildcard /usr/local/opt/openssl/lib/)","")
-	override LIBDIRS+=-L/usr/local/opt/openssl/lib/
+ifeq ($(OS),Darwin)
+	ifneq ("$(wildcard $(shell brew --prefix openssl)/lib/)","")
+		override LIBDIRS+=-L$(shell brew --prefix openssl)/lib/
+		override CFLAGS+=-I$(shell brew --prefix openssl)/include/
+	endif
+	ifneq ("$(wildcard $(shell brew --prefix luajit)/lib/)","")
+		override LIBDIRS+=-L$(shell brew --prefix luajit)/lib/
+		override CFLAGS+=-I$(shell brew --prefix luajit)/include/
+	endif
 endif
 ifdef ENABLE_SRT
 	override CFLAGS += -DENABLE_SRT

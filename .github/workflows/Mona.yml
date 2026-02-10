@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-macOS-x64:
-    runs-on: macos-12
+  build-macOS-arm:
+    runs-on: macos-15
 
     steps:
       - uses: actions/checkout@master
@@ -20,7 +20,7 @@ jobs:
 
       - name: Build
         run: |
-          make -j${nproc}
+          make -j$(sysctl -n hw.physicalcpu)
           mkdir -p MonaBin/MonaServer
           mkdir -p MonaBin/MonaBase/lib
           mkdir -p MonaBin/MonaCore/lib
@@ -31,11 +31,11 @@ jobs:
       - name: Upload Artifact 
         uses: actions/upload-artifact@v4
         with: 
-          name: MonaServer-macOS-x64
+          name: MonaServer-macOS-arm
           path: MonaBin
           
     # TODO: Unit Tests don't work on mac for some reason    
-      # - name: Unit Tests
+      #- name: Unit Tests
       #  run: |
       #    ./UnitTests -m=all
       #    cat UnitTests.log/0.log
@@ -88,11 +88,11 @@ jobs:
             run: |
               git clone https://github.com/LuaJIT/LuaJIT.git
               cd LuaJIT
-              make -j${nproc} && sudo make install
+              make -j$(nproc) && sudo make install
 
           - name: Build
             run: |
-              make -j${nproc}
+              make -j$(nproc)
               mkdir -p MonaBin/MonaServer
               mkdir -p MonaBin/MonaBase/lib
               mkdir -p MonaBin/MonaCore/lib
