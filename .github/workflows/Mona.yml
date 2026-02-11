@@ -68,9 +68,12 @@ jobs:
         shell: arch -x86_64 bash -e {0}
         run: |
           cp -r ../MonaBin/lib ..
-          codesign --verbose=4 --force --sign - ../lib/libMonaBase.dylib && xattr -d com.apple.quarantine ../lib/libMonaBase.dylib
-          codesign --verbose=4 --force --sign - ../lib/libMonaCore.dylib && xattr -d com.apple.quarantine ../lib/libMonaCore.dylib
-          codesign --verbose=4 --force --sign - UnitTests && xattr -d com.apple.quarantine UnitTests
+          codesign --verbose=4 --force --sign - ../lib/libMonaBase.dylib
+          codesign --verbose=4 --force --sign - ../lib/libMonaCore.dylib
+          codesign --verbose=4 --force --sign - UnitTests
+          ./UnitTests -m=all || true && xattr -rc .
+          ./UnitTests -m=all || true && xattr -rc .
+          ./UnitTests -m=all || true && xattr -rc .
           ./UnitTests -m=all
           cat UnitTests.log/0.log
         working-directory: UnitTests/
