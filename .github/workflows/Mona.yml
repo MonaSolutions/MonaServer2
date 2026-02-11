@@ -67,11 +67,11 @@ jobs:
       - name: Unit Tests
         shell: arch -x86_64 bash -e {0}
         run: |
-          mkdir -p ../lib
-          cp ../MonaBase/lib/libMonaBase.dylib ../MonaCore/lib/libMonaCore.dylib ../lib/
-          codesign --force --sign - ../lib/libMonaBase.dylib || true
-          codesign --force --sign - ../lib/libMonaCore.dylib || true
-          codesign --force --sign - UnitTests || true
+          mkdir ../lib
+          cp -r ../MonaBin/lib ..
+          codesign --force --sign - ../lib/libMonaBase.dylib
+          codesign --force --sign - ../lib/libMonaCore.dylib
+          codesign --force --sign - UnitTests
           ./UnitTests -m=all
           cat UnitTests.log/0.log
         working-directory: UnitTests/
