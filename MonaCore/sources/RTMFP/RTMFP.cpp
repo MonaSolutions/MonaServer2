@@ -119,9 +119,11 @@ bool RTMFP::Send(Socket& socket, const Packet& packet, const SocketAddress& addr
 }
 
 bool RTMFP::Engine::decode(Exception& ex, Buffer& buffer, const SocketAddress& address) {
-	static UInt8 IV[KEY_SIZE];
+	static UInt8 IV[KEY_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	EVP_CIPHER_CTX_reset(_context);
 	EVP_CipherInit_ex(_context, EVP_aes_128_cbc(), NULL, _key, IV, 0);
-	int temp;
+	EVP_CIPHER_CTX_set_padding(_context, 0);
+	int temp = buffer.size();
 	EVP_CipherUpdate(_context, buffer.data(), &temp, buffer.data(), buffer.size());
 	// Check CRC
 	BinaryReader reader(buffer.data(), buffer.size());
