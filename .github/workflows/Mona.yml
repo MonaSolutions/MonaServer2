@@ -5,7 +5,6 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-
   workflow_dispatch:
 
 jobs:
@@ -22,10 +21,9 @@ jobs:
         run: |
           make -j$(sysctl -n hw.physicalcpu)
           mkdir -p MonaBin/MonaServer
-          mkdir -p MonaBin/MonaBase/lib
-          mkdir -p MonaBin/MonaCore/lib
-          cp MonaBase/lib/*.dylib MonaBin/MonaBase/lib
-          cp MonaCore/lib/*.dylib MonaBin/MonaCore/lib
+          mkdir -p MonaBin/lib
+          cp MonaBase/lib/*.dylib MonaBin/lib
+          cp MonaCore/lib/*.dylib MonaBin/lib
           cp -r MonaServer/www MonaServer/*.pem MonaServer/MonaServer MonaTiny/MonaTiny MonaServer/MonaServer.ini MonaBin/MonaServer
 
       - name: Upload Artifact 
@@ -33,14 +31,38 @@ jobs:
         with: 
           name: MonaServer-macOS-arm
           path: MonaBin
-          
-    # TODO: Unit Tests don't work on mac for some reason    
-      #- name: Unit Tests
-      #  run: |
-      #    ./UnitTests -m=all
-      #    cat UnitTests.log/0.log
-      #  working-directory: UnitTests/
 
+  build-macOS-x64:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Install Deps
+        shell: arch -x86_64 bash -e {0}
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          echo >> /Users/runner/.bash_profile
+          echo 'eval "$(/usr/local/bin/brew shellenv bash)"' >> /Users/runner/.bash_profile
+          eval "$(/usr/local/bin/brew shellenv bash)"
+          brew install luajit --HEAD && brew install openssl
+
+      - name: Build
+        shell: arch -x86_64 bash -e {0}
+        run: |
+          eval "$(/usr/local/bin/brew shellenv bash)"
+          CXX="arch -x86_64 g++" make -j$(sysctl -n hw.physicalcpu)
+          mkdir -p MonaBin/MonaServer
+          mkdir -p MonaBin/lib
+          cp MonaBase/lib/*.dylib MonaBin/lib
+          cp MonaCore/lib/*.dylib MonaBin/lib
+          cp -r MonaServer/www MonaServer/*.pem MonaServer/MonaServer MonaTiny/MonaTiny MonaServer/MonaServer.ini MonaBin/MonaServer
+          
+      - name: Upload Artifact 
+        uses: actions/upload-artifact@v4
+        with: 
+          name: MonaServer-macOS-x64
+          path: MonaBin
 
   build-windows:
       runs-on: windows-latest
@@ -111,3 +133,4 @@ jobs:
               ./UnitTests -m=all
               cat UnitTests.log/0.log
             working-directory: UnitTests/
+            
