@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-macOS-arm:
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@master
@@ -33,31 +33,23 @@ jobs:
           path: MonaBin
 
   build-macOS-x64:
-    runs-on: macos-15
+    runs-on: macos-26-intel
 
     steps:
       - uses: actions/checkout@master
 
       - name: Install Deps
-        shell: arch -x86_64 bash -e {0}
-        run: |
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          echo >> /Users/runner/.bash_profile
-          echo 'eval "$(/usr/local/bin/brew shellenv bash)"' >> /Users/runner/.bash_profile
-          eval "$(/usr/local/bin/brew shellenv bash)"
-          brew install luajit --HEAD && brew install openssl
+        run: brew install luajit --HEAD
 
       - name: Build
-        shell: arch -x86_64 bash -e {0}
         run: |
-          eval "$(/usr/local/bin/brew shellenv bash)"
-          CXX="arch -x86_64 g++" make -j$(sysctl -n hw.physicalcpu)
+          make -j$(sysctl -n hw.physicalcpu)
           mkdir -p MonaBin/MonaServer
           mkdir -p MonaBin/lib
           cp MonaBase/lib/*.dylib MonaBin/lib
           cp MonaCore/lib/*.dylib MonaBin/lib
           cp -r MonaServer/www MonaServer/*.pem MonaServer/MonaServer MonaTiny/MonaTiny MonaServer/MonaServer.ini MonaBin/MonaServer
-          
+
       - name: Upload Artifact 
         uses: actions/upload-artifact@v4
         with: 
